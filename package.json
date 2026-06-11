@@ -1,0 +1,23 @@
+{
+  "name": "mbalabs",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=mba-labs-core",
+    "dev:core": "npm run dev --workspace=mba-labs-core",
+    "dev:cotacoes": "npm run dev --workspace=mba-cotacoes",
+    "dev:lavagestor": "npm run dev --workspace=lavagestor",
+    "build": "npm run build --workspace=mba-labs-core",
+    "build:all": "npm run build --workspaces --if-present",
+    "build:core": "npm run build --workspace=mba-labs-core",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

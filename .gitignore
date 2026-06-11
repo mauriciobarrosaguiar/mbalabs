@@ -1,0 +1,15 @@
+node_modules
+.next
+.env
+.env.local
+.env.production
+.vercel
+dist
+build
+coverage
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
