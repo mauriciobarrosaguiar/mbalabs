@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { getSessionProfile } from "@/lib/core-data";
 
-export function AppNav() {
+export async function AppNav() {
+  const { user } = await getSessionProfile();
+
   return (
     <header className="border-b border-white/10 bg-black/20">
       <nav className="page-shell flex min-h-16 flex-wrap items-center justify-between gap-4 py-3">
@@ -17,9 +20,15 @@ export function AppNav() {
           <Link className="rounded-[8px] px-3 py-2 hover:bg-white/10" href="/admin/usuarios">
             Usuarios
           </Link>
-          <Link className="rounded-[8px] px-3 py-2 hover:bg-white/10" href="/login">
-            Entrar
-          </Link>
+          {user ? (
+            <Link className="rounded-[8px] px-3 py-2 hover:bg-white/10" href="/sair">
+              Sair
+            </Link>
+          ) : (
+            <Link className="rounded-[8px] px-3 py-2 hover:bg-white/10" href="/login">
+              Entrar
+            </Link>
+          )}
         </div>
       </nav>
     </header>
