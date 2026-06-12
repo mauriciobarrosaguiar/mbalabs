@@ -5,7 +5,7 @@ Portal central e monorepo inicial dos sistemas MBA Labs.
 ## O que foi criado
 
 - `apps/mba-labs-core`: portal principal para landing page, login, cadastro do Admin Master, dashboard e telas administrativas.
-- `apps/mba-cotacoes`: estrutura inicial do MBA Cotacoes, com rotas protegidas e leitura das tabelas `cot_`.
+- `apps/mba-cotacoes`: app MBA Cotacoes completo, com rotas protegidas, login central do MBA Labs e migrations operacionais originais.
 - `apps/lavagestor`: estrutura inicial do LavaGestor, com rotas protegidas e leitura das tabelas `lava_`.
 - `packages/shared`: pacote compartilhado com clientes Supabase e tipos do banco.
 - `supabase/migrations/001_initial_schema.sql`: migration inicial do banco unico multiempresa.
@@ -38,7 +38,7 @@ Crie os arquivos locais de ambiente:
 ```powershell
 Copy-Item .env.example .env.local
 Copy-Item apps\mba-labs-core\.env.local.example apps\mba-labs-core\.env.local
-Copy-Item apps\mba-cotacoes\.env.local.example apps\mba-cotacoes\.env.local
+Copy-Item apps\mba-cotacoes\.env.example apps\mba-cotacoes\.env.local
 Copy-Item apps\lavagestor\.env.local.example apps\lavagestor\.env.local
 ```
 
@@ -60,7 +60,7 @@ npm.cmd run dev:lavagestor
 Portas padrao:
 
 - MBA Labs Core: `http://localhost:3000`
-- MBA Cotacoes: `http://localhost:3001/cotacoes`
+- MBA Cotacoes: `http://localhost:3001/app/dashboard` ou alias `http://localhost:3001/apps/mba-cotacoes`
 - LavaGestor: `http://localhost:3002/lavagestor`
 
 ## Variaveis de ambiente

@@ -9,9 +9,11 @@
   "scripts": {
     "dev": "npm --prefix apps/mba-labs-core run dev",
     "dev:core": "npm --prefix apps/mba-labs-core run dev",
+    "dev:cotacoes": "npm run dev --workspace=mba-cotacoes",
     "dev:lavagestor": "npm run dev --workspace=lavagestor",
     "build": "npm --prefix apps/mba-labs-core run build",
     "build:all": "npm run build --workspaces --if-present",
+    "build:cotacoes": "npm run build --workspace=mba-cotacoes",
     "build:core": "npm --prefix apps/mba-labs-core run build",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
