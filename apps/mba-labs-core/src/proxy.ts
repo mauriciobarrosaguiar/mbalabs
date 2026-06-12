@@ -8,6 +8,14 @@ export function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-mba-current-path", currentPath);
 
+  if (isPublicCotacoesPath(request.nextUrl.pathname)) {
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders
+      }
+    });
+  }
+
   if (isProtectedPath(request.nextUrl.pathname) && !hasSupabaseAuthCookie(request)) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
@@ -35,6 +43,17 @@ export const config = {
 
 function isProtectedPath(pathname: string) {
   return protectedPrefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+function isPublicCotacoesPath(pathname: string) {
+  return (
+    pathname.startsWith("/cotacoes/responder/") ||
+    pathname.startsWith("/cotacoes/pedido/") ||
+    pathname.startsWith("/cotacoes/cotacao/responder/") ||
+    pathname.startsWith("/cotacoes/licitacao/responder/") ||
+    pathname.startsWith("/cotacoes/cotacao/pedido/") ||
+    pathname.startsWith("/cotacoes/licitacao/pedido/")
+  );
 }
 
 function hasSupabaseAuthCookie(request: NextRequest) {

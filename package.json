@@ -7,13 +7,12 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=mba-labs-core",
-    "dev:core": "npm run dev --workspace=mba-labs-core",
-    "dev:cotacoes": "npm run dev --workspace=mba-cotacoes",
+    "dev": "npm --prefix apps/mba-labs-core run dev",
+    "dev:core": "npm --prefix apps/mba-labs-core run dev",
     "dev:lavagestor": "npm run dev --workspace=lavagestor",
-    "build": "npm run build --workspace=mba-labs-core",
+    "build": "npm --prefix apps/mba-labs-core run build",
     "build:all": "npm run build --workspaces --if-present",
-    "build:core": "npm run build --workspace=mba-labs-core",
+    "build:core": "npm --prefix apps/mba-labs-core run build",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },

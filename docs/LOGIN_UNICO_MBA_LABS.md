@@ -15,7 +15,6 @@ Em `Authentication > URL Configuration`, conferir:
 - Site URL: `https://mbalabs.vercel.app`
 - Redirect URLs:
   - `https://mbalabs.vercel.app/**`
-  - `https://mbacotacoes.vercel.app/**`
   - `https://lavagestor.vercel.app/**`
 
 ## Vercel
