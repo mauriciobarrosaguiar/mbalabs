@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCurrentUserProfile, logAction } from "@/lib/core-data";
+import { logAction, requireAppAccess } from "@/lib/core-data";
 import { booleanValue, dateValue, messageParam, nullableTextValue, numberValue, textValue } from "@/lib/form-utils";
 import { getSupabaseServer } from "@/lib/supabase";
 
 export async function saveCliente(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
   const nome = textValue(formData, "nome");
@@ -39,7 +39,7 @@ export async function saveCliente(formData: FormData) {
 }
 
 export async function deleteCliente(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
   const { error } = await (supabase as any).from("lava_clientes").delete().eq("id", id).eq("empresa_id", current.empresaId);
@@ -54,7 +54,7 @@ export async function deleteCliente(formData: FormData) {
 }
 
 export async function saveVeiculo(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
   const clienteId = textValue(formData, "cliente_id");
@@ -88,7 +88,7 @@ export async function saveVeiculo(formData: FormData) {
 }
 
 export async function deleteVeiculo(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
   const { error } = await (supabase as any).from("lava_veiculos").delete().eq("id", id).eq("empresa_id", current.empresaId);
@@ -103,7 +103,7 @@ export async function deleteVeiculo(formData: FormData) {
 }
 
 export async function saveFuncionario(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
   const nome = textValue(formData, "nome");
@@ -134,7 +134,7 @@ export async function saveFuncionario(formData: FormData) {
 }
 
 export async function inactivateFuncionario(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
   const { error } = await (supabase as any)
@@ -153,7 +153,7 @@ export async function inactivateFuncionario(formData: FormData) {
 }
 
 export async function saveServico(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
   const nome = textValue(formData, "nome");
@@ -185,7 +185,7 @@ export async function saveServico(formData: FormData) {
 }
 
 export async function inactivateServico(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
   const { error } = await (supabase as any)
@@ -204,7 +204,7 @@ export async function inactivateServico(formData: FormData) {
 }
 
 export async function createLavagem(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const client = supabase as any;
   const clienteId = textValue(formData, "cliente_id");
@@ -278,7 +278,7 @@ export async function createLavagem(formData: FormData) {
 }
 
 export async function markComissaoPaga(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
   const { error } = await (supabase as any)
@@ -297,7 +297,7 @@ export async function markComissaoPaga(formData: FormData) {
 }
 
 export async function saveVale(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const funcionarioId = textValue(formData, "funcionario_id");
   const valor = numberValue(formData, "valor");
@@ -325,7 +325,7 @@ export async function saveVale(formData: FormData) {
 }
 
 export async function updateValeStatus(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
   const status = textValue(formData, "status");

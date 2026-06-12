@@ -12,7 +12,7 @@ const links = [
 ];
 
 export function LavaGestorShell({ children }: { children: React.ReactNode }) {
-  const coreUrl = process.env.NEXT_PUBLIC_CORE_URL ?? "http://localhost:3000";
+  const coreUrl = process.env.NEXT_PUBLIC_CORE_URL ?? "https://mbalabs.vercel.app";
 
   return (
     <main>
@@ -39,7 +39,7 @@ export function LavaGestorShell({ children }: { children: React.ReactNode }) {
 }
 
 export function LoginRequired({ error }: { error?: string | null }) {
-  const coreUrl = process.env.NEXT_PUBLIC_CORE_URL ?? "http://localhost:3000";
+  const coreUrl = process.env.NEXT_PUBLIC_CORE_URL ?? "https://mbalabs.vercel.app";
 
   return (
     <section className="page-shell grid gap-4 py-8">
@@ -50,8 +50,8 @@ export function LoginRequired({ error }: { error?: string | null }) {
           As telas do LavaGestor exigem login e assinatura ativa.
         </p>
         {error ? <p className="mt-3 text-sm text-red-200">{error}</p> : null}
-        <a className="button-primary mt-5" href={`${coreUrl}/login`}>
-          Ir para login
+        <a className="button-primary mt-5" href={`${coreUrl}/login?next=/lavagestor`}>
+          Entrar pela MBA Labs
         </a>
       </div>
     </section>

@@ -1,26 +1,19 @@
+import { getCurrentUserProfileFromSupabase } from "@mba-labs/shared/auth/profile";
 import { getSupabaseServer } from "./supabase";
 
 export async function getCotacoesContext() {
   try {
     const supabase = await getSupabaseServer();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
+    const current = await getCurrentUserProfileFromSupabase(supabase);
 
-    if (!user) {
+    if (!current.authUser) {
       return { signedIn: false, profile: null, error: null };
     }
 
-    const { data: profile, error } = await supabase
-      .from("core_usuarios")
-      .select("id,nome,email,tipo,empresa_id")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-
     return {
       signedIn: true,
-      profile,
-      error: error?.message ?? null
+      profile: current.usuario,
+      error: current.error
     };
   } catch (error) {
     return {

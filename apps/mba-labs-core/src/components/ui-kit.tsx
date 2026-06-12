@@ -295,6 +295,27 @@ export function ConfirmDialog({
   );
 }
 
+export function AccessDenied({
+  appName = "este sistema",
+  backHref = "/dashboard"
+}: {
+  appName?: string;
+  backHref?: string;
+}) {
+  return (
+    <div className="panel mx-auto grid max-w-xl gap-4 p-6 text-center">
+      <p className="eyebrow">Acesso bloqueado</p>
+      <h1 className="text-3xl font-black">Você não tem acesso a {appName}</h1>
+      <p className="text-sm leading-6 text-slate-300">
+        Verifique a assinatura da empresa ou peça para um administrador liberar sua permissão.
+      </p>
+      <Link className="button-primary mx-auto" href={backHref}>
+        Voltar ao dashboard
+      </Link>
+    </div>
+  );
+}
+
 export function BackButton({ href, label = "Voltar" }: { href: string; label?: string }) {
   return (
     <Link className="button-secondary" href={href}>

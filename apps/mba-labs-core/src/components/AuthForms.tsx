@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseClient } from "@mba-labs/shared/supabase/client";
 
-export function LoginForm() {
+export function LoginForm({ nextPath = "/dashboard" }: { nextPath?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,7 +28,13 @@ export function LoginForm() {
         return;
       }
 
-      router.push("/dashboard");
+      await fetch("/api/auth/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ acao: "login realizado" })
+      }).catch(() => null);
+
+      router.push(nextPath);
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Erro no login.");

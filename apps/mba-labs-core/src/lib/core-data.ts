@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { getCurrentUserProfileFromSupabase, type SharedAppAccess, type SharedPermissao } from "@mba-labs/shared/auth/profile";
 import { getSupabaseServer } from "./supabase";
 
 export type CoreProfile = {
@@ -18,6 +20,8 @@ export type CurrentUserProfile = {
   empresaId: string;
   tipo: string;
   isAdminMaster: boolean;
+  permissoes: SharedPermissao[];
+  appsLiberados: SharedAppAccess[];
 };
 
 export type SystemCard = {
@@ -51,25 +55,20 @@ export const fallbackApps: SystemCard[] = [
 export async function getSessionProfile() {
   try {
     const supabase = await getSupabaseServer();
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
+    const current = await getCurrentUserProfileFromSupabase(supabase);
+    const user = current.authUser;
 
     if (!user) {
-      return { user: null, profile: null, error: null };
+      return { user: null, profile: null, error: current.error };
     }
 
-    const { data: profile, error } = await supabase
-      .from("core_usuarios")
-      .select("id,nome,email,tipo,empresa_id")
-      .eq("auth_user_id", user.id)
-      .maybeSingle();
-
-    if (error) {
-      return { user, profile: null, error: error.message };
-    }
-
-    return { user, profile: profile as CoreProfile | null, error: null };
+    return {
+      user,
+      profile: current.usuario as CoreProfile | null,
+      permissoes: current.permissoes,
+      appsLiberados: current.appsLiberados,
+      error: current.error
+    };
   } catch (error) {
     return {
       user: null,
@@ -79,11 +78,11 @@ export async function getSessionProfile() {
   }
 }
 
-export async function requireSessionProfile() {
+export async function requireSessionProfile(nextPath?: string) {
   const context = await getSessionProfile();
 
   if (!context.user) {
-    redirect("/login");
+    redirect(`/login?next=${encodeURIComponent(await getRequestPath(nextPath))}`);
   }
 
   if (!context.profile) {
@@ -92,12 +91,14 @@ export async function requireSessionProfile() {
 
   return {
     user: context.user,
-    profile: context.profile
+    profile: context.profile,
+    permissoes: context.permissoes ?? [],
+    appsLiberados: context.appsLiberados ?? []
   };
 }
 
-export async function getCurrentUserProfile(): Promise<CurrentUserProfile> {
-  const { user, profile } = await requireSessionProfile();
+export async function getCurrentUserProfile(nextPath?: string): Promise<CurrentUserProfile> {
+  const { user, profile, permissoes, appsLiberados } = await requireSessionProfile(nextPath);
 
   if (!profile.empresa_id) {
     redirect("/setup-admin");
@@ -111,8 +112,21 @@ export async function getCurrentUserProfile(): Promise<CurrentUserProfile> {
     usuario: profile,
     empresaId: profile.empresa_id,
     tipo: profile.tipo,
-    isAdminMaster: profile.tipo === "admin_master"
+    isAdminMaster: profile.tipo === "admin_master",
+    permissoes,
+    appsLiberados
   };
+}
+
+export async function requireAppAccess(appSlug: string, nextPath?: string) {
+  const current = await getCurrentUserProfile(nextPath);
+
+  if (current.isAdminMaster || current.appsLiberados.some((app) => app.slug === appSlug && app.canAccess)) {
+    return current;
+  }
+
+  const attemptedPath = await getRequestPath(nextPath);
+  redirect(`/acesso-bloqueado?app=${encodeURIComponent(appSlug)}&next=${encodeURIComponent(attemptedPath)}`);
 }
 
 export async function logAction({
@@ -140,7 +154,8 @@ export async function logAction({
 }
 
 export async function getDashboardData() {
-  const { profile } = await requireSessionProfile();
+  const current = await getCurrentUserProfile("/dashboard");
+  const profile = current.usuario;
   const supabase = await getSupabaseServer();
   const client = supabase as any;
 
@@ -173,35 +188,44 @@ export async function getDashboardData() {
     };
   }
 
-  const { data: assinaturas } = await client
-    .from("core_assinaturas")
-    .select("status,app_id,core_apps(slug)")
-    .eq("empresa_id", profile.empresa_id)
-    .in("status", ["ativa", "teste"]);
-
-  const activeBySlug = new Map<string, string>();
-  for (const assinatura of assinaturas ?? []) {
-    const slug = assinatura.core_apps?.slug;
-    if (slug) {
-      activeBySlug.set(slug, assinatura.status);
-    }
-  }
+  const accessBySlug = new Map(current.appsLiberados.map((app) => [app.slug, app]));
 
   return {
     profile,
     apps: apps.map((app: any) => {
-      const status = activeBySlug.get(app.slug);
+      const access = accessBySlug.get(app.slug);
       return {
         slug: app.slug,
         nome: app.nome,
         descricao: app.descricao ?? "Sistema MBA Labs.",
         url_path: app.url_path ?? `/${app.slug}`,
-        status: (status ?? "bloqueada") as SystemCard["status"],
-        canAccess: Boolean(status)
+        status: (access?.status ?? "bloqueada") as SystemCard["status"],
+        canAccess: Boolean(access?.canAccess)
       };
     }) as SystemCard[],
     error: null
   };
+}
+
+async function getRequestPath(explicitPath?: string) {
+  if (explicitPath) {
+    return sanitizeInternalPath(explicitPath);
+  }
+
+  try {
+    const requestHeaders = await headers();
+    return sanitizeInternalPath(requestHeaders.get("x-mba-current-path") ?? "/dashboard");
+  } catch {
+    return "/dashboard";
+  }
+}
+
+function sanitizeInternalPath(path: string) {
+  if (!path.startsWith("/") || path.startsWith("//")) {
+    return "/dashboard";
+  }
+
+  return path;
 }
 
 export type AdminField = {

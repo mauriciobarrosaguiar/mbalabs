@@ -34,6 +34,16 @@ export function firstParam(value: string | string[] | undefined) {
   return value;
 }
 
+export function safeNextPath(value: string | string[] | undefined, fallback = "/dashboard") {
+  const next = firstParam(value);
+
+  if (!next || !next.startsWith("/") || next.startsWith("//")) {
+    return fallback;
+  }
+
+  return next;
+}
+
 export function includesSearch(row: Record<string, unknown>, keys: string[], search: string) {
   const term = search.trim().toLowerCase();
 

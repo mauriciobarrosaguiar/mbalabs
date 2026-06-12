@@ -2,12 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCurrentUserProfile, logAction } from "@/lib/core-data";
+import { logAction, requireAppAccess } from "@/lib/core-data";
 import { booleanValue, messageParam, nullableTextValue, numberValue, textValue } from "@/lib/form-utils";
 import { getSupabaseServer } from "@/lib/supabase";
 
 export async function saveProduto(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("mba-cotacoes");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
   const nome = textValue(formData, "nome");
@@ -39,7 +39,7 @@ export async function saveProduto(formData: FormData) {
 }
 
 export async function inactivateProduto(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("mba-cotacoes");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
 
@@ -59,7 +59,7 @@ export async function inactivateProduto(formData: FormData) {
 }
 
 export async function saveVendedor(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("mba-cotacoes");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
   const nome = textValue(formData, "nome");
@@ -91,7 +91,7 @@ export async function saveVendedor(formData: FormData) {
 }
 
 export async function inactivateVendedor(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("mba-cotacoes");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
 
@@ -111,7 +111,7 @@ export async function inactivateVendedor(formData: FormData) {
 }
 
 export async function createCotacao(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("mba-cotacoes");
   const supabase = await getSupabaseServer();
   const client = supabase as any;
   const titulo = textValue(formData, "titulo");
@@ -170,7 +170,7 @@ export async function createCotacao(formData: FormData) {
 }
 
 export async function finalizarCotacao(formData: FormData) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("mba-cotacoes");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
 

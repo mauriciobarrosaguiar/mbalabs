@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
-import { getCurrentUserProfile } from "./core-data";
+import { requireAppAccess } from "./core-data";
 import { includesSearch } from "./form-utils";
 import { getSupabaseServer } from "./supabase";
 
 export type CotacaoStatus = "aberta" | "finalizada";
 
 export async function getCotacoesDashboard() {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("mba-cotacoes");
   const supabase = await getSupabaseServer();
   const client = supabase as any;
 
@@ -28,7 +28,7 @@ export async function getCotacoesDashboard() {
 }
 
 export async function listCotProdutos(search = "") {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("mba-cotacoes");
   const supabase = await getSupabaseServer();
   const { data, error } = await (supabase as any)
     .from("cot_produtos")
@@ -45,7 +45,7 @@ export async function listCotProdutos(search = "") {
 }
 
 export async function listCotVendedores(search = "") {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("mba-cotacoes");
   const supabase = await getSupabaseServer();
   const { data, error } = await (supabase as any)
     .from("cot_vendedores")
@@ -62,7 +62,7 @@ export async function listCotVendedores(search = "") {
 }
 
 export async function listCotacoes(status?: CotacaoStatus) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("mba-cotacoes");
   const supabase = await getSupabaseServer();
   let query = (supabase as any)
     .from("cot_cotacoes")
@@ -89,7 +89,7 @@ export async function getCotacoesLookups() {
 }
 
 export async function getCotacaoDetail(id: string) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("mba-cotacoes");
   const supabase = await getSupabaseServer();
   const client = supabase as any;
 
@@ -136,7 +136,7 @@ export async function getCotacaoDetail(id: string) {
 }
 
 export async function listCotPedidos() {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("mba-cotacoes");
   const supabase = await getSupabaseServer();
   const { data, error } = await (supabase as any)
     .from("cot_pedidos")

@@ -1,7 +1,24 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/AuthForms";
+import { getSessionProfile } from "@/lib/core-data";
+import { safeNextPath } from "@/lib/form-utils";
 
-export default function LoginPage() {
+export const dynamic = "force-dynamic";
+
+export default async function LoginPage({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const nextPath = safeNextPath(params.next);
+  const { user } = await getSessionProfile();
+
+  if (user) {
+    redirect(nextPath);
+  }
+
   return (
     <main className="page-shell grid min-h-screen content-center py-10">
       <div className="mx-auto grid w-full max-w-md gap-6">
@@ -16,7 +33,7 @@ export default function LoginPage() {
               Use o email e senha cadastrados no Supabase Auth.
             </p>
           </div>
-          <LoginForm />
+          <LoginForm nextPath={nextPath} />
           <Link className="text-sm font-semibold text-cyan-200" href="/setup-admin">
             Primeiro acesso? Criar Admin Master
           </Link>

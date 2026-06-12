@@ -1,9 +1,9 @@
-import { getCurrentUserProfile } from "./core-data";
+import { requireAppAccess } from "./core-data";
 import { includesSearch } from "./form-utils";
 import { getSupabaseServer } from "./supabase";
 
 export async function getLavaDashboard() {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const client = supabase as any;
 
@@ -21,7 +21,7 @@ export async function getLavaDashboard() {
 }
 
 export async function listLavaClientes(search = "") {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const { data, error } = await (supabase as any)
     .from("lava_clientes")
@@ -38,7 +38,7 @@ export async function listLavaClientes(search = "") {
 }
 
 export async function listLavaVeiculos(search = "") {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const { data, error } = await (supabase as any)
     .from("lava_veiculos")
@@ -55,7 +55,7 @@ export async function listLavaVeiculos(search = "") {
 }
 
 export async function listLavaFuncionarios(search = "") {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const { data, error } = await (supabase as any)
     .from("lava_funcionarios")
@@ -72,7 +72,7 @@ export async function listLavaFuncionarios(search = "") {
 }
 
 export async function listLavaServicos(search = "") {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const { data, error } = await (supabase as any)
     .from("lava_servicos")
@@ -105,7 +105,7 @@ export async function getLavaLookups() {
 }
 
 export async function listLavaLavagens(filters: { data?: string; funcionario?: string; status?: string } = {}) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const { data, error } = await (supabase as any)
     .from("lava_lavagens")
@@ -135,7 +135,7 @@ export async function listLavaLavagens(filters: { data?: string; funcionario?: s
 }
 
 export async function listLavaComissoes(filters: { funcionario?: string; status?: string } = {}) {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const { data, error } = await (supabase as any)
     .from("lava_comissoes")
@@ -159,7 +159,7 @@ export async function listLavaComissoes(filters: { funcionario?: string; status?
 }
 
 export async function listLavaVales(search = "") {
-  const current = await getCurrentUserProfile();
+  const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const { data, error } = await (supabase as any)
     .from("lava_vales")
