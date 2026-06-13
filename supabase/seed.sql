@@ -1,7 +1,23 @@
+insert into public.core_empresa_categorias (nome, slug, descricao, status)
+values
+  ('Farmacia', 'farmacia', 'Farmacias e redes farmaceuticas.', 'ativa'),
+  ('Drogaria', 'drogaria', 'Drogarias independentes ou redes.', 'ativa'),
+  ('Distribuidora', 'distribuidora', 'Distribuidoras e atacadistas.', 'ativa'),
+  ('Lava Jato', 'lava-jato', 'Lava jatos e esteticas automotivas.', 'ativa'),
+  ('Estetica Automotiva', 'estetica-automotiva', 'Empresas de estetica automotiva.', 'ativa'),
+  ('Clinica', 'clinica', 'Clinicas e prestadores de saude.', 'ativa'),
+  ('Guincho', 'guincho', 'Empresas de guincho e assistencia.', 'ativa'),
+  ('Agro', 'agro', 'Empresas do agronegocio.', 'ativa'),
+  ('Outros', 'outros', 'Categoria geral para empresas nao classificadas.', 'ativa')
+on conflict (slug) do update set
+  nome = excluded.nome,
+  descricao = excluded.descricao,
+  status = excluded.status;
+
 insert into public.core_apps (slug, nome, descricao, url_path, ativo, ordem)
 values
-  ('mba-cotacoes', 'MBA Cotacoes', 'Sistema de cotacoes, vendedores, respostas e pedidos.', '/cotacoes', true, 10),
-  ('lavagestor', 'LavaGestor', 'Sistema para gestao de lava-jatos, lavagens, vales e comissoes.', '/lavagestor', true, 20)
+  ('mba-cotacoes', 'MBA Cotacoes', 'Sistema de cotacoes, vendedores, respostas e pedidos.', '/apps/mbacotacoes', true, 10),
+  ('lavagestor', 'LavaGestor', 'Sistema para gestao de lava-jatos, lavagens, vales e comissoes.', '/apps/lavagestor', true, 20)
 on conflict (slug) do update set
   nome = excluded.nome,
   descricao = excluded.descricao,

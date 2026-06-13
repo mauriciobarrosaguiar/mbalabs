@@ -30,6 +30,7 @@ import {
 export const dynamic = "force-dynamic";
 
 const resources = [
+  "categorias-empresas",
   "empresas",
   "usuarios",
   "apps",
@@ -54,8 +55,16 @@ export default async function AdminResourcePage({
     notFound();
   }
 
-  const { rows, error } = await getAdminRows(resource as AdminResource);
   const options = await getAdminOptions();
+  const filters = {
+    categoria: firstParam(query.categoria),
+    status: firstParam(query.status),
+    app: firstParam(query.app),
+    cidade: firstParam(query.cidade),
+    estado: firstParam(query.estado),
+    q: firstParam(query.q)
+  };
+  const { rows, error } = await getAdminRows(resource as AdminResource, filters);
   const editId = firstParam(query.edit);
   const editing = rows.find((row) => row.id === editId);
   const displayRows = formatAdminRows(rows);
@@ -65,7 +74,7 @@ export default async function AdminResourcePage({
       <AppNav />
       <section className="page-shell grid gap-6 py-8">
         <PageHeader
-          eyebrow="Administração"
+          eyebrow="Administracao"
           title={config.title}
           description={
             config.readOnly
@@ -97,10 +106,12 @@ export default async function AdminResourcePage({
 
         <MessageBanner ok={firstParam(query.ok)} error={firstParam(query.error) ?? error ?? undefined} />
 
+        {resource === "empresas" ? <EmpresaFilters options={options} filters={filters} /> : null}
+
         {resource === "usuarios" ? (
           <p className="rounded-[8px] border border-sky-300/30 bg-sky-300/10 p-3 text-sm leading-6 text-sky-100">
-            Este formulário cria e edita o perfil do usuário no portal. A criação automática da conta no Supabase Auth
-            fica para uma próxima etapa com rota server-side usando service_role.
+            Este formulario cria a conta no Supabase Auth quando uma senha provisoria e informada e grava a permissao do
+            app selecionado.
           </p>
         ) : null}
 
@@ -112,8 +123,12 @@ export default async function AdminResourcePage({
               title={editing ? `Editar ${config.title}` : `Novo registro em ${config.title}`}
               actions={
                 <>
-                  <SubmitButton>{editing ? "Salvar alterações" : "Salvar"}</SubmitButton>
-                  {editing ? <Link className="button-secondary" href={`/admin/${resource}`}>Cancelar</Link> : null}
+                  <SubmitButton>{editing ? "Salvar alteracoes" : "Salvar"}</SubmitButton>
+                  {editing ? (
+                    <Link className="button-secondary" href={`/admin/${resource}`}>
+                      Cancelar
+                    </Link>
+                  ) : null}
                 </>
               }
             >
@@ -133,6 +148,16 @@ export default async function AdminResourcePage({
                     <Link className="button-secondary" href={`/admin/${resource}?edit=${row.id}`}>
                       Editar
                     </Link>
+                    {resource === "empresas" ? (
+                      <Link className="button-secondary" href={`/admin/empresas/${row.id}/apps`}>
+                        Apps
+                      </Link>
+                    ) : null}
+                    {resource === "apps" ? (
+                      <Link className="button-secondary" href={`/admin/empresas?app=${row.id}`}>
+                        Empresas
+                      </Link>
+                    ) : null}
                     <form action={deleteAdminResource}>
                       <input name="resource" type="hidden" value={resource} />
                       <input name="id" type="hidden" value={String(row.id)} />
@@ -214,11 +239,53 @@ function renderAdminField(
   );
 }
 
+function EmpresaFilters({
+  options,
+  filters
+}: {
+  options: Awaited<ReturnType<typeof getAdminOptions>>;
+  filters: Record<string, string | undefined>;
+}) {
+  return (
+    <form className="panel grid gap-4 p-4 md:grid-cols-3" action="/admin/empresas">
+      <FormSelect
+        label="Categoria"
+        name="categoria"
+        defaultValue={filters.categoria ?? ""}
+        options={options.categorias}
+      />
+      <FormSelect
+        label="Status"
+        name="status"
+        defaultValue={filters.status ?? ""}
+        options={[
+          { label: "Ativa", value: "ativa" },
+          { label: "Teste", value: "teste" },
+          { label: "Bloqueada", value: "bloqueada" },
+          { label: "Cancelada", value: "cancelada" }
+        ]}
+      />
+      <FormSelect label="App contratado" name="app" defaultValue={filters.app ?? ""} options={options.apps} />
+      <FormInput label="Cidade" name="cidade" defaultValue={filters.cidade ?? ""} />
+      <FormInput label="Estado" name="estado" defaultValue={filters.estado ?? ""} />
+      <FormInput label="Busca" name="q" defaultValue={filters.q ?? ""} placeholder="Nome, CNPJ ou responsavel" />
+      <div className="flex items-end gap-2 md:col-span-3">
+        <button className="button-primary" type="submit">
+          Filtrar
+        </button>
+        <Link className="button-secondary" href="/admin/empresas">
+          Limpar
+        </Link>
+      </div>
+    </form>
+  );
+}
+
 function formatAdminRows(rows: Array<Record<string, unknown>>) {
   return rows.map((row) => {
     const formatted = { ...row };
     for (const key of Object.keys(formatted)) {
-      if (["created_at", "updated_at", "inicio", "vencimento", "pagamento_em"].includes(key)) {
+      if (["created_at", "updated_at", "inicio", "vencimento", "pagamento_em", "data_inicio", "data_vencimento"].includes(key)) {
         formatted[key] = formatDate(formatted[key]);
       }
       if (["valor", "valor_mensal"].includes(key)) {

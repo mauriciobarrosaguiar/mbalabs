@@ -178,8 +178,49 @@ textarea {
   outline: none;
 }
 
+.input::placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+
 .input:focus {
   border-color: rgba(56, 189, 248, 0.75);
+}
+
+select.input {
+  color-scheme: dark;
+}
+
+select.input option {
+  background: #111827;
+  color: #f8fafc;
+}
+
+select.input option:disabled {
+  color: #cbd5e1;
+}
+
+.cotacoes-module .input {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.cotacoes-module .input::placeholder {
+  color: #64748b;
+}
+
+.cotacoes-module select.input {
+  color-scheme: light;
+}
+
+.cotacoes-module select.input option {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.cotacoes-module select.input option:disabled {
+  color: #64748b;
 }
 
 .eyebrow {

@@ -106,7 +106,7 @@ export function AppShell({
   tenantType?: CustomerType;
   tenantName?: string;
 }) {
-  const nav = mode === "admin" ? adminNav : getAppNav(profileRole, tenantType);
+  const nav = mode === "admin" ? adminNav : withReturnToMbaLabs(getAppNav(profileRole, tenantType), profileRole);
 
   return (
     <div className="cotacoes-module min-h-screen bg-slate-50">
@@ -268,6 +268,18 @@ function getAppNav(role?: UserRole, tenantType?: CustomerType) {
   if (tenantType === "distributor_bidding") return biddingNav;
   if (tenantType === "both") return mergeNav(pharmacyNav, biddingNav);
   return pharmacyNav;
+}
+
+function withReturnToMbaLabs(nav: NavItem[], role?: UserRole) {
+  return [
+    ...nav,
+    {
+      href: role === "SUPER_ADMIN" ? "/admin/dashboard" : "/dashboard",
+      label: "Voltar ao MBA Labs",
+      icon: LayoutDashboard,
+      group: "Gestao"
+    }
+  ];
 }
 
 function mergeNav(...groups: NavItem[][]) {

@@ -7,8 +7,10 @@ export type Json =
   | Json[];
 
 export type UsuarioTipo =
+  | "super_admin"
   | "admin_master"
   | "admin_empresa"
+  | "operador"
   | "usuario"
   | "vendedor"
   | "funcionario";
@@ -24,16 +26,30 @@ type Table<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
 export type Database = {
   public: {
     Tables: {
-      core_empresas: Table<{
+      core_empresa_categorias: Table<{
         id: string;
         nome: string;
+        slug: string;
+        descricao: string | null;
+        status: string;
+        created_at: string;
+        updated_at: string;
+      }>;
+      core_empresas: Table<{
+        id: string;
+        categoria_id: string;
+        nome: string;
         nome_fantasia: string | null;
+        razao_social: string | null;
         cnpj: string | null;
         telefone: string | null;
+        whatsapp: string | null;
         email: string | null;
         cidade: string | null;
         estado: string | null;
+        responsavel: string | null;
         status: string;
+        observacoes: string | null;
         created_at: string;
         updated_at: string;
       }>;
@@ -45,7 +61,9 @@ export type Database = {
         email: string;
         telefone: string | null;
         tipo: UsuarioTipo;
+        tipo_global: UsuarioTipo;
         status: string;
+        senha_hash: string | null;
         created_at: string;
         updated_at: string;
       }>;
@@ -55,9 +73,14 @@ export type Database = {
         nome: string;
         descricao: string | null;
         url_path: string | null;
+        url_interna: string | null;
+        url_externa: string | null;
+        logo_icone: string | null;
+        status: string;
         ativo: boolean;
         ordem: number;
         created_at: string;
+        updated_at: string;
       }>;
       core_planos: Table<{
         id: string;
@@ -81,6 +104,18 @@ export type Database = {
         created_at: string;
         updated_at: string;
       }>;
+      core_empresa_apps: Table<{
+        id: string;
+        empresa_id: string;
+        app_id: string;
+        plano_id: string | null;
+        status: string;
+        data_inicio: string;
+        data_vencimento: string | null;
+        observacoes: string | null;
+        created_at: string;
+        updated_at: string;
+      }>;
       core_pagamentos: Table<{
         id: string;
         empresa_id: string;
@@ -100,6 +135,16 @@ export type Database = {
         pode_acessar: boolean;
         perfil: string;
         created_at: string;
+      }>;
+      core_usuario_app_permissoes: Table<{
+        id: string;
+        usuario_id: string;
+        empresa_id: string | null;
+        app_id: string;
+        perfil_app: string;
+        status: string;
+        created_at: string;
+        updated_at: string;
       }>;
       core_logs: Table<{
         id: string;

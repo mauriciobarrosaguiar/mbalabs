@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     const { count, error: countError } = await supabase
       .from("core_usuarios")
       .select("id", { count: "exact", head: true })
-      .eq("tipo", "admin_master");
+      .in("tipo", ["super_admin", "admin_master"]);
 
     if (countError) {
       return NextResponse.json({ error: countError.message }, { status: 500 });
@@ -56,12 +56,37 @@ export async function POST(request: Request) {
       );
     }
 
+    const { data: categoria, error: categoriaError } = await supabase
+      .from("core_empresa_categorias")
+      .upsert(
+        {
+          nome: "Outros",
+          slug: "outros",
+          descricao: "Categoria geral para empresas nao classificadas.",
+          status: "ativa"
+        },
+        { onConflict: "slug" }
+      )
+      .select("id")
+      .single();
+
+    if (categoriaError || !categoria) {
+      await supabase.auth.admin.deleteUser(authData.user.id);
+      return NextResponse.json(
+        { error: categoriaError?.message ?? "Nao foi possivel criar categoria inicial." },
+        { status: 500 }
+      );
+    }
+
     const { data: empresa, error: empresaError } = await supabase
       .from("core_empresas")
       .insert({
+        categoria_id: categoria.id,
         nome: empresaNome,
         nome_fantasia: empresaNome,
+        razao_social: empresaNome,
         email,
+        responsavel: nome,
         status: "ativa"
       })
       .select("id")
@@ -80,7 +105,8 @@ export async function POST(request: Request) {
       empresa_id: empresa.id,
       nome,
       email,
-      tipo: "admin_master",
+      tipo: "super_admin",
+      tipo_global: "super_admin",
       status: "ativo"
     });
 

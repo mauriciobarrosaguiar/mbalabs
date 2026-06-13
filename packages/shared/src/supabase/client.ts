@@ -1,7 +1,10 @@
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../types/database";
+
+let browserClient: SupabaseClient<Database> | null = null;
 
 function getPublicSupabaseEnv() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -18,5 +21,16 @@ function getPublicSupabaseEnv() {
 
 export function createSupabaseClient() {
   const { supabaseUrl, supabaseAnonKey } = getPublicSupabaseEnv();
-  return createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
+
+  if (!browserClient) {
+    browserClient = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
+  }
+
+  return browserClient;
 }

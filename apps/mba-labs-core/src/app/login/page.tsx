@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/AuthForms";
-import { getSessionProfile } from "@/lib/core-data";
+import { getLoginDestination, getSessionProfile } from "@/lib/core-data";
 import { safeNextPath } from "@/lib/form-utils";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export default async function LoginPage({
   const { user } = await getSessionProfile();
 
   if (user) {
-    redirect(nextPath);
+    redirect(await getLoginDestination(nextPath));
   }
 
   return (

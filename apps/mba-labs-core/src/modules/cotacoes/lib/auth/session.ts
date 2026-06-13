@@ -384,15 +384,16 @@ function toCurrentUserProfile(session: Awaited<ReturnType<typeof getSessionProfi
     empresaId: session.profile!.empresa_id!,
     tipo: session.profile!.tipo,
     usuarioStatus: (session.profile! as { status?: string }).status ?? "ativo",
-    isAdminMaster: session.profile!.tipo === "admin_master",
+    isAdminMaster: isSuperAdminType(session.profile!.tipo),
     permissoes: session.permissoes ?? [],
     appsLiberados: session.appsLiberados ?? [],
   } as CurrentUserProfile;
 }
 
 function mapCoreRole(tipo: string): Exclude<UserRole, "VENDEDOR_EXTERNO"> {
-  if (tipo === "admin_master") return "SUPER_ADMIN";
+  if (isSuperAdminType(tipo)) return "SUPER_ADMIN";
   if (tipo === "admin_empresa") return "ADMIN_EMPRESA";
+  if (tipo === "operador") return "CONFERENTE";
   if (tipo === "funcionario") return "CONFERENTE";
   return "COMPRADOR";
 }
@@ -404,8 +405,12 @@ function mapTenantUserRole(role: Exclude<UserRole, "VENDEDOR_EXTERNO">): Exclude
 
 function mapCompanyStatus(status?: string | null): TenantStatus {
   if (status === "bloqueada") return "suspenso";
-  if (status === "inativa") return "cancelado";
+  if (status === "inativa" || status === "cancelada") return "cancelado";
   return "ativo";
+}
+
+function isSuperAdminType(tipo: string) {
+  return tipo === "super_admin" || tipo === "admin_master";
 }
 
 function normalizeCotacoesPath(path: string) {

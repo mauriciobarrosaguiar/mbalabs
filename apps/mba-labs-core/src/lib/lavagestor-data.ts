@@ -178,7 +178,7 @@ export async function listLavaVales(search = "") {
 async function countByEmpresa(
   client: any,
   table: string,
-  empresaId: string,
+  empresaId: string | null,
   filters: Record<string, unknown> = {}
 ) {
   let query = client.from(table).select("id", { count: "exact", head: true }).eq("empresa_id", empresaId);

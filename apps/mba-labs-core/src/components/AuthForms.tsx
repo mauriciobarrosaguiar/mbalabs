@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { createSupabaseClient } from "@mba-labs/shared/supabase/client";
 
 export function LoginForm({ nextPath = "/dashboard" }: { nextPath?: string }) {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -34,8 +33,13 @@ export function LoginForm({ nextPath = "/dashboard" }: { nextPath?: string }) {
         body: JSON.stringify({ acao: "login realizado" })
       }).catch(() => null);
 
-      router.push(nextPath);
-      router.refresh();
+      const destination = await fetch(`/api/auth/resolve?next=${encodeURIComponent(nextPath)}`)
+        .then((response) => response.json())
+        .then((payload: { destination?: string }) => payload.destination)
+        .catch(() => null);
+
+      const resolvedDestination = destination && !destination.startsWith("/login") ? destination : nextPath;
+      window.location.assign(resolvedDestination);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Erro no login.");
     } finally {
