@@ -245,6 +245,48 @@ select.input option:disabled {
   color: #64748b;
 }
 
+.lavagestor-module {
+  color-scheme: light;
+  background: #f6f8f7;
+  color: #17211b;
+  --background: #f6f8f7;
+  --foreground: #17211b;
+  --card: #ffffff;
+  --card-foreground: #17211b;
+  --popover: #ffffff;
+  --popover-foreground: #17211b;
+  --primary: #0f8f61;
+  --primary-foreground: #ffffff;
+  --secondary: #e6f4ee;
+  --secondary-foreground: #0f5132;
+  --muted: #eef3f0;
+  --muted-foreground: #5d6f63;
+  --accent: #e6f4ee;
+  --accent-foreground: #0f5132;
+  --destructive: #b42318;
+  --success: #0f8f61;
+  --warning: #a15c07;
+  --border: #dce6df;
+  --input: #dce6df;
+  --ring: #0f8f61;
+  --radius: 0.5rem;
+}
+
+.lavagestor-module aside nav a {
+  color: #17211b;
+}
+
+.lavagestor-module aside nav a:hover,
+.lavagestor-module header nav a:hover {
+  background: #eef3f0;
+}
+
+.lavagestor-module aside nav a[aria-current="page"],
+.lavagestor-module header nav a[aria-current="page"] {
+  background: #dff7ec;
+  color: #0f5132;
+}
+
 .eyebrow {
   color: var(--accent);
   font-size: 0.78rem;

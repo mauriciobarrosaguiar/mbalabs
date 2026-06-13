@@ -3,21 +3,112 @@ import { includesSearch } from "./form-utils";
 import { getSupabaseServer } from "./supabase";
 
 export async function getLavaDashboard() {
-  const current = await requireAppAccess("lavagestor");
+  const current = await requireAppAccess("lavagestor", "/lavagestor");
   const supabase = await getSupabaseServer();
   const client = supabase as any;
+  const empresaId = current.empresaId;
+  const now = new Date();
+  const todayStart = startOfDay(now).toISOString();
+  const tomorrowStart = addDays(startOfDay(now), 1).toISOString();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-  const [clientes, veiculos, funcionarios, servicos, lavagens, comissoes, vales] = await Promise.all([
-    countByEmpresa(client, "lava_clientes", current.empresaId),
-    countByEmpresa(client, "lava_veiculos", current.empresaId),
-    countByEmpresa(client, "lava_funcionarios", current.empresaId, { ativo: true }),
-    countByEmpresa(client, "lava_servicos", current.empresaId, { ativo: true }),
-    countByEmpresa(client, "lava_lavagens", current.empresaId),
-    countByEmpresa(client, "lava_comissoes", current.empresaId, { status: "pendente" }),
-    countByEmpresa(client, "lava_vales", current.empresaId, { status: "aberto" })
+  const [
+    clientes,
+    veiculos,
+    funcionarios,
+    servicos,
+    lavagens,
+    comissoes,
+    vales,
+    lavagensHoje,
+    lavagensMes,
+    ultimasLavagens,
+    comissoesPendentes,
+    valesAbertos,
+    empresa
+  ] = await Promise.all([
+    countByEmpresa(client, "lava_clientes", empresaId),
+    countByEmpresa(client, "lava_veiculos", empresaId),
+    countByEmpresa(client, "lava_funcionarios", empresaId, { ativo: true }),
+    countByEmpresa(client, "lava_servicos", empresaId, { ativo: true }),
+    countByEmpresa(client, "lava_lavagens", empresaId),
+    countByEmpresa(client, "lava_comissoes", empresaId, { status: "pendente" }),
+    countByEmpresa(client, "lava_vales", empresaId, { status: "aberto" }),
+    scopedByEmpresa(
+      client
+        .from("lava_lavagens")
+        .select("id,valor,comissao,status,data_lavagem")
+        .gte("data_lavagem", todayStart)
+        .lt("data_lavagem", tomorrowStart),
+      empresaId
+    ),
+    scopedByEmpresa(
+      client.from("lava_lavagens").select("id,valor,comissao,status,data_lavagem").gte("data_lavagem", monthStart),
+      empresaId
+    ),
+    scopedByEmpresa(
+      client
+        .from("lava_lavagens")
+        .select(
+          "id,valor,comissao,status,data_lavagem,lava_clientes(nome),lava_veiculos(placa,modelo),lava_funcionarios(nome),lava_servicos(nome)"
+        )
+        .order("data_lavagem", { ascending: false })
+        .limit(8),
+      empresaId
+    ),
+    scopedByEmpresa(client.from("lava_comissoes").select("id,valor,status").eq("status", "pendente"), empresaId),
+    scopedByEmpresa(client.from("lava_vales").select("id,valor,status").eq("status", "aberto"), empresaId),
+    empresaId
+      ? client.from("core_empresas").select("nome,nome_fantasia").eq("id", empresaId).maybeSingle()
+      : Promise.resolve({ data: null, error: null })
   ]);
 
-  return { clientes, veiculos, funcionarios, servicos, lavagens, comissoes, vales };
+  const todayRows = ((lavagensHoje.data ?? []) as Array<Record<string, unknown>>).filter(isActiveLavagem);
+  const monthRows = ((lavagensMes.data ?? []) as Array<Record<string, unknown>>).filter(isActiveLavagem);
+  const pendingCommissions = (comissoesPendentes.data ?? []) as Array<Record<string, unknown>>;
+  const openVales = (valesAbertos.data ?? []) as Array<Record<string, unknown>>;
+  const company = empresa.data as Record<string, unknown> | null;
+
+  return {
+    current,
+    companyName:
+      String(company?.nome_fantasia ?? company?.nome ?? "") ||
+      (current.isAdminMaster ? "Todas as empresas" : "Empresa conectada"),
+    isGlobalView: !empresaId && current.isAdminMaster,
+    clientes,
+    veiculos,
+    funcionarios,
+    servicos,
+    lavagens,
+    comissoes,
+    vales,
+    lavagensHoje: todayRows.length,
+    entradaHoje: sumMoney(todayRows, "valor"),
+    comissaoHoje: sumMoney(todayRows, "comissao"),
+    lavagensMes: monthRows.length,
+    entradaMes: sumMoney(monthRows, "valor"),
+    comissaoMes: sumMoney(monthRows, "comissao"),
+    totalComissoesPendentes: sumMoney(pendingCommissions, "valor"),
+    totalValesAbertos: sumMoney(openVales, "valor"),
+    ultimasLavagens: ((ultimasLavagens.data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+      id: row.id,
+      cliente: relationName(row.lava_clientes) || "-",
+      veiculo: vehicleLabel(row.lava_veiculos),
+      funcionario: relationName(row.lava_funcionarios) || "-",
+      servico: relationName(row.lava_servicos) || "-",
+      valor: row.valor,
+      status: row.status,
+      data_lavagem: row.data_lavagem
+    })),
+    error:
+      lavagensHoje.error?.message ??
+      lavagensMes.error?.message ??
+      ultimasLavagens.error?.message ??
+      comissoesPendentes.error?.message ??
+      valesAbertos.error?.message ??
+      empresa.error?.message ??
+      null
+  };
 }
 
 export async function listLavaClientes(search = "") {
@@ -181,13 +272,37 @@ async function countByEmpresa(
   empresaId: string | null,
   filters: Record<string, unknown> = {}
 ) {
-  let query = client.from(table).select("id", { count: "exact", head: true }).eq("empresa_id", empresaId);
+  let query = scopedByEmpresa(client.from(table).select("id", { count: "exact", head: true }), empresaId);
   for (const [key, value] of Object.entries(filters)) {
     query = query.eq(key, value);
   }
 
   const { count } = await query;
   return count ?? 0;
+}
+
+function scopedByEmpresa(query: any, empresaId: string | null) {
+  return empresaId ? query.eq("empresa_id", empresaId) : query;
+}
+
+function sumMoney(rows: Array<Record<string, unknown>>, key: string) {
+  return rows.reduce((total, row) => total + Number(row[key] ?? 0), 0);
+}
+
+function isActiveLavagem(row: Record<string, unknown>) {
+  return row.status !== "cancelada";
+}
+
+function startOfDay(date: Date) {
+  const value = new Date(date);
+  value.setHours(0, 0, 0, 0);
+  return value;
+}
+
+function addDays(date: Date, days: number) {
+  const value = new Date(date);
+  value.setDate(value.getDate() + days);
+  return value;
 }
 
 function relationName(value: unknown) {
