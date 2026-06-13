@@ -145,9 +145,11 @@ export function AppShell({
                 <span>0</span>
               </div>
               <ModeBadge />
-              <Button asChild variant="outline" size="sm">
-                <a href="/sair">Sair</a>
-              </Button>
+              <form action="/sair" method="post">
+                <Button variant="outline" size="sm" type="submit">
+                  Sair
+                </Button>
+              </form>
             </div>
           </div>
         </header>

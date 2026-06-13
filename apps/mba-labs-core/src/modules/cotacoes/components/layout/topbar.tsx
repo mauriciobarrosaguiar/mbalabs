@@ -24,9 +24,11 @@ export function Topbar({
         </div>
         <div className="flex items-center gap-2">
           <ModeBadge />
-          <Button asChild variant="outline" size="sm">
-            <a href="/sair">Sair</a>
-          </Button>
+          <form action="/sair" method="post">
+            <Button variant="outline" size="sm" type="submit">
+              Sair
+            </Button>
+          </form>
         </div>
       </div>
     </header>

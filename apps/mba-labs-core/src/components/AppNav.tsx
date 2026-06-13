@@ -23,6 +23,13 @@ export async function AppNav() {
               {link.label}
             </Link>
           ))}
+          {user ? (
+            <form action="/sair" method="post">
+              <button className="rounded-[8px] px-3 py-2 hover:bg-white/10" type="submit">
+                Sair
+              </button>
+            </form>
+          ) : null}
         </div>
       </nav>
     </header>
@@ -54,8 +61,7 @@ function getLinks({
       { href: "/admin/assinaturas", label: "Assinaturas" },
       { href: "/admin/pagamentos", label: "Pagamentos" },
       { href: "/admin/logs", label: "Logs" },
-      { href: "/admin/configuracoes", label: "Configuracoes" },
-      { href: "/sair", label: "Sair" }
+      { href: "/admin/configuracoes", label: "Configuracoes" }
     ];
   }
 
@@ -65,15 +71,13 @@ function getLinks({
       { href: "/empresa/usuarios", label: "Usuarios" },
       { href: "/empresa/apps", label: "Apps contratados" },
       { href: "/empresa/assinatura", label: "Assinatura" },
-      { href: appHref, label: "Acessar sistema" },
-      { href: "/sair", label: "Sair" }
+      { href: appHref, label: "Acessar sistema" }
     ];
   }
 
   return [
     { href: "/dashboard", label: "Dashboard" },
     { href: "/selecionar-app", label: "Sistemas" },
-    { href: appHref, label: "Acessar sistema" },
-    { href: "/sair", label: "Sair" }
+    { href: appHref, label: "Acessar sistema" }
   ];
 }

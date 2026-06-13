@@ -51,7 +51,7 @@ export async function requireActiveProfile(currentPath = "/cotacoes") {
   const context = await ensureCotacoesAuthContext(current);
 
   if (!context.profile || !context.isActive) {
-    redirect("/sair?erro=Usu%C3%A1rio%20sem%20perfil%20ativo.");
+    redirect("/acesso-bloqueado?motivo=usuario");
   }
 
   return context as AuthContext & { profile: AuthProfile };
