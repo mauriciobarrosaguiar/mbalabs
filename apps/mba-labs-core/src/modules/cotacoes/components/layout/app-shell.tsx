@@ -210,6 +210,7 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
 
   return (
     <Link
+      aria-current={active ? "page" : undefined}
       href={item.href}
       className={cn(
         "flex min-h-10 items-center justify-between rounded-md px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-950",
@@ -265,6 +266,7 @@ function isActive(currentPath: string, href: string) {
 }
 
 function getAppNav(role?: UserRole, tenantType?: CustomerType) {
+  if (role === "SUPER_ADMIN") return mergeNav(pharmacyNav, biddingNav);
   if (role === "VENDEDOR_EXTERNO") return supplierNav;
   if (tenantType === "pharmacy") return pharmacyNav;
   if (tenantType === "distributor_bidding") return biddingNav;
@@ -276,7 +278,7 @@ function withReturnToMbaLabs(nav: NavItem[], role?: UserRole) {
   return [
     ...nav,
     {
-      href: role === "SUPER_ADMIN" ? "/admin/dashboard" : "/dashboard",
+      href: "/dashboard",
       label: "Voltar ao MBA Labs",
       icon: LayoutDashboard,
       group: "Gestao"

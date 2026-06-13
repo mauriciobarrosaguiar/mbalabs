@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppNav } from "@/components/AppNav";
+import { AppPermissionFields } from "@/components/AppPermissionFields";
 import {
   DataTable,
   DeleteButton,
@@ -132,7 +133,7 @@ export default async function AdminResourcePage({
                 </>
               }
             >
-              {config.fields.map((field) => renderAdminField(field, editing, options))}
+              {config.fields.map((field) => renderAdminField(resource as AdminResource, field, editing, options))}
             </ResourceForm>
           </form>
         ) : null}
@@ -173,12 +174,28 @@ export default async function AdminResourcePage({
 }
 
 function renderAdminField(
+  resource: AdminResource,
   field: AdminField,
   editing: Record<string, unknown> | undefined,
   options: Awaited<ReturnType<typeof getAdminOptions>>
 ) {
   const value = editing?.[field.name];
   const key = field.name;
+
+  if (resource === "usuarios" && field.name === "app_id") {
+    return (
+      <AppPermissionFields
+        apps={options.apps}
+        defaultAppId={String(editing?.app_id ?? "")}
+        defaultProfile={String(editing?.perfil_app ?? "")}
+        key={key}
+      />
+    );
+  }
+
+  if (resource === "usuarios" && field.name === "perfil_app") {
+    return null;
+  }
 
   if (field.type === "select") {
     return (

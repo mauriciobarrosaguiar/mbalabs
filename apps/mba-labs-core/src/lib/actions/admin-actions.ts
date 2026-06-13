@@ -10,6 +10,7 @@ import {
   isSuperAdminType,
   logAction
 } from "@/lib/core-data";
+import { getInternalAppBySlug, getProfileOptionsForAppSlug, normalizeRegistrySlug } from "@/lib/app-registry";
 import { booleanValue, dateValue, messageParam, nullableTextValue, numberValue, textValue } from "@/lib/form-utils";
 import { getSupabaseServer } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
@@ -40,6 +41,8 @@ export async function saveAdminResource(formData: FormData) {
   }
 
   if (resource === "apps") {
+    const internalApp = getInternalAppBySlug(String(payload.slug ?? ""));
+    payload.url_interna = payload.url_interna ?? internalApp?.urlPath ?? null;
     payload.url_path = payload.url_interna ?? null;
     payload.ativo = payload.status === "ativo";
   }
@@ -263,6 +266,11 @@ async function saveUsuario(formData: FormData, id: string) {
   }
 
   if (appId) {
+    const appSlug = await getAppSlugById(admin, appId);
+    if (!isValidProfileForApp(appSlug, perfilApp)) {
+      redirect(`/admin/usuarios?error=${messageParam("O perfil selecionado nao pertence ao app escolhido.")}`);
+    }
+
     await upsertUserPermission(admin, {
       usuarioId: saved.id,
       empresaId: saved.empresa_id,
@@ -275,6 +283,24 @@ async function saveUsuario(formData: FormData, id: string) {
   await logAction({ acao: id ? "editar usuarios" : "criar usuarios", detalhes: { id: id || saved.id } });
   revalidatePath("/admin/usuarios");
   redirect(`/admin/usuarios?ok=${messageParam("Usuario salvo com sucesso.")}`);
+}
+
+async function getAppSlugById(client: any, appId: string) {
+  const { data, error } = await client
+    .from("core_apps")
+    .select("slug")
+    .eq("id", appId)
+    .maybeSingle();
+
+  if (error) {
+    redirect(`/admin/usuarios?error=${messageParam(error.message)}`);
+  }
+
+  return normalizeRegistrySlug(String(data?.slug ?? ""));
+}
+
+function isValidProfileForApp(appSlug: string, perfilApp: string) {
+  return getProfileOptionsForAppSlug(appSlug).some((option) => option.value === perfilApp);
 }
 
 async function upsertUserPermission(

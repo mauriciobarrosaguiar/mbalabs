@@ -226,7 +226,7 @@ export function FormSelect({
   name: string;
   label: string;
   defaultValue?: string | null;
-  options: Array<{ label: string; value: string }>;
+  options: Array<{ label: string; value: string; disabled?: boolean }>;
   required?: boolean;
 }) {
   return (
@@ -235,7 +235,7 @@ export function FormSelect({
       <select className="input" name={name} defaultValue={defaultValue ?? ""} required={required}>
         <option value="">Selecione</option>
         {options.map((option) => (
-          <option key={option.value} value={option.value}>
+          <option disabled={option.disabled} key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}

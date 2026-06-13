@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getCurrentUserProfileFromSupabase, type SharedAppAccess, type SharedPermissao } from "@mba-labs/shared/auth/profile";
+import { internalAppRouteOptions, internalAppSlugOptions } from "./app-registry";
 import { getSupabaseServer } from "./supabase";
 
 export type CoreProfile = {
@@ -165,7 +166,7 @@ export async function getLoginDestination(nextPath = "/dashboard") {
 
 function getFallbackDestination(profile: CoreProfile, appsLiberados: SharedAppAccess[]) {
   if (isSuperAdminType(profile.tipo)) {
-    return "/admin/dashboard";
+    return "/dashboard";
   }
 
   if (profile.tipo === "admin_empresa") {
@@ -267,7 +268,7 @@ export type AdminField = {
   label: string;
   type: "text" | "email" | "number" | "date" | "select" | "textarea" | "boolean" | "password";
   required?: boolean;
-  optionSource?: "categorias" | "empresas" | "apps" | "planos" | "assinaturas";
+  optionSource?: "categorias" | "empresas" | "apps" | "planos" | "assinaturas" | "internalAppSlugs" | "internalAppRoutes";
   options?: Array<{ label: string; value: string }>;
   skipPayload?: boolean;
 };
@@ -433,10 +434,10 @@ export const adminResources = {
       { key: "empresas_vinculadas", label: "Empresas vinculadas" }
     ],
     fields: [
-      { name: "slug", label: "Slug", type: "text", required: true },
+      { name: "slug", label: "Slug", type: "select", required: true, optionSource: "internalAppSlugs" },
       { name: "nome", label: "Nome", type: "text", required: true },
       { name: "descricao", label: "Descricao", type: "textarea" },
-      { name: "url_interna", label: "URL interna", type: "text" },
+      { name: "url_interna", label: "URL interna", type: "select", optionSource: "internalAppRoutes" },
       { name: "url_externa", label: "URL externa", type: "text" },
       { name: "logo_icone", label: "Logo/icone", type: "text" },
       { name: "ordem", label: "Ordem", type: "number" },
@@ -600,7 +601,7 @@ export async function getAdminRows(resource: AdminResource, filters: AdminFilter
   }
 
   if (resource === "empresas") {
-    query = await applyEmpresaFilters(supabase as any, query, filters);
+    query = (await applyEmpresaFilters(supabase as any, query, filters)).query;
   }
 
   if (resource === "logs") {
@@ -664,7 +665,9 @@ export async function getAdminOptions() {
   return {
     categorias: toOptions(categorias.data),
     empresas: toOptions(empresas.data),
-    apps: toOptions((apps.data ?? []).filter((row: any) => String(row.status ?? "ativo") === "ativo")),
+    apps: toAppOptions((apps.data ?? []).filter((row: any) => String(row.status ?? "ativo") === "ativo")),
+    internalAppSlugs: internalAppSlugOptions,
+    internalAppRoutes: internalAppRouteOptions,
     planos: (planos.data ?? []).map((row: any) => ({
       value: row.id,
       label: `${relationName(row.core_apps) ? `${relationName(row.core_apps)} - ` : ""}${row.nome}`
@@ -845,12 +848,12 @@ async function applyEmpresaFilters(client: any, query: any, filters: AdminFilter
       .eq("app_id", filters.app);
     const ids = Array.from(new Set(((data ?? []) as Array<{ empresa_id: string }>).map((row) => row.empresa_id)));
     if (ids.length === 0) {
-      return query.eq("id", "00000000-0000-0000-0000-000000000000");
+      return { query: query.eq("id", "00000000-0000-0000-0000-000000000000") };
     }
     query = query.in("id", ids);
   }
 
-  return query;
+  return { query };
 }
 
 async function appendEmpresaApps(client: any, rows: Array<Record<string, unknown>>) {
@@ -884,10 +887,11 @@ async function appendUsuarioPermissoes(client: any, rows: Array<Record<string, u
 
   const { data } = await client
     .from("core_usuario_app_permissoes")
-    .select("usuario_id,status,perfil_app,core_apps(nome)")
+    .select("usuario_id,app_id,status,perfil_app,core_apps(nome)")
     .in("usuario_id", ids);
 
   const byUsuario = new Map<string, string[]>();
+  const firstPermissionByUsuario = new Map<string, { app_id: string; perfil_app: string }>();
   for (const row of (data ?? []) as Array<Record<string, unknown>>) {
     const usuarioId = String(row.usuario_id ?? "");
     const appName = relationName(row.core_apps);
@@ -895,10 +899,17 @@ async function appendUsuarioPermissoes(client: any, rows: Array<Record<string, u
     const current = byUsuario.get(usuarioId) ?? [];
     current.push(`${appName} - ${row.perfil_app} (${row.status})`);
     byUsuario.set(usuarioId, current);
+    if (!firstPermissionByUsuario.has(usuarioId)) {
+      firstPermissionByUsuario.set(usuarioId, {
+        app_id: String(row.app_id ?? ""),
+        perfil_app: String(row.perfil_app ?? "")
+      });
+    }
   }
 
   return rows.map((row) => ({
     ...row,
+    ...(firstPermissionByUsuario.get(String(row.id)) ?? {}),
     apps_permitidos: (byUsuario.get(String(row.id)) ?? []).join(", ") || "-"
   }));
 }
@@ -966,6 +977,18 @@ function toOptions(data: unknown) {
   return data.map((row: any) => ({
     value: row.id,
     label: row.nome_fantasia ?? row.nome
+  }));
+}
+
+function toAppOptions(data: unknown) {
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data.map((row: any) => ({
+    value: row.id,
+    label: row.nome,
+    slug: row.slug
   }));
 }
 
@@ -1050,6 +1073,7 @@ function canAccessRequestedPath(path: string, profile: CoreProfile, appsLiberado
       pathname === "/selecionar-app" ||
       pathname === "/acesso-bloqueado" ||
       pathname.startsWith("/admin") ||
+      pathname.startsWith("/empresa") ||
       pathname.startsWith("/apps") ||
       pathname.startsWith("/cotacoes") ||
       pathname.startsWith("/lavagestor")

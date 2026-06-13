@@ -53,7 +53,8 @@ function getLinks({
 
   if (isSuperAdmin) {
     return [
-      { href: "/admin/dashboard", label: "Dashboard" },
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/admin/dashboard", label: "Administracao" },
       { href: "/admin/empresas", label: "Empresas" },
       { href: "/admin/usuarios", label: "Usuarios" },
       { href: "/admin/apps", label: "Apps" },

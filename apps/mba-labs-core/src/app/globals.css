@@ -64,6 +64,8 @@
 
 .cotacoes-module {
   color-scheme: light;
+  background: #f8fafc;
+  color: #0f172a;
   --background: #f8fafc;
   --foreground: #0f172a;
   --card: #ffffff;
@@ -85,6 +87,26 @@
   --input: #dbe3ef;
   --ring: #0f766e;
   --radius: 0.5rem;
+}
+
+.cotacoes-module aside,
+.cotacoes-module header,
+.cotacoes-module main {
+  color: #0f172a;
+}
+
+.cotacoes-module aside nav a {
+  color: #334155;
+}
+
+.cotacoes-module aside nav a:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.cotacoes-module aside nav a[aria-current="page"] {
+  background: #ccfbf1;
+  color: #115e59;
 }
 
 * {
