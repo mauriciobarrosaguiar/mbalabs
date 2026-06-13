@@ -46,6 +46,22 @@ export const internalApps: InternalAppDefinition[] = [
       { label: "Caixa", value: "caixa" },
       { label: "Visualizador", value: "visualizador" }
     ]
+  },
+  {
+    slug: "bikecomanda",
+    name: "BikeComanda",
+    description: "Sistema para bicicletarias controlarem comandas, orcamentos, pagamentos e comissoes.",
+    urlPath: "/apps/bikecomanda",
+    alternatePaths: [
+      { label: "Entrada do portal - /apps/bikecomanda", value: "/apps/bikecomanda" },
+      { label: "App direto - /bikecomanda", value: "/bikecomanda" }
+    ],
+    profileOptions: [
+      { label: "Admin da loja", value: "admin_loja" },
+      { label: "Atendente", value: "atendente" },
+      { label: "Mecanico", value: "mecanico" },
+      { label: "Visualizador", value: "visualizador" }
+    ]
   }
 ];
 

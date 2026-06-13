@@ -11,8 +11,8 @@ const systems = [
     description: "Gestao simples para lava-jatos, servicos, vales e comissoes."
   },
   {
-    name: "Futuros sistemas",
-    description: "Uma base unica para novos produtos da MBA Labs."
+    name: "BikeComanda",
+    description: "Comandas, orcamentos, manutencao, pagamentos e comissoes para bicicletarias."
   }
 ];
 
