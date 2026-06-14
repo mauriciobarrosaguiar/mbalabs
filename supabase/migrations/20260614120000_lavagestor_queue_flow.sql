@@ -23,6 +23,9 @@ alter table public.lava_lavagens
   add column if not exists motivo_cancelamento text,
   add column if not exists observacoes text;
 
+alter table public.lava_lavagens
+  drop constraint if exists lava_lavagens_status_check;
+
 update public.lava_lavagens
 set
   status = case status
@@ -43,9 +46,6 @@ where status in ('finalizada', 'em_andamento', 'aberta', 'cancelada')
    or coalesce(valor_total, 0) = 0
    or coalesce(valor_final, 0) = 0
    or data_entrada is null;
-
-alter table public.lava_lavagens
-  drop constraint if exists lava_lavagens_status_check;
 
 alter table public.lava_lavagens
   add constraint lava_lavagens_status_check
