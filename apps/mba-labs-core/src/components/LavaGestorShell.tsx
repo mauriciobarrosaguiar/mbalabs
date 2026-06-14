@@ -52,21 +52,21 @@ export function LavaGestorShell({
 }) {
   return (
     <div className="lavagestor-module min-h-screen bg-background text-foreground">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-72 border-r border-border bg-card px-4 py-5 lg:block">
-        <Link className="block" href="/lavagestor">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden min-h-screen w-72 flex-col border-r border-border bg-card px-4 py-5 lg:flex">
+        <Link className="block shrink-0" href="/lavagestor">
           <div className="text-xl font-bold tracking-tight text-primary">LavaGestor</div>
-          <div className="mt-1 text-sm text-muted-foreground">{companyName}</div>
+          <div className="mt-1 truncate text-sm text-muted-foreground" title={companyName}>{companyName}</div>
         </Link>
 
-        <nav className="mt-8 space-y-1">
+        <nav className="mt-8 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
           {lavaNavItems.map((item) => (
             <LavaNavLink activePath={activePath} item={item} key={item.href} />
           ))}
         </nav>
 
-        <div className="absolute inset-x-4 bottom-5 rounded-lg border border-border bg-muted/50 p-3">
-          {userName ? <p className="text-sm font-semibold">{userName}</p> : null}
-          {roleLabel ? <p className="text-xs text-muted-foreground">{roleLabel}</p> : null}
+        <div className="mt-4 shrink-0 overflow-hidden rounded-lg border border-border bg-muted/50 p-3">
+          {userName ? <p className="truncate text-sm font-semibold" title={userName}>{userName}</p> : null}
+          {roleLabel ? <p className="truncate text-xs text-muted-foreground" title={roleLabel}>{roleLabel}</p> : null}
           <Link className="mt-3 flex min-h-10 items-center justify-center gap-2 rounded-lg bg-white px-3 text-sm font-semibold shadow-sm" href="/dashboard">
             <ArrowLeft className="h-4 w-4" aria-hidden />
             Voltar ao MBA Labs
