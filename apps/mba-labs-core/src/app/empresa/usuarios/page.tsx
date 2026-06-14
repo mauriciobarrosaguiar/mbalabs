@@ -18,8 +18,8 @@ export default async function EmpresaUsuariosPage() {
       <section className="page-shell grid gap-6 py-8">
         <PageHeader
           eyebrow="Painel da empresa"
-          title="Usuarios da empresa"
-          description="Lista escopada aos usuarios vinculados a empresa logada."
+          title="Usuários da empresa"
+          description="Lista dos usuários vinculados à empresa logada."
           actions={
             <Link className="button-secondary" href="/empresa/dashboard">
               Voltar

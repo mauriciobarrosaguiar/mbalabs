@@ -18,9 +18,9 @@ export default async function ConfiguracoesPage() {
       <AppNav />
       <section className="page-shell grid gap-8 py-8">
         <PageHeader
-          eyebrow="Configuracoes"
-          title="Configuracoes do MBA Labs"
-          description="Atalhos para editar cadastros centrais, permissoes, assinaturas e logs."
+          eyebrow="Configurações"
+          title="Configurações do MBA Labs"
+          description="Atalhos para editar cadastros centrais, permissões, assinaturas e logs."
           actions={
             <Link className="button-secondary" href="/admin/dashboard">
               Dashboard
@@ -31,11 +31,11 @@ export default async function ConfiguracoesPage() {
           items={[
             { title: "Categorias", description: "Tipos de empresas contratantes.", href: "/admin/categorias-empresas" },
             { title: "Empresas", description: "Clientes e status de acesso.", href: "/admin/empresas" },
-            { title: "Usuarios", description: "Contas, tipos globais e permissoes por app.", href: "/admin/usuarios" },
-            { title: "Apps", description: "Sistemas disponiveis no portal.", href: "/admin/apps" },
+            { title: "Usuários", description: "Contas, tipos globais e permissões por app.", href: "/admin/usuarios" },
+            { title: "Apps", description: "Sistemas disponíveis no portal.", href: "/admin/apps" },
             { title: "Planos", description: "Planos comerciais por app.", href: "/admin/planos" },
             { title: "Assinaturas", description: "Vencimentos e status de acesso.", href: "/admin/assinaturas" },
-            { title: "Logs", description: "Auditoria de acoes importantes.", href: "/admin/logs" }
+            { title: "Logs", description: "Auditoria de ações importantes.", href: "/admin/logs" }
           ]}
         />
       </section>

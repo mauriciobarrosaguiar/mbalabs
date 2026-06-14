@@ -6,9 +6,11 @@ import { safeNextPath } from "@/lib/form-utils";
 export const dynamic = "force-dynamic";
 
 const appNames: Record<string, string> = {
-  "mba-cotacoes": "MBA Cotacoes",
-  mbacotacoes: "MBA Cotacoes",
-  lavagestor: "LavaGestor"
+  "mba-cotacoes": "MBA Cotações",
+  mbacotacoes: "MBA Cotações",
+  lavagestor: "LavaGestor",
+  bikecomanda: "BikeComanda",
+  "bike-comanda": "BikeComanda"
 };
 
 const reasonNames: Record<string, string> = {

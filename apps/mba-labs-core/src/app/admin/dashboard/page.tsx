@@ -15,14 +15,14 @@ export default async function AdminDashboardPage() {
         <PageHeader
           eyebrow="MBA Labs"
           title="Dashboard principal"
-          description="Visao central das empresas, assinaturas, usuarios, categorias e sistemas contratados."
+          description="Visão central das empresas, assinaturas, usuários, categorias e sistemas contratados."
           actions={
             <>
               <Link className="button-secondary" href="/admin/empresas">
                 Empresas
               </Link>
               <Link className="button-primary" href="/admin/usuarios">
-                Usuarios
+                Usuários
               </Link>
             </>
           }

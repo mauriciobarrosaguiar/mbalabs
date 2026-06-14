@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getProfileOptionsForAppSlug, normalizeRegistrySlug } from "@/lib/app-registry";
 
 type AppOption = {
@@ -19,13 +19,25 @@ export function AppPermissionFields({
   defaultProfile?: string;
 }) {
   const [selectedAppId, setSelectedAppId] = useState(defaultAppId);
+  const [selectedProfile, setSelectedProfile] = useState(defaultProfile);
   const selectedApp = useMemo(
     () => apps.find((app) => app.value === selectedAppId) ?? null,
     [apps, selectedAppId]
   );
   const selectedSlug = normalizeRegistrySlug(selectedApp?.slug ?? "");
   const profileOptions = getProfileOptionsForAppSlug(selectedSlug);
-  const defaultProfileIsValid = profileOptions.some((option) => option.value === defaultProfile);
+
+  useEffect(() => {
+    if (!selectedAppId) {
+      setSelectedProfile("");
+      return;
+    }
+
+    const profileIsValid = profileOptions.some((option) => option.value === selectedProfile);
+    if (!profileIsValid) {
+      setSelectedProfile(profileOptions[0]?.value ?? "");
+    }
+  }, [profileOptions, selectedAppId, selectedProfile]);
 
   return (
     <>
@@ -35,7 +47,10 @@ export function AppPermissionFields({
           className="input"
           name="app_id"
           value={selectedAppId}
-          onChange={(event) => setSelectedAppId(event.target.value)}
+          onChange={(event) => {
+            setSelectedAppId(event.target.value);
+            setSelectedProfile("");
+          }}
         >
           <option value="">Selecione</option>
           {apps.map((app) => (
@@ -51,9 +66,10 @@ export function AppPermissionFields({
         <select
           className="input"
           name="perfil_app"
-          defaultValue={defaultProfileIsValid ? defaultProfile : ""}
-          disabled={!selectedAppId}
-          required={Boolean(selectedAppId)}
+          value={selectedProfile}
+          onChange={(event) => setSelectedProfile(event.target.value)}
+          disabled={!selectedAppId || profileOptions.length === 0}
+          required={Boolean(selectedAppId && profileOptions.length > 0)}
           key={selectedSlug}
         >
           <option value="">Selecione</option>

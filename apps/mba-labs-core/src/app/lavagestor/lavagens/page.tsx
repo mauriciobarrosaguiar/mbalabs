@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { AppNav } from "@/components/AppNav";
+import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, DataTable, MessageBanner, PageHeader, formatDate, formatMoney } from "@/components/ui-kit";
 import { firstParam } from "@/lib/form-utils";
-import { getLavaLookups, listLavaLavagens } from "@/lib/lavagestor-data";
+import { LAVA_STATUS_OPTIONS, getLavaLookups, listLavaLavagens } from "@/lib/lavagestor-data";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +20,8 @@ export default async function LavagensPage({
   const [{ rows, error }, lookups] = await Promise.all([listLavaLavagens(filters), getLavaLookups()]);
 
   return (
-    <main>
-      <AppNav />
-      <section className="page-shell grid gap-6 py-8">
+    <LavaGestorShell activePath="/lavagestor/lavagens">
+      <section className="grid gap-6">
         <PageHeader
           eyebrow="LavaGestor"
           title="Lavagens"
@@ -58,10 +57,11 @@ export default async function LavagensPage({
             <span className="text-sm font-bold">Status</span>
             <select className="input" name="status" defaultValue={filters.status ?? ""}>
               <option value="">Todos</option>
-              <option value="aberta">Aberta</option>
-              <option value="em_andamento">Em andamento</option>
-              <option value="finalizada">Finalizada</option>
-              <option value="cancelada">Cancelada</option>
+              {LAVA_STATUS_OPTIONS.map((status) => (
+                <option key={status.value} value={status.value}>
+                  {status.label}
+                </option>
+              ))}
             </select>
           </label>
           <button className="button-secondary self-end" type="submit">
@@ -77,17 +77,18 @@ export default async function LavagensPage({
             { key: "servico", label: "Serviço" },
             { key: "valor", label: "Valor" },
             { key: "comissao", label: "Comissão" },
-            { key: "status", label: "Status" },
+            { key: "status_label", label: "Status" },
+            { key: "status_pagamento_label", label: "Pagamento" },
             { key: "data_lavagem", label: "Data" }
           ]}
           rows={rows.map((row) => ({
             ...row,
-            valor: formatMoney(row.valor),
+            valor: formatMoney(row.valor_final ?? row.valor),
             comissao: formatMoney(row.comissao),
-            data_lavagem: formatDate(row.data_lavagem)
+            data_lavagem: formatDate(row.data_entrada ?? row.data_lavagem)
           }))}
         />
       </section>
-    </main>
+    </LavaGestorShell>
   );
 }

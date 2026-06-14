@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AppNav } from "@/components/AppNav";
+import { LavaGestorShell } from "@/components/LavaGestorShell";
 import {
   BackButton,
   DataTable,
@@ -31,13 +31,12 @@ export default async function ClientesPage({
   const editing = rows.find((row) => row.id === editId);
 
   return (
-    <main>
-      <AppNav />
-      <section className="page-shell grid gap-6 py-8">
+    <LavaGestorShell activePath="/lavagestor/clientes">
+      <section className="grid gap-6">
         <PageHeader
           eyebrow="LavaGestor"
           title="Clientes"
-          description="Cadastre os clientes atendidos pelo lava-jato."
+          description="Cadastre clientes atendidos pelo lava-jato e mantenha WhatsApp, documento e observações em ordem."
           actions={<BackButton href="/lavagestor" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? undefined} />
@@ -55,7 +54,7 @@ export default async function ClientesPage({
             }
           >
             <FormInput label="Nome" name="nome" defaultValue={String(editing?.nome ?? "")} required />
-            <FormInput label="Telefone" name="telefone" defaultValue={String(editing?.telefone ?? "")} />
+            <FormInput label="WhatsApp" name="telefone" defaultValue={String(editing?.telefone ?? "")} required />
             <FormInput label="Email" name="email" type="email" defaultValue={String(editing?.email ?? "")} />
             <FormInput label="Documento" name="documento" defaultValue={String(editing?.documento ?? "")} />
             <FormTextarea label="Observação" name="observacao" defaultValue={String(editing?.observacao ?? "")} />
@@ -76,6 +75,12 @@ export default async function ClientesPage({
               <Link className="button-secondary" href={`/lavagestor/clientes?edit=${row.id}`}>
                 Editar
               </Link>
+              <Link className="button-secondary" href={`/lavagestor/veiculos?q=${encodeURIComponent(String(row.nome ?? ""))}`}>
+                Ver veículos
+              </Link>
+              <Link className="button-primary" href={`/lavagestor/nova-lavagem?cliente=${row.id}`}>
+                Nova lavagem
+              </Link>
               <form action={deleteCliente}>
                 <input name="id" type="hidden" value={String(row.id)} />
                 <DeleteButton>Excluir</DeleteButton>
@@ -84,6 +89,6 @@ export default async function ClientesPage({
           )}
         />
       </section>
-    </main>
+    </LavaGestorShell>
   );
 }

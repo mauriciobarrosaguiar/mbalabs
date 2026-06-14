@@ -33,7 +33,7 @@ export default async function EmpresaAssinaturaPage() {
             { key: "app", label: "App" },
             { key: "plano", label: "Plano" },
             { key: "status", label: "Status" },
-            { key: "data_inicio", label: "Inicio" },
+            { key: "data_inicio", label: "Início" },
             { key: "data_vencimento", label: "Vencimento" }
           ]}
           rows={rows}

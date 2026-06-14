@@ -7,9 +7,11 @@ Portal central e monorepo inicial dos sistemas MBA Labs.
 - `apps/mba-labs-core`: portal principal para landing page, login, cadastro do Admin Master, dashboard e telas administrativas.
 - `apps/mba-cotacoes`: app MBA Cotacoes completo, com rotas protegidas, login central do MBA Labs e migrations operacionais originais.
 - `apps/lavagestor`: estrutura inicial do LavaGestor, com rotas protegidas e leitura das tabelas `lava_`.
+- `apps/mba-labs-core/public/bikecomanda-static`: prototipo funcional do BikeComanda integrado ao portal central.
 - `packages/shared`: pacote compartilhado com clientes Supabase e tipos do banco.
 - `supabase/migrations/001_initial_schema.sql`: migration inicial do banco unico multiempresa.
 - `supabase/seed.sql`: seed basico de apps e planos.
+- `docs/BIKECOMANDA_SCHEMA.sql`: schema de referencia das tabelas operacionais do BikeComanda.
 - `docs/GUIA_IMPLANTACAO.md`: passo a passo para Supabase, local, GitHub e Vercel.
 
 ## Requisitos
@@ -62,6 +64,7 @@ Portas padrao:
 - MBA Labs Core: `http://localhost:3000`
 - MBA Cotacoes: `http://localhost:3001/app/dashboard` ou alias `http://localhost:3001/apps/mba-cotacoes`
 - LavaGestor: `http://localhost:3002/lavagestor`
+- BikeComanda: `http://localhost:3000/apps/bikecomanda` ou direto `http://localhost:3000/bikecomanda`
 
 ## Variaveis de ambiente
 
@@ -98,7 +101,7 @@ Nunca exponha `SUPABASE_SERVICE_ROLE_KEY` em componente client-side.
 4. Crie o Admin Master.
 5. Entre pelo login.
 6. Abra o dashboard.
-7. Confira os cards MBA Cotacoes e LavaGestor.
+7. Confira os cards MBA Cotacoes, LavaGestor e BikeComanda.
 8. Abra `/api/health` para ver o teste simples de conexao com `core_apps`.
 9. Confira no Supabase se as tabelas foram criadas.
 
