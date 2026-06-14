@@ -270,6 +270,69 @@ select.input option:disabled {
   --input: #dce6df;
   --ring: #0f8f61;
   --radius: 0.5rem;
+  --line: #dce6df;
+  --panel: #ffffff;
+  --panel-strong: #eef3f0;
+}
+
+.lavagestor-module .panel {
+  border-color: #dce6df;
+  background: #ffffff;
+  color: #17211b;
+  box-shadow: 0 1px 2px rgba(15, 81, 50, 0.06);
+  backdrop-filter: none;
+}
+
+.lavagestor-module .button-primary {
+  border-color: #0f8f61;
+  background: #0f8f61;
+  color: #ffffff;
+}
+
+.lavagestor-module .button-secondary {
+  border-color: #dce6df;
+  background: #ffffff;
+  color: #17211b;
+}
+
+.lavagestor-module .button-danger {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #b42318;
+}
+
+.lavagestor-module .input {
+  border-color: #dce6df;
+  background: #ffffff;
+  color: #17211b;
+}
+
+.lavagestor-module .input::placeholder {
+  color: #6b7f70;
+}
+
+.lavagestor-module select.input {
+  color-scheme: light;
+}
+
+.lavagestor-module select.input option {
+  background: #ffffff;
+  color: #17211b;
+}
+
+.lavagestor-module .text-slate-300,
+.lavagestor-module .text-slate-400,
+.lavagestor-module .text-slate-100 {
+  color: #5d6f63;
+}
+
+.lavagestor-module table thead {
+  background: #eef3f0;
+  color: #5d6f63;
+}
+
+.lavagestor-module table td {
+  color: #17211b;
 }
 
 .lavagestor-module aside nav a {

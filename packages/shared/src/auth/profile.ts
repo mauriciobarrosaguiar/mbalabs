@@ -123,7 +123,7 @@ export async function getCurrentUserProfileFromSupabase(
       slug,
       nome: String(app.nome ?? slug),
       descricao: typeof app.descricao === "string" ? app.descricao : null,
-      urlPath: String(app.url_interna ?? app.url_path ?? `/${slug}`),
+      urlPath: resolveInternalAppPath(app),
       status: isAdminMaster ? "ativo" : contract?.status ?? "sem_assinatura",
       canAccess
     } satisfies SharedAppAccess;
@@ -257,6 +257,30 @@ function isActiveApp(app: Record<string, unknown>) {
 
 function isCompanyEnabled(status?: string | null) {
   return status === "ativa" || status === "teste";
+}
+
+function resolveInternalAppPath(app: Record<string, unknown>) {
+  const slug = normalizeAppSlug(String(app.slug ?? ""));
+
+  if (slug === "mba-cotacoes") {
+    return "/apps/mbacotacoes";
+  }
+
+  if (slug === "lavagestor") {
+    return "/apps/lavagestor";
+  }
+
+  if (slug === "bikecomanda") {
+    return "/apps/bikecomanda";
+  }
+
+  return String(app.url_interna ?? app.url_path ?? `/${slug}`);
+}
+
+function normalizeAppSlug(slug: string) {
+  if (slug === "mbacotacoes") return "mba-cotacoes";
+  if (slug === "bike-comanda") return "bikecomanda";
+  return slug;
 }
 
 function emptyProfile(error: string | null): SharedCurrentUserProfile {

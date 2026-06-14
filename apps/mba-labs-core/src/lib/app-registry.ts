@@ -15,11 +15,12 @@ export type InternalAppDefinition = {
 export const internalApps: InternalAppDefinition[] = [
   {
     slug: "mba-cotacoes",
-    name: "MBA Cotacoes",
-    description: "Sistema de cotacoes, vendedores, respostas e pedidos.",
+    name: "MBA Cotações",
+    description: "Sistema para cotações, vendedores, respostas e pedidos.",
     urlPath: "/apps/mbacotacoes",
     alternatePaths: [
       { label: "Entrada do portal - /apps/mbacotacoes", value: "/apps/mbacotacoes" },
+      { label: "Entrada do portal - /apps/mba-cotacoes", value: "/apps/mba-cotacoes" },
       { label: "App direto - /cotacoes", value: "/cotacoes" }
     ],
     profileOptions: [
@@ -32,7 +33,7 @@ export const internalApps: InternalAppDefinition[] = [
   {
     slug: "lavagestor",
     name: "LavaGestor",
-    description: "Sistema para gestao de lava-jatos, lavagens, vales e comissoes.",
+    description: "Sistema para lava-jatos controlarem lavagens, clientes, funcionários, pagamentos e comissões.",
     urlPath: "/apps/lavagestor",
     alternatePaths: [
       { label: "Entrada do portal - /apps/lavagestor", value: "/apps/lavagestor" },
@@ -50,16 +51,19 @@ export const internalApps: InternalAppDefinition[] = [
   {
     slug: "bikecomanda",
     name: "BikeComanda",
-    description: "Sistema para bicicletarias controlarem comandas, orcamentos, pagamentos e comissoes.",
+    description: "Sistema de comandas para bicicletarias, serviços, pagamentos e comissões.",
     urlPath: "/apps/bikecomanda",
     alternatePaths: [
       { label: "Entrada do portal - /apps/bikecomanda", value: "/apps/bikecomanda" },
+      { label: "Entrada do portal - /apps/bike-comanda", value: "/apps/bike-comanda" },
       { label: "App direto - /bikecomanda", value: "/bikecomanda" }
     ],
     profileOptions: [
-      { label: "Admin da loja", value: "admin_loja" },
+      { label: "Admin da empresa", value: "admin_empresa" },
+      { label: "Dono", value: "dono" },
       { label: "Atendente", value: "atendente" },
-      { label: "Mecanico", value: "mecanico" },
+      { label: "Mecânico", value: "mecanico" },
+      { label: "Caixa", value: "caixa" },
       { label: "Visualizador", value: "visualizador" }
     ]
   }
@@ -73,7 +77,9 @@ export const internalAppSlugOptions = internalApps.map((app) => ({
 export const internalAppRouteOptions = internalApps.flatMap((app) => app.alternatePaths);
 
 export function normalizeRegistrySlug(slug: string) {
-  return slug === "mbacotacoes" ? "mba-cotacoes" : slug;
+  if (slug === "mbacotacoes") return "mba-cotacoes";
+  if (slug === "bike-comanda") return "bikecomanda";
+  return slug;
 }
 
 export function getInternalAppBySlug(slug: string) {

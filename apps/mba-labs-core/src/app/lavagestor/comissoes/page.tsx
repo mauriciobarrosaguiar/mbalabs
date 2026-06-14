@@ -1,4 +1,4 @@
-import { AppNav } from "@/components/AppNav";
+import { LavaGestorShell } from "@/components/LavaGestorShell";
 import {
   BackButton,
   DataTable,
@@ -32,9 +32,8 @@ export default async function ComissoesPage({
   const totalPago = rows.filter((row) => row.status === "pago").reduce((sum, row) => sum + Number(row.valor ?? 0), 0);
 
   return (
-    <main>
-      <AppNav />
-      <section className="page-shell grid gap-6 py-8">
+    <LavaGestorShell activePath="/lavagestor/comissoes">
+      <section className="grid gap-6">
         <PageHeader
           eyebrow="LavaGestor"
           title="Comissões"
@@ -98,6 +97,6 @@ export default async function ComissoesPage({
           }
         />
       </section>
-    </main>
+    </LavaGestorShell>
   );
 }

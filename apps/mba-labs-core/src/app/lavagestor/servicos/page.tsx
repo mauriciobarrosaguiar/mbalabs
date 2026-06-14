@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AppNav } from "@/components/AppNav";
+import { LavaGestorShell } from "@/components/LavaGestorShell";
 import {
   BackButton,
   DataTable,
@@ -34,9 +34,8 @@ export default async function ServicosPage({
   const editing = rows.find((row) => row.id === editId);
 
   return (
-    <main>
-      <AppNav />
-      <section className="page-shell grid gap-6 py-8">
+    <LavaGestorShell activePath="/lavagestor/servicos">
+      <section className="grid gap-6">
         <PageHeader
           eyebrow="LavaGestor"
           title="Serviços"
@@ -94,6 +93,6 @@ export default async function ServicosPage({
           )}
         />
       </section>
-    </main>
+    </LavaGestorShell>
   );
 }

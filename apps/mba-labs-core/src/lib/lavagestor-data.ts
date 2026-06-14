@@ -2,6 +2,42 @@ import { requireAppAccess } from "./core-data";
 import { includesSearch } from "./form-utils";
 import { getSupabaseServer } from "./supabase";
 
+export const LAVA_STATUS_LABELS: Record<string, string> = {
+  na_fila: "Na fila",
+  em_lavagem: "Em lavagem",
+  aguardando_finalizacao: "Aguardando finalização",
+  finalizado: "Finalizado",
+  cliente_avisado: "Cliente avisado",
+  pago: "Pago",
+  entregue: "Entregue",
+  cancelado: "Cancelado"
+};
+
+export const LAVA_STATUS_OPTIONS = Object.entries(LAVA_STATUS_LABELS).map(([value, label]) => ({ value, label }));
+
+export const LAVA_PAYMENT_STATUS_LABELS: Record<string, string> = {
+  aberto: "Aberto",
+  parcial: "Parcial",
+  pago: "Pago",
+  fiado: "Fiado"
+};
+
+export const LAVA_PAYMENT_METHOD_LABELS: Record<string, string> = {
+  dinheiro: "Dinheiro",
+  pix: "Pix",
+  cartao: "Cartão",
+  fiado: "Fiado"
+};
+
+export function normalizeLavaStatus(status: unknown) {
+  const value = String(status ?? "na_fila");
+  if (value === "aberta") return "na_fila";
+  if (value === "em_andamento") return "em_lavagem";
+  if (value === "finalizada") return "finalizado";
+  if (value === "cancelada") return "cancelado";
+  return value;
+}
+
 export async function getLavaDashboard() {
   const current = await requireAppAccess("lavagestor", "/lavagestor");
   const supabase = await getSupabaseServer();
@@ -22,6 +58,7 @@ export async function getLavaDashboard() {
     vales,
     lavagensHoje,
     lavagensMes,
+    filaAtual,
     ultimasLavagens,
     comissoesPendentes,
     valesAbertos,
@@ -37,13 +74,33 @@ export async function getLavaDashboard() {
     scopedByEmpresa(
       client
         .from("lava_lavagens")
-        .select("id,valor,comissao,status,data_lavagem")
+        .select("id,valor,valor_final,comissao,status,status_pagamento,data_lavagem")
         .gte("data_lavagem", todayStart)
         .lt("data_lavagem", tomorrowStart),
       empresaId
     ),
     scopedByEmpresa(
-      client.from("lava_lavagens").select("id,valor,comissao,status,data_lavagem").gte("data_lavagem", monthStart),
+      client
+        .from("lava_lavagens")
+        .select("id,valor,valor_final,comissao,status,status_pagamento,data_lavagem")
+        .gte("data_lavagem", monthStart),
+      empresaId
+    ),
+    scopedByEmpresa(
+      client
+        .from("lava_lavagens")
+        .select("id,valor,valor_final,status,status_pagamento")
+        .in("status", [
+          "aberta",
+          "em_andamento",
+          "finalizada",
+          "na_fila",
+          "em_lavagem",
+          "aguardando_finalizacao",
+          "finalizado",
+          "cliente_avisado",
+          "pago"
+        ]),
       empresaId
     ),
     scopedByEmpresa(
@@ -65,6 +122,7 @@ export async function getLavaDashboard() {
 
   const todayRows = ((lavagensHoje.data ?? []) as Array<Record<string, unknown>>).filter(isActiveLavagem);
   const monthRows = ((lavagensMes.data ?? []) as Array<Record<string, unknown>>).filter(isActiveLavagem);
+  const filaRows = ((filaAtual.data ?? []) as Array<Record<string, unknown>>).filter(isActiveLavagem);
   const pendingCommissions = (comissoesPendentes.data ?? []) as Array<Record<string, unknown>>;
   const openVales = (valesAbertos.data ?? []) as Array<Record<string, unknown>>;
   const company = empresa.data as Record<string, unknown> | null;
@@ -83,11 +141,18 @@ export async function getLavaDashboard() {
     comissoes,
     vales,
     lavagensHoje: todayRows.length,
-    entradaHoje: sumMoney(todayRows, "valor"),
+    entradaHoje: sumLavaValues(todayRows),
     comissaoHoje: sumMoney(todayRows, "comissao"),
     lavagensMes: monthRows.length,
-    entradaMes: sumMoney(monthRows, "valor"),
+    entradaMes: sumLavaValues(monthRows),
     comissaoMes: sumMoney(monthRows, "comissao"),
+    veiculosNaFila: countByStatus(filaRows, ["na_fila"]),
+    veiculosEmLavagem: countByStatus(filaRows, ["em_lavagem"]),
+    finalizadosAguardandoRetirada: countByStatus(filaRows, ["aguardando_finalizacao", "finalizado", "cliente_avisado", "pago"]),
+    pagamentosEmAberto: filaRows.filter((row) => {
+      const paymentStatus = String(row.status_pagamento ?? "aberto");
+      return paymentStatus === "aberto" || paymentStatus === "parcial" || paymentStatus === "fiado";
+    }).length,
     totalComissoesPendentes: sumMoney(pendingCommissions, "valor"),
     totalValesAbertos: sumMoney(openVales, "valor"),
     ultimasLavagens: ((ultimasLavagens.data ?? []) as Array<Record<string, unknown>>).map((row) => ({
@@ -96,13 +161,15 @@ export async function getLavaDashboard() {
       veiculo: vehicleLabel(row.lava_veiculos),
       funcionario: relationName(row.lava_funcionarios) || "-",
       servico: relationName(row.lava_servicos) || "-",
-      valor: row.valor,
-      status: row.status,
+      valor: row.valor_final ?? row.valor,
+      status: normalizeLavaStatus(row.status),
+      status_label: LAVA_STATUS_LABELS[normalizeLavaStatus(row.status)] ?? String(row.status ?? "-"),
       data_lavagem: row.data_lavagem
     })),
     error:
       lavagensHoje.error?.message ??
       lavagensMes.error?.message ??
+      filaAtual.error?.message ??
       ultimasLavagens.error?.message ??
       comissoesPendentes.error?.message ??
       valesAbertos.error?.message ??
@@ -201,7 +268,7 @@ export async function listLavaLavagens(filters: { data?: string; funcionario?: s
   const { data, error } = await (supabase as any)
     .from("lava_lavagens")
     .select(
-      "id,cliente_id,veiculo_id,funcionario_id,servico_id,valor,comissao,status,data_lavagem,lava_clientes(nome),lava_veiculos(placa,modelo),lava_funcionarios(nome),lava_servicos(nome)"
+      "id,cliente_id,veiculo_id,funcionario_id,servico_id,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,comissao,status,status_pagamento,forma_pagamento,data_lavagem,data_entrada,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_funcionarios(nome),lava_servicos(nome)"
     )
     .eq("empresa_id", current.empresaId)
     .order("data_lavagem", { ascending: false })
@@ -211,18 +278,46 @@ export async function listLavaLavagens(filters: { data?: string; funcionario?: s
     .map<Record<string, unknown>>((row) => ({
       ...row,
       cliente: relationName(row.lava_clientes),
+      whatsapp: relationPhone(row.lava_clientes),
       veiculo: vehicleLabel(row.lava_veiculos),
       funcionario: relationName(row.lava_funcionarios),
-      servico: relationName(row.lava_servicos)
+      servico: relationName(row.lava_servicos),
+      status: normalizeLavaStatus(row.status),
+      status_label: LAVA_STATUS_LABELS[normalizeLavaStatus(row.status)] ?? String(row.status ?? "-"),
+      status_pagamento_label:
+        LAVA_PAYMENT_STATUS_LABELS[String(row.status_pagamento ?? "aberto")] ?? String(row.status_pagamento ?? "Aberto")
     }))
     .filter((row) => {
-      const matchesDate = filters.data ? String(row.data_lavagem ?? "").startsWith(filters.data) : true;
+      const matchesDate = filters.data ? String(row.data_entrada ?? row.data_lavagem ?? "").startsWith(filters.data) : true;
       const matchesFuncionario = filters.funcionario ? row.funcionario_id === filters.funcionario : true;
       const matchesStatus = filters.status ? row.status === filters.status : true;
       return matchesDate && matchesFuncionario && matchesStatus;
     });
 
   return { rows, error: error?.message ?? null };
+}
+
+export async function listLavaFila() {
+  const { rows, error } = await listLavaLavagens();
+  const activeRows = rows.filter((row) => !["entregue", "cancelado"].includes(String(row.status)));
+
+  return {
+    rows: activeRows,
+    error
+  };
+}
+
+export async function listLavaPagamentos() {
+  const { rows, error } = await listLavaLavagens();
+
+  return {
+    rows: rows.map<Record<string, unknown>>((row) => ({
+      ...row,
+      valor_final: row.valor_final ?? row.valor,
+      valor_pendente: row.valor_pendente ?? Math.max(Number(row.valor_final ?? row.valor ?? 0) - Number(row.valor_recebido ?? 0), 0)
+    })),
+    error
+  };
 }
 
 export async function listLavaComissoes(filters: { funcionario?: string; status?: string } = {}) {
@@ -289,8 +384,16 @@ function sumMoney(rows: Array<Record<string, unknown>>, key: string) {
   return rows.reduce((total, row) => total + Number(row[key] ?? 0), 0);
 }
 
+function sumLavaValues(rows: Array<Record<string, unknown>>) {
+  return rows.reduce((total, row) => total + Number(row.valor_final ?? row.valor ?? 0), 0);
+}
+
+function countByStatus(rows: Array<Record<string, unknown>>, statuses: string[]) {
+  return rows.filter((row) => statuses.includes(normalizeLavaStatus(row.status))).length;
+}
+
 function isActiveLavagem(row: Record<string, unknown>) {
-  return row.status !== "cancelada";
+  return normalizeLavaStatus(row.status) !== "cancelado";
 }
 
 function startOfDay(date: Date) {
@@ -314,12 +417,22 @@ function relationName(value: unknown) {
   return "";
 }
 
+function relationPhone(value: unknown) {
+  const relation = Array.isArray(value) ? value[0] : value;
+  if (relation && typeof relation === "object" && "telefone" in relation) {
+    return String((relation as { telefone?: unknown }).telefone ?? "");
+  }
+
+  return "";
+}
+
 function vehicleLabel(value: unknown) {
   const relation = Array.isArray(value) ? value[0] : value;
   if (!relation || typeof relation !== "object") {
     return "-";
   }
 
-  const veiculo = relation as { placa?: unknown; modelo?: unknown };
-  return [veiculo.placa, veiculo.modelo].filter(Boolean).join(" - ") || "-";
+  const veiculo = relation as { placa?: unknown; marca?: unknown; modelo?: unknown; cor?: unknown };
+  const model = [veiculo.marca, veiculo.modelo].filter(Boolean).join(" ");
+  return [veiculo.placa, model, veiculo.cor].filter(Boolean).join(" - ") || "-";
 }

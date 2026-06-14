@@ -10,7 +10,12 @@ import {
   isSuperAdminType,
   logAction
 } from "@/lib/core-data";
-import { getInternalAppBySlug, getProfileOptionsForAppSlug, normalizeRegistrySlug } from "@/lib/app-registry";
+import {
+  getInternalAppBySlug,
+  getProfileOptionsForAppSlug,
+  internalAppRouteOptions,
+  normalizeRegistrySlug
+} from "@/lib/app-registry";
 import { booleanValue, dateValue, messageParam, nullableTextValue, numberValue, textValue } from "@/lib/form-utils";
 import { getSupabaseServer } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
@@ -35,15 +40,31 @@ export async function saveAdminResource(formData: FormData) {
   }
 
   const payload = buildPayload(config.fields, formData);
+  const supabase = await getSupabaseServer();
+  const client = supabase as any;
 
   if (resource === "empresas") {
     payload.nome = String(payload.nome_fantasia ?? payload.razao_social ?? "").trim();
+    payload.cnpj = normalizeDocument(String(payload.cnpj ?? ""));
+    await ensureUniqueEmpresaCnpj(client, String(payload.cnpj ?? ""), id);
   }
 
   if (resource === "apps") {
     const internalApp = getInternalAppBySlug(String(payload.slug ?? ""));
-    payload.url_interna = payload.url_interna ?? internalApp?.urlPath ?? null;
+    const selectedRoute = String(payload.url_interna ?? internalApp?.urlPath ?? "").trim();
+    const validRoutes = new Set(internalAppRouteOptions.map((option) => option.value));
+
+    if (!internalApp || !validRoutes.has(selectedRoute)) {
+      redirect(
+        `/admin/${resource}?error=${messageParam(
+          "A URL interna precisa existir no código antes de ser usada."
+        )}`
+      );
+    }
+
+    payload.url_interna = selectedRoute;
     payload.url_path = payload.url_interna ?? null;
+    payload.url_externa = null;
     payload.ativo = payload.status === "ativo";
   }
 
@@ -51,10 +72,13 @@ export async function saveAdminResource(formData: FormData) {
     payload.empresa_id = current.empresaId;
   }
 
-  const supabase = await getSupabaseServer();
+  if (resource === "assinaturas") {
+    await validateAssinaturaPayload(client, payload, id);
+  }
+
   let query = id
-    ? (supabase as any).from(config.table).update(payload).eq("id", id)
-    : (supabase as any).from(config.table).insert(payload);
+    ? client.from(config.table).update(payload).eq("id", id)
+    : client.from(config.table).insert(payload);
 
   if (id && config.companyScoped && !current.isAdminMaster) {
     query = query.eq("empresa_id", current.empresaId);
@@ -83,10 +107,22 @@ export async function deleteAdminResource(formData: FormData) {
 
   const resource = textValue(formData, "resource") as AdminResource;
   const id = textValue(formData, "id");
+  const mode = textValue(formData, "mode");
   const config = getAdminResource(resource);
 
   if (!config || config.readOnly) {
     redirect(`/admin/${resource}?error=${messageParam("Recurso nao pode ser alterado.")}`);
+  }
+
+  if (mode === "delete") {
+    if (resource !== "empresas") {
+      redirect(`/admin/${resource}?error=${messageParam("Exclusao definitiva esta disponivel apenas para empresas.")}`);
+    }
+
+    await deleteEmpresaDefinitively(id);
+    await logAction({ acao: "excluir empresas", detalhes: { id } });
+    revalidatePath("/admin/empresas");
+    redirect(`/admin/empresas?ok=${messageParam("Empresa excluida com sucesso.")}`);
   }
 
   if (resource === "categorias-empresas") {
@@ -153,6 +189,8 @@ export async function saveEmpresaApp(formData: FormData) {
   }
 
   const supabase = await getSupabaseServer();
+  await ensurePlanoBelongsToApp(supabase as any, payload.plano_id, payload.app_id, `/admin/empresas/${empresaId}/apps`);
+
   const query = id
     ? (supabase as any).from("core_empresa_apps").update(payload).eq("id", id)
     : (supabase as any).from("core_empresa_apps").upsert(payload, { onConflict: "empresa_id,app_id" });
@@ -192,6 +230,147 @@ export async function cancelEmpresaApp(formData: FormData) {
   await logAction({ acao: "cancelar app da empresa", detalhes: { id, empresaId } });
   revalidatePath(`/admin/empresas/${empresaId}/apps`);
   redirect(`/admin/empresas/${empresaId}/apps?ok=${messageParam("Vinculo cancelado.")}`);
+}
+
+async function ensureUniqueEmpresaCnpj(client: any, cnpj: string, id: string) {
+  if (!cnpj) {
+    return;
+  }
+
+  const { data, error } = await client
+    .from("core_empresas")
+    .select("id,cnpj,nome,nome_fantasia")
+    .not("cnpj", "is", null);
+
+  if (error) {
+    redirect(`/admin/empresas?error=${messageParam(error.message)}`);
+  }
+
+  const duplicate = ((data ?? []) as Array<Record<string, unknown>>).find((row) => {
+    return String(row.id ?? "") !== id && normalizeDocument(String(row.cnpj ?? "")) === cnpj;
+  });
+
+  if (duplicate) {
+    const name = String(duplicate.nome_fantasia ?? duplicate.nome ?? "outra empresa");
+    redirect(`/admin/empresas?error=${messageParam(`Ja existe uma empresa cadastrada com este CNPJ: ${name}.`)}`);
+  }
+}
+
+async function validateAssinaturaPayload(client: any, payload: Record<string, unknown>, id: string) {
+  const empresaId = String(payload.empresa_id ?? "");
+  const appId = String(payload.app_id ?? "");
+
+  if (!empresaId || !appId) {
+    return;
+  }
+
+  const { data: contract, error: contractError } = await client
+    .from("core_empresa_apps")
+    .select("id,plano_id,status")
+    .eq("empresa_id", empresaId)
+    .eq("app_id", appId)
+    .neq("status", "cancelado")
+    .maybeSingle();
+
+  if (contractError) {
+    redirect(`/admin/assinaturas?error=${messageParam(contractError.message)}`);
+  }
+
+  if (!contract) {
+    redirect(`/admin/assinaturas?error=${messageParam("A empresa selecionada nao possui este app cadastrado.")}`);
+  }
+
+  if (!payload.plano_id && contract.plano_id) {
+    payload.plano_id = contract.plano_id;
+  }
+
+  await ensurePlanoBelongsToApp(client, nullableString(payload.plano_id), appId, "/admin/assinaturas");
+
+  let existingQuery = client
+    .from("core_assinaturas")
+    .select("id")
+    .eq("empresa_id", empresaId)
+    .eq("app_id", appId)
+    .limit(1);
+
+  if (id) {
+    existingQuery = existingQuery.neq("id", id);
+  }
+
+  const { data: existing, error: existingError } = await existingQuery;
+  if (existingError) {
+    redirect(`/admin/assinaturas?error=${messageParam(existingError.message)}`);
+  }
+
+  if ((existing ?? []).length > 0) {
+    redirect(`/admin/assinaturas?error=${messageParam("Ja existe assinatura para esta empresa e app. Edite a existente.")}`);
+  }
+}
+
+async function ensurePlanoBelongsToApp(client: any, planoId: string | null, appId: string, redirectPath: string) {
+  if (!planoId) {
+    return;
+  }
+
+  const { data, error } = await client
+    .from("core_planos")
+    .select("id")
+    .eq("id", planoId)
+    .eq("app_id", appId)
+    .maybeSingle();
+
+  if (error) {
+    redirect(`${redirectPath}?error=${messageParam(error.message)}`);
+  }
+
+  if (!data) {
+    redirect(`${redirectPath}?error=${messageParam("O plano selecionado nao pertence ao app escolhido.")}`);
+  }
+}
+
+async function deleteEmpresaDefinitively(id: string) {
+  if (!id) {
+    redirect(`/admin/empresas?error=${messageParam("Informe a empresa para excluir.")}`);
+  }
+
+  const admin = getSupabaseAdmin() as any;
+  const blockers = await Promise.all([
+    countEmpresaLinks(admin, "core_usuarios", id),
+    countEmpresaLinks(admin, "core_empresa_apps", id),
+    countEmpresaLinks(admin, "core_assinaturas", id),
+    countEmpresaLinks(admin, "core_pagamentos", id)
+  ]);
+
+  const failed = blockers.find((item) => item.error);
+  if (failed?.error) {
+    redirect(`/admin/empresas?error=${messageParam(failed.error)}`);
+  }
+
+  const totalLinks = blockers.reduce((total, item) => total + item.count, 0);
+  if (totalLinks > 0) {
+    redirect(
+      `/admin/empresas?error=${messageParam(
+        "Empresa possui usuarios, apps, assinaturas ou pagamentos vinculados. Remova os vinculos ou inative a empresa."
+      )}`
+    );
+  }
+
+  const { error } = await admin.from("core_empresas").delete().eq("id", id);
+  if (error) {
+    redirect(`/admin/empresas?error=${messageParam(error.message)}`);
+  }
+}
+
+async function countEmpresaLinks(client: any, table: string, empresaId: string) {
+  const { count, error } = await client
+    .from(table)
+    .select("id", { count: "exact", head: true })
+    .eq("empresa_id", empresaId);
+
+  return {
+    count: count ?? 0,
+    error: error?.message ?? null
+  };
 }
 
 async function saveUsuario(formData: FormData, id: string) {
@@ -433,6 +612,16 @@ function buildPayload(fields: AdminField[], formData: FormData) {
   }
 
   return payload;
+}
+
+function normalizeDocument(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits.length > 0 ? digits : null;
+}
+
+function nullableString(value: unknown) {
+  const normalized = String(value ?? "").trim();
+  return normalized.length > 0 ? normalized : null;
 }
 
 function mapAssinaturaStatus(status: string) {
