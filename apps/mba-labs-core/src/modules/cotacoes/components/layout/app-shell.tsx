@@ -121,7 +121,7 @@ export function AppShell({
               {mode === "admin" ? "Administração" : tenantName ?? "Empresa conectada"}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Sessão protegida com permissões por perfil.
+              Sessão protegida por Supabase Auth e permissões por perfil.
             </p>
           </div>
         </div>
