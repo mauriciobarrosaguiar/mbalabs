@@ -10,6 +10,14 @@ type SetupPayload = {
 
 export async function POST(request: Request) {
   try {
+    const requestUrl = new URL(request.url);
+    const requiredKey = process.env.SETUP_ADMIN_SECRET?.trim();
+    const providedKey = requestUrl.searchParams.get("key")?.trim();
+
+    if (requiredKey && providedKey !== requiredKey) {
+      return NextResponse.json({ error: "Acesso restrito para configuração inicial." }, { status: 403 });
+    }
+
     const payload = (await request.json()) as SetupPayload;
     const nome = payload.nome?.trim();
     const email = payload.email?.trim().toLowerCase();
@@ -35,7 +43,7 @@ export async function POST(request: Request) {
 
     if ((count ?? 0) > 0) {
       return NextResponse.json(
-        { error: "Ja existe um Admin Master cadastrado." },
+        { error: "Configuração inicial já realizada." },
         { status: 409 }
       );
     }

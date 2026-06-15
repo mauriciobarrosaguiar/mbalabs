@@ -5,7 +5,8 @@ export const dynamic = "force-dynamic";
 
 const internalDestinations: Record<string, string> = {
   "mba-cotacoes": "/cotacoes",
-  lavagestor: "/lavagestor"
+  lavagestor: "/lavagestor",
+  bikecomanda: "/bikecomanda"
 };
 
 export default async function AppEntryPage({

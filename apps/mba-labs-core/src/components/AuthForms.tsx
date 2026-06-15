@@ -79,7 +79,7 @@ export function LoginForm({ nextPath = "/dashboard" }: { nextPath?: string }) {
   );
 }
 
-export function SetupAdminForm() {
+export function SetupAdminForm({ setupKey }: { setupKey?: string }) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -91,7 +91,8 @@ export function SetupAdminForm() {
     const form = new FormData(event.currentTarget);
 
     try {
-      const response = await fetch("/api/setup-admin", {
+      const query = setupKey ? `?key=${encodeURIComponent(setupKey)}` : "";
+      const response = await fetch(`/api/setup-admin${query}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -101,11 +102,11 @@ export function SetupAdminForm() {
       const payload = (await response.json()) as { error?: string; ok?: boolean };
 
       if (!response.ok) {
-        setMessage(payload.error ?? "Nao foi possivel criar o Admin Master.");
+        setMessage(payload.error ?? "Não foi possível criar o Admin Master.");
         return;
       }
 
-      setMessage("Admin Master criado. Voce ja pode entrar.");
+      setMessage("Admin Master criado. Você já pode entrar.");
       router.push("/login");
       router.refresh();
     } catch (error) {

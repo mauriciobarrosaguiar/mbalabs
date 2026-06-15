@@ -22,6 +22,7 @@ export const config = {
     "/apps/:path*",
     "/cotacoes/:path*",
     "/lavagestor/:path*",
+    "/bikecomanda/:path*",
     "/acesso-bloqueado"
   ]
 };

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AppNav } from "@/components/AppNav";
+import { LavaGestorShell } from "@/components/LavaGestorShell";
 import {
   BackButton,
   DataTable,
@@ -33,9 +33,8 @@ export default async function VeiculosPage({
   const clientes = lookups.clientes.map((cliente) => ({ label: String(cliente.nome), value: String(cliente.id) }));
 
   return (
-    <main>
-      <AppNav />
-      <section className="page-shell grid gap-6 py-8">
+    <LavaGestorShell activePath="/lavagestor/veiculos">
+      <section className="grid gap-6">
         <PageHeader
           eyebrow="LavaGestor"
           title="Veículos"
@@ -57,11 +56,25 @@ export default async function VeiculosPage({
             }
           >
             <FormSelect label="Cliente" name="cliente_id" options={clientes} defaultValue={String(editing?.cliente_id ?? "")} required />
+            <FormSelect
+              label="Tipo"
+              name="tipo"
+              options={[
+                { label: "Carro", value: "carro" },
+                { label: "Moto", value: "moto" },
+                { label: "Caminhonete", value: "caminhonete" },
+                { label: "Caminhão", value: "caminhao" },
+                { label: "Sofá", value: "sofa" },
+                { label: "Tapete", value: "tapete" },
+                { label: "Máquina", value: "maquina" },
+                { label: "Outro", value: "outro" }
+              ]}
+              defaultValue={String(editing?.tipo ?? "")}
+            />
             <FormInput label="Placa" name="placa" defaultValue={String(editing?.placa ?? "")} />
-            <FormInput label="Modelo" name="modelo" defaultValue={String(editing?.modelo ?? "")} />
             <FormInput label="Marca" name="marca" defaultValue={String(editing?.marca ?? "")} />
+            <FormInput label="Modelo" name="modelo" defaultValue={String(editing?.modelo ?? "")} />
             <FormInput label="Cor" name="cor" defaultValue={String(editing?.cor ?? "")} />
-            <FormInput label="Tipo" name="tipo" defaultValue={String(editing?.tipo ?? "")} />
             <FormTextarea label="Observação" name="observacao" defaultValue={String(editing?.observacao ?? "")} />
           </ResourceForm>
         </form>
@@ -89,6 +102,6 @@ export default async function VeiculosPage({
           )}
         />
       </section>
-    </main>
+    </LavaGestorShell>
   );
 }

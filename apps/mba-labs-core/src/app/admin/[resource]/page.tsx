@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppNav } from "@/components/AppNav";
 import { AppPermissionFields } from "@/components/AppPermissionFields";
+import { AssinaturaFields } from "@/components/AssinaturaFields";
 import {
   DataTable,
   DeleteButton,
@@ -111,8 +112,13 @@ export default async function AdminResourcePage({
 
         {resource === "usuarios" ? (
           <p className="rounded-[8px] border border-sky-300/30 bg-sky-300/10 p-3 text-sm leading-6 text-sky-100">
-            Este formulario cria a conta no Supabase Auth quando uma senha provisoria e informada e grava a permissao do
-            app selecionado.
+            Informe os dados do usuário, defina uma senha provisória e escolha o app que ele poderá acessar.
+          </p>
+        ) : null}
+
+        {resource === "apps" ? (
+          <p className="rounded-[8px] border border-amber-300/30 bg-amber-300/10 p-3 text-sm leading-6 text-amber-100">
+            A URL interna precisa existir no código antes de ser usada.
           </p>
         ) : null}
 
@@ -162,8 +168,17 @@ export default async function AdminResourcePage({
                     <form action={deleteAdminResource}>
                       <input name="resource" type="hidden" value={resource} />
                       <input name="id" type="hidden" value={String(row.id)} />
+                      <input name="mode" type="hidden" value="inactivate" />
                       <DeleteButton>{config.inactiveField ? "Inativar" : "Excluir"}</DeleteButton>
                     </form>
+                    {resource === "empresas" ? (
+                      <form action={deleteAdminResource}>
+                        <input name="resource" type="hidden" value={resource} />
+                        <input name="id" type="hidden" value={String(row.id)} />
+                        <input name="mode" type="hidden" value="delete" />
+                        <DeleteButton>Excluir</DeleteButton>
+                      </form>
+                    ) : null}
                   </div>
                 )
           }
@@ -194,6 +209,24 @@ function renderAdminField(
   }
 
   if (resource === "usuarios" && field.name === "perfil_app") {
+    return null;
+  }
+
+  if (resource === "assinaturas" && field.name === "empresa_id") {
+    return (
+      <AssinaturaFields
+        empresas={options.empresas}
+        planos={options.planos}
+        empresaApps={options.empresaApps}
+        defaultEmpresaId={String(editing?.empresa_id ?? "")}
+        defaultAppId={String(editing?.app_id ?? "")}
+        defaultPlanoId={String(editing?.plano_id ?? "")}
+        key={key}
+      />
+    );
+  }
+
+  if (resource === "assinaturas" && (field.name === "app_id" || field.name === "plano_id")) {
     return null;
   }
 

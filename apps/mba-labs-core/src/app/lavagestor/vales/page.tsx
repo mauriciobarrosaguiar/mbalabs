@@ -1,4 +1,4 @@
-import { AppNav } from "@/components/AppNav";
+import { LavaGestorShell } from "@/components/LavaGestorShell";
 import {
   BackButton,
   DataTable,
@@ -33,9 +33,8 @@ export default async function ValesPage({
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <main>
-      <AppNav />
-      <section className="page-shell grid gap-6 py-8">
+    <LavaGestorShell activePath="/lavagestor/vales">
+      <section className="grid gap-6">
         <PageHeader
           eyebrow="LavaGestor"
           title="Vales"
@@ -81,6 +80,6 @@ export default async function ValesPage({
           }
         />
       </section>
-    </main>
+    </LavaGestorShell>
   );
 }
