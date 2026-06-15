@@ -33,6 +33,11 @@ export default async function ConfiguracoesPage() {
             { title: "Empresas", description: "Clientes e status de acesso.", href: "/admin/empresas" },
             { title: "Usuários", description: "Contas, tipos globais e permissões por app.", href: "/admin/usuarios" },
             { title: "Apps", description: "Sistemas disponíveis no portal.", href: "/admin/apps" },
+            {
+              title: "Configurações do site",
+              description: "Textos, logo, WhatsApp, cards e conteúdo público da landing.",
+              href: "/admin/site"
+            },
             { title: "Planos", description: "Planos comerciais por app.", href: "/admin/planos" },
             { title: "Assinaturas", description: "Vencimentos e status de acesso.", href: "/admin/assinaturas" },
             { title: "Logs", description: "Auditoria de ações importantes.", href: "/admin/logs" }

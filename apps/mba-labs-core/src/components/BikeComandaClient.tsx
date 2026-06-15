@@ -917,47 +917,105 @@ function ComandasContent({
   return (
     <section className="rounded-lg border border-[#d9e6ee] bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-xl font-black">Comandas da oficina</h2>
+        <div>
+          <h2 className="text-xl font-black">Comandas da oficina</h2>
+          <p className="mt-1 text-sm text-[#5d7180]">Cards compactos: clique em uma comanda para ver itens, pagamento e ações.</p>
+        </div>
         <Link className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#0f6b99] px-4 text-sm font-bold text-white" href="/bikecomanda/nova-comanda">
           Nova comanda
         </Link>
       </div>
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[980px] text-left text-sm">
-          <thead className="bg-[#edf6fb] text-xs uppercase tracking-[0.08em] text-[#5d7180]">
-            <tr>
-              <th className="p-3">Número</th>
-              <th>Cliente</th>
-              <th>Bicicleta</th>
-              <th>Responsável</th>
-              <th>Status</th>
-              <th>Pagamento</th>
-              <th className="text-right">Valor</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#d9e6ee]">
-            {data.comandas.map((comanda) => (
-              <tr key={comanda.id}>
-                <td className="p-3 font-bold">#{comanda.numero}</td>
-                <td>{helpers.cliente(comanda.clienteId)?.nome ?? "Cliente removido"}</td>
-                <td>{helpers.bicicletaLabel(comanda.bicicletaId)}</td>
-                <td>{helpers.mecanico(comanda.mecanicoId)?.nome ?? "Sem responsável"}</td>
-                <td>
-                  <select className="min-h-9 rounded-lg border border-[#d9e6ee] bg-white px-2 text-sm font-semibold" onChange={(event) => updateStatus(comanda.id, event.target.value as BikeStatus)} value={comanda.status}>
+      <div className="mt-4 grid gap-3">
+        {data.comandas.length === 0 ? (
+          <EmptyState actionHref="/bikecomanda/nova-comanda" actionLabel="Abrir comanda" text="Use o fluxo guiado para registrar o primeiro atendimento da bicicletaria." />
+        ) : null}
+
+        {data.comandas.slice().reverse().map((comanda) => {
+          const aberto = Math.max(comanda.valorTotal - comanda.valorRecebido, 0);
+          const cliente = helpers.cliente(comanda.clienteId)?.nome ?? "Cliente removido";
+          const mecanico = helpers.mecanico(comanda.mecanicoId)?.nome ?? "Sem responsável";
+
+          return (
+            <details className="group rounded-lg border border-[#d9e6ee] bg-[#fbfdff] shadow-sm" key={comanda.id}>
+              <summary className="grid cursor-pointer list-none gap-3 p-4 [&::-webkit-details-marker]:hidden">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-[#0f6b99] px-3 py-1 text-xs font-black text-white">#{comanda.numero}</span>
+                      <StatusBadge status={comanda.status} />
+                      <span className="rounded-full bg-[#edf6fb] px-3 py-1 text-xs font-black text-[#0f4665]">
+                        {paymentLabels[comanda.statusPagamento]}
+                      </span>
+                    </div>
+                    <h3 className="mt-3 truncate text-lg font-black" title={cliente}>{cliente}</h3>
+                    <p className="truncate text-sm text-[#5d7180]" title={helpers.bicicletaLabel(comanda.bicicletaId)}>
+                      {helpers.bicicletaLabel(comanda.bicicletaId)}
+                    </p>
+                  </div>
+                  <div className="grid gap-2 text-sm sm:grid-cols-3 lg:min-w-[420px]">
+                    <BikeMiniInfo label="Responsável" value={mecanico} />
+                    <BikeMiniInfo label="Total" value={currency(comanda.valorTotal)} strong />
+                    <BikeMiniInfo label="Em aberto" value={currency(aberto)} />
+                  </div>
+                </div>
+                <span className="text-xs font-black uppercase tracking-[0.1em] text-[#0f6b99] group-open:hidden">Expandir comanda</span>
+                <span className="hidden text-xs font-black uppercase tracking-[0.1em] text-[#0f6b99] group-open:inline">Recolher comanda</span>
+              </summary>
+
+              <div className="grid gap-5 border-t border-[#d9e6ee] p-4">
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <BikeMiniInfo label="Criada em" value={formatDate(comanda.createdAt)} />
+                  <BikeMiniInfo label="Recebido" value={currency(comanda.valorRecebido)} />
+                  <BikeMiniInfo label="Forma" value={comanda.formaPagamento || "Ainda não informado"} />
+                  <BikeMiniInfo label="Observações" value={comanda.observacoes || "-"} />
+                </div>
+
+                <div className="rounded-lg border border-[#d9e6ee] bg-white">
+                  <div className="border-b border-[#d9e6ee] px-3 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#5d7180]">
+                    Serviços, peças e mão de obra
+                  </div>
+                  <div className="divide-y divide-[#d9e6ee]">
+                    {comanda.itens.map((item) => (
+                      <div className="grid gap-2 p-3 text-sm md:grid-cols-[1fr_auto_auto_auto]" key={item.id}>
+                        <div>
+                          <p className="font-bold">{item.descricao}</p>
+                          <p className="text-xs text-[#5d7180]">{itemTypeLabels[item.tipo]}</p>
+                        </div>
+                        <p>{item.quantidade}x</p>
+                        <p>{currency(item.valorUnitario)}</p>
+                        <p className="font-black">{currency(item.quantidade * item.valorUnitario)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                  <SelectField label="Atualizar status da comanda" onChange={(status) => updateStatus(comanda.id, status as BikeStatus)} value={comanda.status}>
                     {statusFlow.map((status) => (
                       <option key={status} value={status}>{statusLabels[status]}</option>
                     ))}
-                  </select>
-                </td>
-                <td>{paymentLabels[comanda.statusPagamento]}</td>
-                <td className="text-right font-bold">{currency(comanda.valorTotal)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {data.comandas.length === 0 ? <EmptyState actionHref="/bikecomanda/nova-comanda" actionLabel="Abrir comanda" text="Use o fluxo guiado para registrar o primeiro atendimento da bicicletaria." /> : null}
+                  </SelectField>
+                  <Link className="inline-flex min-h-11 items-center justify-center rounded-lg border border-[#d9e6ee] bg-white px-4 text-sm font-bold" href="/bikecomanda/pagamentos">
+                    Registrar pagamento
+                  </Link>
+                </div>
+              </div>
+            </details>
+          );
+        })}
       </div>
     </section>
+  );
+}
+
+function BikeMiniInfo({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="min-w-0 rounded-lg bg-[#edf6fb] px-3 py-2">
+      <p className="text-xs font-black uppercase tracking-[0.08em] text-[#5d7180]">{label}</p>
+      <p className={`mt-1 truncate ${strong ? "text-base font-black" : "text-sm font-bold"}`} title={value}>
+        {value}
+      </p>
+    </div>
   );
 }
 

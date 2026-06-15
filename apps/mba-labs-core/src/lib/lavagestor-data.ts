@@ -268,25 +268,32 @@ export async function listLavaLavagens(filters: { data?: string; funcionario?: s
   const { data, error } = await (supabase as any)
     .from("lava_lavagens")
     .select(
-      "id,cliente_id,veiculo_id,funcionario_id,servico_id,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,comissao,status,status_pagamento,forma_pagamento,data_lavagem,data_entrada,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_funcionarios(nome),lava_servicos(nome)"
+      "id,cliente_id,veiculo_id,funcionario_id,servico_id,descricao_extra,observacoes,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,comissao,status,status_pagamento,forma_pagamento,data_lavagem,data_entrada,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_funcionarios(nome),lava_servicos(nome)"
     )
     .eq("empresa_id", current.empresaId)
     .order("data_lavagem", { ascending: false })
     .limit(200);
 
   const rows = ((data ?? []) as Array<Record<string, unknown>>)
-    .map<Record<string, unknown>>((row) => ({
-      ...row,
-      cliente: relationName(row.lava_clientes),
-      whatsapp: relationPhone(row.lava_clientes),
-      veiculo: vehicleLabel(row.lava_veiculos),
-      funcionario: relationName(row.lava_funcionarios),
-      servico: relationName(row.lava_servicos),
-      status: normalizeLavaStatus(row.status),
-      status_label: LAVA_STATUS_LABELS[normalizeLavaStatus(row.status)] ?? String(row.status ?? "-"),
-      status_pagamento_label:
-        LAVA_PAYMENT_STATUS_LABELS[String(row.status_pagamento ?? "aberto")] ?? String(row.status_pagamento ?? "Aberto")
-    }))
+    .map<Record<string, unknown>>((row) => {
+      const servico = relationName(row.lava_servicos);
+      const extra = String(row.descricao_extra ?? "").trim();
+      const servicosResumo = [servico, extra].filter(Boolean).join(" + ");
+
+      return {
+        ...row,
+        cliente: relationName(row.lava_clientes),
+        whatsapp: relationPhone(row.lava_clientes),
+        veiculo: vehicleLabel(row.lava_veiculos),
+        funcionario: relationName(row.lava_funcionarios),
+        servico: servico || extra || "-",
+        servicos_resumo: servicosResumo || "-",
+        status: normalizeLavaStatus(row.status),
+        status_label: LAVA_STATUS_LABELS[normalizeLavaStatus(row.status)] ?? String(row.status ?? "-"),
+        status_pagamento_label:
+          LAVA_PAYMENT_STATUS_LABELS[String(row.status_pagamento ?? "aberto")] ?? String(row.status_pagamento ?? "Aberto")
+      };
+    })
     .filter((row) => {
       const matchesDate = filters.data ? String(row.data_entrada ?? row.data_lavagem ?? "").startsWith(filters.data) : true;
       const matchesFuncionario = filters.funcionario ? row.funcionario_id === filters.funcionario : true;

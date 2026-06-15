@@ -111,6 +111,7 @@ function getNavGroups({
       {
         title: "Sistema",
         links: [
+          { href: "/admin/site", label: "Configurações do site" },
           { href: "/admin/logs", label: "Logs" },
           { href: "/admin/configuracoes", label: "Configurações" }
         ]
