@@ -2187,7 +2187,7 @@ async function NewQuotationPage({ moduleType, tenantId }: { moduleType: "pharmac
 }
 
 async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotationId: string; moduleType: "pharmacy" | "bidding"; tenantId?: string }) {
-  const [{ quotation, items }, sessions, orders, pendencies] = await Promise.all([
+  const [{ quotation, items: rawItems }, sessions, orders, pendencies] = await Promise.all([
     getQuotationBundle(quotationId, tenantId),
     getSupplierSessions(quotationId, tenantId),
     getPurchaseOrdersByQuotation(quotationId, tenantId),
@@ -2199,6 +2199,11 @@ async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotatio
     moduleType === "pharmacy"
       ? ["respostas", "analise", "pedidos"]
       : ["respostas", "analise", "mapa-comparativo", "saldo-pendente", "pedidos"];
+
+  const items = rawItems.map((item) => ({
+    ...item,
+    status: getQuotationItemStatusFromOrders(item, orders),
+  }));
 
   return (
     <PageStack>
@@ -2302,6 +2307,48 @@ async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotatio
   );
 }
 
+function getQuotationItemStatusFromOrders(
+  item: QuotationItem,
+  orders: Awaited<ReturnType<typeof getPurchaseOrdersByQuotation>>,
+): QuotationItem["status"] {
+  const orderEntries = orders
+    .filter((order) => order.status !== "cancelado" && order.status !== "canceled")
+    .flatMap((order) =>
+      order.items
+        .filter((orderItem) => orderItem.quotationItemId === item.id)
+        .map((orderItem) => ({ order, orderItem })),
+    );
+
+  if (orderEntries.length === 0) {
+    return item.status;
+  }
+
+  const entry =
+    orderEntries.find(({ order }) =>
+      ["finalizado_pelo_vendedor", "parcialmente_faturado", "nao_faturado", "confirmed"].includes(order.status),
+    ) ?? orderEntries[0];
+
+  const billedQuantity = getOrderItemBilledQuantity(entry.orderItem);
+  const missingQuantity = getOrderItemMissingQuantity(entry.orderItem);
+
+  if (entry.orderItem.fulfillmentStatus === "nao_faturado" || entry.order.status === "nao_faturado") {
+    return "nao_faturado" as QuotationItem["status"];
+  }
+
+  if (billedQuantity > 0 && missingQuantity <= 0) {
+    return "paid" as QuotationItem["status"];
+  }
+
+  if (billedQuantity > 0 && missingQuantity > 0) {
+    return "falta_parcial" as QuotationItem["status"];
+  }
+
+  if (["finalizado_pelo_vendedor", "parcialmente_faturado", "confirmed"].includes(entry.order.status)) {
+    return "nao_faturado" as QuotationItem["status"];
+  }
+
+  return "gerado" as QuotationItem["status"];
+}
 async function QuotationEditPage({ quotationId, moduleType, tenantId }: { quotationId: string; moduleType: "pharmacy" | "bidding"; tenantId?: string }) {
   const { quotation, items } = await getQuotationBundle(quotationId, tenantId);
   return (
