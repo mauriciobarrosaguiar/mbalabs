@@ -29,14 +29,14 @@ export function FormCliente({ cliente }: { cliente?: ClienteFormData }) {
         <h2>{isEditing ? "Editar dados do cliente" : "Dados do cliente"}</h2>
         <p>
           {isEditing
-            ? "Atualize os dados cadastrais, contatos e observaÃ§Ãµes do atendimento."
+            ? "Atualize os dados cadastrais, contatos e observações do atendimento."
             : "Preencha o essencial. Os detalhes podem ser completados depois."}
         </p>
       </div>
 
       <div className="field-grid">
         <label className="field">
-          Nome completo ou razÃ£o social
+          Nome completo ou razão social
           <input name="nome" placeholder="Ex.: Maria de Souza" defaultValue={cliente?.nome ?? ""} required />
         </label>
 
@@ -61,7 +61,7 @@ export function FormCliente({ cliente }: { cliente?: ClienteFormData }) {
         </label>
 
         <label className="field">
-          ProfissÃ£o
+          Profissão
           <input name="profissao" placeholder="Ex.: motorista" defaultValue={cliente?.profissao ?? ""} />
         </label>
 
@@ -81,8 +81,8 @@ export function FormCliente({ cliente }: { cliente?: ClienteFormData }) {
         </label>
 
         <label className="field">
-          Origem/indicaÃ§Ã£o
-          <input name="origem" placeholder="Ex.: indicaÃ§Ã£o de cliente" defaultValue={cliente?.origem ?? ""} />
+          Origem/indicação
+          <input name="origem" placeholder="Ex.: indicação de cliente" defaultValue={cliente?.origem ?? ""} />
         </label>
 
         <label className="field">
@@ -96,19 +96,19 @@ export function FormCliente({ cliente }: { cliente?: ClienteFormData }) {
         </label>
 
         <label className="field-full">
-          EndereÃ§o
+          Endereço
           <input
             name="endereco"
-            placeholder="Rua, nÃºmero, bairro, cidade e UF"
+            placeholder="Rua, número, bairro, cidade e UF"
             defaultValue={cliente?.endereco ?? ""}
           />
         </label>
 
         <label className="field-full">
-          ObservaÃ§Ãµes
+          Observações
           <textarea
             name="observacoes"
-            placeholder="InformaÃ§Ãµes relevantes do atendimento."
+            placeholder="Informações relevantes do atendimento."
             defaultValue={cliente?.observacoes ?? ""}
           />
         </label>
@@ -116,7 +116,7 @@ export function FormCliente({ cliente }: { cliente?: ClienteFormData }) {
 
       <div className="button-row">
         <button className="button" type="submit">
-          {isEditing ? "Salvar alteraÃ§Ãµes" : "Salvar cliente"}
+          {isEditing ? "Salvar alterações" : "Salvar cliente"}
         </button>
 
         {!isEditing ? (
