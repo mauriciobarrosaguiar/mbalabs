@@ -40,6 +40,45 @@ export async function salvarClienteLexGestor(formData: FormData) {
 
   redirect("/lexgestor/clientes?status=cliente-salvo");
 }
+export async function atualizarClienteLexGestor(formData: FormData) {
+  const clienteId = required(formData, "id");
+  const current = await requireAppAccess("lexgestor", `/lexgestor/clientes/${clienteId}/editar`);
+  const client = await getLexSupabaseClient();
+  const escritorio = await ensureLexEscritorio(client, current);
+  const escritorioId = String(escritorio?.id ?? "");
+
+  if (!escritorioId && !current.isAdminMaster) {
+    redirect(`/lexgestor/clientes/${clienteId}/editar?erro=configure-escritorio`);
+  }
+
+  const payload = {
+    nome: required(formData, "nome"),
+    cpf_cnpj: nullable(formData, "cpf_cnpj"),
+    rg: nullable(formData, "rg"),
+    data_nascimento: nullable(formData, "data_nascimento"),
+    estado_civil: nullable(formData, "estado_civil"),
+    profissao: nullable(formData, "profissao"),
+    telefone: nullable(formData, "telefone"),
+    whatsapp: nullable(formData, "whatsapp"),
+    email: nullable(formData, "email"),
+    origem: nullable(formData, "origem"),
+    status: value(formData, "status") || "Ativo",
+    endereco: nullable(formData, "endereco"),
+    observacoes: nullable(formData, "observacoes"),
+  };
+
+  let query = client.from("lex_clientes").update(payload).eq("id", clienteId);
+  if (escritorioId) {
+    query = query.eq("escritorio_id", escritorioId);
+  }
+
+  const { error } = await query;
+  if (error) {
+    redirect(`/lexgestor/clientes/${clienteId}/editar?erro=${encodeURIComponent(error.message)}`);
+  }
+
+  redirect(`/lexgestor/clientes/${clienteId}?status=cliente-atualizado`);
+}
 
 export async function salvarCasoLexGestor(formData: FormData) {
   const current = await requireAppAccess("lexgestor", "/lexgestor/casos/novo");

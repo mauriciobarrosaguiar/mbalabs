@@ -119,7 +119,7 @@ export function ClienteAccordionList({ clientes }: ClienteAccordionListProps) {
                   <Info label="Documentos vinculados" value={`${cliente.documentosCount} documento(s)`} />
                 </div>
                 <div className="button-row">
-                  <Link className="button secondary" href={`/lexgestor/clientes/${cliente.id}`}>
+                  <Link className="button secondary" href={`/lexgestor/clientes/${cliente.id}/editar`}>
                     <Pencil size={17} aria-hidden />
                     Editar cliente
                   </Link>
