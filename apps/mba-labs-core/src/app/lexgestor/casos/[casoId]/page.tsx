@@ -18,8 +18,8 @@ export default async function CasoDetalhePage({ params }: CasoDetalhePageProps) 
 
   if (!caso) {
     return (
-      <ResponsivePageContainer title="Caso nao encontrado">
-        <EmptyState title="Registro indisponivel" description="Verifique se o caso existe ou se o acesso esta liberado." />
+      <ResponsivePageContainer title="Caso não encontrado">
+        <EmptyState title="Registro indisponível" description="Verifique se o caso existe ou se o acesso está liberado." />
       </ResponsivePageContainer>
     );
   }
@@ -32,36 +32,38 @@ export default async function CasoDetalhePage({ params }: CasoDetalhePageProps) 
       title={caso.titulo}
       description={`${caso.cliente} - ${caso.categoria} / ${caso.subcategoria}`}
     >
-      <section className="tabs">
-        <div className="tabs-nav" aria-label="Abas do caso">
-          <a className="active" href="#resumo">Resumo</a>
-          <a href="#processo">Processo</a>
-          <a href="#relato">Relato</a>
-          <a href="#checklist">Checklist</a>
-          <a href="#documentos">Documentos</a>
-          <a href="#prazos">Prazos</a>
-          <a href="#dossie">Dossie</a>
-        </div>
+      <section className="tabs stack">
+        <nav className="button-row" aria-label="Atalhos do caso">
+          <a className="button secondary" href="#resumo">Resumo</a>
+          <a className="button secondary" href="#processo">Processo</a>
+          <a className="button secondary" href="#relato">Relato</a>
+          <a className="button secondary" href="#checklist">Checklist</a>
+          <a className="button secondary" href="#documentos">Documentos</a>
+          <a className="button secondary" href="#prazos">Prazos</a>
+          <a className="button secondary" href="#dossie">Dossiê</a>
+        </nav>
+
         <section className="tabs-panel stack" id="resumo">
           <h2>Resumo</h2>
           <div className="detail-grid">
             <Info label="Cliente" value={caso.cliente} />
             <Info label="Categoria" value={`${caso.categoria} / ${caso.subcategoria}`} />
             <Info label="Status" value={caso.status} />
-            <Info label="Proximo prazo" value={caso.proximoPrazo || "Sem prazo"} />
+            <Info label="Próximo prazo" value={caso.proximoPrazo || "Sem prazo"} />
             <Info label="Documentos" value={`${documentos.length} documento(s)`} />
-            <Info label="Checklist" value={`${caso.checklistConcluido}/${caso.checklistTotal} concluido(s)`} />
+            <Info label="Checklist" value={`${caso.checklistConcluido}/${caso.checklistTotal} concluído(s)`} />
           </div>
         </section>
+
         <section className="tabs-panel stack" id="processo">
           <h2>Dados do processo</h2>
           <div className="detail-grid">
-            <Info label="Numero do processo" value={caso.numeroProcesso || "Nao informado"} />
-            <Info label="Chave/eproc" value={caso.chaveProcesso || "Nao informada"} />
-            <Info label="Sistema judicial" value={caso.sistemaJudicial || "Nao informado"} />
+            <Info label="Número do processo" value={caso.numeroProcesso || "Não informado"} />
+            <Info label="Chave/eproc" value={caso.chaveProcesso || "Não informada"} />
+            <Info label="Sistema judicial" value={caso.sistemaJudicial || "Não informado"} />
             <Info label="Tribunal" value={caso.tribunal} />
             <Info label="UF" value={caso.uf} />
-            <Info label="Comarca/Subsecao" value={caso.comarca} />
+            <Info label="Comarca/Subseção" value={caso.comarca} />
             <Info label="Vara" value={caso.vara} />
             <Info label="Classe processual" value={caso.classeProcessual} />
             <Info label="Assunto" value={caso.assunto} />
@@ -71,20 +73,23 @@ export default async function CasoDetalhePage({ params }: CasoDetalhePageProps) 
             <Info label="Polo passivo" value={caso.poloPassivo} />
             <Info label="Advogado" value={caso.advogadoResponsavel} />
             <Info label="Valor da causa" value={caso.valorCausa ? String(caso.valorCausa) : "-"} />
-            <Info label="Justica gratuita" value={caso.justicaGratuita ? "Sim" : "Nao"} />
-            <Info label="Segredo de justica" value={caso.segredoJustica ? "Sim" : "Nao"} />
-            <Info label="Data de distribuicao" value={caso.dataDistribuicao} />
+            <Info label="Justiça gratuita" value={caso.justicaGratuita ? "Sim" : "Não"} />
+            <Info label="Segredo de justiça" value={caso.segredoJustica ? "Sim" : "Não"} />
+            <Info label="Data de distribuição" value={caso.dataDistribuicao} />
             <Info label="Tipo de prazo" value={caso.tipoPrazo} />
             <Info label="Link do processo" value={caso.linkProcesso} />
-            <Info label="Observacoes" value={caso.observacoesProcesso} />
+            <Info label="Observações" value={caso.observacoesProcesso} />
           </div>
         </section>
+
         <section className="tabs-panel" id="relato">
           <RelatoCliente />
         </section>
+
         <section className="tabs-panel" id="checklist">
           <ChecklistCaso items={checklist} />
         </section>
+
         <section className="tabs-panel" id="documentos">
           <UploadDocumentos
             clientes={data.clientes}
@@ -93,25 +98,29 @@ export default async function CasoDetalhePage({ params }: CasoDetalhePageProps) 
             connections={data.storageConnections}
             defaultClienteId={caso.clienteId}
             defaultCasoId={caso.id}
+            defaultCategoria={caso.categoria}
+            defaultSubcategoria={caso.subcategoria}
           />
         </section>
+
         <section className="tabs-panel stack" id="prazos">
           <h2>Prazos</h2>
           <div className="detail-grid">
-            <Info label="Proximo prazo" value={caso.proximoPrazo || "Sem prazo"} />
+            <Info label="Próximo prazo" value={caso.proximoPrazo || "Sem prazo"} />
             <Info label="Tipo de prazo" value={caso.tipoPrazo || "-"} />
             <Info label="Fase" value={caso.faseProcessual || "-"} />
           </div>
         </section>
+
         <section className="tabs-panel stack" id="dossie">
-          <h2>Dossie do caso</h2>
+          <h2>Dossiê do caso</h2>
           <PdfPreview />
           <div className="button-row">
             <a className="button" href={`/api/lexgestor/relatorios/pdf?tipo=dossie&caso=${caso.id}`}>
-              Gerar dossie PDF
+              Gerar dossiê PDF
             </a>
             <a className="button secondary" href={`/lexgestor/documentos?caso=${caso.id}`}>
-              Abrir pasta no armazenamento
+              Ver documentos do caso
             </a>
           </div>
         </section>
@@ -120,7 +129,7 @@ export default async function CasoDetalhePage({ params }: CasoDetalhePageProps) 
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function Info({ label, value }: { label: string; value?: string | null }) {
   return (
     <div className="detail-box">
       <span>{label}</span>
