@@ -14,6 +14,8 @@ type UploadDocumentosProps = {
   connections?: LexStorageConnection[];
   defaultClienteId?: string;
   defaultCasoId?: string;
+  defaultCategoria?: string;
+  defaultSubcategoria?: string;
 };
 
 export function UploadDocumentos({
@@ -23,6 +25,8 @@ export function UploadDocumentos({
   connections = [],
   defaultClienteId = "",
   defaultCasoId = "",
+  defaultCategoria = "",
+  defaultSubcategoria = "",
 }: UploadDocumentosProps) {
   const [clienteId, setClienteId] = useState(defaultClienteId);
   const [casoId, setCasoId] = useState(defaultCasoId);
@@ -36,6 +40,10 @@ export function UploadDocumentos({
     () => casos.filter((caso) => !clienteId || caso.clienteId === clienteId),
     [casos, clienteId],
   );
+
+  const casoSelecionado = casos.find((caso) => caso.id === casoId);
+  const categoriaInicial = casoSelecionado?.categoria || defaultCategoria;
+  const subcategoriaInicial = casoSelecionado?.subcategoria || defaultSubcategoria;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,8 +75,8 @@ export function UploadDocumentos({
 
       {!hasStorage ? (
         <p className="notice">
-          Conecte Google Drive ou Dropbox para salvar arquivos reais. Sem conexao, o documento
-          fica cadastrado como pendente e nenhum envio e simulado.
+          Conecte Google Drive ou Dropbox para salvar arquivos reais. Sem conexão, o documento
+          fica cadastrado como pendente e o envio externo não será feito.
         </p>
       ) : null}
 
@@ -76,7 +84,15 @@ export function UploadDocumentos({
         <div className="field-grid">
           <label className="field">
             Cliente
-            <select name="cliente_id" required value={clienteId} onChange={(event) => setClienteId(event.target.value)}>
+            <select
+              name="cliente_id"
+              required
+              value={clienteId}
+              onChange={(event) => {
+                setClienteId(event.target.value);
+                setCasoId("");
+              }}
+            >
               <option value="">Escolha o cliente</option>
               {clientes.map((cliente) => (
                 <option value={cliente.id} key={cliente.id}>
@@ -96,7 +112,13 @@ export function UploadDocumentos({
               ))}
             </select>
           </label>
-          <CategorySubcategoryFields categorias={categorias} compact />
+          <CategorySubcategoryFields
+            key={`${casoId || "sem-caso"}-${categoriaInicial}-${subcategoriaInicial}`}
+            categorias={categorias}
+            compact
+            defaultCategoria={categoriaInicial}
+            defaultSubcategoria={subcategoriaInicial}
+          />
           <label className="field">
             Tipo de documento
             <input name="tipo_documento" placeholder="Ex.: RG, CNIS, contrato, print" required />
@@ -119,8 +141,8 @@ export function UploadDocumentos({
             </select>
           </label>
           <label className="field-full">
-            Observacoes
-            <textarea name="observacoes" placeholder="Informacoes importantes sobre este documento." />
+            Observações
+            <textarea name="observacoes" placeholder="Informações importantes sobre este documento." />
           </label>
         </div>
 
@@ -128,7 +150,7 @@ export function UploadDocumentos({
           <FileUp size={36} color="var(--primary)" aria-hidden />
           <div>
             <strong>Enviar arquivo, foto ou print</strong>
-            <p>O original sera preservado. PDF com marca d'agua pode ser gerado junto.</p>
+            <p>O original será preservado. PDF com marca d'água pode ser gerado junto.</p>
           </div>
           <input
             ref={fileInputRef}
@@ -146,7 +168,7 @@ export function UploadDocumentos({
 
         <label className="check-option">
           <input type="checkbox" name="gerar_pdf" value="sim" />
-          <span>Gerar PDF com marca d'agua</span>
+          <span>Gerar PDF com marca d'água</span>
         </label>
 
         <div className="button-row">
@@ -160,7 +182,7 @@ export function UploadDocumentos({
           </button>
           <button className="button secondary" type="submit" name="gerar_pdf" value="sim" disabled={isSubmitting}>
             <ShieldCheck size={17} aria-hidden />
-            Gerar PDF com marca d'agua
+            Gerar PDF com marca d'água
           </button>
         </div>
         {status ? <span className="status-pill">{status}</span> : null}
