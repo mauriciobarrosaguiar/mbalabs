@@ -11,6 +11,10 @@ export function WinnerOrderLinks({ order }: { order?: PurchaseOrder }) {
   }
 
   const resolvedOrder = order;
+  if (!resolvedOrder.publicToken) {
+    return <span className="text-sm text-muted-foreground">Link pendente</span>;
+  }
+
   const path = `/${resolvedOrder.moduleType === "bidding" ? "licitacao" : "cotacao"}/pedido/${resolvedOrder.publicToken}`;
 
   function buildPublicLink() {

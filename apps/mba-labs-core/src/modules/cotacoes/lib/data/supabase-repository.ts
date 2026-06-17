@@ -84,7 +84,7 @@ function readDb(context: string): DbClient | null {
   }
 }
 
-export async function getCollections() {
+export async function getCollections(tenantId?: string) {
   if (!canUseSupabaseRepository()) return emptyCollections();
   const supabase = readDb("colecoes");
   if (!supabase) return emptyCollections();
@@ -105,20 +105,20 @@ export async function getCollections() {
     supplierQuoteResponseItems,
     auditLogs,
   ] = await Promise.all([
-    selectAll(supabase, "tenants", mapTenant),
+    selectAll(supabase, "tenants", mapTenant, tenantId, "id"),
     selectAll(supabase, "subscription_plans", mapSubscriptionPlan),
-    selectAll(supabase, "monthly_subscriptions", mapMonthlySubscription),
-    selectAll(supabase, "pharmacies", mapPharmacy),
-    selectAll(supabase, "suppliers", mapSupplier),
-    selectAll(supabase, "distributors", mapDistributor),
-    selectAll(supabase, "laboratories", mapLaboratory),
-    selectAll(supabase, "products", mapProduct),
-    selectAll(supabase, "quotations", mapQuotation),
-    selectAll(supabase, "quotation_items", mapQuotationItem),
-    selectAll(supabase, "supplier_quote_sessions", mapSupplierSession),
-    selectAll(supabase, "supplier_quote_responses", mapSupplierResponse),
-    selectAll(supabase, "supplier_quote_response_items", mapSupplierResponseItem),
-    selectAll(supabase, "audit_logs", mapAuditLog),
+    selectAll(supabase, "monthly_subscriptions", mapMonthlySubscription, tenantId),
+    selectAll(supabase, "pharmacies", mapPharmacy, tenantId),
+    selectAll(supabase, "suppliers", mapSupplier, tenantId),
+    selectAll(supabase, "distributors", mapDistributor, tenantId),
+    selectAll(supabase, "laboratories", mapLaboratory, tenantId),
+    selectAll(supabase, "products", mapProduct, tenantId),
+    selectAll(supabase, "quotations", mapQuotation, tenantId),
+    selectAll(supabase, "quotation_items", mapQuotationItem, tenantId),
+    selectAll(supabase, "supplier_quote_sessions", mapSupplierSession, tenantId),
+    selectAll(supabase, "supplier_quote_responses", mapSupplierResponse, tenantId),
+    selectAll(supabase, "supplier_quote_response_items", mapSupplierResponseItem, tenantId),
+    selectAll(supabase, "audit_logs", mapAuditLog, tenantId),
   ]);
 
   const activeQuotations = quotations.filter((quotation) => !isQuotationDeleted(quotation.status));
@@ -413,10 +413,10 @@ export async function getQuotationsByModule(moduleType: ModuleType) {
   return listQuotationsByModule(moduleType);
 }
 
-export async function listQuotationsByModule(moduleType: ModuleType) {
+export async function listQuotationsByModule(moduleType: ModuleType, tenantId?: string) {
   if (!canUseSupabaseOperational()) return [];
   try {
-    return await listSupabaseQuotations(moduleType);
+    return await listSupabaseQuotations(moduleType, tenantId);
   } catch (error) {
     logSupabaseReadError("quotations", error);
     return [];
@@ -521,8 +521,8 @@ export async function deleteQuotationItem(id: string) {
   return true;
 }
 
-export async function getQuotationBundle(id: string) {
-  const bundle = canUseSupabaseOperational() ? await getSupabaseQuotationBundle(id).catch((error) => {
+export async function getQuotationBundle(id: string, tenantId?: string) {
+  const bundle = canUseSupabaseOperational() ? await getSupabaseQuotationBundle(id, tenantId).catch((error) => {
     logSupabaseReadError("quotation bundle", error);
     return null;
   }) : null;
@@ -535,12 +535,13 @@ export async function getQuotationBundle(id: string) {
   };
 }
 
-export async function getSupplierSessions(quotationId?: string) {
+export async function getSupplierSessions(quotationId?: string, tenantId?: string) {
   const supabase = readDb("supplier_quote_sessions");
   if (!supabase) return [];
   try {
     let query = supabase.from("supplier_quote_sessions").select("*").order("created_at", { ascending: false });
     if (quotationId) query = query.eq("quotation_id", quotationId);
+    if (tenantId) query = query.eq("tenant_id", tenantId);
     const { data, error } = await query;
     if (error) {
       logSupabaseReadError("supplier_quote_sessions", error);
@@ -632,26 +633,29 @@ export function generateBiddingAwards(quotationItem: QuotationItem, responseItem
   return buildBiddingAnalysis([quotationItem], responseItems, []).awards;
 }
 
-export async function generatePurchaseOrders(quotationId: string) {
-  return generateAndPersistSupabasePurchaseOrders(quotationId);
+export async function generatePurchaseOrders(quotationId: string, tenantId?: string) {
+  return generateAndPersistSupabasePurchaseOrders(quotationId, tenantId);
 }
 
-export async function getPurchaseOrdersByQuotation(quotationId: string) {
+export async function getPurchaseOrdersByQuotation(quotationId: string, tenantId?: string) {
   const supabase = readDb("purchase_orders");
   if (!supabase) return [];
   try {
-    const { data: quotationRow, error: quotationError } = await supabase
+    let quotationQuery = supabase
       .from("quotations")
-      .select("status,deleted_at")
-      .eq("id", quotationId)
-      .maybeSingle();
+      .select("status,deleted_at,tenant_id")
+      .eq("id", quotationId);
+    if (tenantId) quotationQuery = quotationQuery.eq("tenant_id", tenantId);
+    const { data: quotationRow, error: quotationError } = await quotationQuery.maybeSingle();
     if (quotationError || !quotationRow || isQuotationDeleted(quotationRow.status) || quotationRow.deleted_at) return [];
 
-    const { data: orderRows, error: orderError } = await supabase
+    let orderQuery = supabase
       .from("purchase_orders")
       .select("*")
       .eq("quotation_id", quotationId)
       .order("created_at", { ascending: false });
+    if (tenantId) orderQuery = orderQuery.eq("tenant_id", tenantId);
+    const { data: orderRows, error: orderError } = await orderQuery;
     if (orderError) {
       logSupabaseReadError("purchase_orders", orderError);
       return [];
@@ -786,9 +790,17 @@ export function getDefaultQuotationForModule(moduleType: ModuleType): Quotation 
   return { ...notFoundQuotation, moduleType };
 }
 
-async function selectAll<T>(supabase: DbClient, table: string, mapper: (row: Record<string, any>) => T): Promise<T[]> {
+async function selectAll<T>(
+  supabase: DbClient,
+  table: string,
+  mapper: (row: Record<string, any>) => T,
+  tenantId?: string,
+  tenantColumn = "tenant_id",
+): Promise<T[]> {
   try {
-    const { data, error } = await supabase.from(table).select("*");
+    let query = supabase.from(table).select("*");
+    if (tenantId) query = query.eq(tenantColumn, tenantId);
+    const { data, error } = await query;
     if (error) {
       logSupabaseReadError(table, error);
       return [];

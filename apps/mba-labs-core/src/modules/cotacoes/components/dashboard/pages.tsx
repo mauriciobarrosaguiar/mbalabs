@@ -94,6 +94,7 @@ import type {
   QuotationItem,
   QuotationStatus,
   PurchaseOrderItem,
+  SupplierQuoteResponse,
   SupplierQuoteResponseItem,
   SupplierQuoteSession,
 } from "@/modules/cotacoes/lib/types";
@@ -654,10 +655,12 @@ export async function AdminSectionPage({
 export async function CompanyRoutePage({
   slug,
   tenantType,
+  tenantId,
   searchParams,
 }: {
   slug: string[];
   tenantType?: CustomerType;
+  tenantId?: string;
   searchParams?: AppSearchParams;
 }) {
   const [section = "dashboard", id, subpage] = slug;
@@ -670,7 +673,7 @@ export async function CompanyRoutePage({
     return <SupabaseRequiredState />;
   }
 
-  if (section === "dashboard") return <CompanyDashboard tenantType={tenantType} />;
+  if (section === "dashboard") return <CompanyDashboard tenantType={tenantType} tenantId={tenantId} />;
   if (section === "acesso-suspenso") return <SuspendedAccessPage />;
   if (section === "sem-permissao") return <ModulePermissionDeniedPage />;
   if (section === "produtos") return <ProductsPage />;
@@ -686,7 +689,7 @@ export async function CompanyRoutePage({
       section === "pedidos-gerados-farmacia" ? "pharmacy" :
       section === "pedidos-gerados-licitacao" ? "bidding" :
       undefined;
-    return <GeneratedOrdersPage tenantType={tenantType} searchParams={searchParams} forcedModule={forcedModule} />;
+    return <GeneratedOrdersPage tenantType={tenantType} tenantId={tenantId} searchParams={searchParams} forcedModule={forcedModule} />;
   }
   if (section === "mapa-comparativo" || section === "analise-unidade") {
     return <BiddingOperationalPage section={section} />;
@@ -697,15 +700,15 @@ export async function CompanyRoutePage({
   if (section === "usuarios") return <CompanyUsersPage />;
   if (section === "configuracoes" && id === "supabase") return <SupabaseSettingsPage />;
   if (section === "configuracoes") return <CompanySettingsPage />;
-  if (section === "cotacoes-farmacia") return <PharmacyQuotationPage id={id} subpage={subpage} />;
-  if (section === "licitacoes") return <BiddingQuotationPage id={id} subpage={subpage} />;
+  if (section === "cotacoes-farmacia") return <PharmacyQuotationPage id={id} subpage={subpage} tenantId={tenantId} />;
+  if (section === "licitacoes") return <BiddingQuotationPage id={id} subpage={subpage} tenantId={tenantId} />;
 
-  return <CompanyDashboard tenantType={tenantType} />;
+  return <CompanyDashboard tenantType={tenantType} tenantId={tenantId} />;
 }
 
-async function CompanyDashboard({ tenantType = "both" }: { tenantType?: CustomerType } = {}) {
+async function CompanyDashboard({ tenantType = "both", tenantId }: { tenantType?: CustomerType; tenantId?: string } = {}) {
   const runtime = getRuntimeSummary();
-  const collections = await getCollections();
+  const collections = await getCollections(tenantId);
   const allowedModules = getTenantModules(tenantType);
   const visibleQuotations = collections.quotations.filter((quotation) =>
     allowedModules.includes(quotation.moduleType),
@@ -743,10 +746,10 @@ async function CompanyDashboard({ tenantType = "both" }: { tenantType?: Customer
 
   const [biddingDashboard, pharmacyDashboard] = await Promise.all([
     allowedModules.includes("bidding")
-      ? buildModuleDashboard(collections, "bidding")
+      ? buildModuleDashboard(collections, "bidding", tenantId)
       : Promise.resolve(null),
     allowedModules.includes("pharmacy")
-      ? buildModuleDashboard(collections, "pharmacy")
+      ? buildModuleDashboard(collections, "pharmacy", tenantId)
       : Promise.resolve(null),
   ]);
 
@@ -754,28 +757,32 @@ async function CompanyDashboard({ tenantType = "both" }: { tenantType?: Customer
     <PageStack>
       <RuntimeNotice tenantType={tenantType} />
       {tenantType === "both" && biddingDashboard && pharmacyDashboard ? (
-        <Tabs defaultValue="bidding">
+        <Tabs defaultValue="pharmacy" className="w-full">
           <TabsList>
-            <TabsTrigger value="bidding">Licitação</TabsTrigger>
             <TabsTrigger value="pharmacy">Farmácia</TabsTrigger>
+            <TabsTrigger value="bidding">Licitação</TabsTrigger>
           </TabsList>
-          <TabsContent value="bidding" className="mt-4">
-            <ModuleDashboardSection
-              metrics={biddingDashboard.metrics}
-              summary={<BiddingSummaryCard />}
-            />
-          </TabsContent>
           <TabsContent value="pharmacy" className="mt-4">
             <ModuleDashboardSection
               metrics={pharmacyDashboard.metrics}
-              summary={<PharmacySummaryCard />}
+              summary={<PharmacySummaryCard collections={collections} />}
+            />
+          </TabsContent>
+          <TabsContent value="bidding" className="mt-4">
+            <ModuleDashboardSection
+              metrics={biddingDashboard.metrics}
+              summary={<BiddingSummaryCard collections={collections} />}
             />
           </TabsContent>
         </Tabs>
       ) : (
         <ModuleDashboardSection
           metrics={(tenantType === "distributor_bidding" ? biddingDashboard : pharmacyDashboard)?.metrics ?? []}
-          summary={tenantType === "distributor_bidding" ? <BiddingSummaryCard /> : <PharmacySummaryCard />}
+          summary={
+            tenantType === "distributor_bidding"
+              ? <BiddingSummaryCard collections={collections} />
+              : <PharmacySummaryCard collections={collections} />
+          }
         />
       )}
     </PageStack>
@@ -792,7 +799,7 @@ function ModuleDashboardSection({
   return (
     <div className="space-y-4">
       <MetricsGrid metrics={metrics} />
-      <TwoColumn>{summary}</TwoColumn>
+      {summary ? <TwoColumn>{summary}</TwoColumn> : null}
     </div>
   );
 }
@@ -804,12 +811,19 @@ type DashboardMetricLike = {
   tone?: "default" | "success" | "warning" | "danger" | "info";
 };
 
-async function buildModuleDashboard(collections: Collections, moduleType: "pharmacy" | "bidding") {
+async function buildModuleDashboard(collections: Collections, moduleType: "pharmacy" | "bidding", tenantId?: string) {
   const quotations = collections.quotations.filter((quotation) => quotation.moduleType === moduleType);
   const quotationIds = new Set(quotations.map((quotation) => quotation.id));
-  const responses = collections.supplierQuoteResponses.filter((response) => quotationIds.has(response.quotationId));
-  const ordersByQuotation = await Promise.all(quotations.map((quotation) => getPurchaseOrdersByQuotation(quotation.id)));
+  const responses = collections.supplierQuoteResponses.filter((response) =>
+    quotationIds.has(response.quotationId) &&
+    isSubmittedSupplierResponse(response),
+  );
+  const respondedSuppliers = new Set(responses.map(getSupplierResponseCountKey));
+  const ordersByQuotation = await Promise.all(
+    quotations.map((quotation) => getPurchaseOrdersByQuotation(quotation.id, tenantId)),
+  );
   const orders = ordersByQuotation.flat();
+  const generatedQuotationIds = new Set(orders.map((order) => order.quotationId));
   const moduleLabel = moduleType === "bidding" ? "Licitações" : "Cotações";
 
   return {
@@ -829,14 +843,23 @@ async function buildModuleDashboard(collections: Collections, moduleType: "pharm
       },
       {
         label: "Geradas",
-        value: formatInteger(quotations.filter((quotation) => isQuotationGenerated(quotation.status)).length),
+        value: formatInteger(quotations.filter((quotation) => isQuotationGenerated(quotation.status) || generatedQuotationIds.has(quotation.id)).length),
         hint: "Com pedido gerado",
         tone: "success",
       },
-      { label: "Respostas", value: formatInteger(responses.length), hint: "Fornecedores respondidos" },
+      { label: "Respostas", value: formatInteger(respondedSuppliers.size), hint: "Fornecedores respondidos" },
       { label: "Pedidos gerados", value: formatInteger(orders.length), hint: "Pedidos de vendedores vencedores" },
     ] satisfies DashboardMetricLike[],
   };
+}
+
+function isSubmittedSupplierResponse(response: SupplierQuoteResponse) {
+  return ["submitted", "respondido"].includes(String(response.status).toLowerCase());
+}
+
+function getSupplierResponseCountKey(response: SupplierQuoteResponse) {
+  const supplierKey = response.supplierId ?? response.sellerCompany ?? response.sellerName ?? response.id;
+  return `${response.quotationId}:${String(supplierKey).trim().toLowerCase()}`;
 }
 
 function getTenantModules(tenantType: CustomerType): Array<"pharmacy" | "bidding"> {
@@ -1745,14 +1768,16 @@ async function BiddingOperationalPage({ section }: { section: string }) {
 
 async function GeneratedOrdersPage({
   tenantType = "both",
+  tenantId,
   searchParams,
   forcedModule,
 }: {
   tenantType?: CustomerType;
+  tenantId?: string;
   searchParams?: AppSearchParams;
   forcedModule?: "pharmacy" | "bidding";
 }) {
-  const collections = await getCollections();
+  const collections = await getCollections(tenantId);
   const allowedModules = getTenantModules(tenantType);
   const moduleParam = getSearchParam(searchParams, "module");
   const moduleFilter = forcedModule ?? (moduleParam === "pharmacy" || moduleParam === "bidding" ? moduleParam : "all");
@@ -1769,7 +1794,7 @@ async function GeneratedOrdersPage({
 
   const orderGroups = await Promise.all(quotations.map(async (quotation) => {
     const [orders, pendencies] = await Promise.all([
-      getPurchaseOrdersByQuotation(quotation.id),
+      getPurchaseOrdersByQuotation(quotation.id, tenantId),
       loadWinnerOrderPendingItems(quotation.id),
     ]);
     return { quotation, orders, pendencies };
@@ -2094,30 +2119,30 @@ function SupabaseSettingsPage() {
   );
 }
 
-async function PharmacyQuotationPage({ id, subpage }: { id?: string; subpage?: string }) {
-  if (!id) return <QuotationList moduleType="pharmacy" />;
-  if (id === "nova") return <NewQuotationPage moduleType="pharmacy" />;
-  if (subpage === "editar") return <QuotationEditPage quotationId={id} moduleType="pharmacy" />;
-  if (subpage === "respostas") return <PharmacyResponses quotationId={id} />;
-  if (subpage === "analise") return <PharmacyAnalysis quotationId={id} />;
-  if (subpage === "pedidos") return <OrdersPage quotationId={id} />;
-  return <QuotationDetail quotationId={id} moduleType="pharmacy" />;
+async function PharmacyQuotationPage({ id, subpage, tenantId }: { id?: string; subpage?: string; tenantId?: string }) {
+  if (!id) return <QuotationList moduleType="pharmacy" tenantId={tenantId} />;
+  if (id === "nova") return <NewQuotationPage moduleType="pharmacy" tenantId={tenantId} />;
+  if (subpage === "editar") return <QuotationEditPage quotationId={id} moduleType="pharmacy" tenantId={tenantId} />;
+  if (subpage === "respostas") return <PharmacyResponses quotationId={id} tenantId={tenantId} />;
+  if (subpage === "analise") return <PharmacyAnalysis quotationId={id} tenantId={tenantId} />;
+  if (subpage === "pedidos") return <OrdersPage quotationId={id} tenantId={tenantId} />;
+  return <QuotationDetail quotationId={id} moduleType="pharmacy" tenantId={tenantId} />;
 }
 
-async function BiddingQuotationPage({ id, subpage }: { id?: string; subpage?: string }) {
-  if (!id) return <QuotationList moduleType="bidding" />;
-  if (id === "nova") return <NewQuotationPage moduleType="bidding" />;
-  if (subpage === "editar") return <QuotationEditPage quotationId={id} moduleType="bidding" />;
-  if (subpage === "respostas") return <BiddingResponses quotationId={id} />;
-  if (subpage === "analise") return <BiddingAnalysis quotationId={id} />;
+async function BiddingQuotationPage({ id, subpage, tenantId }: { id?: string; subpage?: string; tenantId?: string }) {
+  if (!id) return <QuotationList moduleType="bidding" tenantId={tenantId} />;
+  if (id === "nova") return <NewQuotationPage moduleType="bidding" tenantId={tenantId} />;
+  if (subpage === "editar") return <QuotationEditPage quotationId={id} moduleType="bidding" tenantId={tenantId} />;
+  if (subpage === "respostas") return <BiddingResponses quotationId={id} tenantId={tenantId} />;
+  if (subpage === "analise") return <BiddingAnalysis quotationId={id} tenantId={tenantId} />;
   if (subpage === "mapa-comparativo") return <ComparativeMap quotationId={id} />;
   if (subpage === "saldo-pendente") return <PendingBalancePage quotationId={id} />;
-  if (subpage === "pedidos") return <OrdersPage quotationId={id} />;
-  return <QuotationDetail quotationId={id} moduleType="bidding" />;
+  if (subpage === "pedidos") return <OrdersPage quotationId={id} tenantId={tenantId} />;
+  return <QuotationDetail quotationId={id} moduleType="bidding" tenantId={tenantId} />;
 }
 
-async function QuotationList({ moduleType }: { moduleType: "pharmacy" | "bidding" }) {
-  const list = await listQuotationsByModule(moduleType);
+async function QuotationList({ moduleType, tenantId }: { moduleType: "pharmacy" | "bidding"; tenantId?: string }) {
+  const list = await listQuotationsByModule(moduleType, tenantId);
   console.info("[QuotationList] listagem carregada", {
     moduleType,
     count: list.length,
@@ -2142,8 +2167,8 @@ async function QuotationList({ moduleType }: { moduleType: "pharmacy" | "bidding
   );
 }
 
-async function NewQuotationPage({ moduleType }: { moduleType: "pharmacy" | "bidding" }) {
-  const { laboratories, products, suppliers } = await getCollections();
+async function NewQuotationPage({ moduleType, tenantId }: { moduleType: "pharmacy" | "bidding"; tenantId?: string }) {
+  const { laboratories, products, suppliers } = await getCollections(tenantId);
   return (
     <PageStack>
       <HeaderBlock
@@ -2161,11 +2186,11 @@ async function NewQuotationPage({ moduleType }: { moduleType: "pharmacy" | "bidd
   );
 }
 
-async function QuotationDetail({ quotationId, moduleType }: { quotationId: string; moduleType: "pharmacy" | "bidding" }) {
+async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotationId: string; moduleType: "pharmacy" | "bidding"; tenantId?: string }) {
   const [{ quotation, items }, sessions, orders, pendencies] = await Promise.all([
-    getQuotationBundle(quotationId),
-    getSupplierSessions(quotationId),
-    getPurchaseOrdersByQuotation(quotationId),
+    getQuotationBundle(quotationId, tenantId),
+    getSupplierSessions(quotationId, tenantId),
+    getPurchaseOrdersByQuotation(quotationId, tenantId),
     loadWinnerOrderPendingItems(quotationId),
   ]);
   const base = moduleType === "pharmacy" ? "/cotacoes/cotacoes-farmacia" : "/cotacoes/licitacoes";
@@ -2277,8 +2302,8 @@ async function QuotationDetail({ quotationId, moduleType }: { quotationId: strin
   );
 }
 
-async function QuotationEditPage({ quotationId, moduleType }: { quotationId: string; moduleType: "pharmacy" | "bidding" }) {
-  const { quotation, items } = await getQuotationBundle(quotationId);
+async function QuotationEditPage({ quotationId, moduleType, tenantId }: { quotationId: string; moduleType: "pharmacy" | "bidding"; tenantId?: string }) {
+  const { quotation, items } = await getQuotationBundle(quotationId, tenantId);
   return (
     <PageStack>
       <HeaderBlock
@@ -2297,10 +2322,10 @@ async function QuotationEditPage({ quotationId, moduleType }: { quotationId: str
   );
 }
 
-async function PharmacyResponses({ quotationId }: { quotationId: string }) {
+async function PharmacyResponses({ quotationId, tenantId }: { quotationId: string; tenantId?: string }) {
   const [{ quotation, responseItems, responses }, sessions] = await Promise.all([
-    getQuotationBundle(quotationId),
-    getSupplierSessions(quotationId),
+    getQuotationBundle(quotationId, tenantId),
+    getSupplierSessions(quotationId, tenantId),
   ]);
   const submittedResponseIds = new Set(
     responses
@@ -2320,11 +2345,11 @@ async function PharmacyResponses({ quotationId }: { quotationId: string }) {
   );
 }
 
-async function BiddingResponses({ quotationId }: { quotationId: string }) {
+async function BiddingResponses({ quotationId, tenantId }: { quotationId: string; tenantId?: string }) {
   const [analysis, { quotation }, sessions] = await Promise.all([
     getBiddingAnalysis(quotationId),
-    getQuotationBundle(quotationId),
-    getSupplierSessions(quotationId),
+    getQuotationBundle(quotationId, tenantId),
+    getSupplierSessions(quotationId, tenantId),
   ]);
   return (
     <ResponseItemsPage
@@ -2339,11 +2364,11 @@ async function BiddingResponses({ quotationId }: { quotationId: string }) {
   );
 }
 
-async function PharmacyAnalysis({ quotationId }: { quotationId: string }) {
+async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string; tenantId?: string }) {
   const [analysis, { quotation, items }, orders] = await Promise.all([
     getPharmacyAnalysis(quotationId),
-    getQuotationBundle(quotationId),
-    getPurchaseOrdersByQuotation(quotationId),
+    getQuotationBundle(quotationId, tenantId),
+    getPurchaseOrdersByQuotation(quotationId, tenantId),
   ]);
 
   const orderForAward = (award: QuotationAward) =>
@@ -2500,10 +2525,10 @@ async function PharmacyAnalysis({ quotationId }: { quotationId: string }) {
   );
 }
 
-async function BiddingAnalysis({ quotationId }: { quotationId: string }) {
+async function BiddingAnalysis({ quotationId, tenantId }: { quotationId: string; tenantId?: string }) {
   const [analysis, { quotation }] = await Promise.all([
     getBiddingAnalysis(quotationId),
-    getQuotationBundle(quotationId),
+    getQuotationBundle(quotationId, tenantId),
   ]);
 
   return (
@@ -2644,8 +2669,8 @@ async function PendingBalancePage({ quotationId }: { quotationId: string }) {
   );
 }
 
-async function OrdersPage({ quotationId }: { quotationId: string }) {
-  const { quotation, items, responseItems, responses } = await getQuotationBundle(quotationId);
+async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tenantId?: string }) {
+  const { quotation, items, responseItems, responses } = await getQuotationBundle(quotationId, tenantId);
   const canGenerateOrders = canGenerateQuotationOrders(quotation.status);
   const submittedResponseIds = new Set(
     responses
@@ -2670,7 +2695,7 @@ async function OrdersPage({ quotationId }: { quotationId: string }) {
   let orders: Awaited<ReturnType<typeof getPurchaseOrdersByQuotation>> = [];
   let ordersError: string | null = null;
   try {
-    orders = await getPurchaseOrdersByQuotation(quotationId);
+    orders = await getPurchaseOrdersByQuotation(quotationId, tenantId);
   } catch (error) {
     console.error("Erro ao buscar pedidos dos vencedores", { quotationId, error });
     ordersError = "Não foi possível carregar os pedidos dos vencedores. Tente novamente ou verifique o log do servidor.";
@@ -2917,8 +2942,17 @@ async function OrdersPage({ quotationId }: { quotationId: string }) {
   );
 }
 
-async function BiddingSummaryCard() {
-  const analysis = await getBiddingAnalysis();
+async function BiddingSummaryCard({ collections }: { collections: Collections }) {
+  const quotation = collections.quotations.find((item) => item.moduleType === "bidding");
+  if (!quotation) return null;
+
+  const analysis = await getBiddingAnalysis(quotation.id);
+  const awards = analysis.awards.filter((award) => award.quotationId === quotation.id);
+  if (awards.length === 0) return null;
+
+  const firstAward = awards[0];
+  const firstItem = collections.quotationItems.find((item) => item.id === firstAward.quotationItemId);
+
   return (
     <Card>
       <CardHeader>
@@ -2929,11 +2963,13 @@ async function BiddingSummaryCard() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between text-sm">
-          <span>Duloxetina 30mg</span>
-          <span className="font-medium">{formatInteger(100000)} CAP</span>
+          <span>{firstItem?.productName ?? firstAward.supplierName}</span>
+          <span className="font-medium">
+            {formatInteger(firstAward.awardedQuantity)} {getUnitLabel(firstItem?.requestedUnit)}
+          </span>
         </div>
         <Progress value={100} />
-        <AwardsCompact awards={analysis.awards} />
+        <AwardsCompact awards={awards} />
       </CardContent>
     </Card>
   );
@@ -2977,8 +3013,14 @@ function hasValidOrderResponseItem(moduleType: string, item: SupplierQuoteRespon
   return (item.convertedUnitPrice ?? item.unitPrice ?? item.packagePrice ?? 0) > 0;
 }
 
-async function PharmacySummaryCard() {
-  const analysis = await getPharmacyAnalysis();
+async function PharmacySummaryCard({ collections }: { collections: Collections }) {
+  const quotation = collections.quotations.find((item) => item.moduleType === "pharmacy");
+  if (!quotation) return null;
+
+  const analysis = await getPharmacyAnalysis(quotation.id);
+  const quotationItems = collections.quotationItems.filter((item) => item.quotationId === quotation.id);
+  const hasPriceHistory = quotationItems.some((item) => (item.lastPurchasePrice ?? 0) > 0);
+
   return (
     <Card>
       <CardHeader>
@@ -2992,10 +3034,12 @@ async function PharmacySummaryCard() {
           <span>Total vencedor</span>
           <span className="font-medium">{formatCurrency(analysis.totals.estimatedTotal)}</span>
         </div>
-        <div className="flex items-center justify-between text-sm">
-          <span>Economia estimada</span>
-          <span className="font-medium text-emerald-700">{formatCurrency(analysis.totals.estimatedSavings)}</span>
-        </div>
+        {hasPriceHistory ? (
+          <div className="flex items-center justify-between text-sm">
+            <span>Economia estimada</span>
+            <span className="font-medium text-emerald-700">{formatCurrency(analysis.totals.estimatedSavings)}</span>
+          </div>
+        ) : null}
         <Button asChild variant="outline" className="w-full">
           <Link href="/cotacoes/cotacoes-farmacia">Abrir cotações</Link>
         </Button>

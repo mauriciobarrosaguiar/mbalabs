@@ -39,11 +39,23 @@ export function getClientMode() {
   return getSupabaseClientMode();
 }
 
-export function getCollections() {
+export function getCollections(tenantId?: string) {
   const store = getDemoStore();
-  const quotationIds = new Set(store.quotations.filter((quotation) => !isQuotationDeleted(quotation.status)).map((quotation) => quotation.id));
+  const tenantMatches = (item: { tenantId?: string }) => !tenantId || item.tenantId === tenantId;
+  const quotationIds = new Set(
+    store.quotations
+      .filter((quotation) => tenantMatches(quotation) && !isQuotationDeleted(quotation.status))
+      .map((quotation) => quotation.id),
+  );
   return {
     ...store,
+    tenants: tenantId ? store.tenants.filter((tenant) => tenant.id === tenantId) : store.tenants,
+    monthlySubscriptions: store.monthlySubscriptions.filter(tenantMatches),
+    pharmacies: store.pharmacies.filter(tenantMatches),
+    suppliers: store.suppliers.filter(tenantMatches),
+    distributors: store.distributors.filter(tenantMatches),
+    laboratories: store.laboratories.filter(tenantMatches),
+    products: store.products.filter(tenantMatches),
     quotations: store.quotations.filter((quotation) => quotationIds.has(quotation.id)),
     quotationItems: store.quotationItems.filter((item) => quotationIds.has(item.quotationId)),
     supplierQuoteSessions: store.supplierQuoteSessions.filter((session) => quotationIds.has(session.quotationId)),
@@ -214,12 +226,16 @@ export function getBiddingQuotations() {
   return getQuotationsByModule("bidding");
 }
 
-export function getQuotationsByModule(moduleType: ModuleType) {
-  return getDemoStore().quotations.filter((quotation) => quotation.moduleType === moduleType && !isQuotationDeleted(quotation.status));
+export function getQuotationsByModule(moduleType: ModuleType, tenantId?: string) {
+  return getDemoStore().quotations.filter((quotation) =>
+    quotation.moduleType === moduleType &&
+    (!tenantId || quotation.tenantId === tenantId) &&
+    !isQuotationDeleted(quotation.status),
+  );
 }
 
-export function listQuotationsByModule(moduleType: ModuleType) {
-  return getQuotationsByModule(moduleType);
+export function listQuotationsByModule(moduleType: ModuleType, tenantId?: string) {
+  return getQuotationsByModule(moduleType, tenantId);
 }
 
 export function getQuotationById(id: string) {
@@ -273,8 +289,16 @@ export function deleteQuotationItem(id: string) {
   return deleteById(getDemoStore().quotationItems, id);
 }
 
-export function getQuotationBundle(id: string) {
+export function getQuotationBundle(id: string, tenantId?: string) {
   const quotation = getQuotation(id);
+  if (tenantId && quotation.tenantId !== tenantId) {
+    return {
+      quotation: { ...quotation, id, tenantId },
+      items: [] as QuotationItem[],
+      responses: [] as SupplierQuoteResponse[],
+      responseItems: [] as SupplierQuoteResponseItem[],
+    };
+  }
   const items = getQuotationItems(quotation.id);
   const responses = getDemoStore().supplierQuoteResponses.filter(
     (response) => response.quotationId === quotation.id,
@@ -286,11 +310,16 @@ export function getQuotationBundle(id: string) {
   return { quotation, items, responses, responseItems };
 }
 
-export function getSupplierSessions(quotationId?: string) {
+export function getSupplierSessions(quotationId?: string, tenantId?: string) {
   const store = getDemoStore();
-  if (!quotationId) return store.supplierQuoteSessions;
+  if (!quotationId) {
+    return store.supplierQuoteSessions.filter((session) => !tenantId || session.tenantId === tenantId);
+  }
   const resolvedId = resolveDemoQuotationId(quotationId) ?? quotationId;
-  return store.supplierQuoteSessions.filter((session) => session.quotationId === resolvedId);
+  return store.supplierQuoteSessions.filter((session) =>
+    session.quotationId === resolvedId &&
+    (!tenantId || session.tenantId === tenantId),
+  );
 }
 
 export function createSupplierSession(input: Omit<SupplierQuoteSession, "id" | "publicToken"> & { id?: string; publicToken?: string }) {
@@ -366,9 +395,10 @@ export function generateBiddingAwards(quotationItem: QuotationItem, responseItem
   return calculateBiddingAwards(quotationItem, responseItems, getDemoStore().supplierQuoteResponses);
 }
 
-export function generatePurchaseOrders(quotationId: string): PurchaseOrder[] {
+export function generatePurchaseOrders(quotationId: string, tenantId?: string): PurchaseOrder[] {
   const store = getDemoStore();
   const bundle = getQuotationBundle(quotationId);
+  if (tenantId && bundle.quotation.tenantId !== tenantId) return [];
   const analysis =
     bundle.quotation.moduleType === "bidding"
       ? generateBiddingAnalysis(bundle.quotation.id)
@@ -405,9 +435,10 @@ export function generatePurchaseOrders(quotationId: string): PurchaseOrder[] {
   return persisted;
 }
 
-export function getPurchaseOrdersByQuotation(quotationId: string) {
+export function getPurchaseOrdersByQuotation(quotationId: string, tenantId?: string) {
   const resolvedId = resolveDemoQuotationId(quotationId) ?? quotationId;
   const quotation = getDemoStore().quotations.find((item) => item.id === resolvedId);
+  if (tenantId && quotation?.tenantId !== tenantId) return [];
   if (quotation && isQuotationDeleted(quotation.status)) return [];
   return getDemoStore().purchaseOrders.filter((order) => order.quotationId === resolvedId);
 }

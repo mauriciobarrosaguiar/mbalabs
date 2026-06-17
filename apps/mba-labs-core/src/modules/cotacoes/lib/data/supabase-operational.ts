@@ -74,32 +74,37 @@ function filterVisibleQuotationRows(rows: Array<Record<string, any>>) {
   return rows.filter((row) => !isQuotationDeleted(row.status) && !row.deleted_at);
 }
 
-export async function listSupabaseQuotations(moduleType: ModuleType) {
+export async function listSupabaseQuotations(moduleType: ModuleType, tenantId?: string) {
   if (!canUseSupabaseOperational()) return [];
   const supabase = readDb("quotations");
   if (!supabase) return [];
 
-  console.info("[Supabase] listSupabaseQuotations: inicio", { moduleType });
+  console.info("[Supabase] listSupabaseQuotations: inicio", { moduleType, tenantId });
 
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from("quotations")
       .select("*")
       .eq("module_type", moduleType)
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    const { data, error } = await query;
 
     if (error) {
       console.warn("[Supabase] listSupabaseQuotations: consulta com deleted_at falhou; tentando fallback sem deleted_at.", {
         moduleType,
+        tenantId,
         error,
       });
 
-      const fallback = await supabase
+      let fallbackQuery = supabase
         .from("quotations")
         .select("*")
         .eq("module_type", moduleType)
         .order("created_at", { ascending: false });
+      if (tenantId) fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
+      const fallback = await fallbackQuery;
 
       if (fallback.error) {
         console.error("[Supabase] listSupabaseQuotations: fallback sem deleted_at tambem falhou.", {
@@ -132,11 +137,13 @@ export async function listSupabaseQuotations(moduleType: ModuleType) {
     });
 
     try {
-      const fallback = await supabase
+      let fallbackQuery = supabase
         .from("quotations")
         .select("*")
         .eq("module_type", moduleType)
         .order("created_at", { ascending: false });
+      if (tenantId) fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
+      const fallback = await fallbackQuery;
 
       if (fallback.error) {
         console.error("[Supabase] listSupabaseQuotations: fallback sem deleted_at falhou apos excecao.", {
@@ -160,16 +167,17 @@ export async function listSupabaseQuotations(moduleType: ModuleType) {
   }
 }
 
-export async function getSupabaseQuotationBundle(id: string) {
+export async function getSupabaseQuotationBundle(id: string, tenantId?: string) {
   if (!canUseSupabaseOperational()) return null;
   const supabase = readDb("quotation bundle");
   if (!supabase) return null;
   try {
-    const { data: quotationRow, error: quotationError } = await supabase
+    let quotationQuery = supabase
       .from("quotations")
       .select("*")
-      .eq("id", id)
-      .maybeSingle();
+      .eq("id", id);
+    if (tenantId) quotationQuery = quotationQuery.eq("tenant_id", tenantId);
+    const { data: quotationRow, error: quotationError } = await quotationQuery.maybeSingle();
 
     if (quotationError) {
       logSupabaseReadError("quotations", quotationError);
@@ -180,9 +188,15 @@ export async function getSupabaseQuotationBundle(id: string) {
 
     const [{ data: itemRows, error: itemError }, { data: responseRows, error: responseError }, { data: responseItemRows, error: responseItemError }] =
       await Promise.all([
-        supabase.from("quotation_items").select("*").eq("quotation_id", id).order("item_number"),
-        supabase.from("supplier_quote_responses").select("*").eq("quotation_id", id),
-        supabase.from("supplier_quote_response_items").select("*").eq("quotation_id", id),
+        tenantId
+          ? supabase.from("quotation_items").select("*").eq("quotation_id", id).eq("tenant_id", tenantId).order("item_number")
+          : supabase.from("quotation_items").select("*").eq("quotation_id", id).order("item_number"),
+        tenantId
+          ? supabase.from("supplier_quote_responses").select("*").eq("quotation_id", id).eq("tenant_id", tenantId)
+          : supabase.from("supplier_quote_responses").select("*").eq("quotation_id", id),
+        tenantId
+          ? supabase.from("supplier_quote_response_items").select("*").eq("quotation_id", id).eq("tenant_id", tenantId)
+          : supabase.from("supplier_quote_response_items").select("*").eq("quotation_id", id),
       ]);
 
     if (itemError || responseError || responseItemError) {
@@ -863,9 +877,9 @@ export async function saveSupabaseGridPublicResponse(token: string, input: {
   };
 }
 
-export async function generateAndPersistSupabasePurchaseOrders(quotationId: string) {
+export async function generateAndPersistSupabasePurchaseOrders(quotationId: string, tenantId?: string) {
   const supabase = db();
-  const bundle = await getSupabaseQuotationBundle(quotationId);
+  const bundle = await getSupabaseQuotationBundle(quotationId, tenantId);
   if (!bundle) throw new Error("Cotação não encontrada.");
   if (bundle.quotation.status === "canceled" || isQuotationDeleted(bundle.quotation.status)) {
     throw new Error("Cotação cancelada ou excluída não permite gerar pedidos.");
@@ -879,7 +893,7 @@ export async function generateAndPersistSupabasePurchaseOrders(quotationId: stri
     ? buildBiddingAnalysis(bundle.items, bundle.responseItems, bundle.responses)
     : buildPharmacyAnalysis(bundle.items, bundle.responseItems, bundle.responses, []);
   const generated = buildPurchaseOrders(analysis.awards, bundle.items, bundle.responseItems);
-  const existing = await getPersistedPurchaseOrders(supabase, quotationId);
+  const existing = await getPersistedPurchaseOrders(supabase, quotationId, tenantId);
   const activeExisting = existing.filter((order) => order.items.length > 0);
   const expectedItemIds = new Set(generated.flatMap((order) => order.items.map((item) => item.quotationItemId)));
   const existingItemIds = new Set(activeExisting.flatMap((order) => order.items.map((item) => item.quotationItemId)));
@@ -888,7 +902,7 @@ export async function generateAndPersistSupabasePurchaseOrders(quotationId: stri
     Array.from(expectedItemIds).every((itemId) => existingItemIds.has(itemId));
 
   if (activeExisting.length > 0 && (generated.length === 0 || hasAllExpectedItems)) {
-    await markSupabaseQuotationAsGenerated(supabase, quotationId);
+    await markSupabaseQuotationAsGenerated(supabase, quotationId, tenantId);
     return activeExisting;
   }
 
@@ -899,7 +913,7 @@ export async function generateAndPersistSupabasePurchaseOrders(quotationId: stri
   const ordersToPersist = generated.filter((order) => !existingSupplierKeys.has(getPurchaseOrderSupplierKey(order)));
 
   if (ordersToPersist.length === 0) {
-    await markSupabaseQuotationAsGenerated(supabase, quotationId);
+    await markSupabaseQuotationAsGenerated(supabase, quotationId, tenantId);
     return activeExisting;
   }
 
@@ -922,17 +936,19 @@ export async function generateAndPersistSupabasePurchaseOrders(quotationId: stri
   }
 
   if (persisted.length > 0) {
-    await markSupabaseQuotationAsGenerated(supabase, quotationId);
+    await markSupabaseQuotationAsGenerated(supabase, quotationId, tenantId);
   }
 
   return [...activeExisting, ...persisted];
 }
 
-async function markSupabaseQuotationAsGenerated(supabase: SupabaseClient, quotationId: string) {
-  const { error } = await supabase
+async function markSupabaseQuotationAsGenerated(supabase: SupabaseClient, quotationId: string, tenantId?: string) {
+  let query = supabase
     .from("quotations")
     .update({ status: markQuotationGeneratedStatus(), updated_at: new Date().toISOString() })
     .eq("id", quotationId);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { error } = await query;
   if (!error) return true;
 
   if (isQuotationGeneratedStatusConstraintError(error)) {
@@ -955,6 +971,23 @@ function isQuotationGeneratedStatusConstraintError(error: unknown) {
   );
 }
 
+function createPurchaseOrderPublicToken(order: PurchaseOrder) {
+  const quotationPart = normalizeTokenPart(order.quotationId).slice(0, 12);
+  const supplierPart = normalizeTokenPart(
+    order.supplierId ?? order.supplierCompany ?? order.supplierName ?? order.supplierContactName,
+  ).slice(0, 48);
+  return `pedido-${order.moduleType}-${quotationPart}-${supplierPart || "vendedor"}`;
+}
+
+function normalizeTokenPart(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 async function insertPurchaseOrderRow(
   supabase: SupabaseClient,
   order: PurchaseOrder,
@@ -967,6 +1000,7 @@ async function insertPurchaseOrderRow(
     module_type: order.moduleType,
     supplier_name: order.supplierName,
     supplier_id: order.supplierId ?? null,
+    public_token: createPurchaseOrderPublicToken(order),
     supplier_company: supplierRow?.empresa ?? supplierResponse?.sellerCompany ?? order.supplierCompany ?? null,
     supplier_whatsapp: supplierRow?.whatsapp ?? supplierResponse?.sellerWhatsapp ?? order.supplierWhatsapp ?? null,
     total_amount: order.totalAmount,
@@ -992,6 +1026,7 @@ async function insertPurchaseOrderRow(
       module_type: payload.module_type,
       supplier_name: payload.supplier_name,
       supplier_id: payload.supplier_id,
+      public_token: payload.public_token,
       total_amount: payload.total_amount,
       status: "draft",
     })
@@ -1089,6 +1124,7 @@ function shouldRetryLegacyPurchaseOrderInsert(error: unknown) {
     "purchase_orders_status_check",
     "supplier_company",
     "supplier_whatsapp",
+    "public_token",
     "confirmed_amount",
     "fulfillment_status",
     "vendor_observation",
@@ -1152,13 +1188,15 @@ function getPurchaseOrderSupplierKey(order: PurchaseOrder) {
   ).trim().toLowerCase();
 }
 
-async function getPersistedPurchaseOrders(supabase: SupabaseClient, quotationId: string) {
+async function getPersistedPurchaseOrders(supabase: SupabaseClient, quotationId: string, tenantId?: string) {
   try {
-    const { data: orderRows, error: orderError } = await supabase
+    let orderQuery = supabase
       .from("purchase_orders")
       .select("*")
       .eq("quotation_id", quotationId)
       .order("created_at", { ascending: false });
+    if (tenantId) orderQuery = orderQuery.eq("tenant_id", tenantId);
+    const { data: orderRows, error: orderError } = await orderQuery;
 
     if (orderError) {
       logSupabaseReadError("purchase_orders", orderError);

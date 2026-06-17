@@ -14,8 +14,8 @@ export function getClientMode() {
   return repository().getClientMode();
 }
 
-export function getCollections() {
-  return repository().getCollections();
+export function getCollections(tenantId?: string) {
+  return repository().getCollections(tenantId);
 }
 
 export function getDashboardData(tenantId?: string) {
@@ -154,8 +154,8 @@ export function getQuotationsByModule(moduleType: Parameters<Repository["getQuot
   return repository().getQuotationsByModule(moduleType);
 }
 
-export function listQuotationsByModule(moduleType: Parameters<Repository["listQuotationsByModule"]>[0]) {
-  return repository().listQuotationsByModule(moduleType);
+export function listQuotationsByModule(moduleType: Parameters<Repository["listQuotationsByModule"]>[0], tenantId?: string) {
+  return repository().listQuotationsByModule(moduleType, tenantId);
 }
 
 export function getQuotationById(id: string) {
@@ -194,12 +194,12 @@ export function deleteQuotationItem(id: string) {
   return repository().deleteQuotationItem(id);
 }
 
-export function getQuotationBundle(id: string) {
-  return repository().getQuotationBundle(id);
+export function getQuotationBundle(id: string, tenantId?: string) {
+  return repository().getQuotationBundle(id, tenantId);
 }
 
-export function getSupplierSessions(quotationId?: string) {
-  return repository().getSupplierSessions(quotationId);
+export function getSupplierSessions(quotationId?: string, tenantId?: string) {
+  return repository().getSupplierSessions(quotationId, tenantId);
 }
 
 export function createSupplierSession(input: Parameters<Repository["createSupplierSession"]>[0]) {
@@ -251,12 +251,12 @@ export function generateBiddingAwards(
   return repository().generateBiddingAwards(quotationItem, responseItems);
 }
 
-export function generatePurchaseOrders(quotationId: string) {
-  return repository().generatePurchaseOrders(quotationId);
+export function generatePurchaseOrders(quotationId: string, tenantId?: string) {
+  return repository().generatePurchaseOrders(quotationId, tenantId);
 }
 
-export function getPurchaseOrdersByQuotation(quotationId: string) {
-  return repository().getPurchaseOrdersByQuotation(quotationId);
+export function getPurchaseOrdersByQuotation(quotationId: string, tenantId?: string) {
+  return repository().getPurchaseOrdersByQuotation(quotationId, tenantId);
 }
 
 export function getPurchaseOrderByToken(token: string) {
