@@ -11,7 +11,7 @@ export default async function HomePage() {
 
   return (
     <main>
-      <section className="page-shell grid min-h-screen gap-12 py-8 md:py-10">
+      <section className="page-shell grid min-h-[100svh] gap-8 py-6 sm:gap-10 sm:py-8 lg:gap-12 lg:py-10">
         <nav className="flex flex-wrap items-center justify-between gap-4">
           <Link className="flex min-h-10 items-center gap-3 text-xl font-black" href="/">
             {config.logoUrl ? (
@@ -30,14 +30,14 @@ export default async function HomePage() {
           </div>
         </nav>
 
-        <div className="grid gap-10 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
+        <div className="grid gap-8 lg:grid-cols-[1.02fr_0.98fr] lg:items-center">
           <div className="grid gap-7">
             <p className="eyebrow">{config.heroEyebrow}</p>
             <div className="grid gap-5">
-              <h1 className="max-w-5xl text-5xl font-black leading-tight tracking-tight md:text-7xl">
+              <h1 className="max-w-4xl text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl xl:text-7xl">
                 {config.heroTitle}
               </h1>
-              <p className="max-w-3xl text-xl leading-8 text-slate-200">{config.heroSubtitle}</p>
+              <p className="max-w-3xl text-lg leading-8 text-slate-200 sm:text-xl">{config.heroSubtitle}</p>
               <p className="max-w-2xl text-base leading-7 text-slate-300">{config.heroSupportText}</p>
             </div>
             <div className="flex flex-wrap gap-3">

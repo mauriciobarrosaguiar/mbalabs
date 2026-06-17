@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Plus, Settings } from "lucide-react";
+import { ThemeToggleLexGestor } from "./ThemeToggleLexGestor";
 
 export function HeaderLexGestor() {
   return (
@@ -9,6 +10,7 @@ export function HeaderLexGestor() {
         <span>Clientes, casos, documentos e relatorios</span>
       </div>
       <div className="topbar-actions">
+        <ThemeToggleLexGestor />
         <Link className="button secondary" href="/lexgestor/configuracoes">
           <Settings size={17} aria-hidden />
           Configurar escritorio

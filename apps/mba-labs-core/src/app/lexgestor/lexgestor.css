@@ -352,3 +352,178 @@
     color: var(--lex-text);
   }
 }
+
+
+/* MBA Labs ajuste: LexGestor claro por padrÃ£o e escuro opcional */
+.lexgestor-module {
+  color-scheme: light;
+  --lex-bg: #f3f7fb;
+  --lex-panel: #ffffff;
+  --lex-panel-strong: #f8fafc;
+  --lex-border: #dbe3ef;
+  --lex-text: #0f172a;
+  --lex-muted: #64748b;
+  --primary: #2563eb;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.10), transparent 34rem),
+    radial-gradient(circle at bottom right, rgba(14, 165, 233, 0.10), transparent 34rem),
+    var(--lex-bg);
+  color: var(--lex-text);
+}
+
+.lexgestor-module .sidebar {
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 8px 0 30px rgba(15, 23, 42, 0.04);
+}
+
+.lexgestor-module .topbar {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.lexgestor-module .sidebar-brand,
+.lexgestor-module .setup-step,
+.lexgestor-module .card,
+.lexgestor-module .stat-card,
+.lexgestor-module .chart-card,
+.lexgestor-module .dropbox-card,
+.lexgestor-module .panel,
+.lexgestor-module form.card {
+  background: var(--lex-panel);
+  box-shadow: 0 18px 55px rgba(15, 23, 42, 0.08);
+}
+
+.lexgestor-module .nav-link {
+  color: #334155;
+}
+
+.lexgestor-module .nav-link:hover,
+.lexgestor-module .nav-link.active {
+  background: #e0f2fe;
+  color: #0f172a;
+}
+
+.lexgestor-module .button.secondary {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: var(--lex-border);
+}
+
+.lexgestor-module input,
+.lexgestor-module select,
+.lexgestor-module textarea {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.lexgestor-module .notice {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+
+.lexgestor-module .notice.success {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+  color: #047857;
+}
+
+.lexgestor-module .notice.danger {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.lexgestor-module .mobile-nav {
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.lexgestor-module .mobile-nav a {
+  color: #64748b;
+}
+
+.lexgestor-module .mobile-nav a.active {
+  background: #e0f2fe;
+  color: #0f172a;
+}
+
+.lexgestor-module[data-theme="dark"] {
+  color-scheme: dark;
+  --lex-bg: #05070a;
+  --lex-panel: rgba(255, 255, 255, 0.065);
+  --lex-panel-strong: rgba(255, 255, 255, 0.1);
+  --lex-border: rgba(255, 255, 255, 0.12);
+  --lex-text: #f7fbff;
+  --lex-muted: #9ca3af;
+  --primary: #28d8a5;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 36rem),
+    radial-gradient(circle at bottom right, rgba(40, 216, 165, 0.16), transparent 36rem),
+    var(--lex-bg);
+  color: var(--lex-text);
+}
+
+.lexgestor-module[data-theme="dark"] .sidebar {
+  background: rgba(2, 6, 12, 0.72);
+  box-shadow: none;
+}
+
+.lexgestor-module[data-theme="dark"] .topbar {
+  background: rgba(5, 7, 10, 0.78);
+}
+
+.lexgestor-module[data-theme="dark"] .sidebar-brand,
+.lexgestor-module[data-theme="dark"] .setup-step,
+.lexgestor-module[data-theme="dark"] .card,
+.lexgestor-module[data-theme="dark"] .stat-card,
+.lexgestor-module[data-theme="dark"] .chart-card,
+.lexgestor-module[data-theme="dark"] .dropbox-card,
+.lexgestor-module[data-theme="dark"] .panel,
+.lexgestor-module[data-theme="dark"] form.card {
+  background: var(--lex-panel);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.18);
+}
+
+.lexgestor-module[data-theme="dark"] .nav-link {
+  color: #dbeafe;
+}
+
+.lexgestor-module[data-theme="dark"] .nav-link:hover,
+.lexgestor-module[data-theme="dark"] .nav-link.active {
+  background: rgba(40, 216, 165, 0.14);
+  color: #ffffff;
+}
+
+.lexgestor-module[data-theme="dark"] .button.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--lex-text);
+}
+
+.lexgestor-module[data-theme="dark"] input,
+.lexgestor-module[data-theme="dark"] select,
+.lexgestor-module[data-theme="dark"] textarea {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--lex-text);
+}
+
+.lexgestor-module[data-theme="dark"] .notice {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+  color: #fde68a;
+}
+
+.lexgestor-module[data-theme="dark"] .mobile-nav {
+  background: rgba(5, 7, 10, 0.9);
+}
+
+.lexgestor-module[data-theme="dark"] .mobile-nav a {
+  color: var(--lex-muted);
+}
+
+.lexgestor-module[data-theme="dark"] .mobile-nav a.active {
+  background: rgba(40, 216, 165, 0.14);
+  color: var(--lex-text);
+}
+
+.lexgestor-module .theme-toggle {
+  white-space: nowrap;
+}
