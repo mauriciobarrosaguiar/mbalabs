@@ -56,7 +56,7 @@ export default async function EditarClientePage({ params }: PageProps) {
   return (
     <ResponsivePageContainer
       title="Editar cliente"
-      description="Altere os dados cadastrais, contatos e observaÃ§Ãµes do cliente."
+      description="Altere os dados cadastrais, contatos e observações do cliente."
     >
       <FormCliente cliente={cliente} />
     </ResponsivePageContainer>
