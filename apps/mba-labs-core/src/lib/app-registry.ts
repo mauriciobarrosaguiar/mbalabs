@@ -66,6 +66,22 @@ export const internalApps: InternalAppDefinition[] = [
       { label: "Caixa", value: "caixa" },
       { label: "Visualizador", value: "visualizador" }
     ]
+  },
+  {
+    slug: "lexgestor",
+    name: "LexGestor",
+    description: "Gestao juridica inteligente para escritorios de advocacia.",
+    urlPath: "/lexgestor",
+    alternatePaths: [
+      { label: "Entrada do portal - /apps/lexgestor", value: "/apps/lexgestor" },
+      { label: "App direto - /lexgestor", value: "/lexgestor" }
+    ],
+    profileOptions: [
+      { label: "Admin da empresa", value: "admin_empresa" },
+      { label: "Advogado responsavel", value: "advogado" },
+      { label: "Assistente juridico", value: "assistente" },
+      { label: "Visualizador", value: "visualizador" }
+    ]
   }
 ];
 
@@ -79,6 +95,7 @@ export const internalAppRouteOptions = internalApps.flatMap((app) => app.alterna
 export function normalizeRegistrySlug(slug: string) {
   if (slug === "mbacotacoes") return "mba-cotacoes";
   if (slug === "bike-comanda") return "bikecomanda";
+  if (slug === "lex-gestor") return "lexgestor";
   return slug;
 }
 

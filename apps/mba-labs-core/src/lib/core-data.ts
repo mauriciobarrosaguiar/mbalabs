@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getCurrentUserProfileFromSupabase, type SharedAppAccess, type SharedPermissao } from "@mba-labs/shared/auth/profile";
-import { getInternalAppBySlug, internalAppRouteOptions, internalAppSlugOptions } from "./app-registry";
+import { getInternalAppBySlug, internalAppRouteOptions, internalAppSlugOptions, internalApps } from "./app-registry";
 import { getSupabaseServer } from "./supabase";
 
 export type CoreProfile = {
@@ -57,6 +57,14 @@ export const fallbackApps: SystemCard[] = [
     nome: "BikeComanda",
     descricao: "Comandas, serviços, orçamentos, pagamentos e comissões para bicicletarias.",
     url_path: "/apps/bikecomanda",
+    status: "sem_assinatura",
+    canAccess: false
+  },
+  {
+    slug: "lexgestor",
+    nome: "LexGestor",
+    descricao: "Gestao juridica inteligente para escritorios de advocacia.",
+    url_path: "/lexgestor",
     status: "sem_assinatura",
     canAccess: false
   }
@@ -232,7 +240,16 @@ export async function getDashboardData() {
   if (appsError || !apps) {
     return {
       profile,
-      apps: fallbackApps,
+      apps: current.isAdminMaster
+        ? fallbackApps
+        : current.appsLiberados.filter((app) => app.canAccess).map((app) => ({
+            slug: app.slug,
+            nome: app.nome,
+            descricao: app.descricao ?? "Sistema MBA Labs.",
+            url_path: app.urlPath,
+            status: app.status,
+            canAccess: true
+          })),
       error: appsError?.message ?? null
     };
   }
@@ -240,7 +257,7 @@ export async function getDashboardData() {
   if (current.isAdminMaster) {
     return {
       profile,
-      apps: apps.filter(isActiveApp).map((app: any) => ({
+      apps: withRegisteredApps(apps.filter(isActiveApp)).map((app: any) => ({
         slug: app.slug,
         nome: app.nome,
         descricao: app.descricao ?? "Sistema MBA Labs.",
@@ -254,19 +271,21 @@ export async function getDashboardData() {
 
   const accessBySlug = new Map(current.appsLiberados.map((app) => [normalizeAppSlug(app.slug), app]));
 
+  const systemCards = apps.filter(isActiveApp).map((app: any) => {
+    const access = accessBySlug.get(normalizeAppSlug(app.slug));
+    return {
+      slug: app.slug,
+      nome: app.nome,
+      descricao: app.descricao ?? "Sistema MBA Labs.",
+      url_path: access?.urlPath ?? resolveAppUrlPath(app),
+      status: access?.status ?? "sem_assinatura",
+      canAccess: Boolean(access?.canAccess)
+    };
+  }) as SystemCard[];
+
   return {
     profile,
-    apps: apps.filter(isActiveApp).map((app: any) => {
-      const access = accessBySlug.get(normalizeAppSlug(app.slug));
-      return {
-        slug: app.slug,
-        nome: app.nome,
-        descricao: app.descricao ?? "Sistema MBA Labs.",
-        url_path: access?.urlPath ?? resolveAppUrlPath(app),
-        status: access?.status ?? "sem_assinatura",
-        canAccess: Boolean(access?.canAccess)
-      };
-    }) as SystemCard[],
+    apps: systemCards.filter((app) => app.canAccess),
     error: null
   };
 }
@@ -763,6 +782,10 @@ export async function getAdminDashboardData() {
 export async function getEmpresaDashboardData(nextPath = "/empresa/dashboard") {
   const current = await getCurrentUserProfile(nextPath);
 
+  if (!current.isAdminMaster && current.tipo !== "admin_empresa") {
+    redirect("/dashboard");
+  }
+
   if (!current.empresaId) {
     redirect(current.isAdminMaster ? "/admin/dashboard" : "/setup-admin");
   }
@@ -1057,6 +1080,24 @@ function isActiveApp(app: Record<string, unknown>) {
   return app.ativo !== false;
 }
 
+function withRegisteredApps(apps: Array<Record<string, unknown>>) {
+  const existing = new Set(apps.map((app) => normalizeAppSlug(String(app.slug ?? ""))));
+  const missing = internalApps
+    .filter((app) => !existing.has(normalizeAppSlug(app.slug)))
+    .map((app, index) => ({
+      slug: app.slug,
+      nome: app.name,
+      descricao: app.description,
+      url_path: app.urlPath,
+      url_interna: app.urlPath,
+      status: "ativo",
+      ativo: true,
+      ordem: 900 + index
+    }));
+
+  return [...apps, ...missing].sort((a, b) => Number(a.ordem ?? 999) - Number(b.ordem ?? 999));
+}
+
 export function isSuperAdminType(tipo: string) {
   return tipo === "super_admin" || tipo === "admin_master";
 }
@@ -1064,6 +1105,7 @@ export function isSuperAdminType(tipo: string) {
 export function normalizeAppSlug(slug: string) {
   if (slug === "mbacotacoes") return "mba-cotacoes";
   if (slug === "bike-comanda") return "bikecomanda";
+  if (slug === "lex-gestor") return "lexgestor";
   return slug;
 }
 
@@ -1109,7 +1151,8 @@ function canAccessRequestedPath(path: string, profile: CoreProfile, appsLiberado
       pathname.startsWith("/apps") ||
       pathname.startsWith("/cotacoes") ||
       pathname.startsWith("/lavagestor") ||
-      pathname.startsWith("/bikecomanda")
+      pathname.startsWith("/bikecomanda") ||
+      pathname.startsWith("/lexgestor")
     );
   }
 
@@ -1140,6 +1183,10 @@ function getAppSlugFromPath(path: string) {
 
   if (path === "/bikecomanda" || path.startsWith("/bikecomanda/")) {
     return "bikecomanda";
+  }
+
+  if (path === "/lexgestor" || path.startsWith("/lexgestor/")) {
+    return "lexgestor";
   }
 
   if (path.startsWith("/apps/")) {
