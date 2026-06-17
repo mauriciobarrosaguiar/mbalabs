@@ -16,6 +16,8 @@ type NovoCasoFormProps = {
 };
 
 export function NovoCasoForm({ clientes, categorias, defaultClienteId = "" }: NovoCasoFormProps) {
+  const defaultClienteValido = clientes.some((cliente) => cliente.id === defaultClienteId) ? defaultClienteId : "";
+  const [clienteId, setClienteId] = useState(defaultClienteValido);
   const [categoria, setCategoria] = useState("");
   const [subcategoria, setSubcategoria] = useState("");
   const checklist = useMemo(
@@ -23,6 +25,7 @@ export function NovoCasoForm({ clientes, categorias, defaultClienteId = "" }: No
     [categoria, subcategoria],
   );
   const selected = categorias.find((item) => item.nome === categoria);
+  const clienteSelecionado = clientes.find((cliente) => cliente.id === clienteId);
 
   return (
     <form className="stack" action={salvarCasoLexGestor}>
@@ -30,14 +33,26 @@ export function NovoCasoForm({ clientes, categorias, defaultClienteId = "" }: No
         <div className="section-title">
           <div>
             <h2>1. Dados principais</h2>
-            <p>O caso pode ser aberto antes de existir numero de processo.</p>
+            <p>O caso pode ser aberto antes de existir número de processo.</p>
           </div>
-          <span className="badge">Proxima acao: preencher categoria</span>
+          <span className="badge">Próxima ação: preencher categoria</span>
         </div>
+
+        {clienteSelecionado ? (
+          <div className="notice success">
+            Caso será vinculado ao cliente: <strong>{clienteSelecionado.nome}</strong>
+          </div>
+        ) : null}
+
         <div className="field-grid">
           <label className="field">
             Cliente
-            <select name="cliente_id" defaultValue={defaultClienteId} required>
+            <select
+              name="cliente_id"
+              value={clienteId}
+              onChange={(event) => setClienteId(event.target.value)}
+              required
+            >
               <option value="">Escolha o cliente</option>
               {clientes.map((cliente) => (
                 <option value={cliente.id} key={cliente.id}>
@@ -47,8 +62,8 @@ export function NovoCasoForm({ clientes, categorias, defaultClienteId = "" }: No
             </select>
           </label>
           <label className="field">
-            Titulo do caso
-            <input name="titulo" placeholder="Ex.: Pedido de beneficio negado" required />
+            Título do caso
+            <input name="titulo" placeholder="Ex.: Pedido de benefício negado" required />
           </label>
           <label className="field">
             Categoria
@@ -116,17 +131,17 @@ export function NovoCasoForm({ clientes, categorias, defaultClienteId = "" }: No
         <div className="section-title">
           <div>
             <h2>2. Dados do processo</h2>
-            <p>Todos os campos sao opcionais. Nao informe senha do eproc.</p>
+            <p>Todos os campos são opcionais. Não informe senha do eproc.</p>
           </div>
-          <span className="badge warning">Nao salvar login ou senha</span>
+          <span className="badge warning">Não salvar login ou senha</span>
         </div>
         <div className="field-grid">
-          <Field name="numero_processo" label="Numero do processo" />
+          <Field name="numero_processo" label="Número do processo" />
           <Field name="chave_processo" label="Chave do processo / eproc" />
           <label className="field">
             Sistema judicial
             <select name="sistema_judicial" defaultValue="">
-              <option value="">Nao informado</option>
+              <option value="">Não informado</option>
               <option>eproc</option>
               <option>PJe</option>
               <option>Projudi</option>
@@ -136,7 +151,7 @@ export function NovoCasoForm({ clientes, categorias, defaultClienteId = "" }: No
           </label>
           <Field name="tribunal" label="Tribunal" />
           <Field name="uf" label="Estado/UF" maxLength={2} />
-          <Field name="comarca" label="Comarca/Subsecao" />
+          <Field name="comarca" label="Comarca/Subseção" />
           <Field name="vara" label="Vara" />
           <Field name="classe_processual" label="Classe processual" />
           <Field name="assunto" label="Assunto" />
@@ -144,44 +159,44 @@ export function NovoCasoForm({ clientes, categorias, defaultClienteId = "" }: No
           <label className="field">
             Grau
             <select name="grau" defaultValue="">
-              <option value="">Nao informado</option>
-              <option>1o grau</option>
-              <option>2o grau</option>
+              <option value="">Não informado</option>
+              <option>1º grau</option>
+              <option>2º grau</option>
               <option>Turma Recursal</option>
               <option>Superior</option>
             </select>
           </label>
           <Field name="polo_ativo" label="Polo ativo" />
           <Field name="polo_passivo" label="Polo passivo" />
-          <Field name="advogado_responsavel" label="Advogado responsavel" />
+          <Field name="advogado_responsavel" label="Advogado responsável" />
           <Field name="valor_causa" label="Valor da causa" inputMode="decimal" />
           <label className="field">
-            Justica gratuita
+            Justiça gratuita
             <select name="justica_gratuita" defaultValue="nao">
-              <option value="nao">Nao</option>
+              <option value="nao">Não</option>
               <option value="sim">Sim</option>
             </select>
           </label>
           <label className="field">
-            Segredo de justica
+            Segredo de justiça
             <select name="segredo_justica" defaultValue="nao">
-              <option value="nao">Nao</option>
+              <option value="nao">Não</option>
               <option value="sim">Sim</option>
             </select>
           </label>
           <label className="field">
-            Data de distribuicao
+            Data de distribuição
             <input name="data_distribuicao" type="date" />
           </label>
           <label className="field">
-            Proximo prazo
+            Próximo prazo
             <input name="proximo_prazo" type="date" />
           </label>
           <Field name="tipo_prazo" label="Tipo de prazo" />
           <Field name="link_processo" label="Link do processo" />
           <label className="field-full">
-            Observacoes do processo
-            <textarea name="observacoes_processo" placeholder="Informacoes processuais importantes." />
+            Observações do processo
+            <textarea name="observacoes_processo" placeholder="Informações processuais importantes." />
           </label>
         </div>
       </section>
@@ -189,7 +204,7 @@ export function NovoCasoForm({ clientes, categorias, defaultClienteId = "" }: No
       <section className="form-card stack">
         <div className="section-title">
           <div>
-            <h2>3. Checklist automatico</h2>
+            <h2>3. Checklist automático</h2>
             <p>Gerado conforme categoria e subcategoria escolhidas.</p>
           </div>
           <ClipboardList size={24} color="var(--primary)" aria-hidden />
@@ -202,7 +217,7 @@ export function NovoCasoForm({ clientes, categorias, defaultClienteId = "" }: No
           <Save size={17} aria-hidden />
           Revisar e salvar caso
         </button>
-        <a className="button secondary" href="/lexgestor/documentos">
+        <a className="button secondary" href={clienteId ? `/lexgestor/documentos?cliente=${clienteId}` : "/lexgestor/documentos"}>
           <FileText size={17} aria-hidden />
           Anexar documentos depois
         </a>
