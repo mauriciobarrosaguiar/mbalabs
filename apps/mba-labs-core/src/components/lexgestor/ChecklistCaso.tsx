@@ -28,6 +28,22 @@ export function ChecklistCaso({ items }: ChecklistCasoProps) {
     return calcularProgressoChecklist(items.length, concluidos);
   }, [items, statuses]);
 
+  function handleAnexarDocumento(item: ChecklistTemplate) {
+    const tipoDocumento = item.documentosNecessarios[0] || item.titulo;
+
+    window.dispatchEvent(
+      new CustomEvent("lexgestor:anexar-documento", {
+        detail: {
+          tipoDocumento,
+          observacoes: `Checklist: ${item.titulo}`,
+        },
+      }),
+    );
+
+    const target = document.getElementById("lexgestor-upload-documento") || document.getElementById("documentos");
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   if (items.length === 0) {
     return (
       <div className="empty-state">
@@ -93,7 +109,7 @@ export function ChecklistCaso({ items }: ChecklistCasoProps) {
               <input placeholder="Ex.: aguardando documento atualizado" />
             </label>
           </div>
-          <button className="button secondary" type="button">
+          <button className="button secondary" type="button" onClick={() => handleAnexarDocumento(item)}>
             <Paperclip size={17} aria-hidden />
             Anexar documento neste item
           </button>
