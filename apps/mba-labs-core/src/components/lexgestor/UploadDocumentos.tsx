@@ -1,7 +1,7 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, FileUp, ShieldCheck } from "lucide-react";
 import type { CategoriaJuridica } from "@/data/lexgestor/areas";
 import type { LexCaso, LexCliente, LexStorageConnection } from "@/lib/lexgestor/data";
@@ -18,6 +18,11 @@ type UploadDocumentosProps = {
   defaultSubcategoria?: string;
 };
 
+type ChecklistAnexoEvent = {
+  tipoDocumento?: string;
+  observacoes?: string;
+};
+
 export function UploadDocumentos({
   clientes = [],
   casos = [],
@@ -31,9 +36,13 @@ export function UploadDocumentos({
   const [clienteId, setClienteId] = useState(defaultClienteId);
   const [casoId, setCasoId] = useState(defaultCasoId);
   const [fileName, setFileName] = useState("Nenhum arquivo selecionado");
+  const [tipoDocumento, setTipoDocumento] = useState("");
+  const [observacoes, setObservacoes] = useState("");
   const [status, setStatus] = useState("");
   const [isSubmitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const tipoInputRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const hasStorage = connections.some((connection) => connection.connected);
 
   const casosFiltrados = useMemo(
@@ -44,6 +53,31 @@ export function UploadDocumentos({
   const casoSelecionado = casos.find((caso) => caso.id === casoId);
   const categoriaInicial = casoSelecionado?.categoria || defaultCategoria;
   const subcategoriaInicial = casoSelecionado?.subcategoria || defaultSubcategoria;
+
+  useEffect(() => {
+    function handleChecklistAnexo(event: Event) {
+      const detail = (event as CustomEvent<ChecklistAnexoEvent>).detail ?? {};
+      const tipo = detail.tipoDocumento?.trim();
+
+      if (tipo) {
+        setTipoDocumento(tipo);
+      }
+
+      if (detail.observacoes) {
+        setObservacoes(detail.observacoes);
+      }
+
+      setStatus(tipo ? `Documento selecionado pelo checklist: ${tipo}. Escolha o arquivo e envie.` : "Escolha o arquivo e envie.");
+
+      window.setTimeout(() => {
+        formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        tipoInputRef.current?.focus();
+      }, 80);
+    }
+
+    window.addEventListener("lexgestor:anexar-documento", handleChecklistAnexo);
+    return () => window.removeEventListener("lexgestor:anexar-documento", handleChecklistAnexo);
+  }, []);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -62,7 +96,7 @@ export function UploadDocumentos({
   }
 
   return (
-    <section className="form-card stack">
+    <section className="form-card stack" id="documentos">
       <div className="section-title">
         <div>
           <h2>Anexar documento</h2>
@@ -80,7 +114,7 @@ export function UploadDocumentos({
         </p>
       ) : null}
 
-      <form className="stack" onSubmit={handleSubmit}>
+      <form className="stack" id="lexgestor-upload-documento" ref={formRef} onSubmit={handleSubmit}>
         <div className="field-grid">
           <label className="field">
             Cliente
@@ -121,7 +155,14 @@ export function UploadDocumentos({
           />
           <label className="field">
             Tipo de documento
-            <input name="tipo_documento" placeholder="Ex.: RG, CNIS, contrato, print" required />
+            <input
+              name="tipo_documento"
+              placeholder="Ex.: RG, CNIS, contrato, print"
+              ref={tipoInputRef}
+              required
+              value={tipoDocumento}
+              onChange={(event) => setTipoDocumento(event.target.value)}
+            />
           </label>
           <label className="field">
             Origem
@@ -142,7 +183,12 @@ export function UploadDocumentos({
           </label>
           <label className="field-full">
             Observações
-            <textarea name="observacoes" placeholder="Informações importantes sobre este documento." />
+            <textarea
+              name="observacoes"
+              placeholder="Informações importantes sobre este documento."
+              value={observacoes}
+              onChange={(event) => setObservacoes(event.target.value)}
+            />
           </label>
         </div>
 
