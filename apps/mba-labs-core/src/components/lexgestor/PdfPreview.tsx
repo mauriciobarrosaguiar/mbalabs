@@ -1,26 +1,11 @@
 "use client";
 
-export function PdfPreview({ documentoId }: { documentoId?: string }) {
-  const pdfUrl = documentoId
-    ? `/api/lexgestor/pdf/watermark?documento=${encodeURIComponent(documentoId)}`
-    : "";
+export function PdfPreview({ documentoId, href = "" }: { documentoId?: string; href?: string }) {
+  const pdfUrl = href || (documentoId ? `/api/lexgestor/pdf/watermark?documento=${encodeURIComponent(documentoId)}` : "");
 
-  function visualizarPdf() {
+  function abrirPdf() {
     if (!pdfUrl) {
-      window.alert("Nenhum documento encontrado para pre-visualizar. Anexe um documento primeiro.");
-      return;
-    }
-
-    const janela = window.open(pdfUrl, "_blank", "noopener,noreferrer");
-
-    if (!janela) {
-      window.location.href = pdfUrl;
-    }
-  }
-
-  function imprimirPdf() {
-    if (!pdfUrl) {
-      window.print();
+      window.alert("Nenhum PDF encontrado para visualizar.");
       return;
     }
 
@@ -32,20 +17,17 @@ export function PdfPreview({ documentoId }: { documentoId?: string }) {
   }
 
   return (
-    <section className="pdf-preview" aria-label="Pré-visualização de PDF">
+    <section className="pdf-preview" aria-label="Pre-visualizacao de PDF">
       <div>
-        <strong>Pré-visualização do PDF com marca d'água</strong>
-        <p>
-          O sistema gera uma cópia em PDF com identificação do escritório e preserva o
-          arquivo original.
-        </p>
+        <strong>Pre-visualizacao do PDF com marca d'agua</strong>
+        <p>O sistema gera uma copia em PDF com identificacao do escritorio.</p>
       </div>
-      <div className="pdf-watermark">Marca d'água do escritório</div>
+      <div className="pdf-watermark">Marca d'agua do escritorio</div>
       <div className="button-row">
-        <button className="button secondary" type="button" onClick={visualizarPdf} style={{ cursor: "pointer" }}>
+        <button className="button secondary" type="button" onClick={abrirPdf} style={{ cursor: "pointer" }}>
           Visualizar
         </button>
-        <button className="button secondary" type="button" onClick={imprimirPdf} style={{ cursor: "pointer" }}>
+        <button className="button secondary" type="button" onClick={abrirPdf} style={{ cursor: "pointer" }}>
           Imprimir
         </button>
       </div>
