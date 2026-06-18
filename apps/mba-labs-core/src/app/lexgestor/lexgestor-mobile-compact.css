@@ -1,0 +1,141 @@
+/* Ajuste final mobile do LexGestor.
+   Foco: topo compacto, ações por ícone e navegação inferior em uma linha. */
+
+@media (max-width: 760px) {
+  .lexgestor-module .topbar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-height: 54px !important;
+    padding: 8px 12px !important;
+  }
+
+  .lexgestor-module .topbar-title {
+    display: block !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+  }
+
+  .lexgestor-module .topbar-title strong {
+    display: block !important;
+    font-size: 1rem !important;
+    line-height: 1.1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .lexgestor-module .topbar-title span {
+    display: none !important;
+  }
+
+  .lexgestor-module .topbar-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 6px !important;
+    width: auto !important;
+    min-width: 0 !important;
+  }
+
+  .lexgestor-module .topbar-actions .button,
+  .lexgestor-module .topbar-actions button,
+  .lexgestor-module .topbar-actions a {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    flex: 0 0 42px !important;
+    padding: 0 !important;
+    border-radius: 14px !important;
+    font-size: 0 !important;
+    line-height: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    cursor: pointer !important;
+  }
+
+  .lexgestor-module .topbar-actions svg {
+    width: 19px !important;
+    height: 19px !important;
+    flex: 0 0 auto !important;
+  }
+
+  .lexgestor-module .topbar-actions a[href="/lexgestor/configuracoes"] {
+    display: inline-flex !important;
+  }
+
+  .lexgestor-module .topbar-actions a[href="/lexgestor/casos/novo"] {
+    display: none !important;
+  }
+
+  .lexgestor-module .lex-content {
+    padding-top: 12px !important;
+    padding-right: 10px !important;
+    padding-left: 10px !important;
+    padding-bottom: 92px !important;
+  }
+
+  .lexgestor-module .page-heading {
+    margin-bottom: 12px !important;
+  }
+
+  .lexgestor-module .page-heading h1 {
+    font-size: clamp(1.55rem, 8vw, 2.15rem) !important;
+  }
+
+  .lexgestor-module .page-heading p {
+    font-size: 0.9rem !important;
+    line-height: 1.4 !important;
+  }
+
+  .lexgestor-module .mobile-nav {
+    right: 8px !important;
+    bottom: 8px !important;
+    left: 8px !important;
+    display: grid !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    grid-auto-flow: column !important;
+    grid-auto-columns: minmax(0, 1fr) !important;
+    gap: 2px !important;
+    padding: 6px !important;
+    border-radius: 18px !important;
+  }
+
+  .lexgestor-module .mobile-nav a {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    padding: 6px 1px !important;
+    font-size: 0.66rem !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .lexgestor-module .mobile-nav a svg {
+    width: 17px !important;
+    height: 17px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .lexgestor-module .topbar {
+    padding: 7px 10px !important;
+  }
+
+  .lexgestor-module .topbar-actions .button,
+  .lexgestor-module .topbar-actions button,
+  .lexgestor-module .topbar-actions a {
+    width: 39px !important;
+    height: 39px !important;
+    min-width: 39px !important;
+    min-height: 39px !important;
+    flex-basis: 39px !important;
+  }
+
+  .lexgestor-module .mobile-nav a {
+    font-size: 0.6rem !important;
+  }
+}
