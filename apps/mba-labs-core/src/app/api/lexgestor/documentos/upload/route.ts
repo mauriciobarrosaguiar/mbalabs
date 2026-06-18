@@ -3,7 +3,7 @@ import { requireAppAccess } from "@/lib/core-data";
 import { ensureLexEscritorio, getLexSupabaseClient } from "@/lib/lexgestor/data";
 import { slugSeguro } from "@/lib/lexgestor/formatters";
 import { createSimplePdf } from "@/lib/lexgestor/simple-pdf";
-import { isStorageProvider, uploadToConnectedStorage } from "@/lib/lexgestor/storage";
+import { isStorageProvider, montarPastaRaizEscritorio, uploadToConnectedStorage } from "@/lib/lexgestor/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -35,16 +35,17 @@ export async function POST(request: Request) {
     const gerarPdf = text(formData.get("gerar_pdf")) === "sim";
 
     const [clienteResult, casoResult] = await Promise.all([
-      client.from("lex_clientes").select("id,nome,cpf_cnpj").eq("id", clienteId).maybeSingle(),
-      client.from("lex_casos").select("id,titulo").eq("id", casoId).maybeSingle(),
+      client.from("lex_clientes").select("id,nome,cpf_cnpj").eq("id", clienteId).eq("escritorio_id", escritorioId).maybeSingle(),
+      client.from("lex_casos").select("id,titulo").eq("id", casoId).eq("escritorio_id", escritorioId).maybeSingle(),
     ]);
     if (clienteResult.error) throw clienteResult.error;
     if (casoResult.error) throw casoResult.error;
 
     const cliente = (clienteResult.data ?? {}) as Record<string, unknown>;
     const caso = (casoResult.data ?? {}) as Record<string, unknown>;
+    const pastaRaizEscritorio = montarPastaRaizEscritorio(text(escritorio?.nome) || "Escritorio");
     const folderBase = [
-      "/LexGestor",
+      pastaRaizEscritorio,
       "Clientes",
       `${slugSeguro(text(cliente.nome) || "Cliente")} - ${slugSeguro(text(cliente.cpf_cnpj) || "sem-documento")}`,
       "Casos",
