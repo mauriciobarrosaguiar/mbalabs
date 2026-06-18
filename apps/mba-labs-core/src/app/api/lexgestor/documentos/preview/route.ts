@@ -61,10 +61,7 @@ export async function GET(request: Request) {
   });
 
   const filename = arquivoBaixado.fileName || text(documento.nome_original) || "documento";
-  const bytes = arquivoBaixado.bytes instanceof Uint8Array
-    ? arquivoBaixado.bytes
-    : new Uint8Array(arquivoBaixado.bytes);
-  const body = new Blob([bytes], { type: arquivoBaixado.mimeType || "application/octet-stream" });
+  const body = toArrayBuffer(arquivoBaixado.bytes);
 
   return new NextResponse(body, {
     headers: {
@@ -78,4 +75,23 @@ export async function GET(request: Request) {
 function text(value: unknown) {
   if (value === null || value === undefined) return "";
   return String(value).trim();
+}
+
+function toArrayBuffer(value: unknown): ArrayBuffer {
+  if (value instanceof ArrayBuffer) {
+    return value;
+  }
+
+  if (ArrayBuffer.isView(value)) {
+    const view = value as Uint8Array;
+    const copy = new Uint8Array(view.byteLength);
+    copy.set(new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
+    return copy.buffer as ArrayBuffer;
+  }
+
+  if (Array.isArray(value)) {
+    return new Uint8Array(value).buffer as ArrayBuffer;
+  }
+
+  return new TextEncoder().encode(String(value ?? "")).buffer as ArrayBuffer;
 }
