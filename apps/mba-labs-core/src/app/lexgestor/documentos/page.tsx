@@ -12,6 +12,12 @@ type DocumentosPageProps = {
 export default async function DocumentosPage({ searchParams }: DocumentosPageProps) {
   const params = (await searchParams) ?? {};
   const data = await getLexWorkspaceData("/lexgestor/documentos");
+  const casoSelecionado = params.caso ? data.casos.find((caso) => caso.id === params.caso) : null;
+  const documentosFiltrados = data.documentos.filter((documento) => {
+    if (params.caso && documento.casoId !== params.caso) return false;
+    if (params.cliente && documento.clienteId !== params.cliente) return false;
+    return true;
+  });
 
   return (
     <ResponsivePageContainer
@@ -24,8 +30,10 @@ export default async function DocumentosPage({ searchParams }: DocumentosPagePro
         casos={data.casos}
         categorias={data.categorias}
         connections={data.storageConnections}
-        defaultClienteId={params.cliente ?? ""}
+        defaultClienteId={params.cliente ?? casoSelecionado?.clienteId ?? ""}
         defaultCasoId={params.caso ?? ""}
+        defaultCategoria={casoSelecionado?.categoria ?? ""}
+        defaultSubcategoria={casoSelecionado?.subcategoria ?? ""}
       />
 
       <section className="table-panel desktop-only">
@@ -40,15 +48,15 @@ export default async function DocumentosPage({ searchParams }: DocumentosPagePro
             </tr>
           </thead>
           <tbody>
-            {data.documentos.length === 0 ? (
+            {documentosFiltrados.length === 0 ? (
               <tr>
                 <td colSpan={5}>Nenhum documento cadastrado.</td>
               </tr>
             ) : (
-              data.documentos.map((documento) => (
+              documentosFiltrados.map((documento) => (
                 <tr key={documento.id}>
                   <td>
-                    <FileText size={17} aria-hidden /> {documento.nome}
+                    <FileText size={17} aria-hidden /> {documento.tipo}: {documento.nome}
                   </td>
                   <td>
                     {documento.cliente}
@@ -70,15 +78,16 @@ export default async function DocumentosPage({ searchParams }: DocumentosPagePro
       </section>
 
       <section className="mobile-card-list mobile-only">
-        {data.documentos.length === 0 ? (
+        {documentosFiltrados.length === 0 ? (
           <article className="empty-state">
             <strong>Nenhum documento cadastrado</strong>
             <p>Anexe o primeiro documento do caso.</p>
           </article>
         ) : (
-          data.documentos.map((documento) => (
+          documentosFiltrados.map((documento) => (
             <article className="card stack" key={documento.id}>
-              <h2>{documento.nome}</h2>
+              <h2>{documento.tipo}</h2>
+              <p>{documento.nome}</p>
               <p>{documento.cliente} - {documento.caso}</p>
               <span className="status-pill">{documento.status}</span>
               <DocumentActions url={documento.storageUrl} path={documento.storagePath} id={documento.id} />
