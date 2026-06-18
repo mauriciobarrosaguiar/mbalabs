@@ -3,15 +3,27 @@
 import Link from "next/link";
 import { Download, Eye, FileText, FolderOpen, Printer } from "lucide-react";
 
-export function DocumentActions({ url, path, id }: { url: string; path: string; id: string }) {
-  const pdfUrl = `/api/lexgestor/pdf/watermark?documento=${encodeURIComponent(id)}`;
-  const visualizarUrl = url || pdfUrl;
+type DocumentActionsProps = {
+  url: string;
+  path: string;
+  id: string;
+  provider?: string;
+  pdfPath?: string;
+  pdfUrl?: string;
+};
+
+export function DocumentActions({ url, path, id, provider = "", pdfPath = "", pdfUrl = "" }: DocumentActionsProps) {
+  const apiPdfUrl = `/api/lexgestor/pdf/watermark?documento=${encodeURIComponent(id)}`;
+  const originalDropboxUrl = provider === "dropbox" && path ? dropboxHomeUrl(path) : "";
+  const pdfDropboxUrl = provider === "dropbox" && pdfPath ? dropboxHomeUrl(pdfPath) : "";
+  const visualizarUrl = url || originalDropboxUrl || pdfUrl || pdfDropboxUrl || apiPdfUrl;
+  const gerarPdfUrl = pdfUrl || pdfDropboxUrl || apiPdfUrl;
 
   function imprimirDocumento() {
-    const janela = window.open(pdfUrl, "_blank", "noopener,noreferrer");
+    const janela = window.open(gerarPdfUrl, "_blank", "noopener,noreferrer");
 
     if (!janela) {
-      window.location.href = pdfUrl;
+      window.location.href = gerarPdfUrl;
     }
   }
 
@@ -34,14 +46,19 @@ export function DocumentActions({ url, path, id }: { url: string; path: string; 
         Imprimir
       </button>
 
-      <Link className="button secondary" href={pdfUrl} target="_blank" rel="noreferrer" style={{ cursor: "pointer" }}>
+      <Link className="button secondary" href={gerarPdfUrl} target="_blank" rel="noreferrer" style={{ cursor: "pointer" }}>
         <FileText size={17} aria-hidden />
         Gerar PDF
       </Link>
 
-      <span className="badge">
-        <FolderOpen size={14} aria-hidden /> {path || "Pasta pendente"}
+      <span className={`badge${path ? "" : " warning"}`}>
+        <FolderOpen size={14} aria-hidden /> {path || "Pasta pendente - reenvie o arquivo"}
       </span>
     </div>
   );
+}
+
+function dropboxHomeUrl(path: string) {
+  const clean = path.split("/").filter(Boolean).map(encodeURIComponent).join("/");
+  return `https://www.dropbox.com/home/${clean}`;
 }
