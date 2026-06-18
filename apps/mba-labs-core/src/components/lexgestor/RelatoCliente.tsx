@@ -34,7 +34,7 @@ export function RelatoCliente() {
         </button>
         <button className="button secondary" type="button">
           <UploadCloud size={17} aria-hidden />
-          Enviar relato para Dropbox
+          Enviar relato ao armazenamento
         </button>
         <button className="button secondary" type="button">
           <CheckCircle2 size={17} aria-hidden />

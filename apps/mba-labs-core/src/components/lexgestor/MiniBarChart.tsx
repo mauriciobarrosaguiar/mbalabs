@@ -12,7 +12,7 @@ export function MiniBarChart({ title, rows }: MiniBarChartProps) {
         <h2>{title}</h2>
       </div>
       {rows.length === 0 ? (
-        <p className="muted">Sem dados para este grafico.</p>
+        <p className="muted">Sem dados para este gráfico.</p>
       ) : (
         <div className="mini-chart">
           {rows.map((row) => (

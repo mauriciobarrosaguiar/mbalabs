@@ -28,7 +28,7 @@ export function getOAuthUrl(provider: StorageProvider, state: string, origin: st
     url.searchParams.set("response_type", "code");
     url.searchParams.set("access_type", "offline");
     url.searchParams.set("prompt", "consent");
-    url.searchParams.set("scope", "https://www.googleapis.com/auth/drive.file");
+    url.searchParams.set("scope", "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email");
     url.searchParams.set("state", state);
     return url.toString();
   }
@@ -198,13 +198,13 @@ export async function uploadToConnectedStorage(params: {
   });
 }
 
-export async function disconnectStorage(current: CurrentUserProfile) {
+export async function disconnectStorage(current: CurrentUserProfile, provider?: StorageProvider) {
   const client = await getLexSupabaseClient();
   const escritorio = await ensureLexEscritorio(client, current);
   const escritorioId = String(escritorio?.id ?? "");
   if (!escritorioId) return;
 
-  await client
+  let query = client
     .from("lex_storage_connections")
     .update({
       status: "nao_conectado",
@@ -214,10 +214,18 @@ export async function disconnectStorage(current: CurrentUserProfile) {
       updated_at: new Date().toISOString(),
     })
     .eq("escritorio_id", escritorioId);
+
+  if (provider) {
+    query = query.eq("provider", provider);
+  }
+
+  await query;
 }
 
-export async function testStorageConnection(current: CurrentUserProfile) {
-  for (const provider of ["google_drive", "dropbox"] as const) {
+export async function testStorageConnection(current: CurrentUserProfile, requestedProvider?: StorageProvider) {
+  const providers = requestedProvider ? [requestedProvider] : (["google_drive", "dropbox"] as const);
+
+  for (const provider of providers) {
     const connection = await getConnectedStorage(current, provider);
     if (!connection) continue;
     const accessToken = await getFreshAccessToken(provider, connection);

@@ -1,0 +1,466 @@
+/* Camada final de organizacao visual do LexGestor. */
+
+.lexgestor-module {
+  --lex-radius: 16px;
+}
+
+.lexgestor-module .lex-content {
+  overflow-x: hidden;
+}
+
+.lexgestor-module .page-container {
+  width: min(1030px, 100%);
+}
+
+.lexgestor-module :where(h1, h2, h3, p, strong, span, small, a, button, td, th, label) {
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.lexgestor-module :where(.path-badge, .file-name, .long-text, .detail-box strong, .document-title span) {
+  overflow-wrap: anywhere;
+}
+
+.lexgestor-module .card,
+.lexgestor-module .form-card,
+.lexgestor-module .panel,
+.lexgestor-module .table-panel,
+.lexgestor-module .empty-state,
+.lexgestor-module .checklist-item {
+  border-radius: var(--lex-radius);
+}
+
+.lexgestor-module .card,
+.lexgestor-module .form-card,
+.lexgestor-module .panel {
+  min-width: 0;
+  padding: 16px;
+}
+
+.lexgestor-module .stack {
+  gap: 18px;
+}
+
+.lexgestor-module .compact-stack {
+  gap: 10px;
+}
+
+.lexgestor-module .muted {
+  color: var(--lex-muted);
+}
+
+.lexgestor-module .section-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+}
+
+.lexgestor-module .section-title > div {
+  min-width: 0;
+}
+
+.lexgestor-module .section-title h2,
+.lexgestor-module .table-title h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.lexgestor-module .section-title p,
+.lexgestor-module .table-title p {
+  margin: 4px 0 0;
+  color: var(--lex-muted);
+  line-height: 1.45;
+}
+
+.lexgestor-module .grid,
+.lexgestor-module .grid-wide {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.lexgestor-module .dashboard-actions {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.lexgestor-module .split {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.lexgestor-module .quick-action,
+.lexgestor-module .stat-card {
+  min-width: 0;
+  align-content: start;
+}
+
+.lexgestor-module .stat-card strong {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.lexgestor-module .badge,
+.lexgestor-module .status-pill {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 30px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.lexgestor-module .badge {
+  border: 1px solid var(--lex-border);
+  background: var(--lex-panel-strong);
+  color: var(--lex-text);
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+.lexgestor-module .badge.warning,
+.lexgestor-module .status-pill.warning {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.lexgestor-module .status-pill.success,
+.lexgestor-module .badge.success {
+  border-color: #bbf7d0;
+  background: #dcfce7;
+  color: #047857;
+}
+
+.lexgestor-module .danger-text {
+  color: #b91c1c;
+}
+
+.lexgestor-module .list-row {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid var(--lex-border);
+  border-radius: 12px;
+  background: var(--lex-panel-strong);
+  padding: 12px;
+}
+
+.lexgestor-module .list-row strong,
+.lexgestor-module .list-row span,
+.lexgestor-module .list-row small {
+  display: block;
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.lexgestor-module .list-row small {
+  color: var(--lex-muted);
+}
+
+.lexgestor-module .filter-row {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  align-items: end;
+}
+
+.lexgestor-module .filter-row .grow {
+  min-width: min(100%, 280px);
+}
+
+.lexgestor-module .check-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  border: 1px solid var(--lex-border);
+  border-radius: 12px;
+  background: var(--lex-panel-strong);
+  padding: 10px 12px;
+}
+
+.lexgestor-module .check-option input {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  padding: 0;
+}
+
+.lexgestor-module .accordion-card summary {
+  grid-template-columns:
+    minmax(180px, 1.35fr)
+    minmax(150px, 1fr)
+    minmax(120px, 0.8fr)
+    auto
+    minmax(86px, 0.55fr)
+    auto;
+}
+
+.lexgestor-module .accordion-card summary > span {
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.lexgestor-module .mini-chart {
+  display: grid;
+  gap: 12px;
+}
+
+.lexgestor-module .mini-chart-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.8fr) minmax(120px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.lexgestor-module .mini-chart-row span {
+  min-width: 0;
+}
+
+.lexgestor-module .mini-chart-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.lexgestor-module .mini-chart-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #28d8a5, #38bdf8);
+}
+
+.lexgestor-module .storage-status {
+  display: grid;
+  gap: 14px;
+}
+
+.lexgestor-module .storage-status > .notice,
+.lexgestor-module .storage-status > .status-pill {
+  margin-inline: 0;
+}
+
+.lexgestor-module .storage-provider-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.lexgestor-module .storage-provider-card {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid var(--lex-border);
+  border-radius: 14px;
+  background: var(--lex-panel-strong);
+  padding: 14px;
+}
+
+.lexgestor-module .storage-provider-card header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.lexgestor-module .storage-provider-card h3 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.lexgestor-module .storage-meta {
+  display: grid;
+  gap: 8px;
+}
+
+.lexgestor-module .upload-zone {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  min-width: 0;
+  border: 1px dashed #93c5fd;
+  border-radius: 14px;
+  background: #eff6ff;
+  padding: 16px;
+}
+
+.lexgestor-module .upload-zone input[type="file"] {
+  width: 100%;
+  min-width: 0;
+  color: var(--lex-text);
+}
+
+.lexgestor-module .progress {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.lexgestor-module .progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #28d8a5, #38bdf8);
+}
+
+.lexgestor-module .checklist-item {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  border: 1px solid var(--lex-border);
+  background: var(--lex-panel);
+  padding: 16px;
+}
+
+.lexgestor-module .checklist-item .grid {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.lexgestor-module .table-title {
+  padding: 14px 16px 0;
+}
+
+.lexgestor-module .table-panel {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.lexgestor-module .responsive-table {
+  min-width: 960px;
+  table-layout: fixed;
+}
+
+.lexgestor-module .responsive-table th {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.lexgestor-module .responsive-table td {
+  line-height: 1.45;
+  word-break: normal;
+}
+
+.lexgestor-module .documents-table {
+  min-width: 980px;
+}
+
+.lexgestor-module .reports-table {
+  min-width: 1040px;
+}
+
+.lexgestor-module .document-title {
+  grid-template-columns: auto minmax(88px, auto) minmax(0, 1fr);
+  align-items: start;
+}
+
+.lexgestor-module .document-mobile-card h2 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.lexgestor-module .document-mobile-meta {
+  display: grid;
+  gap: 4px;
+  color: var(--lex-muted);
+  font-size: 0.92rem;
+}
+
+.lexgestor-module .report-cell-compact {
+  color: var(--lex-muted);
+  font-size: 0.92rem;
+}
+
+@media (max-width: 1100px) {
+  .lexgestor-module .split,
+  .lexgestor-module .storage-provider-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .lexgestor-module .page-container {
+    width: 100%;
+  }
+
+  .lexgestor-module .page-heading {
+    margin-bottom: 16px;
+  }
+
+  .lexgestor-module .page-heading h1 {
+    letter-spacing: 0;
+  }
+
+  .lexgestor-module .section-title,
+  .lexgestor-module .storage-provider-card header {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .lexgestor-module .grid,
+  .lexgestor-module .grid-wide,
+  .lexgestor-module .dashboard-actions,
+  .lexgestor-module .filter-row,
+  .lexgestor-module .field-grid,
+  .lexgestor-module .detail-grid,
+  .lexgestor-module .checklist-item .grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .lexgestor-module .card,
+  .lexgestor-module .form-card,
+  .lexgestor-module .panel,
+  .lexgestor-module .checklist-item {
+    padding: 14px;
+  }
+
+  .lexgestor-module .button-row {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .lexgestor-module .button-row .button,
+  .lexgestor-module .button-row button,
+  .lexgestor-module .button-row a,
+  .lexgestor-module .button-row form {
+    width: 100%;
+    min-width: 0 !important;
+  }
+
+  .lexgestor-module .accordion-card summary {
+    grid-template-columns: 1fr !important;
+  }
+
+  .lexgestor-module .mini-chart-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .lexgestor-module .mini-chart-track {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+
+  .lexgestor-module .upload-zone {
+    grid-template-columns: 1fr;
+  }
+
+  .lexgestor-module .responsive-table {
+    min-width: 820px;
+  }
+
+  .lexgestor-module .documents-table,
+  .lexgestor-module .reports-table {
+    min-width: 860px;
+  }
+}

@@ -13,12 +13,13 @@ type DocumentActionsProps = {
   pendingWithoutFile?: boolean;
 };
 
-export function DocumentActions({ url, path, id, pendingWithoutFile }: DocumentActionsProps) {
+export function DocumentActions({ url, path, id, provider, pendingWithoutFile }: DocumentActionsProps) {
   const visualizarUrl = `/lexgestor/documentos/${encodeURIComponent(id)}`;
   const arquivoUrl = `/api/lexgestor/documentos/preview?documento=${encodeURIComponent(id)}`;
   const baixarUrl = `${arquivoUrl}&download=1`;
   const gerarPdfUrl = `/api/lexgestor/pdf/watermark?documento=${encodeURIComponent(id)}`;
   const reenviarUrl = `/lexgestor/documentos?reenviar=${encodeURIComponent(id)}#documentos`;
+  const providerName = storageProviderLabel(provider);
 
   function imprimirDocumento() {
     const janela = window.open(path || url ? arquivoUrl : gerarPdfUrl, "_blank", "noopener,noreferrer");
@@ -63,9 +64,15 @@ export function DocumentActions({ url, path, id, pendingWithoutFile }: DocumentA
 
       {path ? (
         <span className="badge path-badge" title={path}>
-          <FolderOpen size={14} aria-hidden /> Pasta no Dropbox: {path}
+          <FolderOpen size={14} aria-hidden /> Local no {providerName}: {path}
         </span>
       ) : null}
     </div>
   );
+}
+
+function storageProviderLabel(provider?: string) {
+  if (provider === "google_drive") return "Google Drive";
+  if (provider === "dropbox") return "Dropbox";
+  return "armazenamento";
 }

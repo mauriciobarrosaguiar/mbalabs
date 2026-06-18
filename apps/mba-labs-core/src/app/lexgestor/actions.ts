@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { obterChecklistPorAreaSubarea } from "@/lib/lexgestor/checklist";
 import { ensureLexEscritorio, getLexSupabaseClient, storageProviderLabel } from "@/lib/lexgestor/data";
-import { disconnectStorage, testStorageConnection } from "@/lib/lexgestor/storage";
+import { disconnectStorage, isStorageProvider, testStorageConnection } from "@/lib/lexgestor/storage";
 import { requireAppAccess } from "@/lib/core-data";
 import { registrarAuditoriaLexGestor } from "@/lib/lexgestor/audit";
 import { checarLimiteLexGestor, obterPlanoLexGestor } from "@/lib/lexgestor/plans";
@@ -528,12 +528,14 @@ export async function atualizarPendentesDocumentosLexGestor() {
   redirect(`/lexgestor/documentos?status=${ids.length > 0 ? "pendentes-atualizados" : "sem-pendentes"}`);
 }
 
-export async function testarArmazenamentoLexGestor() {
+export async function testarArmazenamentoLexGestor(formData?: FormData) {
   const current = await requireAppAccess("lexgestor", "/lexgestor/configuracoes");
   let status = "";
+  const providerValue = value(formData, "provider");
+  const providerFilter = isStorageProvider(providerValue) ? providerValue : undefined;
 
   try {
-    const provider = await testStorageConnection(current);
+    const provider = await testStorageConnection(current, providerFilter);
     status = `${storageProviderLabel(provider)} conectado`;
   } catch (error) {
     redirect(`/lexgestor/configuracoes?erro=${encodeURIComponent(errorMessage(error))}`);
@@ -542,16 +544,18 @@ export async function testarArmazenamentoLexGestor() {
   redirect(`/lexgestor/configuracoes?status=${encodeURIComponent(status)}`);
 }
 
-export async function desconectarArmazenamentoLexGestor() {
+export async function desconectarArmazenamentoLexGestor(formData?: FormData) {
   const current = await requireAppAccess("lexgestor", "/lexgestor/configuracoes");
+  const providerValue = value(formData, "provider");
+  const providerFilter = isStorageProvider(providerValue) ? providerValue : undefined;
 
   try {
-    await disconnectStorage(current);
+    await disconnectStorage(current, providerFilter);
   } catch (error) {
     redirect(`/lexgestor/configuracoes?erro=${encodeURIComponent(errorMessage(error))}`);
   }
 
-  redirect("/lexgestor/configuracoes?status=armazenamento-desconectado");
+  redirect(`/lexgestor/configuracoes?status=${providerFilter ? encodeURIComponent(`${storageProviderLabel(providerFilter)} desconectado`) : "armazenamento-desconectado"}`);
 }
 
 async function criarChecklistInicial(
@@ -719,8 +723,8 @@ function omitKeys<T extends Record<string, unknown>>(payload: T, keys: string[])
   return Object.fromEntries(Object.entries(payload).filter(([key]) => !keys.includes(key)));
 }
 
-function value(formData: FormData, key: string) {
-  return String(formData.get(key) ?? "").trim();
+function value(formData: FormData | undefined, key: string) {
+  return String(formData?.get(key) ?? "").trim();
 }
 
 function text(value: unknown) {

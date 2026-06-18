@@ -27,7 +27,7 @@ export default async function DocumentosPage({ searchParams }: DocumentosPagePro
   return (
     <ResponsivePageContainer
       title="Documentos"
-      description="Originais ficam no Dropbox do escritório. O LexGestor guarda apenas os dados necessários para organizar os arquivos."
+      description="Originais ficam no Dropbox ou Google Drive do escritório. O LexGestor guarda apenas os dados necessários para organizar os arquivos."
     >
       <div className="button-row">
         <form action={atualizarPendentesDocumentosLexGestor}>
@@ -59,7 +59,14 @@ export default async function DocumentosPage({ searchParams }: DocumentosPagePro
       />
 
       <section className="table-panel desktop-only">
-        <table className="responsive-table">
+        <table className="responsive-table documents-table">
+          <colgroup>
+            <col style={{ width: "30%" }} />
+            <col style={{ width: "20%" }} />
+            <col style={{ width: "16%" }} />
+            <col style={{ width: "13%" }} />
+            <col style={{ width: "21%" }} />
+          </colgroup>
           <thead>
             <tr>
               <th>Documento</th>
@@ -85,7 +92,7 @@ export default async function DocumentosPage({ searchParams }: DocumentosPagePro
                     </div>
                     {isPendingWithoutFile(documento) ? (
                       <p className="notice compact danger">
-                        Este documento foi cadastrado antes da conexão com o Dropbox. Reenvie o arquivo para salvar no armazenamento do escritório.
+                        Este documento foi cadastrado antes da conexão com o armazenamento. Reenvie o arquivo para salvar no provedor do escritório.
                       </p>
                     ) : null}
                   </td>
@@ -103,6 +110,7 @@ export default async function DocumentosPage({ searchParams }: DocumentosPagePro
                       url={documento.storageUrl}
                       path={documento.storagePath}
                       id={documento.id}
+                      provider={documento.provider}
                       pendingWithoutFile={isPendingWithoutFile(documento)}
                     />
                   </td>
@@ -121,21 +129,28 @@ export default async function DocumentosPage({ searchParams }: DocumentosPagePro
           </article>
         ) : (
           documentosVisiveis.map((documento) => (
-            <article className="card stack" key={documento.id}>
+            <article className="card stack document-mobile-card" key={documento.id}>
               <h2>{documento.tipo}</h2>
               <p>{documento.nome}</p>
-              <p>{documento.cliente} - {documento.caso}</p>
-              <p className="muted">{documento.categoria} / {documento.subcategoria}</p>
-              <span className="status-pill">{documento.status}</span>
+              <div className="document-mobile-meta">
+                <span>{documento.cliente}</span>
+                <span>{documento.caso}</span>
+                <span>{documento.categoria} / {documento.subcategoria}</span>
+              </div>
+              <div className="button-row">
+                <span className="status-pill">{documento.status}</span>
+                {documento.provider ? <span className="badge">{storageProviderLabel(documento.provider)}</span> : null}
+              </div>
               {isPendingWithoutFile(documento) ? (
                 <p className="notice compact danger">
-                  Este documento foi cadastrado antes da conexão com o Dropbox. Reenvie o arquivo para salvar no armazenamento do escritório.
+                  Este documento foi cadastrado antes da conexão com o armazenamento. Reenvie o arquivo para salvar no provedor do escritório.
                 </p>
               ) : null}
               <DocumentActions
                 url={documento.storageUrl}
                 path={documento.storagePath}
                 id={documento.id}
+                provider={documento.provider}
                 pendingWithoutFile={isPendingWithoutFile(documento)}
               />
             </article>
@@ -145,6 +160,12 @@ export default async function DocumentosPage({ searchParams }: DocumentosPagePro
       <PdfPreview documentoId={documentosVisiveis[0]?.id} />
     </ResponsivePageContainer>
   );
+}
+
+function storageProviderLabel(provider: string) {
+  if (provider === "google_drive") return "Google Drive";
+  if (provider === "dropbox") return "Dropbox";
+  return "Armazenamento";
 }
 
 function dedupeDocumentos(documentos: LexDocumento[]) {

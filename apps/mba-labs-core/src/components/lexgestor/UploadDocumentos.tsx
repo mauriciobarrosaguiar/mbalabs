@@ -64,7 +64,15 @@ export function UploadDocumentos({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const tipoInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
-  const hasStorage = connections.some((connection) => connection.connected);
+  const connectedProviders = connections.filter((connection) => connection.connected);
+  const hasStorage = connectedProviders.length > 0;
+  const defaultProvider = connectedProviders[0]?.provider ?? "dropbox";
+  const providerOptions = hasStorage
+    ? connectedProviders
+    : ([
+        { provider: "dropbox", connected: false, id: "dropbox", status: "nao_conectado", accountEmail: "", rootFolderPath: "", rootFolderId: "" },
+        { provider: "google_drive", connected: false, id: "google_drive", status: "nao_conectado", accountEmail: "", rootFolderPath: "", rootFolderId: "" },
+      ] satisfies LexStorageConnection[]);
 
   const casosFiltrados = useMemo(
     () => casos.filter((caso) => !clienteId || caso.clienteId === clienteId),
@@ -159,13 +167,17 @@ export function UploadDocumentos({
           <p>Selecione cliente, caso e categoria antes de enviar o arquivo.</p>
         </div>
         <span className={`status-pill${hasStorage ? " success" : " warning"}`}>
-          {hasStorage ? "Armazenamento conectado" : "Aguardando armazenamento"}
+          {hasStorage
+            ? connectedProviders.length === 1
+              ? `${storageProviderLabel(connectedProviders[0].provider)} conectado`
+              : `${connectedProviders.length} armazenamentos conectados`
+            : "Aguardando armazenamento"}
         </span>
       </div>
 
       {!hasStorage ? (
         <p className="notice">
-          Conecte o Dropbox do escritório para salvar arquivos reais. Sem conexão, o documento
+          Conecte Dropbox ou Google Drive para salvar arquivos reais. Sem conexão, o documento
           fica como pendente e poderá ser reenviado depois.
         </p>
       ) : null}
@@ -240,10 +252,14 @@ export function UploadDocumentos({
             </select>
           </label>
           <label className="field">
-            Provedor
-            <select name="provider" defaultValue={connections.find((item) => item.connected)?.provider ?? "dropbox"}>
-              <option value="dropbox">Dropbox</option>
-              <option value="google_drive">Google Drive</option>
+            Salvar em
+            <select name="provider" defaultValue={defaultProvider}>
+              {providerOptions.map((connection) => (
+                <option value={connection.provider} key={connection.provider}>
+                  {storageProviderLabel(connection.provider)}
+                  {connection.connected ? "" : " (conectar depois)"}
+                </option>
+              ))}
             </select>
           </label>
           <label className="field-full">
@@ -300,4 +316,10 @@ export function UploadDocumentos({
       </form>
     </section>
   );
+}
+
+function storageProviderLabel(provider: string) {
+  if (provider === "google_drive") return "Google Drive";
+  if (provider === "dropbox") return "Dropbox";
+  return "Armazenamento";
 }

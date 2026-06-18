@@ -7,50 +7,77 @@ type DropboxStatusProps = {
   connections?: LexStorageConnection[];
 };
 
+const providers = ["dropbox", "google_drive"] as const;
+
 export function DropboxStatus({ connections = [] }: DropboxStatusProps) {
-  const connected = connections.find((connection) => connection.connected);
-  const statusLabel = connected
-    ? `${storageProviderLabel(connected.provider)} conectado`
-    : "Nenhum armazenamento conectado";
+  const connectedCount = connections.filter((connection) => connection.connected).length;
 
   return (
-    <section className="card storage-status" id="armazenamento">
-      <Cloud size={24} color="var(--primary)" aria-hidden />
-      <div>
-        <h2>Armazenamento dos documentos</h2>
-        <p>Use a conta Dropbox do próprio escritório para armazenar originais e PDFs.</p>
+    <section className="storage-status" id="armazenamento">
+      <div className="section-title">
+        <div>
+          <h2>Armazenamento dos documentos</h2>
+          <p>Escolha Dropbox ou Google Drive do próprio escritório para guardar originais e PDFs.</p>
+        </div>
+        <Cloud size={24} color="var(--primary)" aria-hidden />
       </div>
-      <div className="grid">
-        <span className={`status-pill${connected ? " success" : " warning"}`}>{statusLabel}</span>
-        <span className="badge">Pasta raiz: {connected?.rootFolderPath || "/LexGestor"}</span>
-        {connected?.accountEmail ? <span className="badge">{connected.accountEmail}</span> : null}
+
+      <div className="storage-provider-list">
+        {providers.map((provider) => {
+          const connection = connections.find((item) => item.provider === provider && item.connected);
+          const label = storageProviderLabel(provider);
+
+          return (
+            <article className="storage-provider-card" key={provider}>
+              <header>
+                <div>
+                  <h3>{label}</h3>
+                  <p className="muted">
+                    {connection ? "Conectado para uploads e PDFs." : "Disponível para conexão OAuth."}
+                  </p>
+                </div>
+                <span className={`status-pill${connection ? " success" : " warning"}`}>
+                  {connection ? "Conectado" : "Não conectado"}
+                </span>
+              </header>
+
+              <div className="storage-meta">
+                <span className="badge">Pasta raiz: {connection?.rootFolderPath || "/LexGestor"}</span>
+                {connection?.accountEmail ? <span className="badge">{connection.accountEmail}</span> : null}
+              </div>
+
+              <div className="button-row">
+                <a className={`button${connection ? " secondary" : ""}`} href={`/api/lexgestor/storage/connect/${provider}`}>
+                  <PlugZap size={17} aria-hidden />
+                  {connection ? `Reconectar ${label}` : `Conectar ${label}`}
+                </a>
+                <form action={testarArmazenamentoLexGestor}>
+                  <input type="hidden" name="provider" value={provider} />
+                  <button className="button secondary" type="submit" disabled={!connection}>
+                    <ExternalLink size={17} aria-hidden />
+                    Testar
+                  </button>
+                </form>
+                <form action={desconectarArmazenamentoLexGestor}>
+                  <input type="hidden" name="provider" value={provider} />
+                  <button className="button secondary" type="submit" disabled={!connection}>
+                    <Unplug size={17} aria-hidden />
+                    Desconectar
+                  </button>
+                </form>
+              </div>
+            </article>
+          );
+        })}
       </div>
+
       <p className="notice">
         A MBA Labs salva apenas metadados, links e caminhos no Supabase. Arquivos originais e PDFs
-        ficam no armazenamento conectado pelo escritório.
+        ficam no armazenamento escolhido pelo escritório.
       </p>
-      <div className="button-row">
-        <a className="button" href="/api/lexgestor/storage/connect/dropbox">
-          <PlugZap size={17} aria-hidden />
-          Conectar Dropbox
-        </a>
-        <a className="button secondary" href="/api/lexgestor/storage/connect/google_drive">
-          <PlugZap size={17} aria-hidden />
-          Conectar Google Drive
-        </a>
-        <form action={testarArmazenamentoLexGestor}>
-          <button className="button secondary" type="submit">
-            <ExternalLink size={17} aria-hidden />
-            Testar conexão
-          </button>
-        </form>
-        <form action={desconectarArmazenamentoLexGestor}>
-          <button className="button secondary" type="submit">
-            <Unplug size={17} aria-hidden />
-            Desconectar
-          </button>
-        </form>
-      </div>
+      <span className={`status-pill${connectedCount > 0 ? " success" : " warning"}`}>
+        {connectedCount > 0 ? `${connectedCount} provedor(es) conectado(s)` : "Nenhum armazenamento conectado"}
+      </span>
     </section>
   );
 }

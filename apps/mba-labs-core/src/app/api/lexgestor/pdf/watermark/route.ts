@@ -60,6 +60,7 @@ async function baixarOriginalSePossivel(current: Awaited<ReturnType<typeof getLe
     current,
     provider: documento.provider,
     path: documento.storagePath,
+    fileId: documento.storageFileId,
   });
 }
 

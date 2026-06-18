@@ -37,7 +37,7 @@ export default async function ConfiguracoesPage({ searchParams }: ConfiguracoesP
       <section className="card stack">
         <h2>Estrutura de pastas</h2>
         <p className="notice">
-          Cada cliente terá uma pasta própria dentro de /LexGestor. Casos separam originais,
+          Cada cliente terá uma pasta própria dentro de /LexGestor no Dropbox ou Google Drive conectado. Casos separam originais,
           PDFs com marca d'água, relatos, checklist, processo e relatórios.
         </p>
         <code>/LexGestor/Clientes/Nome do Cliente - CPF ou CNPJ/Casos/Nome do Caso</code>

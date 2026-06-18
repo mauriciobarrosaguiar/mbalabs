@@ -90,7 +90,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
           cliente.cpfCnpj,
           cliente.whatsapp || cliente.telefone,
           `${cliente.casosCount} caso(s)`,
-          cliente.ultimoAtendimento || "-",
+          formatReportDate(cliente.ultimoAtendimento),
           cliente.status,
         ])}
         headers={["Nome", "CPF/CNPJ", "Contato", "Casos", "Último atendimento", "Status"]}
@@ -103,8 +103,8 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
           `${caso.categoria} / ${caso.subcategoria}`,
           caso.numeroProcesso || "-",
           caso.status,
-          caso.criadoEm || "-",
-          caso.proximoPrazo || "-",
+          formatReportDate(caso.criadoEm),
+          formatReportDate(caso.proximoPrazo),
           String(caso.documentosCount),
         ])}
         headers={["Cliente", "Categoria", "Processo", "Status", "Abertura", "Próximo prazo", "Docs"]}
@@ -117,8 +117,8 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
           documento.caso,
           documento.tipo,
           documento.status,
-          documento.criadoEm || "-",
-          documento.storagePath || documento.storageUrl || "Pendente",
+          formatReportDate(documento.criadoEm),
+          formatStorageLocal(documento.storagePath || documento.storageUrl),
         ])}
         headers={["Cliente", "Caso", "Tipo", "Status", "Envio", "Local"]}
       />
@@ -128,7 +128,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
         rows={data.casos
           .filter((caso) => caso.proximoPrazo)
           .map((caso) => [
-            caso.proximoPrazo,
+            formatReportDate(caso.proximoPrazo),
             caso.tipoPrazo || "-",
             caso.cliente,
             caso.titulo,
@@ -171,7 +171,7 @@ function ReportBlock({
       <div className="table-title">
         <h2>{title}</h2>
       </div>
-      <table className="responsive-table">
+      <table className="responsive-table reports-table">
         <thead>
           <tr>
             {headers.map((header) => (
@@ -188,7 +188,9 @@ function ReportBlock({
             rows.map((row, index) => (
               <tr key={`${title}-${index}`}>
                 {row.map((cell, cellIndex) => (
-                  <td key={`${title}-${index}-${cellIndex}`}>{cell}</td>
+                  <td className={cell.length > 38 ? "long-text" : undefined} key={`${title}-${index}-${cellIndex}`}>
+                    {cell}
+                  </td>
                 ))}
               </tr>
             ))
@@ -197,4 +199,26 @@ function ReportBlock({
       </table>
     </section>
   );
+}
+
+function formatReportDate(value: string) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return value;
+
+  const options: Intl.DateTimeFormatOptions = value.includes("T")
+    ? { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }
+    : { dateStyle: "short", timeZone: "America/Sao_Paulo" };
+
+  return new Intl.DateTimeFormat("pt-BR", options).format(date);
+}
+
+function formatStorageLocal(value: string) {
+  if (!value) return "Pendente";
+  if (/^https?:\/\//i.test(value)) return "Link externo";
+
+  const parts = value.split("/").filter(Boolean);
+  if (parts.length <= 5) return value;
+
+  return `.../${parts.slice(-4).join("/")}`;
 }

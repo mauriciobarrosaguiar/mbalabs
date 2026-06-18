@@ -82,7 +82,7 @@ export function FormAdvogadoEscritorio({ escritorio }: FormAdvogadoEscritorioPro
         <article className="card stack" id="armazenamento">
           <h2>3. Armazenamento</h2>
           <p>Os documentos ficam no armazenamento do escritório. O sistema guarda apenas as informações necessárias para organizar os arquivos.</p>
-          <span className="badge">Dropbox por escritório</span>
+          <span className="badge">Dropbox ou Google Drive por escritório</span>
         </article>
         <article className="card stack">
           <h2>4. Advogados/equipe</h2>

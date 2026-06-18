@@ -50,7 +50,7 @@ export default async function DocumentoViewerPage({ params }: DocumentoViewerPag
             <FileQuestion size={32} color="var(--primary)" aria-hidden />
             <strong>Arquivo original indisponível. Reenvie o documento.</strong>
             <p>
-              Este documento foi cadastrado antes da conexão com o Dropbox ou sem arquivo real salvo no armazenamento do escritório.
+              Este documento foi cadastrado antes da conexão com o armazenamento ou sem arquivo real salvo no provedor do escritório.
             </p>
             <Link className="button" href={reuploadUrl}>
               <UploadCloud size={17} aria-hidden />
@@ -69,13 +69,23 @@ export default async function DocumentoViewerPage({ params }: DocumentoViewerPag
                 <FileText size={17} aria-hidden />
                 Gerar PDF com marca d'água
               </a>
-              {documento.storagePath ? <span className="badge path-badge">{documento.storagePath}</span> : null}
+              {documento.storagePath ? (
+                <span className="badge path-badge">
+                  Local no {storageProviderLabel(documento.provider)}: {documento.storagePath}
+                </span>
+              ) : null}
             </div>
           </>
         )}
       </section>
     </ResponsivePageContainer>
   );
+}
+
+function storageProviderLabel(provider: string) {
+  if (provider === "google_drive") return "Google Drive";
+  if (provider === "dropbox") return "Dropbox";
+  return "armazenamento";
 }
 
 function DocumentPreview({ documento, previewUrl }: { documento: LexDocumento; previewUrl: string }) {

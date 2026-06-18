@@ -76,8 +76,10 @@ export type LexDocumento = {
   observacoes: string;
   status: string;
   provider: string;
+  storageFileId: string;
   storagePath: string;
   storageUrl: string;
+  pdfFileId: string;
   pdfPath: string;
   pdfUrl: string;
   checklistItemId: string;
@@ -775,8 +777,10 @@ function mapDocumentos(
       observacoes: text(documento.observacoes),
       status: statusDocumento(text(documento.status), provider),
       provider,
+      storageFileId: text(documento.storage_file_id),
       storagePath: text(documento.storage_path) || text(documento.dropbox_path_original),
       storageUrl: text(documento.storage_url),
+      pdfFileId: text(documento.pdf_storage_file_id),
       pdfPath,
       pdfUrl: text(documento.pdf_storage_url),
       checklistItemId: text(documento.checklist_item_id),
@@ -810,7 +814,7 @@ function statusDocumento(status: string, provider: string) {
     pdf_gerado: "PDF gerado",
     erro_envio: "Erro no envio",
     precisa_reenviar: "Precisa reenviar arquivo",
-    reenviado: "Enviado ao Dropbox",
+    reenviado: provider === "google_drive" ? "Enviado ao Drive" : "Enviado ao Dropbox",
     substituido_reenviado: "Substituído",
     arquivado: "Arquivado",
     validado: "Validado pelo advogado",
@@ -926,8 +930,10 @@ function demoWorkspace(
       observacoes: "Documento fictício.",
       status: "Enviado ao Dropbox",
       provider: "dropbox",
+      storageFileId: "",
       storagePath: "/LexGestor/Demo/CNIS-demonstracao.pdf",
       storageUrl: "",
+      pdfFileId: "",
       pdfPath: "",
       pdfUrl: "",
       checklistItemId: "",
@@ -948,8 +954,10 @@ function demoWorkspace(
       observacoes: "Documento fictício.",
       status: "Pendente de reenvio",
       provider: "",
+      storageFileId: "",
       storagePath: "",
       storageUrl: "",
+      pdfFileId: "",
       pdfPath: "",
       pdfUrl: "",
       checklistItemId: "",
