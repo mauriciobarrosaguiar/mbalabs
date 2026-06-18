@@ -11,13 +11,13 @@ export async function GET(request: Request) {
   const documento = data.documentos.find((item) => item.id === documentoId);
 
   if (!documento) {
-    return NextResponse.json({ error: "Documento nao encontrado." }, { status: 404 });
+    return NextResponse.json({ error: "Documento não encontrado." }, { status: 404 });
   }
 
   const watermark = String(data.escritorio?.watermark_text ?? data.escritorio?.nome ?? "LexGestor");
   const pdf = createSimplePdf(
     [
-      { text: "PDF com marca d'agua", size: 16 },
+      { text: "PDF com marca d'água", size: 16 },
       { text: `Documento: ${documento.nome}` },
       { text: `Cliente: ${documento.cliente}` },
       { text: `Caso: ${documento.caso}` },
