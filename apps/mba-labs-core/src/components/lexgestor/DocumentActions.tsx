@@ -14,10 +14,10 @@ type DocumentActionsProps = {
 
 export function DocumentActions({ url, path, id, provider = "", pdfPath = "", pdfUrl = "" }: DocumentActionsProps) {
   const apiPdfUrl = `/api/lexgestor/pdf/watermark?documento=${encodeURIComponent(id)}`;
-  const originalDropboxUrl = provider === "dropbox" && path ? dropboxHomeUrl(path) : "";
-  const pdfDropboxUrl = provider === "dropbox" && pdfPath ? dropboxHomeUrl(pdfPath) : "";
-  const visualizarUrl = url || originalDropboxUrl || pdfUrl || pdfDropboxUrl || apiPdfUrl;
-  const gerarPdfUrl = pdfUrl || pdfDropboxUrl || apiPdfUrl;
+  const originalStorageUrl = path ? storageHomeUrl(path, provider) : "";
+  const pdfStorageUrl = pdfPath ? storageHomeUrl(pdfPath, provider) : "";
+  const visualizarUrl = url || originalStorageUrl || pdfUrl || pdfStorageUrl || apiPdfUrl;
+  const gerarPdfUrl = pdfUrl || pdfStorageUrl || apiPdfUrl;
 
   function imprimirDocumento() {
     const janela = window.open(gerarPdfUrl, "_blank", "noopener,noreferrer");
@@ -58,7 +58,8 @@ export function DocumentActions({ url, path, id, provider = "", pdfPath = "", pd
   );
 }
 
-function dropboxHomeUrl(path: string) {
+function storageHomeUrl(path: string, provider: string) {
   const clean = path.split("/").filter(Boolean).map(encodeURIComponent).join("/");
+  if (provider === "google_drive") return "";
   return `https://www.dropbox.com/home/${clean}`;
 }
