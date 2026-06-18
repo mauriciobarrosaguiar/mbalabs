@@ -26,6 +26,7 @@ export default async function CasoDetalhePage({ params }: CasoDetalhePageProps) 
 
   const checklist = obterChecklistPorAreaSubarea(caso.categoria, caso.subcategoria);
   const documentos = data.documentos.filter((documento) => documento.casoId === caso.id);
+  const dossieUrl = `/api/lexgestor/relatorios/pdf?tipo=dossie&caso=${caso.id}`;
 
   return (
     <ResponsivePageContainer
@@ -114,9 +115,9 @@ export default async function CasoDetalhePage({ params }: CasoDetalhePageProps) 
 
         <section className="tabs-panel stack" id="dossie">
           <h2>Dossiê do caso</h2>
-          <PdfPreview />
+          <PdfPreview href={dossieUrl} />
           <div className="button-row">
-            <a className="button" href={`/api/lexgestor/relatorios/pdf?tipo=dossie&caso=${caso.id}`}>
+            <a className="button" href={dossieUrl}>
               Gerar dossiê PDF
             </a>
             <a className="button secondary" href={`/lexgestor/documentos?caso=${caso.id}`}>
