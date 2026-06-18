@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { CurrentUserProfile } from "@/lib/core-data";
 import { ensureLexEscritorio, getLexSupabaseClient } from "./data";
+import { slugSeguro } from "./formatters";
 
 export type StorageProvider = "google_drive" | "dropbox";
 
@@ -124,12 +125,15 @@ export async function saveStorageConnection(
   const escritorioId = String(escritorio?.id ?? "");
   if (!escritorioId) throw new Error("Configure o escritorio antes de conectar armazenamento.");
 
+  const escritorioNome = text(escritorio?.nome) || "Escritorio";
+  const rootFolderPath = montarPastaRaizEscritorio(escritorioNome);
+
   const payload = {
     escritorio_id: escritorioId,
     provider,
     status: "conectado",
     account_email: tokens.accountEmail,
-    root_folder_path: "/LexGestor",
+    root_folder_path: rootFolderPath,
     access_token_encrypted: encrypt(tokens.accessToken),
     refresh_token_encrypted: tokens.refreshToken ? encrypt(tokens.refreshToken) : null,
     token_expires_at: tokens.expiresAt,
@@ -237,6 +241,10 @@ export async function testStorageConnection(current: CurrentUserProfile) {
   throw new Error("Nenhum armazenamento conectado.");
 }
 
+export function montarPastaRaizEscritorio(nomeEscritorio: string) {
+  return `/LexGestor/Escritorio - ${slugSeguro(nomeEscritorio || "Escritorio")}`;
+}
+
 async function getFreshAccessToken(provider: StorageProvider, connection: Record<string, unknown>) {
   const encrypted = text(connection.access_token_encrypted);
   const refreshToken = text(connection.refresh_token_encrypted) ? decrypt(text(connection.refresh_token_encrypted)) : "";
@@ -313,7 +321,10 @@ async function uploadDropbox(params: {
   bytes: Buffer;
   folderPath: string;
 }): Promise<UploadResult> {
-  const path = `${params.folderPath}/${safeFileName(params.fileName)}`;
+  const folderPath = normalizeDropboxPath(params.folderPath);
+  await ensureDropboxFolderPath(params.accessToken, folderPath);
+
+  const path = `${folderPath}/${safeFileName(params.fileName)}`;
   const response = await fetch("https://content.dropboxapi.com/2/files/upload", {
     method: "POST",
     headers: {
@@ -336,6 +347,51 @@ async function uploadDropbox(params: {
     fileId: String(payload.id ?? ""),
     path: String(payload.path_display ?? path),
   };
+}
+
+async function ensureDropboxFolderPath(accessToken: string, folderPath: string) {
+  const parts = normalizeDropboxPath(folderPath).split("/").filter(Boolean);
+  let currentPath = "";
+
+  for (const part of parts) {
+    currentPath = `${currentPath}/${part}`;
+    await createDropboxFolderIfMissing(accessToken, currentPath);
+  }
+}
+
+async function createDropboxFolderIfMissing(accessToken: string, path: string) {
+  const response = await fetch("https://api.dropboxapi.com/2/files/create_folder_v2", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      path,
+      autorename: false,
+    }),
+  });
+
+  if (response.ok) return;
+
+  const payload = await response.json().catch(() => ({}));
+  const summary = String(payload.error_summary ?? "");
+  const tag = String(payload.error?.path?.[".tag"] ?? "");
+
+  if (response.status === 409 && (summary.includes("conflict/folder") || tag === "conflict")) {
+    return;
+  }
+
+  throw new Error(summary || `Falha ao criar pasta no Dropbox: ${path}`);
+}
+
+function normalizeDropboxPath(path: string) {
+  const clean = path
+    .split("/")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join("/");
+  return `/${clean}`;
 }
 
 async function uploadGoogleDrive(params: {
