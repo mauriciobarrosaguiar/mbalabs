@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAppAccess } from "@/lib/core-data";
 import { ensureLexEscritorio, getLexSupabaseClient } from "@/lib/lexgestor/data";
 import { slugSeguro } from "@/lib/lexgestor/formatters";
-import { createSimplePdf } from "@/lib/lexgestor/simple-pdf";
+import { createImagePdfWithWatermark, createSimplePdf } from "@/lib/lexgestor/simple-pdf";
 import { isStorageProvider, montarPastaRaizEscritorio, uploadToConnectedStorage } from "@/lib/lexgestor/storage";
 
 export const dynamic = "force-dynamic";
@@ -76,16 +76,25 @@ export async function POST(request: Request) {
       }
 
       if (uploadResult && gerarPdf) {
-        const pdf = createSimplePdf(
-          [
-            { text: `Documento: ${file.name}`, size: 14 },
-            { text: `Cliente: ${text(cliente.nome)}` },
-            { text: `Caso: ${text(caso.titulo)}` },
-            { text: `Categoria: ${categoria} / ${subcategoria}` },
-            { text: "PDF gerado com marca d'agua pelo LexGestor." },
-          ],
-          text(escritorio?.watermark_text) || text(escritorio?.nome) || "LexGestor",
-        );
+        const pdfLines = [
+          { text: "PDF com marca d'agua", size: 16 },
+          { text: `Documento: ${file.name}` },
+          { text: `Cliente: ${text(cliente.nome)}` },
+          { text: `Caso: ${text(caso.titulo)}` },
+          { text: `Categoria: ${categoria} / ${subcategoria}` },
+          { text: "Arquivo original preservado no armazenamento do escritorio." },
+        ];
+        const watermark = text(escritorio?.watermark_text) || text(escritorio?.nome) || "LexGestor";
+        const pdf = file.type.startsWith("image/")
+          ? createImagePdfWithWatermark({
+              lines: pdfLines,
+              watermark,
+              imageBytes: bytes,
+              imageMimeType: file.type,
+              imageName: file.name,
+            })
+          : createSimplePdf(pdfLines, watermark);
+
         pdfResult = await uploadToConnectedStorage({
           current,
           provider,
