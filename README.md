@@ -80,9 +80,38 @@ Use estas apenas no server-side, scripts administrativos ou rotas protegidas:
 ```env
 SUPABASE_SERVICE_ROLE_KEY=
 DATABASE_URL=
+LEXGESTOR_TOKEN_SECRET=
+DROPBOX_APP_KEY=
+DROPBOX_APP_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 ```
 
-Nunca exponha `SUPABASE_SERVICE_ROLE_KEY` em componente client-side.
+Nunca exponha `SUPABASE_SERVICE_ROLE_KEY`, `LEXGESTOR_TOKEN_SECRET`, `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET`, `GOOGLE_CLIENT_ID` ou `GOOGLE_CLIENT_SECRET` em componente client-side.
+
+## Dropbox do LexGestor
+
+O LexGestor usa OAuth do Dropbox do proprio escritorio. A MBA Labs salva apenas metadados no Supabase; os arquivos reais ficam na conta conectada do advogado.
+
+Configure no app do Dropbox a URL de retorno:
+
+```txt
+https://mbalabs.vercel.app/api/lexgestor/storage/callback/dropbox
+```
+
+Configure na Vercel:
+
+```env
+LEXGESTOR_TOKEN_SECRET=
+DROPBOX_APP_KEY=
+DROPBOX_APP_SECRET=
+```
+
+Depois entre em `/lexgestor/configuracoes`, clique em `Conectar Dropbox` e autorize a conta do escritorio. Os uploads serao salvos em:
+
+```txt
+/LexGestor/Escritorio - Nome do Escritorio/Clientes/Nome do Cliente - CPF ou CNPJ/Casos/Nome do Caso/
+```
 
 ## Como aplicar o banco no Supabase
 
@@ -123,6 +152,11 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 DATABASE_URL=
 NEXT_PUBLIC_CORE_URL=
+LEXGESTOR_TOKEN_SECRET=
+DROPBOX_APP_KEY=
+DROPBOX_APP_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 ```
 
 ## O que ainda falta fazer
