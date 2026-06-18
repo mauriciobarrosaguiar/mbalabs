@@ -2,6 +2,7 @@
 
 import type { FormEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Camera, FileUp, ShieldCheck } from "lucide-react";
 import type { CategoriaJuridica } from "@/data/lexgestor/areas";
 import type { LexCaso, LexCliente, LexStorageConnection } from "@/lib/lexgestor/data";
@@ -33,7 +34,9 @@ export function UploadDocumentos({
   defaultCategoria = "",
   defaultSubcategoria = "",
 }: UploadDocumentosProps) {
-  const [clienteId, setClienteId] = useState(defaultClienteId);
+  const router = useRouter();
+  const casoInicial = casos.find((caso) => caso.id === defaultCasoId);
+  const [clienteId, setClienteId] = useState(defaultClienteId || casoInicial?.clienteId || "");
   const [casoId, setCasoId] = useState(defaultCasoId);
   const [fileName, setFileName] = useState("Nenhum arquivo selecionado");
   const [tipoDocumento, setTipoDocumento] = useState("");
@@ -53,6 +56,13 @@ export function UploadDocumentos({
   const casoSelecionado = casos.find((caso) => caso.id === casoId);
   const categoriaInicial = casoSelecionado?.categoria || defaultCategoria;
   const subcategoriaInicial = casoSelecionado?.subcategoria || defaultSubcategoria;
+
+  useEffect(() => {
+    if (!casoSelecionado?.clienteId) return;
+    if (clienteId !== casoSelecionado.clienteId) {
+      setClienteId(casoSelecionado.clienteId);
+    }
+  }, [casoSelecionado?.clienteId, clienteId]);
 
   useEffect(() => {
     function handleChecklistAnexo(event: Event) {
@@ -81,6 +91,8 @@ export function UploadDocumentos({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isSubmitting) return;
+
     setSubmitting(true);
     setStatus("Enviando...");
 
@@ -93,6 +105,12 @@ export function UploadDocumentos({
 
     setSubmitting(false);
     setStatus(payload.message || payload.error || "Documento processado.");
+
+    if (response.ok && !payload.error) {
+      setFileName("Nenhum arquivo selecionado");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      router.refresh();
+    }
   }
 
   return (
