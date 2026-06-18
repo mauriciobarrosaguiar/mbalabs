@@ -19,19 +19,19 @@ export function createSimplePdf(lines: SimplePdfLine[], watermark = "LexGestor")
     "q",
     "0.88 0.93 1 rg",
     "BT /F1 42 Tf 90 360 Td 0.7 0.7 0.7 rg",
-    `(${escapePdf(watermark)}) Tj`,
+    `${toPdfWinAnsiText(watermark)} Tj`,
     "ET",
     "Q",
     "BT",
     "/F1 18 Tf",
     "0.05 0.13 0.27 rg",
-    `48 ${pageHeight - 40} Td (LexGestor) Tj`,
+    `48 ${pageHeight - 40} Td ${toPdfWinAnsiText("LexGestor")} Tj`,
     "ET",
     ...contentLines.flatMap((line) => [
       "BT",
       `/F1 ${line.size} Tf`,
       "0.09 0.12 0.18 rg",
-      `${line.x} ${line.y} Td (${escapePdf(line.text)}) Tj`,
+      `${line.x} ${line.y} Td ${toPdfWinAnsiText(line.text)} Tj`,
       "ET",
     ]),
   ].join("\n");
@@ -40,7 +40,7 @@ export function createSimplePdf(lines: SimplePdfLine[], watermark = "LexGestor")
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
     `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>`,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
     `<< /Length ${Buffer.byteLength(stream, "utf8")} >>\nstream\n${stream}\nendstream`,
   ];
 
@@ -62,6 +62,36 @@ export function createSimplePdf(lines: SimplePdfLine[], watermark = "LexGestor")
   return Buffer.from(output, "utf8");
 }
 
-function escapePdf(value: string) {
-  return value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)").slice(0, 180);
+function toPdfWinAnsiText(value: string) {
+  return `<${toWinAnsiHex(value.slice(0, 180))}>`;
 }
+
+function toWinAnsiHex(value: string) {
+  const bytes: number[] = [];
+
+  for (const char of value) {
+    const code = char.codePointAt(0) ?? 63;
+
+    if (code <= 0x7f || (code >= 0xa0 && code <= 0xff)) {
+      bytes.push(code);
+      continue;
+    }
+
+    const mapped = winAnsiExtraChars[code];
+    bytes.push(mapped ?? 63);
+  }
+
+  return bytes.map((byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+
+const winAnsiExtraChars: Record<number, number> = {
+  0x20ac: 0x80, // €
+  0x2018: 0x91, // ‘
+  0x2019: 0x92, // ’
+  0x201c: 0x93, // “
+  0x201d: 0x94, // ”
+  0x2022: 0x95, // •
+  0x2013: 0x96, // –
+  0x2014: 0x97, // —
+  0x2122: 0x99, // ™
+};
