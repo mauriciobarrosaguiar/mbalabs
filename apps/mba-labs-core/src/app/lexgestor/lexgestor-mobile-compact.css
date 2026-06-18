@@ -1,6 +1,5 @@
 /* Ajuste final mobile do LexGestor.
-   Foco: topo compacto, ações por ícone e navegação inferior em uma linha.
-   Importante: usa 980px porque o Chrome Android pode carregar layout viewport largo quando falta meta viewport. */
+   Este arquivo fica por ultimo no layout e força topo compacto e menu inferior em uma linha. */
 
 @media (max-width: 980px) {
   .lexgestor-module .topbar {
@@ -9,12 +8,11 @@
     align-items: center !important;
     gap: 8px !important;
     width: 100% !important;
-    min-height: 54px !important;
+    min-height: 52px !important;
     padding: 8px 12px !important;
   }
 
   .lexgestor-module .topbar-title {
-    display: block !important;
     min-width: 0 !important;
     padding: 0 !important;
   }
@@ -48,6 +46,7 @@
     width: 42px !important;
     height: 42px !important;
     min-width: 42px !important;
+    max-width: 42px !important;
     min-height: 42px !important;
     flex: 0 0 42px !important;
     padding: 0 !important;
@@ -65,32 +64,11 @@
     flex: 0 0 auto !important;
   }
 
-  .lexgestor-module .topbar-actions a[href="/lexgestor/configuracoes"] {
-    display: inline-flex !important;
-  }
-
-  .lexgestor-module .topbar-actions a[href="/lexgestor/casos/novo"] {
-    display: none !important;
-  }
-
   .lexgestor-module .lex-content {
     padding-top: 12px !important;
     padding-right: 10px !important;
     padding-left: 10px !important;
     padding-bottom: 92px !important;
-  }
-
-  .lexgestor-module .page-heading {
-    margin-bottom: 12px !important;
-  }
-
-  .lexgestor-module .page-heading h1 {
-    font-size: clamp(1.55rem, 8vw, 2.15rem) !important;
-  }
-
-  .lexgestor-module .page-heading p {
-    font-size: 0.9rem !important;
-    line-height: 1.4 !important;
   }
 
   .lexgestor-module .mobile-nav {
@@ -108,7 +86,7 @@
     min-width: 0 !important;
     max-width: 100% !important;
     padding: 6px 1px !important;
-    font-size: 0.66rem !important;
+    font-size: 0.6rem !important;
     line-height: 1 !important;
     white-space: nowrap !important;
     overflow: hidden !important;
@@ -122,21 +100,18 @@
 }
 
 @media (max-width: 420px) {
-  .lexgestor-module .topbar {
-    padding: 7px 10px !important;
-  }
-
   .lexgestor-module .topbar-actions .button,
   .lexgestor-module .topbar-actions button,
   .lexgestor-module .topbar-actions a {
     width: 39px !important;
     height: 39px !important;
     min-width: 39px !important;
+    max-width: 39px !important;
     min-height: 39px !important;
     flex-basis: 39px !important;
   }
 
   .lexgestor-module .mobile-nav a {
-    font-size: 0.6rem !important;
+    font-size: 0.56rem !important;
   }
 }
