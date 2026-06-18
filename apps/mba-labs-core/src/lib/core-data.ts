@@ -442,7 +442,12 @@ export const adminResources = {
           { label: "Dono", value: "dono" },
           { label: "Gerente", value: "gerente" },
           { label: "Lavador", value: "lavador" },
-          { label: "Caixa", value: "caixa" }
+          { label: "Caixa", value: "caixa" },
+          { label: "LexGestor - Dono do escritório", value: "dono" },
+          { label: "LexGestor - Administrador", value: "administrador" },
+          { label: "LexGestor - Advogado", value: "advogado" },
+          { label: "LexGestor - Assistente", value: "assistente" },
+          { label: "LexGestor - Financeiro/leitura", value: "financeiro_leitura" }
         ]
       }
     ]

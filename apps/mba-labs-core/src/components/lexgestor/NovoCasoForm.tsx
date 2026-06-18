@@ -6,16 +6,17 @@ import { salvarCasoLexGestor } from "@/app/lexgestor/actions";
 import type { CategoriaJuridica } from "@/data/lexgestor/areas";
 import { obterChecklistPorAreaSubarea } from "@/lib/lexgestor/checklist";
 import { LEX_CASE_STATUS } from "@/lib/lexgestor/constants";
-import type { LexCliente } from "@/lib/lexgestor/data";
+import type { LexAdvogado, LexCliente } from "@/lib/lexgestor/data";
 import { ChecklistCaso } from "./ChecklistCaso";
 
 type NovoCasoFormProps = {
   clientes: LexCliente[];
+  advogados?: LexAdvogado[];
   categorias: CategoriaJuridica[];
   defaultClienteId?: string;
 };
 
-export function NovoCasoForm({ clientes, categorias, defaultClienteId = "" }: NovoCasoFormProps) {
+export function NovoCasoForm({ clientes, advogados = [], categorias, defaultClienteId = "" }: NovoCasoFormProps) {
   const defaultClienteValido = clientes.some((cliente) => cliente.id === defaultClienteId) ? defaultClienteId : "";
   const [clienteId, setClienteId] = useState(defaultClienteValido);
   const [categoria, setCategoria] = useState("");
@@ -168,7 +169,17 @@ export function NovoCasoForm({ clientes, categorias, defaultClienteId = "" }: No
           </label>
           <Field name="polo_ativo" label="Polo ativo" />
           <Field name="polo_passivo" label="Polo passivo" />
-          <Field name="advogado_responsavel" label="Advogado responsável" />
+          <label className="field">
+            Advogado responsável
+            <select name="advogado_responsavel_id" defaultValue="">
+              <option value="">Definir depois</option>
+              {advogados.filter((advogado) => advogado.status === "Ativo").map((advogado) => (
+                <option value={advogado.id} key={advogado.id}>
+                  {advogado.nome}{advogado.oab ? ` - OAB ${advogado.oab}/${advogado.ufOab}` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
           <Field name="valor_causa" label="Valor da causa" inputMode="decimal" />
           <label className="field">
             Justiça gratuita

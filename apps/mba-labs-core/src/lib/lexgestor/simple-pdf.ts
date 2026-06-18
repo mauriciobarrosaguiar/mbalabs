@@ -75,7 +75,7 @@ export function createImagePdfWithWatermark({
     return createSimplePdf(
       [
         ...lines,
-        { text: "Imagem original nao pode ser incorporada automaticamente. O arquivo original foi preservado no armazenamento." },
+        { text: "Imagem original não pode ser incorporada automaticamente. O arquivo original foi preservado no armazenamento." },
       ],
       watermark,
     );

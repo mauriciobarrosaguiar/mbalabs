@@ -6,7 +6,6 @@ import {
   BriefcaseBusiness,
   FileText,
   LayoutDashboard,
-  Printer,
   Settings,
   UsersRound,
 } from "lucide-react";
@@ -16,7 +15,7 @@ const items = [
   { href: "/lexgestor/clientes", label: "Clientes", icon: UsersRound },
   { href: "/lexgestor/casos", label: "Casos", icon: BriefcaseBusiness },
   { href: "/lexgestor/documentos", label: "Docs", icon: FileText },
-  { href: "/lexgestor/relatorios", label: "Rel.", icon: Printer },
+  { href: "/lexgestor/equipe", label: "Equipe", icon: UsersRound },
   { href: "/lexgestor/configuracoes", label: "Ajustes", icon: Settings },
 ];
 

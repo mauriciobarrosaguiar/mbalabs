@@ -1,4 +1,5 @@
 import { ChecklistCaso } from "@/components/lexgestor/ChecklistCaso";
+import { atualizarResponsavelCasoLexGestor } from "@/app/lexgestor/actions";
 import { EmptyState } from "@/components/lexgestor/EmptyState";
 import { PdfPreview } from "@/components/lexgestor/PdfPreview";
 import { RelatoCliente } from "@/components/lexgestor/RelatoCliente";
@@ -81,6 +82,24 @@ export default async function CasoDetalhePage({ params }: CasoDetalhePageProps) 
             <Info label="Link do processo" value={caso.linkProcesso} />
             <Info label="Observações" value={caso.observacoesProcesso} />
           </div>
+          <form className="card compact-stack" action={atualizarResponsavelCasoLexGestor}>
+            <input type="hidden" name="caso_id" value={caso.id} />
+            <label className="field">
+              Trocar advogado responsável
+              <select name="advogado_responsavel_id" defaultValue={caso.advogadoResponsavelId}>
+                <option value="">Sem responsável</option>
+                {data.advogados.filter((advogado) => advogado.status === "Ativo").map((advogado) => (
+                  <option value={advogado.id} key={advogado.id}>
+                    {advogado.nome}{advogado.oab ? ` - OAB ${advogado.oab}/${advogado.ufOab}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="button-row">
+              <button className="button secondary" type="submit">Atualizar responsável</button>
+              <a className="button secondary" href="/lexgestor/equipe">Gerenciar equipe</a>
+            </div>
+          </form>
         </section>
 
         <section className="tabs-panel" id="relato">

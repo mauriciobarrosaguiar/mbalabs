@@ -1,0 +1,247 @@
+/* Camada final escopada do LexGestor: responsividade, textos longos e documentos. */
+
+.lexgestor-module :where(
+  .card,
+  .form-card,
+  .panel,
+  .table-panel,
+  .tabs-panel,
+  .detail-box,
+  .list-row,
+  .checklist-item,
+  .upload-zone,
+  .notice,
+  .badge,
+  .status-pill,
+  h1,
+  h2,
+  h3,
+  p,
+  strong,
+  span,
+  small,
+  a,
+  button,
+  td,
+  th
+) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.lexgestor-module :where(a, button, summary, .button) {
+  cursor: pointer;
+}
+
+.lexgestor-module .compact-stack {
+  gap: 8px;
+}
+
+.lexgestor-module .dashboard-actions .quick-action {
+  min-height: 132px;
+}
+
+.lexgestor-module .dashboard-list-card .section-title {
+  align-items: center;
+}
+
+.lexgestor-module .dashboard-list-card h2 {
+  margin: 0;
+}
+
+.lexgestor-module .mobile-list-toggle {
+  display: none;
+  width: fit-content;
+}
+
+.lexgestor-module .button-row form,
+.lexgestor-module .client-action-row form {
+  display: inline-flex;
+  margin: 0;
+}
+
+.lexgestor-module .button-row form .button,
+.lexgestor-module .client-action-row form .button {
+  width: 100%;
+}
+
+.lexgestor-module .notice.warning {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.lexgestor-module .notice.danger {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.lexgestor-module .notice.compact {
+  padding: 9px 10px;
+  font-size: 0.88rem;
+}
+
+.lexgestor-module .document-title {
+  display: grid;
+  grid-template-columns: auto minmax(0, auto) minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+}
+
+.lexgestor-module .path-badge {
+  max-width: min(100%, 360px);
+}
+
+.lexgestor-module .document-viewer-card {
+  min-height: 420px;
+}
+
+.lexgestor-module .document-preview-frame {
+  width: 100%;
+  min-height: min(72vh, 760px);
+  border: 1px solid var(--lex-border);
+  border-radius: 16px;
+  background: var(--lex-panel-strong);
+}
+
+.lexgestor-module .image-preview-frame {
+  display: grid;
+  place-items: center;
+  padding: 14px;
+}
+
+.lexgestor-module .image-preview-frame img {
+  display: block;
+  max-width: 100%;
+  max-height: 72vh;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+.lexgestor-module .responsive-table td,
+.lexgestor-module .responsive-table th {
+  min-width: 0;
+}
+
+.lexgestor-module .tabs .button-row {
+  align-items: center;
+}
+
+.lexgestor-module .setup-compact .grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.lexgestor-module .team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.lexgestor-module .team-card {
+  align-content: start;
+}
+
+.lexgestor-module .team-edit {
+  border: 1px solid var(--lex-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--lex-panel-strong);
+}
+
+.lexgestor-module .team-edit summary {
+  font-weight: 800;
+}
+
+@media (max-width: 760px) {
+  .lexgestor-module {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .lexgestor-module .lex-content {
+    padding-bottom: 104px !important;
+  }
+
+  .lexgestor-module .page-heading {
+    gap: 8px !important;
+  }
+
+  .lexgestor-module .page-heading h1 {
+    font-size: clamp(1.45rem, 7vw, 1.9rem) !important;
+  }
+
+  .lexgestor-module .page-heading > div:last-child {
+    width: 100%;
+  }
+
+  .lexgestor-module .page-heading > div:last-child .button {
+    width: 100%;
+  }
+
+  .lexgestor-module .dashboard-list-card:not(.expanded) .mobile-extra-row {
+    display: none;
+  }
+
+  .lexgestor-module .mobile-list-toggle {
+    display: inline-flex;
+  }
+
+  .lexgestor-module .document-title {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .lexgestor-module .document-title span {
+    grid-column: 1 / -1;
+  }
+
+  .lexgestor-module .button-row {
+    flex-wrap: wrap !important;
+    overflow-x: visible !important;
+  }
+
+  .lexgestor-module .button-row .button,
+  .lexgestor-module .button-row button,
+  .lexgestor-module .button-row a,
+  .lexgestor-module .button-row form {
+    flex: 1 1 150px !important;
+    min-width: 0 !important;
+  }
+
+  .lexgestor-module .tabs > .button-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    padding-bottom: 8px;
+  }
+
+  .lexgestor-module .tabs > .button-row .button {
+    flex: 0 0 auto !important;
+    width: auto !important;
+  }
+
+  .lexgestor-module .mobile-nav,
+  .lexgestor-module nav.mobile-nav {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+    max-width: calc(100vw - 16px);
+  }
+
+  .lexgestor-module .mobile-nav span {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lexgestor-module .document-preview-frame {
+    min-height: 62vh;
+    border-radius: 12px;
+  }
+
+  .lexgestor-module .setup-compact .grid,
+  .lexgestor-module .team-grid {
+    grid-template-columns: 1fr;
+  }
+}

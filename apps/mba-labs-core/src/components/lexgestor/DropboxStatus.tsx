@@ -18,7 +18,7 @@ export function DropboxStatus({ connections = [] }: DropboxStatusProps) {
       <Cloud size={24} color="var(--primary)" aria-hidden />
       <div>
         <h2>Armazenamento dos documentos</h2>
-        <p>Use a conta Google Drive ou Dropbox do proprio escritorio.</p>
+        <p>Use a conta Dropbox do próprio escritório para armazenar originais e PDFs.</p>
       </div>
       <div className="grid">
         <span className={`status-pill${connected ? " success" : " warning"}`}>{statusLabel}</span>
@@ -27,21 +27,21 @@ export function DropboxStatus({ connections = [] }: DropboxStatusProps) {
       </div>
       <p className="notice">
         A MBA Labs salva apenas metadados, links e caminhos no Supabase. Arquivos originais e PDFs
-        ficam no armazenamento conectado pelo escritorio.
+        ficam no armazenamento conectado pelo escritório.
       </p>
       <div className="button-row">
-        <a className="button" href="/api/lexgestor/storage/connect/google_drive">
-          <PlugZap size={17} aria-hidden />
-          Conectar Google Drive
-        </a>
-        <a className="button secondary" href="/api/lexgestor/storage/connect/dropbox">
+        <a className="button" href="/api/lexgestor/storage/connect/dropbox">
           <PlugZap size={17} aria-hidden />
           Conectar Dropbox
+        </a>
+        <a className="button secondary" href="/api/lexgestor/storage/connect/google_drive">
+          <PlugZap size={17} aria-hidden />
+          Conectar Google Drive
         </a>
         <form action={testarArmazenamentoLexGestor}>
           <button className="button secondary" type="submit">
             <ExternalLink size={17} aria-hidden />
-            Testar conexao
+            Testar conexão
           </button>
         </form>
         <form action={desconectarArmazenamentoLexGestor}>

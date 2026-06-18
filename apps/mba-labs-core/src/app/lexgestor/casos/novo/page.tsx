@@ -21,7 +21,7 @@ export default async function NovoCasoPage({ searchParams }: NovoCasoPageProps) 
         </Link>
       }
     >
-      {params.erro ? <p className="notice">Nao foi possivel salvar: {params.erro}</p> : null}
+      {params.erro ? <p className="notice">Não foi possível salvar: {params.erro}</p> : null}
       {data.clientes.length === 0 ? (
         <section className="empty-state">
           <strong>Cadastre um cliente antes de abrir o caso</strong>
@@ -33,6 +33,7 @@ export default async function NovoCasoPage({ searchParams }: NovoCasoPageProps) 
       ) : (
         <NovoCasoForm
           clientes={data.clientes}
+          advogados={data.advogados}
           categorias={data.categorias}
           defaultClienteId={params.cliente ?? ""}
         />

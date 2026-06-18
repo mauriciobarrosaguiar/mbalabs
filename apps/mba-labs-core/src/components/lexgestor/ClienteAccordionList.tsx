@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { BriefcaseBusiness, ChevronDown, FileText, Pencil, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { excluirClienteLexGestor } from "@/app/lexgestor/actions";
 import type { LexCliente } from "@/lib/lexgestor/data";
 import { BotaoWhatsAppCliente } from "./BotaoWhatsAppCliente";
 
@@ -112,9 +113,9 @@ export function ClienteAccordionList({ clientes }: ClienteAccordionListProps) {
               <div className="accordion-content">
                 <div className="detail-grid">
                   <Info label="Dados pessoais" value={`${cliente.cpfCnpj} - ${cliente.email}`} />
-                  <Info label="Endereco" value={cliente.endereco} />
+                  <Info label="Endereço" value={cliente.endereco} />
                   <Info label="Contatos" value={`Telefone: ${cliente.telefone} | WhatsApp: ${cliente.whatsapp}`} />
-                  <Info label="Observacoes" value={cliente.observacoes || "Sem observacoes."} />
+                  <Info label="Observações" value={cliente.observacoes || "Sem observações."} />
                   <Info label="Casos vinculados" value={`${cliente.casosCount} caso(s)`} />
                   <Info label="Documentos vinculados" value={`${cliente.documentosCount} documento(s)`} />
                 </div>
@@ -132,10 +133,13 @@ export function ClienteAccordionList({ clientes }: ClienteAccordionListProps) {
                     Ver documentos
                   </Link>
                   <BotaoWhatsAppCliente telefone={cliente.whatsapp || cliente.telefone} />
-                  <button className="button secondary danger-text" type="button">
-                    <Trash2 size={17} aria-hidden />
-                    Excluir cliente
-                  </button>
+                  <form action={excluirClienteLexGestor}>
+                    <input type="hidden" name="id" value={cliente.id} />
+                    <button className="button secondary danger-text" type="submit">
+                      <Trash2 size={17} aria-hidden />
+                      Excluir cliente
+                    </button>
+                  </form>
                 </div>
               </div>
             </details>

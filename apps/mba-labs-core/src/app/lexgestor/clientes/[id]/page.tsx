@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { BriefcaseBusiness } from "lucide-react";
+import { BriefcaseBusiness, FileText, Pencil, Trash2 } from "lucide-react";
+import { excluirClienteLexGestor } from "@/app/lexgestor/actions";
 import { BotaoWhatsAppCliente } from "@/components/lexgestor/BotaoWhatsAppCliente";
 import { EmptyState } from "@/components/lexgestor/EmptyState";
 import { ResponsivePageContainer } from "@/components/lexgestor/ResponsivePageContainer";
@@ -7,11 +8,11 @@ import { UploadDocumentos } from "@/components/lexgestor/UploadDocumentos";
 import { getLexWorkspaceData } from "@/lib/lexgestor/data";
 
 type ClienteDetalhePageProps = {
-  params: Promise<{ clienteId: string }>;
+  params: Promise<{ id: string }>;
 };
 
 export default async function ClienteDetalhePage({ params }: ClienteDetalhePageProps) {
-  const { clienteId } = await params;
+  const { id: clienteId } = await params;
   const data = await getLexWorkspaceData(`/lexgestor/clientes/${clienteId}`);
   const cliente = data.clientes.find((item) => item.id === clienteId);
   const casos = data.casos.filter((caso) => caso.clienteId === clienteId);
@@ -47,10 +48,31 @@ export default async function ClienteDetalhePage({ params }: ClienteDetalhePageP
             <Info label="Endereço" value={cliente.endereco} />
             <Info label="Origem" value={cliente.origem} />
           </div>
-          <BotaoWhatsAppCliente
-            telefone={cliente.whatsapp || cliente.telefone}
-            mensagem="Olá, estamos organizando seu dossiê jurídico no LexGestor."
-          />
+          <div className="button-row client-action-row">
+            <Link className="button secondary" href={`/lexgestor/clientes/${cliente.id}/editar`}>
+              <Pencil size={17} aria-hidden />
+              Editar cliente
+            </Link>
+            <Link className="button" href={novoCasoHref}>
+              <BriefcaseBusiness size={17} aria-hidden />
+              Novo caso
+            </Link>
+            <Link className="button secondary" href={`/lexgestor/documentos?cliente=${cliente.id}`}>
+              <FileText size={17} aria-hidden />
+              Ver documentos
+            </Link>
+            <BotaoWhatsAppCliente
+              telefone={cliente.whatsapp || cliente.telefone}
+              mensagem="Olá, estamos organizando seu dossiê jurídico no LexGestor."
+            />
+            <form action={excluirClienteLexGestor}>
+              <input type="hidden" name="id" value={cliente.id} />
+              <button className="button secondary danger-text" type="submit">
+                <Trash2 size={17} aria-hidden />
+                Excluir cliente
+              </button>
+            </form>
+          </div>
         </div>
         <div className="card stack">
           <h2>Resumo</h2>

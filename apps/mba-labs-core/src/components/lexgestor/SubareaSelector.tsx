@@ -16,11 +16,11 @@ export function SubareaSelector({
   const subareas = area ? encontrarArea(area)?.subareas ?? [] : [];
 
   if (!area) {
-    return <p className="muted">Selecione uma area juridica para ver as subareas.</p>;
+    return <p className="muted">Selecione uma área jurídica para ver as subáreas.</p>;
   }
 
   return (
-    <div className="subarea-list" aria-label={`Subareas de ${area}`}>
+    <div className="subarea-list" aria-label={`Subáreas de ${area}`}>
       {subareas.map((subarea) => (
         <button
           key={subarea}

@@ -14,8 +14,8 @@ export default async function ConfiguracoesPage({ searchParams }: ConfiguracoesP
 
   return (
     <ResponsivePageContainer
-      title="Configuracoes"
-      description="Dados do escritorio, marca d'agua e armazenamento externo."
+      title="Configurações"
+      description="Dados do escritório, marca d'água, equipe, segurança e armazenamento."
     >
       {params.erro ? (
         <p className="notice danger" role="alert">
@@ -29,7 +29,7 @@ export default async function ConfiguracoesPage({ searchParams }: ConfiguracoesP
       ) : null}
       {data.error ? (
         <p className="notice warning" role="alert">
-          Configuracao pendente: {data.error}
+          Configuração pendente: {data.error}
         </p>
       ) : null}
       <FormAdvogadoEscritorio escritorio={data.escritorio} />
@@ -37,8 +37,8 @@ export default async function ConfiguracoesPage({ searchParams }: ConfiguracoesP
       <section className="card stack">
         <h2>Estrutura de pastas</h2>
         <p className="notice">
-          Cada cliente tera uma pasta propria dentro de /LexGestor. Casos separam originais,
-          PDFs com marca d'agua, relatos, checklist, processo e relatorios.
+          Cada cliente terá uma pasta própria dentro de /LexGestor. Casos separam originais,
+          PDFs com marca d'água, relatos, checklist, processo e relatórios.
         </p>
         <code>/LexGestor/Clientes/Nome do Cliente - CPF ou CNPJ/Casos/Nome do Caso</code>
         <div className="grid">
@@ -57,9 +57,9 @@ function feedbackMessage(value: string) {
   const messages: Record<string, string> = {
     "armazenamento-conectado": "Armazenamento conectado.",
     "armazenamento-desconectado": "Armazenamento desconectado.",
-    "configuracoes-salvas": "Configuracoes salvas.",
-    "oauth-invalido": "Conexao invalida ou expirada. Tente conectar novamente.",
-    "provedor-invalido": "Provedor de armazenamento invalido.",
+    "configuracoes-salvas": "Configurações salvas.",
+    "oauth-invalido": "Conexão inválida ou expirada. Tente conectar novamente.",
+    "provedor-invalido": "Provedor de armazenamento inválido.",
   };
 
   return messages[value] ?? value;

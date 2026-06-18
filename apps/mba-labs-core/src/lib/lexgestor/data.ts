@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { categoriasJuridicas, type CategoriaJuridica } from "@/data/lexgestor/areas";
 import { requireAppAccess, type CurrentUserProfile } from "@/lib/core-data";
 import { getSupabaseServer } from "@/lib/supabase";
+import { obterPlanoLexGestor, type LexPlanoComercial, type LexUsoPlano } from "./plans";
 
 export type LexCliente = {
   id: string;
@@ -41,6 +42,7 @@ export type LexCaso = {
   grau: string;
   poloAtivo: string;
   poloPassivo: string;
+  advogadoResponsavelId: string;
   advogadoResponsavel: string;
   valorCausa: number;
   justicaGratuita: boolean;
@@ -69,14 +71,42 @@ export type LexDocumento = {
   categoria: string;
   subcategoria: string;
   tipo: string;
+  mimeType: string;
   origem: string;
+  observacoes: string;
   status: string;
   provider: string;
   storagePath: string;
   storageUrl: string;
   pdfPath: string;
   pdfUrl: string;
+  checklistItemId: string;
   criadoEm: string;
+};
+
+export type LexAdvogado = {
+  id: string;
+  coreUsuarioId: string;
+  nome: string;
+  email: string;
+  telefone: string;
+  whatsapp: string;
+  oab: string;
+  ufOab: string;
+  cargo: string;
+  perfilAcesso: string;
+  status: "Ativo" | "Inativo" | "Pendente";
+  observacoes: string;
+  casosResponsavelCount: number;
+  criadoEm: string;
+};
+
+export type LexCoreUsuario = {
+  id: string;
+  nome: string;
+  email: string;
+  tipo: string;
+  status: string;
 };
 
 export type LexStorageConnection = {
@@ -102,11 +132,16 @@ export type LexWorkspaceData = {
   clientes: LexCliente[];
   casos: LexCaso[];
   documentos: LexDocumento[];
+  advogados: LexAdvogado[];
+  usuariosEmpresa: LexCoreUsuario[];
   storageConnections: LexStorageConnection[];
+  plano: LexPlanoComercial;
+  usoPlano: LexUsoPlano;
   metrics: LexDashboardMetric[];
   casosPorCategoria: Array<{ label: string; value: number }>;
   casosPorStatus: Array<{ label: string; value: number }>;
   documentosPorStatus: Array<{ label: string; value: number }>;
+  produtividadePorAdvogado: Array<{ label: string; value: number }>;
   ultimosClientes: LexCliente[];
   ultimosCasos: LexCaso[];
   ultimosDocumentos: LexDocumento[];
@@ -114,47 +149,71 @@ export type LexWorkspaceData = {
   setupSteps: Array<{ label: string; done: boolean; href: string; action: string }>;
   error: string | null;
   isReady: boolean;
+  demoMode: boolean;
 };
 
 let serviceClient: ReturnType<typeof createClient> | null = null;
 
-export async function getLexWorkspaceData(nextPath = "/lexgestor"): Promise<LexWorkspaceData> {
+export async function getLexWorkspaceData(
+  nextPath = "/lexgestor",
+  options: { demo?: boolean } = {},
+): Promise<LexWorkspaceData> {
   const current = await requireAppAccess("lexgestor", nextPath);
   const client = await getLexSupabaseClient();
 
   try {
     const escritorio = await ensureLexEscritorio(client, current);
     const escritorioId = text(escritorio?.id);
+    const plano = await obterPlanoLexGestor(client, current);
 
-    if (!escritorioId && !current.isAdminMaster) {
-      return emptyWorkspace(current, "Configure o escritorio antes de gravar dados do LexGestor.");
+    if (options.demo) {
+      return demoWorkspace(current, escritorio, plano);
     }
 
-    const [categorias, clientesRows, casosRows, documentosRows, checklistRows, storageRows] =
-      await Promise.all([
-        listCategorias(client, escritorioId),
-        listClientesRows(client, escritorioId, current.isAdminMaster),
-        listCasosRows(client, escritorioId, current.isAdminMaster),
-        listDocumentosRows(client, escritorioId, current.isAdminMaster),
-        listChecklistRows(client, escritorioId, current.isAdminMaster),
-        listStorageConnectionsRows(client, escritorioId),
-      ]);
+    if (!escritorioId) {
+      return emptyWorkspace(current, "Configure o escritório antes de usar dados reais do LexGestor.");
+    }
+
+    const [
+      categorias,
+      clientesRows,
+      casosRows,
+      documentosRows,
+      checklistRows,
+      storageRows,
+      advogadosRows,
+      usuariosEmpresaRows,
+    ] = await Promise.all([
+      listCategorias(client, escritorioId),
+      listClientesRows(client, escritorioId),
+      listCasosRows(client, escritorioId),
+      listDocumentosRows(client, escritorioId),
+      listChecklistRows(client, escritorioId),
+      listStorageConnectionsRows(client, escritorioId),
+      listAdvogadosRows(client, escritorioId),
+      listUsuariosEmpresaRows(client, current),
+    ]);
 
     const clientes = mapClientes(clientesRows, casosRows, documentosRows);
-    const casos = mapCasos(casosRows, documentosRows, checklistRows, categorias);
+    const advogados = mapAdvogados(advogadosRows, casosRows);
+    const casos = mapCasos(casosRows, documentosRows, checklistRows, categorias, advogadosRows);
     const documentos = mapDocumentos(documentosRows, casosRows, clientesRows);
     const storageConnections = mapStorageConnections(storageRows);
 
-    return buildWorkspace({
+    return buildWorkspaceVendido({
       current,
       escritorio,
       categorias,
       clientes,
       casos,
       documentos,
+      advogados,
+      usuariosEmpresa: mapUsuariosEmpresa(usuariosEmpresaRows),
       storageConnections,
+      plano,
       error: null,
       isReady: true,
+      demoMode: false,
     });
   } catch (error) {
     return emptyWorkspace(current, errorMessage(error));
@@ -252,15 +311,16 @@ function buildWorkspace({
   storageConnections: LexStorageConnection[];
   error: string | null;
   isReady: boolean;
-}): LexWorkspaceData {
+}): any {
   const openCases = casos.filter((caso) => !["Finalizado", "Arquivado"].includes(caso.status));
-  const aguardandoDocs = casos.filter((caso) => caso.status === "Aguardando documentos");
   const pendingDocuments = documentos.filter((documento) =>
     ["Pendente", "Erro no envio", "Precisa reenviar"].includes(documento.status),
   );
   const pdfsGerados = documentos.filter((documento) => documento.status === "PDF gerado" || documento.pdfUrl || documento.pdfPath);
-  const protocolados = casos.filter((caso) => caso.status === "Protocolado");
-  const finalizados = casos.filter((caso) => caso.status === "Finalizado");
+  const sentDocuments = documentos.filter((documento) =>
+    ["Enviado ao Drive", "Enviado ao Dropbox", "PDF gerado"].includes(documento.status) ||
+    Boolean(documento.storagePath || documento.storageUrl || documento.pdfPath || documento.pdfUrl),
+  );
   const proximosPrazos = casos
     .filter((caso) => isPrazoProximo(caso.proximoPrazo))
     .sort((a, b) => a.proximoPrazo.localeCompare(b.proximoPrazo));
@@ -275,13 +335,10 @@ function buildWorkspace({
     storageConnections,
     metrics: [
       { label: "Clientes cadastrados", value: clientes.length, note: "Registros reais" },
-      { label: "Casos abertos", value: openCases.length, note: "Nao finalizados" },
-      { label: "Aguardando documentos", value: aguardandoDocs.length, note: "Proxima acao" },
-      { label: "Documentos pendentes", value: pendingDocuments.length, note: "Faltam arquivos" },
-      { label: "PDFs gerados", value: pdfsGerados.length, note: "Com marca d'agua" },
-      { label: "Prazos proximos", value: proximosPrazos.length, note: "15 dias" },
-      { label: "Protocolados", value: protocolados.length, note: "Processo iniciado" },
-      { label: "Finalizados", value: finalizados.length, note: "Casos encerrados" },
+      { label: "Casos abertos", value: openCases.length, note: "Não finalizados" },
+      { label: "Documentos pendentes", value: pendingDocuments.length, note: "Reenvio ou envio externo" },
+      { label: "Documentos enviados/PDF", value: sentDocuments.length || pdfsGerados.length, note: "Arquivos no armazenamento" },
+      { label: "Próximos prazos", value: proximosPrazos.length, note: "15 dias" },
     ],
     casosPorCategoria: countBy(casos, "categoria"),
     casosPorStatus: countBy(casos, "status"),
@@ -291,7 +348,7 @@ function buildWorkspace({
     ultimosDocumentos: documentos.slice(0, 6),
     proximosPrazos: proximosPrazos.slice(0, 6),
     setupSteps: [
-      { label: "Configure seu escritorio", done: Boolean(escritorio), href: "/lexgestor/configuracoes", action: "Configurar agora" },
+      { label: "Configure seu escritório", done: Boolean(escritorio), href: "/lexgestor/configuracoes", action: "Configurar agora" },
       {
         label: "Conecte Google Drive ou Dropbox",
         done: storageConnections.some((connection) => connection.connected),
@@ -302,10 +359,10 @@ function buildWorkspace({
       { label: "Abra um caso", done: casos.length > 0, href: "/lexgestor/casos/novo", action: "Abrir caso" },
       { label: "Anexe documentos", done: documentos.length > 0, href: "/lexgestor/documentos", action: "Anexar documentos" },
       {
-        label: "Gere o primeiro dossie",
+        label: "Gere o primeiro dossiê",
         done: pdfsGerados.length > 0,
         href: "/lexgestor/relatorios",
-        action: "Gerar dossie",
+        action: "Gerar dossiê",
       },
     ],
     error,
@@ -314,17 +371,125 @@ function buildWorkspace({
 }
 
 function emptyWorkspace(current: CurrentUserProfile, error: string | null): LexWorkspaceData {
-  return buildWorkspace({
+  return buildWorkspaceVendido({
     current,
     escritorio: null,
     categorias: categoriasJuridicas,
     clientes: [],
     casos: [],
     documentos: [],
+    advogados: [],
+    usuariosEmpresa: [],
     storageConnections: [],
+    plano: {
+      slug: "profissional",
+      nome: "Plano Profissional",
+      limiteAdvogados: 8,
+      limiteClientes: 300,
+      limiteCasosAtivos: 180,
+      limiteDocumentos: 2500,
+      permiteDossie: true,
+      permiteRelatorios: true,
+      suportePrioritario: false,
+    },
     error,
     isReady: false,
   });
+}
+
+function buildWorkspaceVendido({
+  current,
+  escritorio,
+  categorias,
+  clientes,
+  casos,
+  documentos,
+  advogados,
+  usuariosEmpresa,
+  storageConnections,
+  plano,
+  error,
+  isReady,
+  demoMode = false,
+}: {
+  current: CurrentUserProfile;
+  escritorio: Record<string, unknown> | null;
+  categorias: CategoriaJuridica[];
+  clientes: LexCliente[];
+  casos: LexCaso[];
+  documentos: LexDocumento[];
+  advogados: LexAdvogado[];
+  usuariosEmpresa: LexCoreUsuario[];
+  storageConnections: LexStorageConnection[];
+  plano: LexPlanoComercial;
+  error: string | null;
+  isReady: boolean;
+  demoMode?: boolean;
+}): LexWorkspaceData {
+  const openCases = casos.filter((caso) => !["Finalizado", "Arquivado"].includes(caso.status));
+  const pendingDocuments = documentos.filter((documento) =>
+    ["Pendente de reenvio", "Erro no envio", "Precisa reenviar arquivo"].includes(documento.status),
+  );
+  const pdfsGerados = documentos.filter((documento) => documento.status === "PDF gerado" || documento.pdfUrl || documento.pdfPath);
+  const sentDocuments = documentos.filter((documento) =>
+    ["Enviado ao Drive", "Enviado ao Dropbox", "PDF gerado"].includes(documento.status) ||
+    Boolean(documento.storagePath || documento.storageUrl || documento.pdfPath || documento.pdfUrl),
+  );
+  const proximosPrazos = casos
+    .filter((caso) => isPrazoProximo(caso.proximoPrazo))
+    .sort((a, b) => a.proximoPrazo.localeCompare(b.proximoPrazo));
+
+  return {
+    current,
+    escritorio,
+    categorias,
+    clientes,
+    casos,
+    documentos,
+    advogados,
+    usuariosEmpresa,
+    storageConnections,
+    plano,
+    usoPlano: {
+      advogados: advogados.filter((advogado) => advogado.status !== "Inativo").length,
+      clientes: clientes.length,
+      casosAtivos: openCases.length,
+      documentos: documentos.length,
+    },
+    metrics: [
+      { label: "Clientes cadastrados", value: clientes.length, note: demoMode ? "Dados fictícios" : "Registros reais" },
+      { label: "Casos ativos", value: openCases.length, note: "Não finalizados" },
+      { label: "Documentos pendentes", value: pendingDocuments.length, note: "Reenvio ou envio externo" },
+      { label: "Documentos enviados/PDF", value: sentDocuments.length || pdfsGerados.length, note: "Arquivos no armazenamento" },
+      { label: "Próximos prazos", value: proximosPrazos.length, note: "15 dias" },
+    ],
+    casosPorCategoria: countBy(casos, "categoria"),
+    casosPorStatus: countBy(casos, "status"),
+    documentosPorStatus: countBy(documentos, "status"),
+    produtividadePorAdvogado: countBy(casos, "advogadoResponsavel"),
+    ultimosClientes: clientes.slice(0, 6),
+    ultimosCasos: casos.slice(0, 6),
+    ultimosDocumentos: documentos.slice(0, 6),
+    proximosPrazos: proximosPrazos.slice(0, 6),
+    setupSteps: [
+      { label: "Dados do escritório", done: Boolean(escritorio), href: "/lexgestor/configuracoes", action: "Completar dados" },
+      {
+        label: "Dropbox do escritório",
+        done: storageConnections.some((connection) => connection.connected),
+        href: "/lexgestor/configuracoes#armazenamento",
+        action: "Conectar",
+      },
+      {
+        label: "Equipe jurídica",
+        done: advogados.some((advogado) => advogado.status === "Ativo"),
+        href: "/lexgestor/equipe",
+        action: "Cadastrar equipe",
+      },
+    ],
+    error,
+    isReady,
+    demoMode,
+  };
 }
 
 async function listCategorias(client: any, escritorioId: string): Promise<CategoriaJuridica[]> {
@@ -358,8 +523,8 @@ async function listCategorias(client: any, escritorioId: string): Promise<Catego
   });
 }
 
-async function listClientesRows(client: any, escritorioId: string, global: boolean) {
-  if (!escritorioId && !global) return [];
+async function listClientesRows(client: any, escritorioId: string) {
+  if (!escritorioId) return [];
   let query = client.from("lex_clientes").select("*").order("criado_em", { ascending: false }).limit(300);
   if (escritorioId) query = query.eq("escritorio_id", escritorioId);
   const { data, error } = await query;
@@ -367,8 +532,8 @@ async function listClientesRows(client: any, escritorioId: string, global: boole
   return (data ?? []) as Array<Record<string, unknown>>;
 }
 
-async function listCasosRows(client: any, escritorioId: string, global: boolean) {
-  if (!escritorioId && !global) return [];
+async function listCasosRows(client: any, escritorioId: string) {
+  if (!escritorioId) return [];
   let query = client
     .from("lex_casos")
     .select("*,lex_clientes(id,nome,cpf_cnpj,telefone,whatsapp,email)")
@@ -380,8 +545,8 @@ async function listCasosRows(client: any, escritorioId: string, global: boolean)
   return (data ?? []) as Array<Record<string, unknown>>;
 }
 
-async function listDocumentosRows(client: any, escritorioId: string, global: boolean) {
-  if (!escritorioId && !global) return [];
+async function listDocumentosRows(client: any, escritorioId: string) {
+  if (!escritorioId) return [];
   let query = client
     .from("lex_documentos")
     .select("*,lex_clientes(id,nome),lex_casos(id,titulo)")
@@ -393,8 +558,8 @@ async function listDocumentosRows(client: any, escritorioId: string, global: boo
   return (data ?? []) as Array<Record<string, unknown>>;
 }
 
-async function listChecklistRows(client: any, escritorioId: string, global: boolean) {
-  if (!escritorioId && !global) return [];
+async function listChecklistRows(client: any, escritorioId: string) {
+  if (!escritorioId) return [];
   let query = client.from("lex_checklist_respostas").select("*").limit(1000);
   if (escritorioId) query = query.eq("escritorio_id", escritorioId);
   const { data, error } = await query;
@@ -422,6 +587,33 @@ async function listStorageConnectionsRows(client: any, escritorioId: string) {
     .order("atualizado_em", { ascending: false });
 
   return (legacy.data ?? []) as Array<Record<string, unknown>>;
+}
+
+async function listAdvogadosRows(client: any, escritorioId: string) {
+  if (!escritorioId) return [];
+
+  const { data, error } = await client
+    .from("lex_advogados")
+    .select("*")
+    .eq("escritorio_id", escritorioId)
+    .order("nome", { ascending: true });
+
+  if (error) return [];
+  return (data ?? []) as Array<Record<string, unknown>>;
+}
+
+async function listUsuariosEmpresaRows(client: any, current: CurrentUserProfile) {
+  if (!current.empresaId) return [];
+
+  const { data, error } = await client
+    .from("core_usuarios")
+    .select("id,nome,email,tipo,status")
+    .eq("empresa_id", current.empresaId)
+    .order("nome", { ascending: true })
+    .limit(200);
+
+  if (error) return [];
+  return (data ?? []) as Array<Record<string, unknown>>;
 }
 
 function mapClientes(
@@ -452,11 +644,56 @@ function mapClientes(
   });
 }
 
+function mapAdvogados(
+  advogados: Array<Record<string, unknown>>,
+  casos: Array<Record<string, unknown>>,
+): LexAdvogado[] {
+  return advogados.map((advogado) => {
+    const advogadoId = text(advogado.id);
+    const ativo = advogado.ativo !== false;
+    const statusRaw = text(advogado.status);
+    const status: LexAdvogado["status"] =
+      statusRaw === "pendente"
+        ? "Pendente"
+        : ativo && statusRaw !== "inativo"
+          ? "Ativo"
+          : "Inativo";
+
+    return {
+      id: advogadoId,
+      coreUsuarioId: text(advogado.core_usuario_id),
+      nome: text(advogado.nome) || "Profissional sem nome",
+      email: text(advogado.email),
+      telefone: text(advogado.telefone),
+      whatsapp: text(advogado.whatsapp) || text(advogado.telefone),
+      oab: text(advogado.oab),
+      ufOab: text(advogado.uf_oab),
+      cargo: text(advogado.cargo),
+      perfilAcesso: text(advogado.perfil_acesso) || "advogado",
+      status,
+      observacoes: text(advogado.observacoes),
+      casosResponsavelCount: casos.filter((caso) => text(caso.advogado_responsavel_id) === advogadoId).length,
+      criadoEm: text(advogado.criado_em),
+    };
+  });
+}
+
+function mapUsuariosEmpresa(rows: Array<Record<string, unknown>>): LexCoreUsuario[] {
+  return rows.map((row) => ({
+    id: text(row.id),
+    nome: text(row.nome) || text(row.email) || "Usuário",
+    email: text(row.email),
+    tipo: text(row.tipo) || "usuario",
+    status: text(row.status) || "ativo",
+  }));
+}
+
 function mapCasos(
   casos: Array<Record<string, unknown>>,
   documentos: Array<Record<string, unknown>>,
   checklistRows: Array<Record<string, unknown>>,
   categorias: CategoriaJuridica[],
+  advogadosRows: Array<Record<string, unknown>>,
 ): LexCaso[] {
   return casos.map((caso) => {
     const cliente = relationObject(caso.lex_clientes);
@@ -464,6 +701,8 @@ function mapCasos(
     const checklist = checklistRows.filter((row) => text(row.caso_id) === casoId);
     const categoria = text(caso.categoria_nome) || text(caso.area) || categoryNameById(categorias, caso.categoria_id);
     const subcategoria = text(caso.subcategoria_nome) || text(caso.subarea) || "-";
+    const advogadoResponsavelId = text(caso.advogado_responsavel_id);
+    const advogado = advogadosRows.find((row) => text(row.id) === advogadoResponsavelId);
 
     return {
       id: casoId,
@@ -487,7 +726,8 @@ function mapCasos(
       grau: text(caso.grau),
       poloAtivo: text(caso.polo_ativo),
       poloPassivo: text(caso.polo_passivo),
-      advogadoResponsavel: text(caso.advogado_responsavel),
+      advogadoResponsavelId,
+      advogadoResponsavel: text(advogado?.nome) || text(caso.advogado_responsavel) || "Sem responsável",
       valorCausa: Number(caso.valor_causa ?? 0),
       justicaGratuita: Boolean(caso.justica_gratuita),
       segredoJustica: Boolean(caso.segredo_justica),
@@ -530,13 +770,16 @@ function mapDocumentos(
       categoria: text(documento.categoria_nome) || text(documento.area) || "-",
       subcategoria: text(documento.subcategoria_nome) || text(documento.subarea) || "-",
       tipo: text(documento.tipo_documento) || "Documento",
+      mimeType: text(documento.mime_type),
       origem: text(documento.origem) || "Upload",
+      observacoes: text(documento.observacoes),
       status: statusDocumento(text(documento.status), provider),
       provider,
       storagePath: text(documento.storage_path) || text(documento.dropbox_path_original),
       storageUrl: text(documento.storage_url),
       pdfPath,
       pdfUrl: text(documento.pdf_storage_url),
+      checklistItemId: text(documento.checklist_item_id),
       criadoEm: text(documento.criado_em),
     };
   });
@@ -561,18 +804,184 @@ function mapStorageConnections(rows: Array<Record<string, unknown>>): LexStorage
 
 function statusDocumento(status: string, provider: string) {
   const normalized: Record<string, string> = {
-    metadados_criados: "Pendente",
-    pendente: "Pendente",
+    metadados_criados: "Pendente de reenvio",
+    pendente: "Pendente de reenvio",
     original_salvo: "Original salvo",
     pdf_gerado: "PDF gerado",
     erro_envio: "Erro no envio",
-    precisa_reenviar: "Precisa reenviar",
+    precisa_reenviar: "Precisa reenviar arquivo",
+    reenviado: "Enviado ao Dropbox",
+    substituido_reenviado: "Substituído",
+    arquivado: "Arquivado",
     validado: "Validado pelo advogado",
   };
 
   if (status === "enviado" && provider === "google_drive") return "Enviado ao Drive";
   if (status === "enviado" && provider === "dropbox") return "Enviado ao Dropbox";
-  return normalized[status] ?? (status || "Pendente");
+  return normalized[status] ?? (status || "Pendente de reenvio");
+}
+
+function demoWorkspace(
+  current: CurrentUserProfile,
+  escritorio: Record<string, unknown> | null,
+  plano: LexPlanoComercial,
+): LexWorkspaceData {
+  const demoEscritorio = escritorio ?? {
+    nome: "Demo Advocacia",
+    cnpj: "00.000.000/0001-00",
+    email: "contato@demo.adv.br",
+    whatsapp: "(11) 90000-0000",
+    watermark_text: "Demo Advocacia - apresentação comercial",
+  };
+  const clientes: LexCliente[] = [
+    {
+      id: "demo-cliente-1",
+      nome: "Cliente Demonstração",
+      cpfCnpj: "000.000.000-00",
+      telefone: "(11) 3000-0000",
+      whatsapp: "(11) 90000-0000",
+      email: "cliente.demo@email.com",
+      origem: "Apresentação comercial",
+      status: "Ativo",
+      endereco: "São Paulo/SP",
+      observacoes: "Cliente fictício para demonstração segura.",
+      casosCount: 2,
+      documentosCount: 4,
+      ultimoAtendimento: new Date().toISOString(),
+    },
+  ];
+  const advogados: LexAdvogado[] = [
+    {
+      id: "demo-adv-1",
+      coreUsuarioId: "",
+      nome: "Dra. Ana Demo",
+      email: "ana.demo@demo.adv.br",
+      telefone: "(11) 3000-0001",
+      whatsapp: "(11) 90000-0001",
+      oab: "123456",
+      ufOab: "SP",
+      cargo: "Sócia responsável",
+      perfilAcesso: "dono",
+      status: "Ativo",
+      observacoes: "Usuária fictícia para apresentação.",
+      casosResponsavelCount: 2,
+      criadoEm: new Date().toISOString(),
+    },
+  ];
+  const casos: LexCaso[] = [
+    {
+      id: "demo-caso-1",
+      titulo: "Revisão de benefício previdenciário",
+      clienteId: clientes[0].id,
+      cliente: clientes[0].nome,
+      clienteDocumento: clientes[0].cpfCnpj,
+      clienteContato: clientes[0].whatsapp,
+      categoria: "Previdenciário",
+      subcategoria: "Revisão de benefício",
+      numeroProcesso: "5000000-00.2026.4.03.0000",
+      chaveProcesso: "DEMO-EPROC",
+      sistemaJudicial: "eproc",
+      tribunal: "TRF3",
+      uf: "SP",
+      comarca: "São Paulo",
+      vara: "1ª Vara Federal",
+      classeProcessual: "Procedimento comum",
+      assunto: "Benefício previdenciário",
+      faseProcessual: "Atendimento inicial",
+      grau: "1º grau",
+      poloAtivo: clientes[0].nome,
+      poloPassivo: "INSS",
+      advogadoResponsavelId: advogados[0].id,
+      advogadoResponsavel: advogados[0].nome,
+      valorCausa: 45000,
+      justicaGratuita: true,
+      segredoJustica: false,
+      dataDistribuicao: "2026-06-01",
+      proximoPrazo: soonDate(7),
+      tipoPrazo: "Juntar documentos",
+      linkProcesso: "",
+      observacoesProcesso: "Caso fictício para apresentação.",
+      relatoInicial: "Cliente relata benefício concedido com cálculo inferior ao esperado.",
+      status: "Em andamento",
+      prioridade: "Alta",
+      criadoEm: new Date().toISOString(),
+      checklistTotal: 6,
+      checklistConcluido: 4,
+      documentosCount: 4,
+    },
+  ];
+  const documentos: LexDocumento[] = [
+    {
+      id: "demo-doc-1",
+      nome: "CNIS demonstração.pdf",
+      clienteId: clientes[0].id,
+      cliente: clientes[0].nome,
+      casoId: casos[0].id,
+      caso: casos[0].titulo,
+      categoria: "Documentos pessoais",
+      subcategoria: "Previdenciário",
+      tipo: "CNIS",
+      mimeType: "application/pdf",
+      origem: "Demo",
+      observacoes: "Documento fictício.",
+      status: "Enviado ao Dropbox",
+      provider: "dropbox",
+      storagePath: "/LexGestor/Demo/CNIS-demonstracao.pdf",
+      storageUrl: "",
+      pdfPath: "",
+      pdfUrl: "",
+      checklistItemId: "",
+      criadoEm: new Date().toISOString(),
+    },
+    {
+      id: "demo-doc-2",
+      nome: "Comprovante de residência.png",
+      clienteId: clientes[0].id,
+      cliente: clientes[0].nome,
+      casoId: casos[0].id,
+      caso: casos[0].titulo,
+      categoria: "Documentos pessoais",
+      subcategoria: "Cadastro",
+      tipo: "Comprovante",
+      mimeType: "image/png",
+      origem: "Demo",
+      observacoes: "Documento fictício.",
+      status: "Pendente de reenvio",
+      provider: "",
+      storagePath: "",
+      storageUrl: "",
+      pdfPath: "",
+      pdfUrl: "",
+      checklistItemId: "",
+      criadoEm: new Date().toISOString(),
+    },
+  ];
+
+  return buildWorkspaceVendido({
+    current,
+    escritorio: demoEscritorio,
+    categorias: categoriasJuridicas,
+    clientes,
+    casos,
+    documentos,
+    advogados,
+    usuariosEmpresa: [],
+    storageConnections: [
+      {
+        id: "demo-dropbox",
+        provider: "dropbox",
+        status: "conectado",
+        accountEmail: "dropbox@demo.adv.br",
+        rootFolderPath: "/LexGestor/Demo",
+        rootFolderId: "",
+        connected: true,
+      },
+    ],
+    plano,
+    error: null,
+    isReady: true,
+    demoMode: true,
+  });
 }
 
 function countBy<T extends Record<string, unknown>>(rows: T[], key: keyof T) {
@@ -582,6 +991,12 @@ function countBy<T extends Record<string, unknown>>(rows: T[], key: keyof T) {
     map.set(label, (map.get(label) ?? 0) + 1);
   }
   return Array.from(map.entries()).map(([label, value]) => ({ label, value }));
+}
+
+function soonDate(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 function isPrazoProximo(value: string) {

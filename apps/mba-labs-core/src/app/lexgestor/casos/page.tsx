@@ -10,7 +10,7 @@ export default async function CasosPage() {
   return (
     <ResponsivePageContainer
       title="Casos"
-      description="Casos fechados por padrao, com processo, prazo e checklist ao expandir."
+      description="Casos fechados por padrão, com processo, prazo e checklist ao expandir."
       action={
         <Link className="button" href="/lexgestor/casos/novo">
           <Plus size={17} aria-hidden />
@@ -18,7 +18,7 @@ export default async function CasosPage() {
         </Link>
       }
     >
-      {data.error ? <p className="notice">Casos ainda indisponiveis: {data.error}</p> : null}
+      {data.error ? <p className="notice">Casos ainda indisponíveis: {data.error}</p> : null}
       <CasoAccordionList casos={data.casos} />
     </ResponsivePageContainer>
   );

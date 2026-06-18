@@ -6,11 +6,11 @@ export function HeaderLexGestor() {
   return (
     <header className="topbar topbar-mobile-v2">
       <div className="topbar-title">
-        <strong>Gestao juridica</strong>
+        <strong>Gestão jurídica</strong>
       </div>
       <div className="topbar-actions">
         <ThemeToggleLexGestor />
-        <Link className="button secondary topbar-icon-button" href="/lexgestor/configuracoes" aria-label="Configurar escritorio" title="Configurar escritorio">
+        <Link className="button secondary topbar-icon-button" href="/lexgestor/configuracoes" aria-label="Configurar escritório" title="Configurar escritório">
           <Settings size={17} aria-hidden />
         </Link>
       </div>

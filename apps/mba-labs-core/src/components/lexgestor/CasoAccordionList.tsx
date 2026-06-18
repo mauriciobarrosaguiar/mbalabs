@@ -99,7 +99,7 @@ export function CasoAccordionList({ casos }: CasoAccordionListProps) {
               <div className="accordion-content">
                 <div className="detail-grid">
                   <Info label="Dados do cliente" value={`${caso.cliente} - ${caso.clienteContato}`} />
-                  <Info label="Relato do cliente" value={caso.relatoInicial || "Relato ainda nao informado."} />
+                  <Info label="Relato do cliente" value={caso.relatoInicial || "Relato ainda não informado."} />
                   <Info label="Processo/eproc" value={processoResumo(caso)} />
                   <Info label="Checklist" value={`${caso.checklistConcluido}/${caso.checklistTotal} itens conferidos`} />
                   <Info label="Documentos anexados" value={`${caso.documentosCount} documento(s)`} />
@@ -116,11 +116,11 @@ export function CasoAccordionList({ casos }: CasoAccordionListProps) {
                   </Link>
                   <Link className="button secondary" href={`/api/lexgestor/relatorios/pdf?tipo=dossie&caso=${caso.id}`}>
                     <FileText size={17} aria-hidden />
-                    Gerar dossie PDF
+                    Gerar dossiê PDF
                   </Link>
                   <button className="button secondary" type="button" onClick={() => window.print()}>
                     <Printer size={17} aria-hidden />
-                    Imprimir relatorio
+                    Imprimir relatório
                   </button>
                   <Link className="button secondary" href={`/lexgestor/documentos?caso=${caso.id}`}>
                     <FolderOpen size={17} aria-hidden />
@@ -138,7 +138,7 @@ export function CasoAccordionList({ casos }: CasoAccordionListProps) {
 
 function processoResumo(caso: LexCaso) {
   return [
-    caso.numeroProcesso ? `Processo ${caso.numeroProcesso}` : "Sem numero de processo",
+    caso.numeroProcesso ? `Processo ${caso.numeroProcesso}` : "Sem número de processo",
     caso.chaveProcesso ? `Chave ${caso.chaveProcesso}` : "",
     caso.sistemaJudicial,
     caso.tribunal,

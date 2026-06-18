@@ -18,7 +18,7 @@ export default async function ClientesPage() {
         </Link>
       }
     >
-      {data.error ? <p className="notice">Clientes ainda indisponiveis: {data.error}</p> : null}
+      {data.error ? <p className="notice">Clientes ainda indisponíveis: {data.error}</p> : null}
       <ClienteAccordionList clientes={data.clientes} />
     </ResponsivePageContainer>
   );

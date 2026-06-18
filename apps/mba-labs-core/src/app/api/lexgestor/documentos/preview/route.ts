@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   const shouldDownload = url.searchParams.get("download") === "1";
 
   if (!documentoId) {
-    return NextResponse.json({ error: "Documento não informado." }, { status: 400 });
+    return friendlyPreviewError("Documento não informado.", 400);
   }
 
   const current = await requireAppAccess("lexgestor", "/lexgestor/documentos");
@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   const escritorioId = String(escritorio?.id ?? "");
 
   if (!escritorioId) {
-    return NextResponse.json({ error: "Escritório não configurado." }, { status: 400 });
+    return friendlyPreviewError("Escritório não configurado.", 400);
   }
 
   const result = await client
@@ -34,14 +34,14 @@ export async function GET(request: Request) {
     .maybeSingle();
 
   if (result.error || !result.data) {
-    return NextResponse.json({ error: "Documento não encontrado." }, { status: 404 });
+    return friendlyPreviewError("Documento não encontrado para este escritório.", 404);
   }
 
   const documento = result.data as Record<string, unknown>;
   const providerValue = text(documento.storage_provider) || (text(documento.dropbox_path_original) ? "dropbox" : "");
 
   if (!isStorageProvider(providerValue)) {
-    return NextResponse.json({ error: "Documento sem armazenamento conectado." }, { status: 404 });
+    return friendlyPreviewError("Documento sem arquivo no armazenamento. Reenvie o arquivo para visualizar.", 404);
   }
 
   const path = arquivo === "pdf"
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
   const fileId = arquivo === "pdf" ? text(documento.pdf_storage_file_id) : text(documento.storage_file_id);
 
   if (!path && !fileId) {
-    return NextResponse.json({ error: "Arquivo ainda pendente. Reenvie o documento." }, { status: 404 });
+    return friendlyPreviewError("Arquivo ainda pendente. Reenvie o documento para concluir.", 404);
   }
 
   const arquivoBaixado = await downloadFromConnectedStorage({
@@ -58,7 +58,11 @@ export async function GET(request: Request) {
     provider: providerValue,
     path,
     fileId,
-  });
+  }).catch(() => null);
+
+  if (!arquivoBaixado) {
+    return friendlyPreviewError("Não foi possível abrir o arquivo no armazenamento do escritório.", 404);
+  }
 
   const filename = arquivoBaixado.fileName || text(documento.nome_original) || "documento";
   const body = toArrayBuffer(arquivoBaixado.bytes);
@@ -70,6 +74,28 @@ export async function GET(request: Request) {
       "cache-control": "private, no-store",
     },
   });
+}
+
+function friendlyPreviewError(message: string, status: number) {
+  const html = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Documento indisponível</title><body style="font-family:Arial,sans-serif;margin:32px;color:#172033"><h1 style="font-size:20px">Documento indisponível</h1><p>${escapeHtml(message)}</p></body></html>`;
+  return new NextResponse(html, {
+    status,
+    headers: {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "private, no-store",
+    },
+  });
+}
+
+function escapeHtml(value: string) {
+  const map: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  };
+  return value.replace(/[&<>"']/g, (char) => map[char] ?? char);
 }
 
 function text(value: unknown) {

@@ -354,7 +354,7 @@
 }
 
 
-/* MBA Labs ajuste: LexGestor claro por padrÃ£o e escuro opcional */
+/* MBA Labs ajuste: LexGestor claro por padr?o e escuro opcional */
 .lexgestor-module {
   color-scheme: light;
   --lex-bg: #f3f7fb;
@@ -528,7 +528,7 @@
   white-space: nowrap;
 }
 
-/* MBA Labs ajuste: lista de clientes, detalhes e formulÃ¡rio de ediÃ§Ã£o */
+/* MBA Labs ajuste: lista de clientes, detalhes e formul?rio de edi??o */
 .lexgestor-module .filter-row {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(150px, 190px) minmax(150px, 190px) minmax(150px, 190px);

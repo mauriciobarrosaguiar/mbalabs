@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Paperclip, Printer } from "lucide-react";
 import type { ChecklistTemplate } from "@/data/lexgestor";
 import { calcularProgressoChecklist } from "@/lib/lexgestor/checklist";
@@ -8,7 +8,7 @@ import { calcularProgressoChecklist } from "@/lib/lexgestor/checklist";
 const statusOptions = [
   "Pendente",
   "Recebido",
-  "Nao se aplica",
+  "Não se aplica",
   "Conferido",
   "Solicitar novamente",
 ];
@@ -20,9 +20,28 @@ type ChecklistCasoProps = {
 export function ChecklistCaso({ items }: ChecklistCasoProps) {
   const [statuses, setStatuses] = useState<Record<number, string>>({});
 
+  useEffect(() => {
+    function handleDocumentoRecebido(event: Event) {
+      const detail = (event as CustomEvent<{ area?: string; subarea?: string; ordem?: string }>).detail ?? {};
+      const index = items.findIndex(
+        (item) =>
+          item.area === detail.area &&
+          item.subarea === detail.subarea &&
+          String(item.ordem) === String(detail.ordem),
+      );
+
+      if (index >= 0) {
+        setStatuses((current) => ({ ...current, [index]: "Recebido" }));
+      }
+    }
+
+    window.addEventListener("lexgestor:checklist-documento-recebido", handleDocumentoRecebido);
+    return () => window.removeEventListener("lexgestor:checklist-documento-recebido", handleDocumentoRecebido);
+  }, [items]);
+
   const progresso = useMemo(() => {
     const concluidos = items.filter((_, index) =>
-      ["Recebido", "Conferido", "Nao se aplica"].includes(statuses[index]),
+      ["Recebido", "Conferido", "Não se aplica"].includes(statuses[index]),
     ).length;
 
     return calcularProgressoChecklist(items.length, concluidos);
@@ -36,6 +55,10 @@ export function ChecklistCaso({ items }: ChecklistCasoProps) {
         detail: {
           tipoDocumento,
           observacoes: `Checklist: ${item.titulo}`,
+          area: item.area,
+          subarea: item.subarea,
+          ordem: item.ordem,
+          titulo: item.titulo,
         },
       }),
     );
@@ -48,7 +71,7 @@ export function ChecklistCaso({ items }: ChecklistCasoProps) {
     return (
       <div className="empty-state">
         <strong>Aguardando categoria</strong>
-        <p>Selecione categoria e subcategoria para carregar os documentos necessarios.</p>
+        <p>Selecione categoria e subcategoria para carregar os documentos necessários.</p>
       </div>
     );
   }
@@ -59,7 +82,7 @@ export function ChecklistCaso({ items }: ChecklistCasoProps) {
         <div className="button-row" style={{ justifyContent: "space-between" }}>
           <div>
             <strong>Progresso do checklist</strong>
-            <p>{progresso}% dos itens recebidos, conferidos ou marcados como nao se aplica.</p>
+            <p>{progresso}% dos itens recebidos, conferidos ou marcados como não se aplica.</p>
           </div>
           <button className="button secondary" type="button">
             <Printer size={17} aria-hidden />
@@ -105,7 +128,7 @@ export function ChecklistCaso({ items }: ChecklistCasoProps) {
               </select>
             </label>
             <label className="field">
-              Observacao
+              Observação
               <input placeholder="Ex.: aguardando documento atualizado" />
             </label>
           </div>

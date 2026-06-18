@@ -123,7 +123,7 @@ export async function saveStorageConnection(
   const client = await getLexSupabaseClient();
   const escritorio = await ensureLexEscritorio(client, current);
   const escritorioId = String(escritorio?.id ?? "");
-  if (!escritorioId) throw new Error("Configure o escritorio antes de conectar armazenamento.");
+  if (!escritorioId) throw new Error("Configure o escritório antes de conectar armazenamento.");
 
   const escritorioNome = text(escritorio?.nome) || "Escritorio";
   const rootFolderPath = montarPastaRaizEscritorio(escritorioNome);
@@ -226,7 +226,7 @@ export async function testStorageConnection(current: CurrentUserProfile) {
       const response = await fetch("https://www.googleapis.com/drive/v3/about?fields=user", {
         headers: { authorization: `Bearer ${accessToken}` },
       });
-      if (!response.ok) throw new Error("Google Drive nao respondeu ao teste.");
+      if (!response.ok) throw new Error("Google Drive não respondeu ao teste.");
       return provider;
     }
 
@@ -234,7 +234,7 @@ export async function testStorageConnection(current: CurrentUserProfile) {
       method: "POST",
       headers: { authorization: `Bearer ${accessToken}` },
     });
-    if (!response.ok) throw new Error("Dropbox nao respondeu ao teste.");
+    if (!response.ok) throw new Error("Dropbox não respondeu ao teste.");
     return provider;
   }
 
@@ -256,7 +256,7 @@ async function getFreshAccessToken(provider: StorageProvider, connection: Record
   }
 
   if (!refreshToken) {
-    if (!encrypted) throw new Error("Conexao sem token de acesso.");
+    if (!encrypted) throw new Error("Conexão sem token de acesso.");
     return decrypt(encrypted);
   }
 
@@ -492,7 +492,7 @@ function encrypt(value: string) {
 
 function decrypt(value: string) {
   const [iv, tag, encrypted] = value.split(".");
-  if (!iv || !tag || !encrypted) throw new Error("Token de armazenamento invalido.");
+  if (!iv || !tag || !encrypted) throw new Error("Token de armazenamento inválido.");
   const decipher = crypto.createDecipheriv("aes-256-gcm", tokenKey(), Buffer.from(iv, "base64"));
   decipher.setAuthTag(Buffer.from(tag, "base64"));
   return Buffer.concat([

@@ -17,7 +17,7 @@ export default async function EditarClientePage({ params }: PageProps) {
   const escritorio = await ensureLexEscritorio(client, current);
   const escritorioId = String(escritorio?.id ?? "");
 
-  if (!escritorioId && !current.isAdminMaster) {
+  if (!escritorioId) {
     notFound();
   }
 

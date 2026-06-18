@@ -70,17 +70,18 @@ export const internalApps: InternalAppDefinition[] = [
   {
     slug: "lexgestor",
     name: "LexGestor",
-    description: "Gestao juridica inteligente para escritorios de advocacia.",
+    description: "Gestão jurídica inteligente para escritórios de advocacia.",
     urlPath: "/lexgestor",
     alternatePaths: [
       { label: "Entrada do portal - /apps/lexgestor", value: "/apps/lexgestor" },
       { label: "App direto - /lexgestor", value: "/lexgestor" }
     ],
     profileOptions: [
-      { label: "Admin da empresa", value: "admin_empresa" },
-      { label: "Advogado responsavel", value: "advogado" },
-      { label: "Assistente juridico", value: "assistente" },
-      { label: "Visualizador", value: "visualizador" }
+      { label: "Dono do escritório", value: "dono" },
+      { label: "Administrador", value: "administrador" },
+      { label: "Advogado", value: "advogado" },
+      { label: "Assistente", value: "assistente" },
+      { label: "Financeiro/leitura", value: "financeiro_leitura" }
     ]
   }
 ];

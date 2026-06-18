@@ -19,8 +19,9 @@ const navItems = [
   { href: "/lexgestor/casos", label: "Casos", icon: BriefcaseBusiness },
   { href: "/lexgestor/documentos", label: "Documentos", icon: FileText },
   { href: "/lexgestor/checklists", label: "Checklists", icon: ClipboardList },
-  { href: "/lexgestor/relatorios", label: "Relatorios", icon: Printer },
-  { href: "/lexgestor/configuracoes", label: "Configuracoes", icon: Settings },
+  { href: "/lexgestor/equipe", label: "Equipe", icon: UsersRound },
+  { href: "/lexgestor/relatorios", label: "Relatórios", icon: Printer },
+  { href: "/lexgestor/configuracoes", label: "Configurações", icon: Settings },
 ];
 
 export function SidebarLexGestor() {
@@ -31,7 +32,7 @@ export function SidebarLexGestor() {
       <Link href="/lexgestor" className="sidebar-brand">
         <FolderKanban size={28} aria-hidden />
         <strong>LexGestor</strong>
-        <span>Sistema juridico para escritorios de advocacia</span>
+        <span>Sistema jurídico para escritórios de advocacia</span>
       </Link>
       <nav className="sidebar-nav">
         {navItems.map((item) => {

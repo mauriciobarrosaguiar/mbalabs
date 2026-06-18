@@ -14,17 +14,17 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
 
   return (
     <ResponsivePageContainer
-      title="Relatorios"
-      description="Filtre, imprima, gere PDF ou baixe planilhas com os dados do escritorio."
+      title="Relatórios"
+      description="Filtre, imprima, gere PDF ou baixe planilhas com os dados do escritório."
     >
       <section className="card">
         <form className="filter-row" action="/lexgestor/relatorios">
           <label className="field filter-small">
-            Periodo inicial
+            Período inicial
             <input name="inicio" type="date" defaultValue={filters.inicio ?? ""} />
           </label>
           <label className="field filter-small">
-            Periodo final
+            Período final
             <input name="fim" type="date" defaultValue={filters.fim ?? ""} />
           </label>
           <label className="field filter-small">
@@ -51,7 +51,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
           </label>
           <label className="check-option">
             <input name="sem_processo" type="checkbox" value="sim" defaultChecked={filters.sem_processo === "sim"} />
-            <span>Sem numero de processo</span>
+            <span>Sem número de processo</span>
           </label>
           <label className="check-option">
             <input name="pendentes" type="checkbox" value="sim" defaultChecked={filters.pendentes === "sim"} />
@@ -78,8 +78,13 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
         <MiniBarChart title="Documentos por status" rows={data.documentosPorStatus} />
       </section>
 
+      <section className="split">
+        <MiniBarChart title="Casos por status" rows={data.casosPorStatus} />
+        <MiniBarChart title="Produtividade por advogado" rows={data.produtividadePorAdvogado} />
+      </section>
+
       <ReportBlock
-        title="Relatorio de clientes"
+        title="Relatório de clientes"
         rows={data.clientes.map((cliente) => [
           cliente.nome,
           cliente.cpfCnpj,
@@ -88,11 +93,11 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
           cliente.ultimoAtendimento || "-",
           cliente.status,
         ])}
-        headers={["Nome", "CPF/CNPJ", "Contato", "Casos", "Ultimo atendimento", "Status"]}
+        headers={["Nome", "CPF/CNPJ", "Contato", "Casos", "Último atendimento", "Status"]}
       />
 
       <ReportBlock
-        title="Relatorio de casos"
+        title="Relatório de casos"
         rows={data.casos.map((caso) => [
           caso.cliente,
           `${caso.categoria} / ${caso.subcategoria}`,
@@ -102,11 +107,11 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
           caso.proximoPrazo || "-",
           String(caso.documentosCount),
         ])}
-        headers={["Cliente", "Categoria", "Processo", "Status", "Abertura", "Proximo prazo", "Docs"]}
+        headers={["Cliente", "Categoria", "Processo", "Status", "Abertura", "Próximo prazo", "Docs"]}
       />
 
       <ReportBlock
-        title="Relatorio de documentos"
+        title="Relatório de documentos"
         rows={data.documentos.map((documento) => [
           documento.cliente,
           documento.caso,
@@ -116,6 +121,33 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
           documento.storagePath || documento.storageUrl || "Pendente",
         ])}
         headers={["Cliente", "Caso", "Tipo", "Status", "Envio", "Local"]}
+      />
+
+      <ReportBlock
+        title="Relatório de prazos"
+        rows={data.casos
+          .filter((caso) => caso.proximoPrazo)
+          .map((caso) => [
+            caso.proximoPrazo,
+            caso.tipoPrazo || "-",
+            caso.cliente,
+            caso.titulo,
+            caso.advogadoResponsavel,
+            caso.status,
+          ])}
+        headers={["Prazo", "Tipo", "Cliente", "Caso", "Responsável", "Status"]}
+      />
+
+      <ReportBlock
+        title="Relatório de produtividade"
+        rows={data.produtividadePorAdvogado.map((row) => [
+          row.label,
+          String(row.value),
+          `${data.documentos.filter((documento) =>
+            data.casos.some((caso) => caso.advogadoResponsavel === row.label && caso.id === documento.casoId),
+          ).length}`,
+        ])}
+        headers={["Advogado", "Casos", "Documentos vinculados"]}
       />
 
       <section className="card">

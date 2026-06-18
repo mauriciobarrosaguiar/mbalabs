@@ -23,7 +23,7 @@ export async function aplicarMarcaDagua(params: {
   return {
     status: "pdf_gerado",
     mensagem:
-      "PDF com marca d'agua gerado, mantendo o arquivo original separado.",
+      "PDF com marca d'água gerado, mantendo o arquivo original separado.",
     arquivoOriginal: params.arquivoOriginal,
     textoMarcaDagua: gerarTextoMarcaDagua(params.marcaDagua),
   };

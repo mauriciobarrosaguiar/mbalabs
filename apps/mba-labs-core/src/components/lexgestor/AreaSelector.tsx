@@ -9,7 +9,7 @@ type AreaSelectorProps = {
 
 export function AreaSelector({ selectedArea, onSelect }: AreaSelectorProps) {
   return (
-    <div className="grid-wide" role="list" aria-label="Areas juridicas">
+    <div className="grid-wide" role="list" aria-label="Áreas jurídicas">
       {areasJuridicas.map((area) => (
         <button
           type="button"
@@ -19,7 +19,7 @@ export function AreaSelector({ selectedArea, onSelect }: AreaSelectorProps) {
         >
           <strong>{area.nome}</strong>
           <span className="muted">{area.resumo}</span>
-          <small className="badge">{area.subareas.length} subareas</small>
+          <small className="badge">{area.subareas.length} subáreas</small>
         </button>
       ))}
     </div>
