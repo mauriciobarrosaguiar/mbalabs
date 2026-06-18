@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getLexWorkspaceData } from "@/lib/lexgestor/data";
-import { createSimplePdf } from "@/lib/lexgestor/simple-pdf";
+import { createImagePdfWithWatermark, createSimplePdf } from "@/lib/lexgestor/simple-pdf";
+import { downloadFromConnectedStorage } from "@/lib/lexgestor/storage-read";
+import { isStorageProvider } from "@/lib/lexgestor/storage";
 
 export const dynamic = "force-dynamic";
 
@@ -17,24 +19,47 @@ export async function GET(request: Request) {
   const watermark = String(data.escritorio?.watermark_text ?? data.escritorio?.nome ?? "LexGestor");
   const categoria = formatarRotuloLex(documento.categoria);
   const subcategoria = formatarRotuloLex(documento.subcategoria);
-  const pdf = createSimplePdf(
-    [
-      { text: "PDF com marca d'água", size: 16 },
-      { text: `Documento: ${documento.nome}` },
-      { text: `Cliente: ${documento.cliente}` },
-      { text: `Caso: ${formatarRotuloLex(documento.caso)}` },
-      { text: `Categoria: ${categoria} / ${subcategoria}` },
-      { text: `Status: ${formatarRotuloLex(documento.status)}` },
-      { text: `Arquivo original: ${documento.storagePath || "pendente"}` },
-    ],
-    watermark,
-  );
+  const pdfLines = [
+    { text: "PDF com marca d'água", size: 16 },
+    { text: `Documento: ${documento.nome}` },
+    { text: `Cliente: ${documento.cliente}` },
+    { text: `Caso: ${formatarRotuloLex(documento.caso)}` },
+    { text: `Categoria: ${categoria} / ${subcategoria}` },
+    { text: `Status: ${formatarRotuloLex(documento.status)}` },
+    { text: documento.storagePath ? "Arquivo original preservado no armazenamento do escritório." : "Arquivo original pendente de reenvio." },
+  ];
+
+  const original = await baixarOriginalSePossivel(data.current, documento).catch(() => null);
+  const pdf = original?.mimeType.startsWith("image/")
+    ? createImagePdfWithWatermark({
+        lines: pdfLines,
+        watermark,
+        imageBytes: original.bytes,
+        imageMimeType: original.mimeType,
+        imageName: original.fileName,
+      })
+    : createSimplePdf(
+        [
+          ...pdfLines,
+          { text: original ? "Formato original não incorporado automaticamente neste PDF." : "Original indisponível para pré-visualização." },
+        ],
+        watermark,
+      );
 
   return new NextResponse(pdf, {
     headers: {
       "content-type": "application/pdf",
-      "content-disposition": `attachment; filename="lexgestor-${documento.id}.pdf"`,
+      "content-disposition": `inline; filename="lexgestor-${documento.id}.pdf"`,
     },
+  });
+}
+
+async function baixarOriginalSePossivel(current: Awaited<ReturnType<typeof getLexWorkspaceData>>["current"], documento: Awaited<ReturnType<typeof getLexWorkspaceData>>["documentos"][number]) {
+  if (!isStorageProvider(documento.provider) || !documento.storagePath) return null;
+  return downloadFromConnectedStorage({
+    current,
+    provider: documento.provider,
+    path: documento.storagePath,
   });
 }
 
