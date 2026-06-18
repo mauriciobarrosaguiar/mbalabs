@@ -15,14 +15,16 @@ export async function GET(request: Request) {
   }
 
   const watermark = String(data.escritorio?.watermark_text ?? data.escritorio?.nome ?? "LexGestor");
+  const categoria = formatarRotuloLex(documento.categoria);
+  const subcategoria = formatarRotuloLex(documento.subcategoria);
   const pdf = createSimplePdf(
     [
       { text: "PDF com marca d'água", size: 16 },
       { text: `Documento: ${documento.nome}` },
       { text: `Cliente: ${documento.cliente}` },
-      { text: `Caso: ${documento.caso}` },
-      { text: `Categoria: ${documento.categoria} / ${documento.subcategoria}` },
-      { text: `Status: ${documento.status}` },
+      { text: `Caso: ${formatarRotuloLex(documento.caso)}` },
+      { text: `Categoria: ${categoria} / ${subcategoria}` },
+      { text: `Status: ${formatarRotuloLex(documento.status)}` },
       { text: `Arquivo original: ${documento.storagePath || "pendente"}` },
     ],
     watermark,
@@ -34,4 +36,16 @@ export async function GET(request: Request) {
       "content-disposition": `attachment; filename="lexgestor-${documento.id}.pdf"`,
     },
   });
+}
+
+function formatarRotuloLex(valor: string) {
+  return valor
+    .replace(/\bFamilia\b/gi, "Família")
+    .replace(/\bPensao\b/gi, "Pensão")
+    .replace(/\balimenticia\b/gi, "alimentícia")
+    .replace(/\bPrevidenciario\b/gi, "Previdenciário")
+    .replace(/\bTributario\b/gi, "Tributário")
+    .replace(/\bConfiguracoes\b/gi, "Configurações")
+    .replace(/\bAcoes\b/gi, "Ações")
+    .replace(/\bRelatorios\b/gi, "Relatórios");
 }
