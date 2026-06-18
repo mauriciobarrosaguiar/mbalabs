@@ -12,13 +12,10 @@ type DocumentActionsProps = {
   pdfUrl?: string;
 };
 
-export function DocumentActions({ url, path, id, provider = "", pdfPath = "", pdfUrl = "" }: DocumentActionsProps) {
-  const apiPdfUrl = `/api/lexgestor/pdf/watermark?documento=${encodeURIComponent(id)}`;
-  const originalStorageUrl = path ? storageHomeUrl(path, provider) : "";
-  const resolvedPdfPath = pdfPath || inferPdfPath(path);
-  const pdfStorageUrl = resolvedPdfPath ? storageHomeUrl(resolvedPdfPath, provider) : "";
-  const visualizarUrl = url || originalStorageUrl || pdfUrl || pdfStorageUrl || apiPdfUrl;
-  const gerarPdfUrl = pdfUrl || pdfStorageUrl || apiPdfUrl;
+export function DocumentActions({ url, path, id }: DocumentActionsProps) {
+  const visualizarUrl = `/api/lexgestor/documentos/preview?documento=${encodeURIComponent(id)}`;
+  const baixarUrl = `${visualizarUrl}&download=1`;
+  const gerarPdfUrl = `/api/lexgestor/pdf/watermark?documento=${encodeURIComponent(id)}`;
 
   function imprimirDocumento() {
     const janela = window.open(gerarPdfUrl, "_blank", "noopener,noreferrer");
@@ -35,8 +32,8 @@ export function DocumentActions({ url, path, id, provider = "", pdfPath = "", pd
         Visualizar
       </a>
 
-      {url ? (
-        <a className="button secondary" href={url} target="_blank" rel="noreferrer" style={{ cursor: "pointer" }}>
+      {url || path ? (
+        <a className="button secondary" href={baixarUrl} target="_blank" rel="noreferrer" style={{ cursor: "pointer" }}>
           <Download size={17} aria-hidden />
           Baixar
         </a>
@@ -57,18 +54,4 @@ export function DocumentActions({ url, path, id, provider = "", pdfPath = "", pd
       </span>
     </div>
   );
-}
-
-function storageHomeUrl(path: string, provider: string) {
-  if (!path || provider === "google_drive") return "";
-  const clean = path.split("/").filter(Boolean).map(encodeURIComponent).join("/");
-  return `https://www.dropbox.com/home/${clean}`;
-}
-
-function inferPdfPath(path: string) {
-  if (!path || !path.includes("/01 - Originais/")) return "";
-  const parts = path.split("/");
-  const fileName = parts.pop() || "documento";
-  const pdfName = `${fileName.replace(/\.[^.]+$/, "") || "documento"}-marca-dagua.pdf`;
-  return `${parts.join("/").replace("/01 - Originais", "/02 - PDF com Marca d'agua")}/${pdfName}`;
 }
