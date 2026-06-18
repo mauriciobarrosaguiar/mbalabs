@@ -95,7 +95,7 @@ export default async function DocumentosPage({ searchParams }: DocumentosPagePro
           ))
         )}
       </section>
-      <PdfPreview />
+      <PdfPreview documentoId={documentosFiltrados[0]?.id} />
     </ResponsivePageContainer>
   );
 }
