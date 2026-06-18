@@ -5,12 +5,13 @@ import { downloadFromConnectedStorage } from "@/lib/lexgestor/storage-read";
 import { isStorageProvider } from "@/lib/lexgestor/storage";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const documentoId = url.searchParams.get("documento") || "";
   const arquivo = url.searchParams.get("arquivo") === "pdf" ? "pdf" : "original";
-  const download = url.searchParams.get("download") === "1";
+  const shouldDownload = url.searchParams.get("download") === "1";
 
   if (!documentoId) {
     return NextResponse.json({ error: "Documento não informado." }, { status: 400 });
@@ -60,11 +61,15 @@ export async function GET(request: Request) {
   });
 
   const filename = arquivoBaixado.fileName || text(documento.nome_original) || "documento";
+  const bytes = arquivoBaixado.bytes instanceof Uint8Array
+    ? arquivoBaixado.bytes
+    : new Uint8Array(arquivoBaixado.bytes);
+  const body = new Blob([bytes], { type: arquivoBaixado.mimeType || "application/octet-stream" });
 
-  return new NextResponse(arquivoBaixado.bytes, {
+  return new NextResponse(body, {
     headers: {
-      "content-type": arquivoBaixado.mimeType,
-      "content-disposition": `${download ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(filename)}`,
+      "content-type": arquivoBaixado.mimeType || "application/octet-stream",
+      "content-disposition": `${shouldDownload ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(filename)}`,
       "cache-control": "private, no-store",
     },
   });
