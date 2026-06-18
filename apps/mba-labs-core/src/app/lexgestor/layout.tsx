@@ -3,6 +3,7 @@ import "./lexgestor.css";
 import "./lexgestor-documents.css";
 import "./lexgestor-mobile.css";
 import "./lexgestor-mobile-compact.css";
+import "./lexgestor-mobile-compact-v2.css";
 import { HeaderLexGestor } from "@/components/lexgestor/HeaderLexGestor";
 import { MobileNavLexGestor } from "@/components/lexgestor/MobileNavLexGestor";
 import { SidebarLexGestor } from "@/components/lexgestor/SidebarLexGestor";
