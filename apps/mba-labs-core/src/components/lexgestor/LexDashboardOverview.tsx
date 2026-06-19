@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BriefcaseBusiness, FilePlus2, FolderSearch, Settings, UsersRound } from "lucide-react";
+import { BriefcaseBusiness, FilePlus2, FolderSearch, UsersRound } from "lucide-react";
 import type { LexWorkspaceData } from "@/lib/lexgestor/data";
 import { DashboardCards } from "./DashboardCards";
 import { DashboardListCard } from "./DashboardListCard";
@@ -7,7 +7,7 @@ import { DropboxStatus } from "./DropboxStatus";
 import { MiniBarChart } from "./MiniBarChart";
 
 export function LexDashboardOverview({ data }: { data: LexWorkspaceData }) {
-  const pendingSetup = data.setupSteps.filter((step) => !step.done);
+  const hasStorage = data.storageConnections.some((connection) => connection.connected);
 
   return (
     <>
@@ -25,24 +25,10 @@ export function LexDashboardOverview({ data }: { data: LexWorkspaceData }) {
 
       <DashboardCards metrics={data.metrics} />
 
-      {pendingSetup.length > 0 && !data.demoMode ? (
-        <section className="card stack setup-compact">
-          <div className="section-title">
-            <div>
-              <h2>Configuração inicial</h2>
-              <p>Complete apenas o que falta para o escritório operar sem pendências.</p>
-            </div>
-            <Settings size={22} color="var(--primary)" aria-hidden />
-          </div>
-          <div className="grid">
-            {pendingSetup.map((step) => (
-              <Link className="list-row" href={step.href} key={step.label}>
-                <strong>{step.label}</strong>
-                <span>{step.action}</span>
-              </Link>
-            ))}
-          </div>
-        </section>
+      {!hasStorage && !data.demoMode ? (
+        <p className="notice compact">
+          Armazenamento ainda não conectado. Novos documentos serão enviados automaticamente após conectar Dropbox ou Google Drive em Configurações.
+        </p>
       ) : null}
 
       <section className="grid-wide dashboard-actions" aria-label="Atalhos do LexGestor">

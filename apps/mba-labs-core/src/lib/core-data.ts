@@ -63,7 +63,7 @@ export const fallbackApps: SystemCard[] = [
   {
     slug: "lexgestor",
     nome: "LexGestor",
-    descricao: "Gestao juridica inteligente para escritorios de advocacia.",
+    descricao: "Gestão jurídica inteligente para escritórios de advocacia.",
     url_path: "/lexgestor",
     status: "sem_assinatura",
     canAccess: false

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BriefcaseBusiness,
+  ChartNoAxesCombined,
   FileText,
   LayoutDashboard,
   Settings,
@@ -13,13 +14,13 @@ import {
 const items = [
   { href: "/lexgestor/dashboard", label: "Inicio", icon: LayoutDashboard },
   { href: "/lexgestor/clientes", label: "Clientes", icon: UsersRound },
-  { href: "/lexgestor/casos", label: "Casos", icon: BriefcaseBusiness },
+  { href: "/lexgestor/casos", label: "Casos/Proc.", icon: BriefcaseBusiness },
   { href: "/lexgestor/documentos", label: "Docs", icon: FileText },
-  { href: "/lexgestor/equipe", label: "Equipe", icon: UsersRound },
+  { href: "/lexgestor/relatorios", label: "Rel.", icon: ChartNoAxesCombined },
   { href: "/lexgestor/configuracoes", label: "Ajustes", icon: Settings },
 ];
 
-export function MobileNavLexGestor() {
+export function MobileNavLexGestor(_props: { canManageTeam?: boolean }) {
   const pathname = usePathname();
 
   return (

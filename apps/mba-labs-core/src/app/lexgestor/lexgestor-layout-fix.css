@@ -330,12 +330,13 @@
 }
 
 .lexgestor-module .table-panel {
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
 }
 
 .lexgestor-module .responsive-table {
-  min-width: 960px;
+  min-width: 0;
+  width: 100%;
   table-layout: fixed;
 }
 
@@ -351,11 +352,11 @@
 }
 
 .lexgestor-module .documents-table {
-  min-width: 980px;
+  min-width: 0;
 }
 
 .lexgestor-module .reports-table {
-  min-width: 1040px;
+  min-width: 0;
 }
 
 .lexgestor-module .document-title {
@@ -455,12 +456,9 @@
     grid-template-columns: 1fr;
   }
 
-  .lexgestor-module .responsive-table {
-    min-width: 820px;
-  }
-
+  .lexgestor-module .responsive-table,
   .lexgestor-module .documents-table,
   .lexgestor-module .reports-table {
-    min-width: 860px;
+    min-width: 0;
   }
 }

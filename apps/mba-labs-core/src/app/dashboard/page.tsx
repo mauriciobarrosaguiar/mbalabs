@@ -35,8 +35,8 @@ export default async function DashboardPage() {
                     <div className="mb-3 inline-flex rounded-full border border-white/10 px-3 py-1 text-xs font-bold uppercase text-slate-300">
                       {statusLabel(app.canAccess ? app.status : "sem_assinatura")}
                     </div>
-                    <h2 className="text-xl font-black">{app.nome}</h2>
-                    <p className="mt-2 min-h-12 text-sm leading-6 text-slate-300">{app.descricao}</p>
+                    <h2 className="text-xl font-black">{displayAppName(app)}</h2>
+                    <p className="mt-2 min-h-12 text-sm leading-6 text-slate-300">{displayAppDescription(app)}</p>
                     {!knownRoute && isAdminMaster ? (
                       <p className="mt-3 rounded-[8px] border border-amber-300/30 bg-amber-300/10 p-3 text-sm leading-6 text-amber-100">
                         Rota não encontrada no projeto. Verifique a implementação.
@@ -89,4 +89,27 @@ function statusLabel(status: string) {
   };
 
   return labels[status] ?? status;
+}
+
+function displayAppName(app: { slug: string; nome: string }) {
+  return app.slug === "lexgestor" || app.slug === "lex-gestor" ? "LexGestor" : fixEncoding(app.nome);
+}
+
+function displayAppDescription(app: { slug: string; descricao: string }) {
+  if (app.slug === "lexgestor" || app.slug === "lex-gestor") {
+    return "Gestão jurídica inteligente para escritórios de advocacia.";
+  }
+
+  return fixEncoding(app.descricao);
+}
+
+function fixEncoding(value: string) {
+  return value
+    .replaceAll("Gest\u00c3\u00a3o", "Gestão")
+    .replaceAll("jur\u00c3\u00addica", "jurídica")
+    .replaceAll("escrit\u00c3\u00b3rios", "escritórios")
+    .replaceAll("Cota\u00c3\u00a7\u00c3\u00b5es", "Cotações")
+    .replaceAll("servi\u00c3\u00a7os", "serviços")
+    .replaceAll("or\u00c3\u00a7amentos", "orçamentos")
+    .replaceAll("comiss\u00c3\u00b5es", "comissões");
 }

@@ -1,7 +1,7 @@
 import { MiniBarChart } from "@/components/lexgestor/MiniBarChart";
 import { ReportExportActions } from "@/components/lexgestor/ReportExportActions";
 import { ResponsivePageContainer } from "@/components/lexgestor/ResponsivePageContainer";
-import { getLexWorkspaceData } from "@/lib/lexgestor/data";
+import { getLexWorkspaceData, type LexCaso, type LexDocumento } from "@/lib/lexgestor/data";
 
 type RelatoriosPageProps = {
   searchParams?: Promise<Record<string, string | undefined>>;
@@ -11,6 +11,19 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
   const filters = (await searchParams) ?? {};
   const data = await getLexWorkspaceData("/lexgestor/relatorios");
   const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value) as Array<[string, string]>);
+  const casosFiltrados = data.casos.filter((caso) => {
+    if (filters.cliente && caso.clienteId !== filters.cliente) return false;
+    if (filters.caso && caso.id !== filters.caso) return false;
+    if (filters.advogado && caso.advogadoResponsavelId !== filters.advogado) return false;
+    if (filters.status && caso.status !== filters.status) return false;
+    if (!isWithinPeriod(caso.criadoEm, filters.inicio, filters.fim) && !isWithinPeriod(caso.proximoPrazo, filters.inicio, filters.fim)) return false;
+    return true;
+  });
+  const casoIds = new Set(casosFiltrados.map((caso) => caso.id));
+  const clientesFiltrados = data.clientes.filter((cliente) =>
+    filters.cliente ? cliente.id === filters.cliente : casosFiltrados.some((caso) => caso.clienteId === cliente.id),
+  );
+  const documentosFiltrados = data.documentos.filter((documento) => casoIds.has(documento.casoId));
 
   return (
     <ResponsivePageContainer
@@ -18,7 +31,27 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
       description="Filtre, imprima, gere PDF ou baixe planilhas com os dados do escritório."
     >
       <section className="card">
-        <form className="filter-row" action="/lexgestor/relatorios">
+        <form className="filter-row reports-filter-row" action="/lexgestor/relatorios">
+          <label className="field filter-small">
+            Cliente
+            <select name="cliente" defaultValue={filters.cliente ?? ""}>
+              <option value="">Todos</option>
+              {data.clientes.map((cliente) => (
+                <option value={cliente.id} key={cliente.id}>{cliente.nome}</option>
+              ))}
+            </select>
+          </label>
+          <label className="field filter-small">
+            Caso
+            <select name="caso" defaultValue={filters.caso ?? ""}>
+              <option value="">Todos</option>
+              {data.casos
+                .filter((caso) => !filters.cliente || caso.clienteId === filters.cliente)
+                .map((caso) => (
+                  <option value={caso.id} key={caso.id}>{caso.titulo}</option>
+                ))}
+            </select>
+          </label>
           <label className="field filter-small">
             Período inicial
             <input name="inicio" type="date" defaultValue={filters.inicio ?? ""} />
@@ -28,13 +61,11 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
             <input name="fim" type="date" defaultValue={filters.fim ?? ""} />
           </label>
           <label className="field filter-small">
-            Categoria
-            <select name="categoria" defaultValue={filters.categoria ?? ""}>
-              <option value="">Todas</option>
-              {data.categorias.map((categoria) => (
-                <option value={categoria.nome} key={categoria.nome}>
-                  {categoria.nome}
-                </option>
+            Advogado responsável
+            <select name="advogado" defaultValue={filters.advogado ?? ""}>
+              <option value="">Todos</option>
+              {data.advogados.filter((advogado) => advogado.status === "Ativo").map((advogado) => (
+                <option value={advogado.id} key={advogado.id}>{advogado.nome}</option>
               ))}
             </select>
           </label>
@@ -43,49 +74,53 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
             <select name="status" defaultValue={filters.status ?? ""}>
               <option value="">Todos</option>
               {Array.from(new Set(data.casos.map((caso) => caso.status))).map((status) => (
-                <option value={status} key={status}>
-                  {status}
-                </option>
+                <option value={status} key={status}>{status}</option>
               ))}
             </select>
           </label>
-          <label className="check-option">
-            <input name="sem_processo" type="checkbox" value="sim" defaultChecked={filters.sem_processo === "sim"} />
-            <span>Sem número de processo</span>
-          </label>
-          <label className="check-option">
-            <input name="pendentes" type="checkbox" value="sim" defaultChecked={filters.pendentes === "sim"} />
-            <span>Com documentos pendentes</span>
-          </label>
-          <button className="button" type="submit">
-            Filtrar
-          </button>
+          <div className="button-row reports-filter-actions">
+            <button className="button" type="submit">Filtrar</button>
+            <a className="button secondary" href="/lexgestor/relatorios">Limpar</a>
+          </div>
         </form>
       </section>
 
       <section className="grid">
-        {data.metrics.map((metric) => (
-          <article className="stat-card" key={metric.label}>
-            <span>{metric.label}</span>
-            <strong>{metric.value}</strong>
-            <small>{metric.note}</small>
-          </article>
-        ))}
+        <article className="stat-card">
+          <span>Clientes no filtro</span>
+          <strong>{clientesFiltrados.length}</strong>
+          <small>Registros encontrados</small>
+        </article>
+        <article className="stat-card">
+          <span>Casos no filtro</span>
+          <strong>{casosFiltrados.length}</strong>
+          <small>Conforme critérios</small>
+        </article>
+        <article className="stat-card">
+          <span>Documentos no filtro</span>
+          <strong>{documentosFiltrados.length}</strong>
+          <small>Sem anexar conteúdo ao relatório</small>
+        </article>
+        <article className="stat-card">
+          <span>Prazos no filtro</span>
+          <strong>{casosFiltrados.filter((caso) => caso.proximoPrazo).length}</strong>
+          <small>Com data informada</small>
+        </article>
       </section>
 
       <section className="split">
-        <MiniBarChart title="Casos por categoria" rows={data.casosPorCategoria} />
-        <MiniBarChart title="Documentos por status" rows={data.documentosPorStatus} />
+        <MiniBarChart title="Casos por categoria" rows={countBy(casosFiltrados, "categoria")} />
+        <MiniBarChart title="Documentos por status" rows={countBy(documentosFiltrados, "status")} />
       </section>
 
       <section className="split">
-        <MiniBarChart title="Casos por status" rows={data.casosPorStatus} />
-        <MiniBarChart title="Produtividade por advogado" rows={data.produtividadePorAdvogado} />
+        <MiniBarChart title="Casos por status" rows={countBy(casosFiltrados, "status")} />
+        <MiniBarChart title="Produtividade por advogado" rows={produtividadeChart(casosFiltrados)} />
       </section>
 
       <ReportBlock
         title="Relatório de clientes"
-        rows={data.clientes.map((cliente) => [
+        rows={clientesFiltrados.map((cliente) => [
           cliente.nome,
           cliente.cpfCnpj,
           cliente.whatsapp || cliente.telefone,
@@ -98,21 +133,21 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
 
       <ReportBlock
         title="Relatório de casos"
-        rows={data.casos.map((caso) => [
+        rows={casosFiltrados.map((caso) => [
           caso.cliente,
           `${caso.categoria} / ${caso.subcategoria}`,
           caso.numeroProcesso || "-",
           caso.status,
-          formatReportDate(caso.criadoEm),
+          caso.advogadoResponsavel || "-",
           formatReportDate(caso.proximoPrazo),
           String(caso.documentosCount),
         ])}
-        headers={["Cliente", "Categoria", "Processo", "Status", "Abertura", "Próximo prazo", "Docs"]}
+        headers={["Cliente", "Categoria", "Processo", "Status", "Responsável", "Próximo prazo", "Docs"]}
       />
 
       <ReportBlock
         title="Relatório de documentos"
-        rows={data.documentos.map((documento) => [
+        rows={documentosFiltrados.map((documento) => [
           documento.cliente,
           documento.caso,
           documento.tipo,
@@ -125,7 +160,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
 
       <ReportBlock
         title="Relatório de prazos"
-        rows={data.casos
+        rows={casosFiltrados
           .filter((caso) => caso.proximoPrazo)
           .map((caso) => [
             formatReportDate(caso.proximoPrazo),
@@ -140,13 +175,7 @@ export default async function RelatoriosPage({ searchParams }: RelatoriosPagePro
 
       <ReportBlock
         title="Relatório de produtividade"
-        rows={data.produtividadePorAdvogado.map((row) => [
-          row.label,
-          String(row.value),
-          `${data.documentos.filter((documento) =>
-            data.casos.some((caso) => caso.advogadoResponsavel === row.label && caso.id === documento.casoId),
-          ).length}`,
-        ])}
+        rows={produtividadeRows(casosFiltrados, documentosFiltrados)}
         headers={["Advogado", "Casos", "Documentos vinculados"]}
       />
 
@@ -167,7 +196,7 @@ function ReportBlock({
   rows: string[][];
 }) {
   return (
-    <section className="table-panel">
+    <section className="table-panel report-panel">
       <div className="table-title">
         <h2>{title}</h2>
       </div>
@@ -199,6 +228,41 @@ function ReportBlock({
       </table>
     </section>
   );
+}
+
+function countBy<T extends Record<string, unknown>>(rows: T[], key: keyof T) {
+  const map = new Map<string, number>();
+  for (const row of rows) {
+    const label = String(row[key] ?? "") || "Sem informação";
+    map.set(label, (map.get(label) ?? 0) + 1);
+  }
+  return Array.from(map.entries()).map(([label, value]) => ({ label, value }));
+}
+
+function produtividadeChart(casos: LexCaso[]) {
+  return produtividadeRows(casos, []).map(([label, value]) => ({ label, value: Number(value) }));
+}
+
+function produtividadeRows(casos: LexCaso[], documentos: LexDocumento[]) {
+  const map = new Map<string, { casos: number; documentos: number }>();
+  for (const caso of casos) {
+    const label = caso.advogadoResponsavel || "Sem responsável";
+    const current = map.get(label) ?? { casos: 0, documentos: 0 };
+    current.casos += 1;
+    current.documentos += documentos.filter((documento) => documento.casoId === caso.id).length;
+    map.set(label, current);
+  }
+
+  return Array.from(map.entries()).map(([label, value]) => [label, String(value.casos), String(value.documentos)]);
+}
+
+function isWithinPeriod(value: string | undefined, inicio?: string, fim?: string) {
+  if (!inicio && !fim) return true;
+  if (!value) return false;
+  const date = value.slice(0, 10);
+  if (inicio && date < inicio) return false;
+  if (fim && date > fim) return false;
+  return true;
 }
 
 function formatReportDate(value: string) {
