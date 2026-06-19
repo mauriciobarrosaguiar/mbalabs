@@ -75,7 +75,7 @@ function addCoverPage(
   drawWatermark(page, params.branding, params.logo, params.bold);
   drawHeaderLogo(page, params.logo);
 
-  let y = pageHeight - 126;
+  let y = params.logo ? pageHeight - 190 : pageHeight - 126;
   page.drawText("Dossiê do caso", { x: margin, y, size: 22, font: params.bold, color: rgb(0.08, 0.12, 0.2) });
   y -= 42;
 
@@ -108,12 +108,14 @@ function addRelatoPage(
 ) {
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
   drawWatermark(page, params.branding, params.logo, params.bold);
+  drawHeaderLogo(page, params.logo);
 
+  const titleY = params.logo ? pageHeight - 190 : pageHeight - 88;
   const relato = htmlToPlainText(params.caso.relatoInicial) || "Relato ainda não informado.";
-  page.drawText("Relato do cliente", { x: margin, y: pageHeight - 88, size: 18, font: params.bold, color: rgb(0.08, 0.12, 0.2) });
+  page.drawText("Relato do cliente", { x: margin, y: titleY, size: 18, font: params.bold, color: rgb(0.08, 0.12, 0.2) });
   drawWrappedText(page, relato, {
     x: margin,
-    y: pageHeight - 126,
+    y: titleY - 38,
     maxWidth: pageWidth - margin * 2,
     font: params.font,
     size: 11,
@@ -198,16 +200,19 @@ function addNotePage(
 ) {
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
   drawWatermark(page, params.branding, params.logo, params.bold);
+  drawHeaderLogo(page, params.logo);
+
+  const titleY = params.logo ? pageHeight - 190 : pageHeight - 88;
   page.drawText(params.title.slice(0, 120), {
     x: margin,
-    y: pageHeight - 88,
+    y: titleY,
     size: 16,
     font: params.bold,
     color: rgb(0.08, 0.12, 0.2),
   });
   drawWrappedText(page, params.message, {
     x: margin,
-    y: pageHeight - 126,
+    y: titleY - 38,
     maxWidth: pageWidth - margin * 2,
     font: params.font,
     size: 11,
@@ -261,13 +266,13 @@ async function embedLogo(pdfDoc: PDFDocument, branding: PdfBrandingOptions) {
 
 function drawWatermark(page: PDFPage, branding: PdfBrandingOptions, logo: PDFImage | null, font: PDFFont) {
   const { width, height } = page.getSize();
-  const opacity = clampOpacity(branding.watermarkOpacity ?? 0.1);
+  const opacity = clampOpacity(branding.watermarkOpacity ?? 0.12);
 
   if (logo) {
-    const box = fitInside(logo, width * 0.6, height * 0.44);
+    const box = fitInside(logo, width * 0.72, height * 0.54);
     page.drawImage(logo, {
       x: (width - box.width) / 2,
-      y: (height - box.height) / 2,
+      y: (height - box.height) / 2 - 12,
       width: box.width,
       height: box.height,
       opacity,
@@ -288,13 +293,13 @@ function drawWatermark(page: PDFPage, branding: PdfBrandingOptions, logo: PDFIma
 function drawHeaderLogo(page: PDFPage, logo: PDFImage | null) {
   if (!logo) return;
   const { width, height } = page.getSize();
-  const box = fitInside(logo, 118, 78);
+  const box = fitInside(logo, 236, 156);
   page.drawImage(logo, {
     x: (width - box.width) / 2,
-    y: height - 46 - box.height,
+    y: height - 34 - box.height,
     width: box.width,
     height: box.height,
-    opacity: 0.96,
+    opacity: 0.98,
   });
 }
 
@@ -376,6 +381,6 @@ function fitInside(image: PDFImage, maxWidth: number, maxHeight: number) {
 }
 
 function clampOpacity(value: number) {
-  if (!Number.isFinite(value)) return 0.1;
-  return Math.min(0.16, Math.max(0.07, value));
+  if (!Number.isFinite(value)) return 0.12;
+  return Math.min(0.18, Math.max(0.1, value));
 }
