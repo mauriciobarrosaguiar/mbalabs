@@ -12,14 +12,13 @@ export async function resolvePdfBranding(
   current?: CurrentUserProfile,
 ): Promise<PdfBrandingOptions> {
   const officeName = text(escritorio?.nome) || "LexGestor";
-  const logoUrl = text(escritorio?.logo_url) || text(escritorio?.watermark_image_url);
-  const logo = await loadBrandImage(logoUrl, baseUrl, current).catch(() => null);
+  const logo = await loadFirstBrandImage(logoCandidates(escritorio), baseUrl, current);
 
   return {
     headerText: officeName,
     watermarkText: text(escritorio?.watermark_text) || officeName,
     logo,
-    watermarkOpacity: 0.09,
+    watermarkOpacity: logo ? 0.11 : 0.09,
   };
 }
 
@@ -27,6 +26,32 @@ export function createLogoStorageUrl(provider: StorageProvider, params: { fileId
   const value = provider === "google_drive" ? params.fileId : params.path;
   if (!value) return "";
   return `${logoStorageScheme}://${provider}/${encodeURIComponent(value)}`;
+}
+
+async function loadFirstBrandImage(
+  candidates: string[],
+  baseUrl?: string,
+  current?: CurrentUserProfile,
+): Promise<PdfBrandImage | null> {
+  for (const candidate of candidates) {
+    const logo = await loadBrandImage(candidate, baseUrl, current).catch(() => null);
+    if (logo) return logo;
+  }
+
+  return null;
+}
+
+function logoCandidates(escritorio: Record<string, unknown> | null | undefined) {
+  const candidates = [
+    text(escritorio?.logo_url),
+    text(escritorio?.watermark_image_url),
+    text(escritorio?.logo_marca_dagua),
+    text(escritorio?.marca_dagua_logo_url),
+    text(escritorio?.marca_dagua_url),
+    text(escritorio?.logo_storage_url),
+  ];
+
+  return candidates.filter((value, index, list) => value && list.indexOf(value) === index);
 }
 
 async function loadBrandImage(rawUrl: string, baseUrl?: string, current?: CurrentUserProfile): Promise<PdfBrandImage | null> {
@@ -89,6 +114,11 @@ function parseLogoStorageUrl(rawUrl: string) {
 function parseDataImage(value: string): PdfBrandImage | null {
   const match = value.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
   if (!match) return null;
+
+  const mimeType = match[1].toLowerCase();
+  if (!mimeType.includes("png") && !mimeType.includes("jpeg") && !mimeType.includes("jpg")) {
+    return null;
+  }
 
   const bytes = Buffer.from(match[2], "base64");
   if (bytes.length === 0 || bytes.length > maxLogoBytes) return null;
