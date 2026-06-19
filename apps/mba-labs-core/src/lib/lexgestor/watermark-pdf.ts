@@ -27,6 +27,7 @@ export async function createWatermarkedPdf({
     const fallbackFont = logo ? null : await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
     for (const page of pdfDoc.getPages()) {
+      drawWatermarkLogo(page, logo);
       drawHeaderLogo(page, logo, fallbackFont, branding);
     }
 
@@ -43,7 +44,7 @@ export async function createWatermarkedPdf({
     }
 
     const page = pdfDoc.addPage([a4Width, a4Height]);
-    const headerHeight = logo ? Math.min(112, fitInside(logo, 150, 96).height + 26) : 0;
+    const headerHeight = logo ? Math.min(134, fitInside(logo, 195, 124).height + 30) : 0;
     const availableHeight = a4Height - pagePadding * 2 - headerHeight;
     const imageBox = fitInside(originalImage, a4Width - pagePadding * 2, availableHeight);
 
@@ -54,6 +55,7 @@ export async function createWatermarkedPdf({
       height: imageBox.height,
     });
 
+    drawWatermarkLogo(page, logo);
     drawHeaderLogo(page, logo, fallbackFont, branding);
 
     return Buffer.from(await pdfDoc.save({ useObjectStreams: false }));
@@ -71,13 +73,13 @@ function drawHeaderLogo(
   const { width, height } = page.getSize();
 
   if (logo) {
-    const box = fitInside(logo, 150, 96);
+    const box = fitInside(logo, 195, 124);
     page.drawImage(logo, {
       x: (width - box.width) / 2,
       y: height - 18 - box.height,
       width: box.width,
       height: box.height,
-      opacity: 0.96,
+      opacity: 0.98,
     });
     return;
   }
@@ -90,6 +92,19 @@ function drawHeaderLogo(
     size: 15,
     font,
     color: rgb(0.08, 0.12, 0.2),
+  });
+}
+
+function drawWatermarkLogo(page: PDFPage, logo: PDFImage | null) {
+  if (!logo) return;
+  const { width, height } = page.getSize();
+  const box = fitInside(logo, width * 0.54, height * 0.34);
+  page.drawImage(logo, {
+    x: (width - box.width) / 2,
+    y: (height - box.height) / 2 - 18,
+    width: box.width,
+    height: box.height,
+    opacity: 0.075,
   });
 }
 
