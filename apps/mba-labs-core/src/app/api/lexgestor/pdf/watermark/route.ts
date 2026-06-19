@@ -8,6 +8,8 @@ import { isStorageProvider, uploadToConnectedStorage } from "@/lib/lexgestor/sto
 import { createWatermarkedPdf } from "@/lib/lexgestor/watermark-pdf";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
 
 type WorkspaceData = Awaited<ReturnType<typeof getLexWorkspaceData>>;
 type WorkspaceDocumento = WorkspaceData["documentos"][number];
@@ -51,6 +53,8 @@ export async function GET(request: Request) {
     headers: {
       "content-type": "application/pdf",
       "content-disposition": `inline; filename="${safePdfFileName(documento, uploaded?.path)}"`,
+      ...noStoreHeaders(),
+      "x-lexgestor-pdf-version": "header-logo-only-v2",
     },
   });
 }
@@ -145,9 +149,17 @@ function friendlyPdfError(message: string, status: number) {
     status,
     headers: {
       "content-type": "text/html; charset=utf-8",
-      "cache-control": "private, no-store",
+      ...noStoreHeaders(),
     },
   });
+}
+
+function noStoreHeaders() {
+  return {
+    "cache-control": "no-store, no-cache, max-age=0, must-revalidate, proxy-revalidate",
+    pragma: "no-cache",
+    expires: "0",
+  };
 }
 
 function escapeHtml(value: string) {
