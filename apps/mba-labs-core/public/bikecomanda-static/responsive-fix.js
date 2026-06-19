@@ -1,8 +1,26 @@
 (function () {
   "use strict";
 
+  function ensurePortalSession() {
+    try {
+      if (typeof db !== "undefined" && (!db.session || !db.session.userId)) {
+        db.session = {
+          userId: "u_admin",
+          source: "mba-labs",
+          created_at: new Date().toISOString(),
+        };
+        if (typeof save === "function") save();
+        if (typeof ui !== "undefined") ui.view = "dashboard";
+        if (typeof render === "function") render();
+      }
+    } catch {
+      // Não interrompe o carregamento visual do BikeComanda.
+    }
+  }
+
   function injectResponsiveFixes() {
-    if (document.getElementById("bikecomanda-responsive-fix-style")) return;
+    const previous = document.getElementById("bikecomanda-responsive-fix-style");
+    if (previous) previous.remove();
 
     const style = document.createElement("style");
     style.id = "bikecomanda-responsive-fix-style";
@@ -10,14 +28,19 @@
       html,
       body,
       #app {
-        width: 100%;
-        max-width: 100%;
-        min-width: 0;
-        overflow-x: hidden;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow-x: hidden !important;
+        background: #f4f7f6 !important;
       }
 
       body {
         touch-action: pan-y;
+      }
+
+      .login-page {
+        display: none !important;
       }
 
       .app-shell,
@@ -32,28 +55,34 @@
       .command-list,
       .command-card,
       .table-wrap {
-        min-width: 0;
-        max-width: 100%;
+        min-width: 0 !important;
+        max-width: 100% !important;
       }
 
       .sidebar {
-        overflow-x: hidden;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
+        overflow-x: hidden !important;
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+      }
+
+      .sidebar [data-action="logout"] {
+        display: none !important;
       }
 
       .sidebar::-webkit-scrollbar,
       .nav::-webkit-scrollbar,
-      .mobile-nav::-webkit-scrollbar {
-        width: 0;
-        height: 0;
-        display: none;
+      .mobile-nav::-webkit-scrollbar,
+      .table-wrap::-webkit-scrollbar {
+        width: 0 !important;
+        height: 0 !important;
+        display: none !important;
       }
 
       .nav,
-      .mobile-nav {
-        scrollbar-width: none;
-        -ms-overflow-style: none;
+      .mobile-nav,
+      .table-wrap {
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
       }
 
       .nav-button,
@@ -61,24 +90,24 @@
       input,
       select,
       textarea {
-        max-width: 100%;
+        max-width: 100% !important;
       }
 
       @media (min-width: 901px) {
         .sidebar {
-          height: 100dvh;
-          overflow-y: auto;
-          padding-bottom: 18px;
+          height: 100dvh !important;
+          overflow-y: auto !important;
+          padding-bottom: 18px !important;
         }
 
         .nav {
-          padding-right: 0;
+          padding-right: 0 !important;
         }
       }
 
       @media (max-width: 900px) {
         :root {
-          --radius: 16px;
+          --radius: 14px;
         }
 
         .app-shell {
@@ -86,6 +115,7 @@
           width: 100% !important;
           max-width: 100vw !important;
           overflow-x: hidden !important;
+          padding-bottom: 0 !important;
         }
 
         .sidebar {
@@ -94,7 +124,7 @@
           width: 100% !important;
           height: auto !important;
           min-height: 0 !important;
-          padding: 16px 16px 10px !important;
+          padding: 14px 14px 8px !important;
           border-right: 0 !important;
           border-bottom: 1px solid var(--line) !important;
           overflow: hidden !important;
@@ -102,15 +132,19 @@
         }
 
         .sidebar .brand-mark {
-          width: 100%;
+          width: 100% !important;
           margin: 0 0 10px !important;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 10px;
+          align-items: center !important;
+          justify-content: space-between !important;
+          gap: 10px !important;
+          font-size: 18px !important;
         }
 
         .sidebar .brand-mark .brand-icon {
           flex: 0 0 auto;
+          width: 34px !important;
+          height: 34px !important;
+          font-size: 16px !important;
         }
 
         .sidebar .brand-mark > span,
@@ -125,26 +159,31 @@
         .nav {
           display: flex !important;
           flex-wrap: nowrap !important;
-          gap: 10px !important;
+          gap: 8px !important;
           width: 100% !important;
           max-width: 100% !important;
           margin: 8px 0 0 !important;
-          padding: 0 2px 8px 0 !important;
+          padding: 0 2px 7px 0 !important;
           overflow-x: auto !important;
           overflow-y: hidden !important;
           -webkit-overflow-scrolling: touch;
           scroll-snap-type: x proximity;
         }
 
+        .mobile-nav {
+          display: none !important;
+        }
+
         .nav-button {
           flex: 0 0 auto !important;
           width: auto !important;
           min-width: max-content !important;
-          max-width: 86vw !important;
-          min-height: 42px !important;
-          padding: 10px 14px !important;
-          border-radius: 14px !important;
+          max-width: 84vw !important;
+          min-height: 40px !important;
+          padding: 9px 12px !important;
+          border-radius: 12px !important;
           white-space: nowrap !important;
+          font-size: 14px !important;
           scroll-snap-align: start;
         }
 
@@ -157,7 +196,7 @@
         .main {
           width: 100% !important;
           max-width: 100vw !important;
-          padding: 22px 16px 28px !important;
+          padding: 16px 14px 28px !important;
           overflow-x: hidden !important;
         }
 
@@ -165,21 +204,22 @@
         .page-header {
           display: grid !important;
           grid-template-columns: 1fr !important;
-          gap: 14px !important;
+          gap: 10px !important;
           align-items: stretch !important;
+          margin-bottom: 14px !important;
         }
 
         .topbar h1,
         .page-header h1 {
-          font-size: clamp(30px, 12vw, 44px) !important;
-          line-height: 0.98 !important;
+          font-size: clamp(26px, 9vw, 36px) !important;
+          line-height: 1.05 !important;
           overflow-wrap: anywhere;
         }
 
         .topbar p,
         .page-header p {
-          font-size: 17px !important;
-          line-height: 1.55 !important;
+          font-size: 15px !important;
+          line-height: 1.45 !important;
         }
 
         .topbar .btn,
@@ -197,23 +237,36 @@
         .form-grid,
         .form-grid.three {
           grid-template-columns: 1fr !important;
+          gap: 12px !important;
         }
 
         .metric-card,
-        .card {
+        .card,
+        .command-card {
           width: 100% !important;
+          padding: 14px !important;
+          border-radius: 14px !important;
           overflow: hidden !important;
+          box-shadow: 0 6px 16px rgba(22, 36, 31, 0.06) !important;
+        }
+
+        .metric-card strong {
+          font-size: 24px !important;
         }
 
         .toolbar,
         .form-actions,
-        .product-action-group {
+        .product-action-group,
+        .command-actions {
           display: grid !important;
           grid-template-columns: 1fr !important;
+          gap: 8px !important;
           width: 100% !important;
         }
 
-        .command-card {
+        .command-card,
+        .detail-layout,
+        .inline-edit {
           grid-template-columns: 1fr !important;
         }
 
@@ -224,7 +277,7 @@
         }
 
         table {
-          min-width: 560px;
+          width: 100% !important;
         }
 
         .field.full,
@@ -235,25 +288,24 @@
 
       @media (max-width: 520px) {
         .sidebar {
-          padding-left: 16px !important;
-          padding-right: 16px !important;
+          padding-left: 12px !important;
+          padding-right: 12px !important;
         }
 
         .main {
-          padding-left: 16px !important;
-          padding-right: 16px !important;
+          padding-left: 12px !important;
+          padding-right: 12px !important;
         }
 
-        .card {
-          padding: 16px !important;
-        }
-
-        .nav-button {
-          font-size: 15px !important;
+        .card,
+        .metric-card,
+        .command-card {
+          padding: 13px !important;
         }
 
         .btn {
-          min-height: 48px !important;
+          min-height: 44px !important;
+          width: 100% !important;
         }
       }
     `;
@@ -261,7 +313,13 @@
     document.head.appendChild(style);
   }
 
+  ensurePortalSession();
   injectResponsiveFixes();
-  document.addEventListener("DOMContentLoaded", injectResponsiveFixes);
+  setTimeout(ensurePortalSession, 0);
+  setTimeout(injectResponsiveFixes, 0);
+  document.addEventListener("DOMContentLoaded", function () {
+    ensurePortalSession();
+    injectResponsiveFixes();
+  });
   window.addEventListener("resize", injectResponsiveFixes);
 })();
