@@ -35,8 +35,8 @@ export async function createCaseDossiePdf({
   const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const logo = await embedLogo(pdfDoc, branding);
 
-  addCoverPage(pdfDoc, { caso, docsCount: docs.length, font, bold, branding, logo });
-  addRelatoPage(pdfDoc, { caso, font, bold, branding, logo });
+  addCoverPage(pdfDoc, { caso, docsCount: docs.length, font, bold, logo });
+  addRelatoPage(pdfDoc, { caso, font, bold, logo });
 
   if (docs.length === 0) {
     addNotePage(pdfDoc, {
@@ -44,7 +44,6 @@ export async function createCaseDossiePdf({
       message: "Nenhum documento foi selecionado para este dossiê.",
       font,
       bold,
-      branding,
       logo,
     });
   }
@@ -67,12 +66,10 @@ function addCoverPage(
     docsCount: number;
     font: PDFFont;
     bold: PDFFont;
-    branding: PdfBrandingOptions;
     logo: PDFImage | null;
   },
 ) {
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
-  drawWatermark(page, params.branding, params.logo, params.bold);
   drawHeaderLogo(page, params.logo);
 
   let y = params.logo ? pageHeight - 190 : pageHeight - 126;
@@ -102,12 +99,10 @@ function addRelatoPage(
     caso: LexCaso;
     font: PDFFont;
     bold: PDFFont;
-    branding: PdfBrandingOptions;
     logo: PDFImage | null;
   },
 ) {
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
-  drawWatermark(page, params.branding, params.logo, params.bold);
   drawHeaderLogo(page, params.logo);
 
   const titleY = params.logo ? pageHeight - 190 : pageHeight - 88;
@@ -140,7 +135,6 @@ async function appendDocument(
       message: "Arquivo original não encontrado. Reenvie o arquivo para incluir o documento completo no dossiê.",
       font: params.font,
       bold: params.bold,
-      branding: params.branding,
       logo: params.logo,
     });
     return;
@@ -159,36 +153,28 @@ async function appendDocument(
       message: "Não foi possível baixar o arquivo no armazenamento do escritório.",
       font: params.font,
       bold: params.bold,
-      branding: params.branding,
       logo: params.logo,
     });
     return;
   }
 
   try {
-    const sourceBytes = isPdfFile(original.mimeType, original.fileName)
-      ? original.bytes
-      : await createWatermarkedPdf({
-          originalBytes: original.bytes,
-          originalMimeType: original.mimeType,
-          originalName: original.fileName,
-          branding: params.branding,
-        });
+    const sourceBytes = await createWatermarkedPdf({
+      originalBytes: original.bytes,
+      originalMimeType: original.mimeType,
+      originalName: original.fileName,
+      branding: params.branding,
+    });
 
     const source = await PDFDocument.load(sourceBytes, { ignoreEncryption: true });
     const pages = await target.copyPages(source, source.getPageIndices());
-
-    for (const page of pages) {
-      target.addPage(page);
-      drawWatermark(page, params.branding, params.logo, params.bold);
-    }
+    pages.forEach((page) => target.addPage(page));
   } catch {
     addNotePage(target, {
       title: `${params.documento.tipo}: ${params.documento.nome}`,
       message: "Este arquivo não tem pré-visualização em PDF. Baixe o original pelo LexGestor para consultar o conteúdo.",
       font: params.font,
       bold: params.bold,
-      branding: params.branding,
       logo: params.logo,
     });
   }
@@ -201,12 +187,10 @@ function addNotePage(
     message: string;
     font: PDFFont;
     bold: PDFFont;
-    branding: PdfBrandingOptions;
     logo: PDFImage | null;
   },
 ) {
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
-  drawWatermark(page, params.branding, params.logo, params.bold);
   drawHeaderLogo(page, params.logo);
 
   const titleY = params.logo ? pageHeight - 190 : pageHeight - 88;
@@ -271,39 +255,13 @@ async function embedLogo(pdfDoc: PDFDocument, branding: PdfBrandingOptions) {
   return null;
 }
 
-function drawWatermark(page: PDFPage, branding: PdfBrandingOptions, logo: PDFImage | null, font: PDFFont) {
-  const { width, height } = page.getSize();
-  const opacity = clampOpacity(branding.watermarkOpacity ?? 0.12);
-
-  if (logo) {
-    const box = fitInside(logo, width * 0.78, height * 0.62);
-    page.drawImage(logo, {
-      x: (width - box.width) / 2,
-      y: (height - box.height) / 2,
-      width: box.width,
-      height: box.height,
-      opacity,
-    });
-    return;
-  }
-
-  page.drawText((branding.watermarkText || branding.headerText || "LexGestor").slice(0, 80), {
-    x: width * 0.12,
-    y: height * 0.48,
-    size: Math.min(52, Math.max(28, width / 11)),
-    font,
-    color: rgb(0.62, 0.65, 0.7),
-    opacity,
-  });
-}
-
 function drawHeaderLogo(page: PDFPage, logo: PDFImage | null) {
   if (!logo) return;
   const { width, height } = page.getSize();
-  const box = fitInside(logo, 236, 156);
+  const box = fitInside(logo, 180, 116);
   page.drawImage(logo, {
     x: (width - box.width) / 2,
-    y: height - 34 - box.height,
+    y: height - 24 - box.height,
     width: box.width,
     height: box.height,
     opacity: 0.98,
@@ -379,21 +337,10 @@ function htmlToPlainText(value: string) {
     .trim();
 }
 
-function isPdfFile(mimeType: string, fileName: string) {
-  const lowerMime = mimeType.toLowerCase();
-  const lowerName = fileName.toLowerCase();
-  return lowerMime.includes("pdf") || lowerName.endsWith(".pdf");
-}
-
 function fitInside(image: PDFImage, maxWidth: number, maxHeight: number) {
   const scale = Math.min(maxWidth / image.width, maxHeight / image.height);
   return {
     width: Math.max(1, image.width * scale),
     height: Math.max(1, image.height * scale),
   };
-}
-
-function clampOpacity(value: number) {
-  if (!Number.isFinite(value)) return 0.12;
-  return Math.min(0.18, Math.max(0.1, value));
 }
