@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BriefcaseBusiness,
   ClipboardList,
+  Gavel,
   FileText,
   FolderKanban,
   LayoutDashboard,
@@ -15,16 +16,17 @@ import {
 
 const navItems = [
   { href: "/lexgestor/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/lexgestor/processos", label: "Processos", icon: Gavel },
+  { href: "/lexgestor/documentos", label: "Documentos", icon: FileText },
   { href: "/lexgestor/clientes", label: "Clientes", icon: UsersRound },
   { href: "/lexgestor/casos", label: "Casos", icon: BriefcaseBusiness },
-  { href: "/lexgestor/documentos", label: "Documentos", icon: FileText },
   { href: "/lexgestor/checklists", label: "Checklists", icon: ClipboardList },
-  { href: "/lexgestor/equipe", label: "Equipe", icon: UsersRound },
+  { href: "/lexgestor/equipe", label: "Equipe", icon: UsersRound, requiresTeamManager: true },
   { href: "/lexgestor/relatorios", label: "Relatórios", icon: Printer },
   { href: "/lexgestor/configuracoes", label: "Configurações", icon: Settings },
 ];
 
-export function SidebarLexGestor() {
+export function SidebarLexGestor({ canManageTeam = false }: { canManageTeam?: boolean }) {
   const pathname = usePathname();
 
   return (
@@ -35,7 +37,7 @@ export function SidebarLexGestor() {
         <span>Sistema jurídico para escritórios de advocacia</span>
       </Link>
       <nav className="sidebar-nav">
-        {navItems.map((item) => {
+        {navItems.filter((item) => !item.requiresTeamManager || canManageTeam).map((item) => {
           const Icon = item.icon;
           const active =
             pathname === item.href || pathname.startsWith(`${item.href}/`);

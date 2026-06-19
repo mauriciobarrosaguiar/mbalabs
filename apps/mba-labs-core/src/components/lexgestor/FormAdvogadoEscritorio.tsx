@@ -7,7 +7,7 @@ type FormAdvogadoEscritorioProps = {
 
 export function FormAdvogadoEscritorio({ escritorio }: FormAdvogadoEscritorioProps) {
   return (
-    <form className="stack" action={salvarConfiguracoesLexGestor}>
+    <form className="stack" action={salvarConfiguracoesLexGestor} encType="multipart/form-data">
       <section className="form-card stack">
         <div className="section-title">
           <div>
@@ -47,18 +47,15 @@ export function FormAdvogadoEscritorio({ escritorio }: FormAdvogadoEscritorioPro
         <div className="section-title">
           <div>
             <h2>2. Marca e identidade</h2>
-            <p>Use URLs de imagens hospedadas para logo e marca d'água.</p>
+            <p>Carregue a logo para salvar no Google Drive e usar nos PDFs.</p>
           </div>
         </div>
         <div className="field-grid">
-          <label className="field">
+          <label className="field-full">
             Logo/marca
-            <input name="logo_url" defaultValue={text(escritorio?.logo_url)} placeholder="https://..." />
+            <input name="logo_file" type="file" accept="image/png,image/jpeg,image/webp" />
           </label>
-          <label className="field">
-            Imagem de marca d'água
-            <input name="watermark_image_url" defaultValue={text(escritorio?.watermark_image_url)} placeholder="https://..." />
-          </label>
+          {text(escritorio?.logo_url) ? <span className="badge">Logo atual salva</span> : null}
           <label className="field">
             Responsável principal
             <input name="responsavel_principal" defaultValue={text(escritorio?.responsavel_principal)} placeholder="Nome do responsável" />

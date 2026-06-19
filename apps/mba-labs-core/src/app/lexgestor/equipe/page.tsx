@@ -4,9 +4,11 @@ import {
   excluirOuInativarAdvogadoLexGestor,
   salvarAdvogadoLexGestor,
 } from "@/app/lexgestor/actions";
+import { EmptyState } from "@/components/lexgestor/EmptyState";
 import { ResponsivePageContainer } from "@/components/lexgestor/ResponsivePageContainer";
+import { obterUsuarioLexGestorAtual } from "@/lib/lexgestor/auth";
 import { getLexWorkspaceData, type LexAdvogado, type LexCoreUsuario } from "@/lib/lexgestor/data";
-import { PERFIS_LEXGESTOR } from "@/lib/lexgestor/permissions";
+import { PERFIS_LEXGESTOR, possuiPermissao } from "@/lib/lexgestor/permissions";
 import { resumoLimite } from "@/lib/lexgestor/plans";
 
 type EquipePageProps = {
@@ -15,7 +17,26 @@ type EquipePageProps = {
 
 export default async function EquipePage({ searchParams }: EquipePageProps) {
   const params = (await searchParams) ?? {};
+  const usuarioLex = await obterUsuarioLexGestorAtual("/lexgestor/equipe");
+  const canManageTeam = possuiPermissao(usuarioLex, "lex:equipe:gerenciar");
+
+  if (!canManageTeam) {
+    return (
+      <ResponsivePageContainer
+        title="Equipe restrita"
+        description="A gestao de equipe e logins internos fica disponivel apenas para dono ou administrador do escritorio."
+      >
+        <EmptyState
+          title="Acesso interno do escritorio"
+          description="Seu perfil no LexGestor nao permite visualizar ou vincular logins internos."
+        />
+      </ResponsivePageContainer>
+    );
+  }
+
   const data = await getLexWorkspaceData("/lexgestor/equipe");
+  const usuariosVinculados = new Set(data.advogados.map((advogado) => advogado.coreUsuarioId).filter(Boolean));
+  const usuariosInternos = data.usuariosEmpresa.filter((usuario) => usuario.status === "ativo" && !usuariosVinculados.has(usuario.id));
   const ativos = data.advogados.filter((advogado) => advogado.status === "Ativo").length;
 
   return (
@@ -65,11 +86,11 @@ export default async function EquipePage({ searchParams }: EquipePageProps) {
         <div className="section-title">
           <div>
             <h2>Novo profissional</h2>
-            <p>Cadastre a pessoa e vincule ao login MBA Labs quando já existir.</p>
+            <p>Cadastre a pessoa e, se necessario, vincule ao login interno do escritorio.</p>
           </div>
           <Plus size={24} color="var(--primary)" aria-hidden />
         </div>
-        <EquipeForm usuarios={data.usuariosEmpresa} />
+        <EquipeForm usuarios={usuariosInternos} canLinkInternalLogin={canManageTeam} />
       </section>
 
       <section className="stack">
@@ -105,12 +126,19 @@ export default async function EquipePage({ searchParams }: EquipePageProps) {
                   <Info label="OAB" value={advogado.oab ? `${advogado.oab}/${advogado.ufOab}` : "-"} />
                   <Info label="Perfil" value={perfilLabel(advogado.perfilAcesso)} />
                   <Info label="Casos" value={`${advogado.casosResponsavelCount}`} />
-                  <Info label="Login MBA Labs" value={advogado.coreUsuarioId ? "Vinculado" : "Pendente"} />
+                  <Info label="Login interno" value={advogado.coreUsuarioId ? "Vinculado" : "Pendente"} />
                 </div>
 
                 <details className="team-edit">
                   <summary>Editar profissional</summary>
-                  <EquipeForm advogado={advogado} usuarios={data.usuariosEmpresa} />
+                  <EquipeForm
+                    advogado={advogado}
+                    usuarios={[
+                      ...usuariosInternos,
+                      ...data.usuariosEmpresa.filter((usuario) => usuario.id === advogado.coreUsuarioId),
+                    ]}
+                    canLinkInternalLogin={canManageTeam}
+                  />
                 </details>
 
                 <div className="button-row">
@@ -142,9 +170,11 @@ export default async function EquipePage({ searchParams }: EquipePageProps) {
 function EquipeForm({
   advogado,
   usuarios,
+  canLinkInternalLogin,
 }: {
   advogado?: LexAdvogado;
   usuarios: LexCoreUsuario[];
+  canLinkInternalLogin: boolean;
 }) {
   return (
     <form className="stack" action={salvarAdvogadoLexGestor}>
@@ -194,17 +224,20 @@ function EquipeForm({
             <option value="inativo">Inativo</option>
           </select>
         </label>
-        <label className="field">
-          Usuário MBA Labs
-          <select name="core_usuario_id" defaultValue={advogado?.coreUsuarioId ?? ""}>
-            <option value="">Vincular depois</option>
-            {usuarios.map((usuario) => (
-              <option value={usuario.id} key={usuario.id}>
-                {usuario.nome} - {usuario.email}
-              </option>
-            ))}
-          </select>
-        </label>
+        {canLinkInternalLogin ? (
+          <label className="field">
+            Login interno do escritório
+            <select name="core_usuario_id" defaultValue={advogado?.coreUsuarioId ?? ""}>
+              <option value="">Vincular depois</option>
+              {usuarios.map((usuario) => (
+                <option value={usuario.id} key={usuario.id}>
+                  {usuario.nome} - {usuario.email}
+                </option>
+              ))}
+            </select>
+            <small>Lista restrita a usuários ativos da empresa atual com acesso ao LexGestor.</small>
+          </label>
+        ) : null}
         <label className="field-full">
           Observações
           <textarea name="observacoes" defaultValue={advogado?.observacoes ?? ""} placeholder="Observações internas sobre acesso, atuação ou convite." />
@@ -239,6 +272,8 @@ function feedbackMessage(value: string) {
     "advogado-excluido": "Profissional excluído.",
     "configure-escritorio": "Configure o escritório antes de cadastrar a equipe.",
     "usuario-invalido": "O usuário escolhido não pertence a este escritório.",
+    "usuario-ja-vinculado": "Este usuário MBA Labs já está vinculado a outro profissional do escritório.",
+    "usuario-sem-lexgestor": "O usuário escolhido ainda não tem acesso ao app LexGestor.",
   };
 
   return messages[value] ?? value;

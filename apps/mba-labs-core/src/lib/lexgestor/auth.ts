@@ -24,11 +24,13 @@ export async function obterUsuarioLexGestorAtual(nextPath = "/lexgestor"): Promi
     return null;
   }
 
-  const perfil = normalizarPerfilLexGestor(
-    data?.perfil_acesso ??
-      current.permissoes.find((permissao) => permissao.appSlug === "lexgestor")?.perfil ??
-      current.tipo,
-  );
+  const perfilBase =
+    data?.perfil_acesso ||
+    (current.isAdminMaster ? "dono" : "") ||
+    (current.tipo === "admin_empresa" ? "dono" : "") ||
+    current.permissoes.find((permissao) => permissao.appSlug === "lexgestor")?.perfil ||
+    current.tipo;
+  const perfil = normalizarPerfilLexGestor(perfilBase);
 
   return {
     id: current.usuario.id,

@@ -68,6 +68,8 @@ export type LexDocumento = {
   cliente: string;
   casoId: string;
   caso: string;
+  processoId: string;
+  movimentacaoId: string;
   categoria: string;
   subcategoria: string;
   tipo: string;
@@ -83,6 +85,8 @@ export type LexDocumento = {
   pdfPath: string;
   pdfUrl: string;
   checklistItemId: string;
+  nomeStorage: string;
+  dropboxFolderPath: string;
   criadoEm: string;
 };
 
@@ -316,7 +320,7 @@ function buildWorkspace({
 }): any {
   const openCases = casos.filter((caso) => !["Finalizado", "Arquivado"].includes(caso.status));
   const pendingDocuments = documentos.filter((documento) =>
-    ["Pendente", "Erro no envio", "Precisa reenviar"].includes(documento.status),
+    ["Pendente", "Falha no envio", "Original indisponível", "Precisa reenviar arquivo"].includes(documento.status),
   );
   const pdfsGerados = documentos.filter((documento) => documento.status === "PDF gerado" || documento.pdfUrl || documento.pdfPath);
   const sentDocuments = documentos.filter((documento) =>
@@ -338,8 +342,8 @@ function buildWorkspace({
     metrics: [
       { label: "Clientes cadastrados", value: clientes.length, note: "Registros reais" },
       { label: "Casos abertos", value: openCases.length, note: "Não finalizados" },
-      { label: "Documentos pendentes", value: pendingDocuments.length, note: "Reenvio ou envio externo" },
-      { label: "Documentos enviados/PDF", value: sentDocuments.length || pdfsGerados.length, note: "Arquivos no armazenamento" },
+      { label: "Documentos enviados", value: sentDocuments.length || pdfsGerados.length, note: "Arquivos no armazenamento" },
+      { label: "Documentos pendentes", value: pendingDocuments.length, note: "Precisam de revisão" },
       { label: "Próximos prazos", value: proximosPrazos.length, note: "15 dias" },
     ],
     casosPorCategoria: countBy(casos, "categoria"),
@@ -430,7 +434,7 @@ function buildWorkspaceVendido({
 }): LexWorkspaceData {
   const openCases = casos.filter((caso) => !["Finalizado", "Arquivado"].includes(caso.status));
   const pendingDocuments = documentos.filter((documento) =>
-    ["Pendente de reenvio", "Erro no envio", "Precisa reenviar arquivo"].includes(documento.status),
+    ["Pendente", "Falha no envio", "Original indisponível", "Precisa reenviar arquivo"].includes(documento.status),
   );
   const pdfsGerados = documentos.filter((documento) => documento.status === "PDF gerado" || documento.pdfUrl || documento.pdfPath);
   const sentDocuments = documentos.filter((documento) =>
@@ -461,9 +465,10 @@ function buildWorkspaceVendido({
     metrics: [
       { label: "Clientes cadastrados", value: clientes.length, note: demoMode ? "Dados fictícios" : "Registros reais" },
       { label: "Casos ativos", value: openCases.length, note: "Não finalizados" },
-      { label: "Documentos pendentes", value: pendingDocuments.length, note: "Reenvio ou envio externo" },
-      { label: "Documentos enviados/PDF", value: sentDocuments.length || pdfsGerados.length, note: "Arquivos no armazenamento" },
+      { label: "Documentos enviados", value: sentDocuments.length || pdfsGerados.length, note: "Arquivos no armazenamento" },
+      { label: "Documentos pendentes", value: pendingDocuments.length, note: "Precisam de revisão" },
       { label: "Próximos prazos", value: proximosPrazos.length, note: "15 dias" },
+      { label: "Profissionais ativos", value: advogados.filter((advogado) => advogado.status === "Ativo").length, note: "Equipe ativa" },
     ],
     casosPorCategoria: countBy(casos, "categoria"),
     casosPorStatus: countBy(casos, "status"),
@@ -611,11 +616,42 @@ async function listUsuariosEmpresaRows(client: any, current: CurrentUserProfile)
     .from("core_usuarios")
     .select("id,nome,email,tipo,status")
     .eq("empresa_id", current.empresaId)
+    .eq("status", "ativo")
     .order("nome", { ascending: true })
     .limit(200);
 
   if (error) return [];
-  return (data ?? []) as Array<Record<string, unknown>>;
+  const rows = ((data ?? []) as Array<Record<string, unknown>>).filter((row) => {
+    const tipo = text(row.tipo);
+    return tipo !== "super_admin" && tipo !== "admin_master";
+  });
+
+  const appId = await resolveLexGestorAppId(client);
+  if (!appId) return rows;
+
+  const permissions = await client
+    .from("core_usuario_app_permissoes")
+    .select("usuario_id,status")
+    .eq("empresa_id", current.empresaId)
+    .eq("app_id", appId)
+    .in("status", ["ativo", "teste"]);
+
+  if (permissions.error) return rows;
+
+  const allowedUsers = new Set(((permissions.data ?? []) as Array<Record<string, unknown>>).map((row) => text(row.usuario_id)));
+  return rows.filter((row) => allowedUsers.has(text(row.id)));
+}
+
+async function resolveLexGestorAppId(client: any) {
+  const { data, error } = await client
+    .from("core_apps")
+    .select("id")
+    .in("slug", ["lexgestor", "lex-gestor"])
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data?.id) return "";
+  return text(data.id);
 }
 
 function mapClientes(
@@ -759,31 +795,35 @@ function mapDocumentos(
   return documentos.map((documento) => {
     const caso = relationObject(documento.lex_casos) ?? casos.find((row) => text(row.id) === text(documento.caso_id));
     const cliente = relationObject(documento.lex_clientes) ?? clientes.find((row) => text(row.id) === text(documento.cliente_id));
-    const provider = text(documento.storage_provider) || (text(documento.dropbox_path_original) ? "dropbox" : "");
+    const provider = text(documento.storage_provider) || text(documento.provider) || (text(documento.dropbox_path_original) ? "dropbox" : "");
     const pdfPath = text(documento.pdf_storage_path) || text(documento.dropbox_path_pdf_marca_dagua);
 
     return {
       id: text(documento.id),
-      nome: text(documento.nome_original) || text(documento.nome_arquivo_sistema) || "Documento",
+      nome: text(documento.nome_documento) || text(documento.nome_original) || text(documento.nome_arquivo_sistema) || "Documento",
       clienteId: text(documento.cliente_id),
       cliente: text(cliente?.nome) || "-",
       casoId: text(documento.caso_id),
       caso: text(caso?.titulo) || "-",
-      categoria: text(documento.categoria_nome) || text(documento.area) || "-",
-      subcategoria: text(documento.subcategoria_nome) || text(documento.subarea) || "-",
+      processoId: text(documento.processo_id),
+      movimentacaoId: text(documento.movimentacao_id),
+      categoria: text(documento.categoria) || text(documento.categoria_nome) || text(documento.area) || "-",
+      subcategoria: text(documento.subcategoria) || text(documento.subcategoria_nome) || text(documento.subarea) || "-",
       tipo: text(documento.tipo_documento) || "Documento",
       mimeType: text(documento.mime_type),
       origem: text(documento.origem) || "Upload",
       observacoes: text(documento.observacoes),
       status: statusDocumento(text(documento.status), provider),
       provider,
-      storageFileId: text(documento.storage_file_id),
-      storagePath: text(documento.storage_path) || text(documento.dropbox_path_original),
+      storageFileId: text(documento.storage_file_id) || text(documento.dropbox_file_id),
+      storagePath: text(documento.storage_path) || text(documento.caminho_original) || text(documento.dropbox_path_original),
       storageUrl: text(documento.storage_url),
       pdfFileId: text(documento.pdf_storage_file_id),
-      pdfPath,
+      pdfPath: text(documento.caminho_pdf) || pdfPath,
       pdfUrl: text(documento.pdf_storage_url),
       checklistItemId: text(documento.checklist_item_id),
+      nomeStorage: text(documento.nome_storage) || text(documento.nome_arquivo_sistema),
+      dropboxFolderPath: text(documento.dropbox_folder_path),
       criadoEm: text(documento.criado_em),
     };
   });
@@ -808,21 +848,24 @@ function mapStorageConnections(rows: Array<Record<string, unknown>>): LexStorage
 
 function statusDocumento(status: string, provider: string) {
   const normalized: Record<string, string> = {
-    metadados_criados: "Pendente de reenvio",
-    pendente: "Pendente de reenvio",
-    original_salvo: "Original salvo",
+    metadados_criados: "Pendente",
+    pendente: "Pendente",
+    original_salvo: provider === "google_drive" ? "Enviado ao Drive" : "Enviado ao Dropbox",
     pdf_gerado: "PDF gerado",
-    erro_envio: "Erro no envio",
+    erro_envio: "Falha no envio",
+    falha_envio: "Falha no envio",
     precisa_reenviar: "Precisa reenviar arquivo",
+    original_indisponivel: "Precisa reenviar arquivo",
     reenviado: provider === "google_drive" ? "Enviado ao Drive" : "Enviado ao Dropbox",
     substituido_reenviado: "Substituído",
     arquivado: "Arquivado",
     validado: "Validado pelo advogado",
+    excluido: "Excluido",
   };
 
   if (status === "enviado" && provider === "google_drive") return "Enviado ao Drive";
   if (status === "enviado" && provider === "dropbox") return "Enviado ao Dropbox";
-  return normalized[status] ?? (status || "Pendente de reenvio");
+  return normalized[status] ?? (status || "Pendente");
 }
 
 function demoWorkspace(
@@ -922,6 +965,8 @@ function demoWorkspace(
       cliente: clientes[0].nome,
       casoId: casos[0].id,
       caso: casos[0].titulo,
+      processoId: "",
+      movimentacaoId: "",
       categoria: "Documentos pessoais",
       subcategoria: "Previdenciário",
       tipo: "CNIS",
@@ -937,6 +982,8 @@ function demoWorkspace(
       pdfPath: "",
       pdfUrl: "",
       checklistItemId: "",
+      nomeStorage: "",
+      dropboxFolderPath: "",
       criadoEm: new Date().toISOString(),
     },
     {
@@ -946,6 +993,8 @@ function demoWorkspace(
       cliente: clientes[0].nome,
       casoId: casos[0].id,
       caso: casos[0].titulo,
+      processoId: "",
+      movimentacaoId: "",
       categoria: "Documentos pessoais",
       subcategoria: "Cadastro",
       tipo: "Comprovante",
@@ -961,6 +1010,8 @@ function demoWorkspace(
       pdfPath: "",
       pdfUrl: "",
       checklistItemId: "",
+      nomeStorage: "",
+      dropboxFolderPath: "",
       criadoEm: new Date().toISOString(),
     },
   ];
