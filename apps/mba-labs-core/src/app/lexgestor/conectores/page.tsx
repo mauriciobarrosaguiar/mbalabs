@@ -1,8 +1,8 @@
 import { ExternalLink, PlugZap, ShieldCheck } from "lucide-react";
-import { salvarConectorTribunalLexGestor } from "@/app/lexgestor/actions";
+import { ConectorTribunalForm } from "@/components/lexgestor/ConectorTribunalForm";
 import { ResponsivePageContainer } from "@/components/lexgestor/ResponsivePageContainer";
 import { getLexWorkspaceData } from "@/lib/lexgestor/data";
-import { listConectoresTribunais, type LexConectorTribunal } from "@/lib/lexgestor/processos";
+import { listConectoresTribunais } from "@/lib/lexgestor/processos";
 
 type ConectoresPageProps = {
   searchParams?: Promise<{ erro?: string; status?: string }>;
@@ -85,11 +85,11 @@ export default async function ConectoresPage({ searchParams }: ConectoresPagePro
         <div className="section-title">
           <div>
             <h2>Configurar fluxo assistido</h2>
-            <p>Cadastre apenas dados de navegação. Não informe senhas, tokens, certificados ou credenciais.</p>
+            <p>Selecione sistema judicial, tribunal, UF e nome do conector por lista. Informe somente a URL de navegação do sistema oficial.</p>
           </div>
           <ShieldCheck size={22} color="var(--primary)" aria-hidden />
         </div>
-        <ConectorForm advogados={data.advogados} />
+        <ConectorTribunalForm advogados={data.advogados} />
       </section>
 
       {conectores.length > 0 ? (
@@ -107,84 +107,13 @@ export default async function ConectoresPage({ searchParams }: ConectoresPagePro
                   <strong>{conector.nome}</strong>
                   <span className="status-pill">{statusLabel(conector.status)}</span>
                 </summary>
-                <ConectorForm conector={conector} advogados={data.advogados} />
+                <ConectorTribunalForm conector={conector} advogados={data.advogados} />
               </details>
             ))}
           </div>
         </section>
       ) : null}
     </ResponsivePageContainer>
-  );
-}
-
-function ConectorForm({
-  conector,
-  advogados,
-}: {
-  conector?: LexConectorTribunal;
-  advogados: Array<{ id: string; nome: string; email: string }>;
-}) {
-  return (
-    <form className="field-grid" action={salvarConectorTribunalLexGestor}>
-      {conector?.id ? <input type="hidden" name="id" value={conector.id} /> : null}
-      <label className="field">
-        Sistema judicial
-        <select name="sistema" required defaultValue={conector?.sistema ?? "eproc"}>
-          <option value="eproc">eproc</option>
-          <option value="pje">PJe</option>
-          <option value="projudi">Projudi</option>
-          <option value="esaj">ESAJ</option>
-          <option value="outro">Outro</option>
-        </select>
-      </label>
-      <label className="field">
-        Tribunal
-        <input name="tribunal" defaultValue={conector?.tribunal ?? ""} placeholder="TJTO, TRF4, TRT10..." />
-      </label>
-      <label className="field">
-        UF
-        <input name="uf" defaultValue={conector?.uf ?? ""} placeholder="TO" maxLength={2} />
-      </label>
-      <label className="field">
-        Nome
-        <input name="nome" defaultValue={conector?.nome ?? ""} placeholder="eproc TJTO" />
-      </label>
-      <label className="field-full">
-        URL base
-        <input name="url_base" type="url" defaultValue={conector?.urlBase ?? ""} placeholder="https://..." />
-      </label>
-      <label className="field">
-        Advogado responsável
-        <select name="advogado_id" defaultValue={conector?.advogadoId ?? ""}>
-          <option value="">Escritório inteiro</option>
-          {advogados.map((advogado) => (
-            <option value={advogado.id} key={advogado.id}>{advogado.nome}</option>
-          ))}
-        </select>
-      </label>
-      <label className="field">
-        Modo
-        <select name="modo" defaultValue={conector?.modo ?? "fluxo_assistido"}>
-          <option value="fluxo_assistido">Fluxo assistido</option>
-          <option value="conector_local_futuro">Conector local futuro</option>
-        </select>
-      </label>
-      <label className="field">
-        Status
-        <select name="status" defaultValue={conector?.status ?? "ativo"}>
-          <option value="ativo">Ativo</option>
-          <option value="pausado">Pausado</option>
-          <option value="inativo">Inativo</option>
-        </select>
-      </label>
-      <label className="field-full">
-        Observações
-        <textarea name="observacoes" defaultValue={conector?.observacoes ?? ""} placeholder="Instruções internas do escritório, sem credenciais." />
-      </label>
-      <div className="button-row">
-        <button className="button" type="submit">{conector ? "Atualizar conector" : "Salvar conector"}</button>
-      </div>
-    </form>
   );
 }
 
