@@ -166,15 +166,22 @@ async function appendDocument(
   }
 
   try {
-    const watermarked = await createWatermarkedPdf({
-      originalBytes: original.bytes,
-      originalMimeType: original.mimeType,
-      originalName: original.fileName,
-      branding: params.branding,
-    });
-    const source = await PDFDocument.load(watermarked, { ignoreEncryption: true });
+    const sourceBytes = isPdfFile(original.mimeType, original.fileName)
+      ? original.bytes
+      : await createWatermarkedPdf({
+          originalBytes: original.bytes,
+          originalMimeType: original.mimeType,
+          originalName: original.fileName,
+          branding: params.branding,
+        });
+
+    const source = await PDFDocument.load(sourceBytes, { ignoreEncryption: true });
     const pages = await target.copyPages(source, source.getPageIndices());
-    pages.forEach((page) => target.addPage(page));
+
+    for (const page of pages) {
+      target.addPage(page);
+      drawWatermark(page, params.branding, params.logo, params.bold);
+    }
   } catch {
     addNotePage(target, {
       title: `${params.documento.tipo}: ${params.documento.nome}`,
@@ -269,10 +276,10 @@ function drawWatermark(page: PDFPage, branding: PdfBrandingOptions, logo: PDFIma
   const opacity = clampOpacity(branding.watermarkOpacity ?? 0.12);
 
   if (logo) {
-    const box = fitInside(logo, width * 0.72, height * 0.54);
+    const box = fitInside(logo, width * 0.78, height * 0.62);
     page.drawImage(logo, {
       x: (width - box.width) / 2,
-      y: (height - box.height) / 2 - 12,
+      y: (height - box.height) / 2,
       width: box.width,
       height: box.height,
       opacity,
@@ -370,6 +377,12 @@ function htmlToPlainText(value: string) {
     .replace(/&#39;/gi, "'")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+function isPdfFile(mimeType: string, fileName: string) {
+  const lowerMime = mimeType.toLowerCase();
+  const lowerName = fileName.toLowerCase();
+  return lowerMime.includes("pdf") || lowerName.endsWith(".pdf");
 }
 
 function fitInside(image: PDFImage, maxWidth: number, maxHeight: number) {
