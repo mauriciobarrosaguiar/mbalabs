@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb, type PDFImage } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib";
 import type { PdfBrandingOptions } from "./simple-pdf";
 
 export type WatermarkPdfOptions = {
@@ -10,6 +10,7 @@ export type WatermarkPdfOptions = {
 
 const a4Width = 595.28;
 const a4Height = 841.89;
+const pagePadding = 18;
 
 export async function createWatermarkedPdf({
   originalBytes,
@@ -23,28 +24,37 @@ export async function createWatermarkedPdf({
   if (lowerMime.includes("pdf") || lowerName.endsWith(".pdf")) {
     const pdfDoc = await PDFDocument.load(originalBytes, { ignoreEncryption: true });
     const logo = await embedLogo(pdfDoc, branding);
-    await drawBrandingOnEveryPage(pdfDoc, branding, logo);
+    const fallbackFont = logo ? null : await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    for (const page of pdfDoc.getPages()) {
+      drawHeaderLogo(page, logo, fallbackFont, branding);
+    }
+
     return Buffer.from(await pdfDoc.save({ useObjectStreams: false }));
   }
 
   if (isSupportedImage(lowerMime, lowerName)) {
     const pdfDoc = await PDFDocument.create();
     const logo = await embedLogo(pdfDoc, branding);
+    const fallbackFont = logo ? null : await pdfDoc.embedFont(StandardFonts.HelveticaBold);
     const originalImage = await embedImage(pdfDoc, originalBytes, originalMimeType, originalName);
     if (!originalImage) {
       throw new Error("Formato de imagem não suportado para gerar PDF com marca d'água.");
     }
 
     const page = pdfDoc.addPage([a4Width, a4Height]);
+    const headerHeight = logo ? Math.min(112, fitInside(logo, 150, 96).height + 26) : 0;
+    const availableHeight = a4Height - pagePadding * 2 - headerHeight;
+    const imageBox = fitInside(originalImage, a4Width - pagePadding * 2, availableHeight);
 
-    const imageBox = fitInside(originalImage, a4Width - 72, a4Height - 120);
     page.drawImage(originalImage, {
       x: (a4Width - imageBox.width) / 2,
-      y: 48,
+      y: pagePadding,
       width: imageBox.width,
       height: imageBox.height,
     });
-    drawLogoWatermark(page, branding, logo);
+
+    drawHeaderLogo(page, logo, fallbackFont, branding);
 
     return Buffer.from(await pdfDoc.save({ useObjectStreams: false }));
   }
@@ -52,49 +62,34 @@ export async function createWatermarkedPdf({
   throw new Error("Prévia indisponível para DOC/DOCX. Baixe o original ou reenvie em PDF/imagem para gerar marca d'água.");
 }
 
-async function drawBrandingOnEveryPage(
-  pdfDoc: PDFDocument,
-  branding: PdfBrandingOptions,
+function drawHeaderLogo(
+  page: PDFPage,
   logo: PDFImage | null,
-) {
-  const pages = pdfDoc.getPages();
-  const font = logo ? null : await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-
-  for (const page of pages) {
-    drawLogoWatermark(page, branding, logo, font);
-  }
-}
-
-function drawLogoWatermark(
-  page: ReturnType<PDFDocument["addPage"]>,
+  font: PDFFont | null,
   branding: PdfBrandingOptions,
-  logo: PDFImage | null,
-  font?: Awaited<ReturnType<PDFDocument["embedFont"]>> | null,
 ) {
   const { width, height } = page.getSize();
-  const opacity = clampOpacity(branding.watermarkOpacity ?? 0.14);
 
   if (logo) {
-    const box = fitInside(logo, width * 0.78, height * 0.62);
+    const box = fitInside(logo, 150, 96);
     page.drawImage(logo, {
       x: (width - box.width) / 2,
-      y: (height - box.height) / 2,
+      y: height - 18 - box.height,
       width: box.width,
       height: box.height,
-      opacity,
+      opacity: 0.96,
     });
     return;
   }
 
   if (!font) return;
-  const text = branding.watermarkText || branding.headerText || "LexGestor";
+  const text = branding.headerText || "LexGestor";
   page.drawText(text.slice(0, 80), {
-    x: width * 0.14,
-    y: height * 0.48,
-    size: Math.min(54, Math.max(28, width / 11)),
+    x: 42,
+    y: height - 42,
+    size: 15,
     font,
-    color: rgb(0.55, 0.58, 0.62),
-    opacity,
+    color: rgb(0.08, 0.12, 0.2),
   });
 }
 
@@ -139,9 +134,4 @@ function fitInside(image: PDFImage, maxWidth: number, maxHeight: number) {
     width: Math.max(1, image.width * scale),
     height: Math.max(1, image.height * scale),
   };
-}
-
-function clampOpacity(value: number) {
-  if (!Number.isFinite(value)) return 0.14;
-  return Math.min(0.2, Math.max(0.12, value));
 }
