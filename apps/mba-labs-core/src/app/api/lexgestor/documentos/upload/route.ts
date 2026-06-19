@@ -33,6 +33,7 @@ type UploadContext = {
   categoria: string;
   subcategoria: string;
   origem: string;
+  origemSistema: string;
   gerarPdf: boolean;
   documentoId: string;
   processoId: string;
@@ -146,6 +147,7 @@ export async function POST(request: Request) {
       categoria,
       subcategoria,
       origem: text(formData.get("origem")) || "Upload",
+      origemSistema: text(formData.get("origem_sistema")) || (processoId ? "tribunal" : ""),
       gerarPdf: text(formData.get("gerar_pdf")) === "sim",
       documentoId,
       processoId,
@@ -275,6 +277,8 @@ async function processSingleFile(context: UploadContext, file: File, index: numb
     categoria_nome: context.categoria,
     subcategoria_nome: context.subcategoria,
     origem: context.origem,
+    origem_sistema: context.origemSistema || null,
+    evento_numero: text(context.movimentacao?.evento_numero) || null,
     observacoes: context.observacoes || null,
     provider: uploadResult ? context.provider : null,
     storage_provider: uploadResult ? context.provider : null,
@@ -336,14 +340,14 @@ async function processSingleFile(context: UploadContext, file: File, index: numb
   if (context.movimentacaoId && uploadResult) {
     await context.client
       .from("lex_movimentacoes")
-      .update({ tem_documento: true, documento_status: "documento_salvo" })
+      .update({ tem_documento: true, documento_status: "anexado", visualizado: true })
       .eq("id", context.movimentacaoId)
       .eq("escritorio_id", context.escritorioId);
   }
 
   await registrarAuditoriaLexGestor({
     current: context.current,
-    acao: context.documentoId ? "documento.reenviado" : "documento.upload",
+    acao: context.movimentacaoId ? "documento.anexado_evento" : context.documentoId ? "documento.reenviado" : "documento.upload",
     entidade: "lex_documentos",
     entidadeId: savedId,
     detalhes: {

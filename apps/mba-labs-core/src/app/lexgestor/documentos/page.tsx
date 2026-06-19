@@ -4,6 +4,7 @@ import { DocumentActions } from "@/components/lexgestor/DocumentActions";
 import { ResponsivePageContainer } from "@/components/lexgestor/ResponsivePageContainer";
 import { UploadDocumentos } from "@/components/lexgestor/UploadDocumentos";
 import { getLexWorkspaceData, type LexDocumento } from "@/lib/lexgestor/data";
+import { getProcessoLex } from "@/lib/lexgestor/processos";
 
 type DocumentosPageProps = {
   searchParams?: Promise<{
@@ -14,6 +15,9 @@ type DocumentosPageProps = {
     categoria?: string;
     subcategoria?: string;
     documento_status?: string;
+    origem?: string;
+    tipo?: string;
+    observacoes?: string;
     status?: string;
     reenviar?: string;
     erro?: string;
@@ -23,6 +27,12 @@ type DocumentosPageProps = {
 export default async function DocumentosPage({ searchParams }: DocumentosPageProps) {
   const params = (await searchParams) ?? {};
   const data = await getLexWorkspaceData("/lexgestor/documentos");
+  const escritorioId = String(data.escritorio?.id ?? "");
+  const processoContexto = params.processo
+    ? await getProcessoLex({ current: data.current, escritorioId, processoId: params.processo }).catch(() => null)
+    : null;
+  const processoSelecionado = processoContexto?.processo ?? null;
+  const movimentacaoSelecionada = processoContexto?.movimentacoes.find((movimentacao: { id: string }) => movimentacao.id === params.movimentacao) ?? null;
   const clienteSelecionado = params.cliente ? data.clientes.find((cliente) => cliente.id === params.cliente) : null;
   const casoSelecionado = params.caso ? data.casos.find((caso) => caso.id === params.caso) : null;
   const documentoParaReenviar = params.reenviar
@@ -45,11 +55,17 @@ export default async function DocumentosPage({ searchParams }: DocumentosPagePro
   const documentosPendentes = dedupeDocumentos(data.documentos.filter(isPendingWithoutFile));
   const shouldShowPendingReview = params.status === "pendentes-atualizados" || params.status === "sem-pendentes";
   const dossieCasoId = filtroCasoId || (documentosVisiveis.length > 0 && documentosVisiveis.every((doc) => doc.casoId === documentosVisiveis[0].casoId) ? documentosVisiveis[0].casoId : "");
+  const defaultTipoDocumento = documentoParaReenviar?.tipo ?? params.tipo ?? (params.processo ? "Documento do processo" : "");
+  const defaultObservacoes = documentoParaReenviar?.observacoes ?? params.observacoes ?? (
+    processoSelecionado && movimentacaoSelecionada
+      ? `Documento anexado a partir do evento ${movimentacaoSelecionada.eventoNumero || movimentacaoSelecionada.codigoMovimento || "-"} do processo ${processoSelecionado.numeroCnj}.`
+      : ""
+  );
 
   return (
     <ResponsivePageContainer
       title="Documentos"
-      description="Anexe, organize e gere PDFs com marca d'água no Dropbox ou Google Drive do escritório."
+      description="Selecione cliente, caso/processo, tipo de documento e envie um ou mais arquivos. Os arquivos serão salvos no armazenamento conectado do escritório."
     >
       <div className="button-row">
         <form action={atualizarPendentesDocumentosLexGestor}>
@@ -69,6 +85,26 @@ export default async function DocumentosPage({ searchParams }: DocumentosPagePro
         <p className="notice warning" role="status">
           Reenvio preparado para <strong>{documentoParaReenviar.nome}</strong>. Escolha o arquivo e envie para atualizar o registro antigo.
         </p>
+      ) : null}
+      {processoSelecionado ? (
+        <section className="form-card compact-stack">
+          <div className="section-title">
+            <div>
+              <h2>Anexando documento ao processo {processoSelecionado.numeroCnj}</h2>
+              <p>
+                {movimentacaoSelecionada
+                  ? `Evento ${movimentacaoSelecionada.eventoNumero || movimentacaoSelecionada.codigoMovimento || "-"} - ${movimentacaoSelecionada.nomeMovimento || "Movimentação"}`
+                  : "Documento geral do processo."}
+              </p>
+            </div>
+            <span className="badge">Origem: Tribunal/eproc</span>
+          </div>
+          {!processoSelecionado.casoId ? (
+            <p className="notice warning">
+              Este processo ainda não está vinculado a um caso. Crie ou vincule um caso para manter os documentos organizados antes do upload.
+            </p>
+          ) : null}
+        </section>
       ) : null}
 
       <section className="form-card stack">
@@ -129,8 +165,10 @@ export default async function DocumentosPage({ searchParams }: DocumentosPagePro
         defaultCasoId={filtroCasoId}
         defaultCategoria={documentoParaReenviar?.categoria ?? params.categoria ?? casoSelecionado?.categoria ?? ""}
         defaultSubcategoria={documentoParaReenviar?.subcategoria ?? params.subcategoria ?? casoSelecionado?.subcategoria ?? ""}
-        defaultTipoDocumento={documentoParaReenviar?.tipo ?? ""}
-        defaultObservacoes={documentoParaReenviar?.observacoes ?? ""}
+        defaultTipoDocumento={defaultTipoDocumento}
+        defaultObservacoes={defaultObservacoes}
+        defaultOrigem={params.origem ?? (params.processo ? "Tribunal/eproc" : "Upload")}
+        defaultOrigemSistema={params.processo ? "tribunal" : ""}
         replaceDocumentId={documentoParaReenviar?.id ?? ""}
         defaultProcessoId={params.processo ?? documentoParaReenviar?.processoId ?? ""}
         defaultMovimentacaoId={params.movimentacao ?? documentoParaReenviar?.movimentacaoId ?? ""}

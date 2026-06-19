@@ -38,8 +38,8 @@ export default async function ProcessosPage({ searchParams }: ProcessosPageProps
 
   return (
     <ResponsivePageContainer
-      title="Processos Eproc"
-      description="Cadastre processos, acompanhe movimentacoes publicas e organize documentos do cliente."
+      title="Processos judiciais"
+      description="Cadastre processos, acompanhe movimentações públicas pelo DataJud/CNJ e anexe PDFs baixados do tribunal."
     >
       <div className="button-row">
         <a className="button" href="/lexgestor/processos/novo">Novo processo</a>
@@ -58,7 +58,7 @@ export default async function ProcessosPage({ searchParams }: ProcessosPageProps
         </div>
         <div className="field-grid compact-fields">
           <label className="field">
-            Numero CNJ
+            Número CNJ
             <input name="q" defaultValue={params.q ?? ""} placeholder="0000000-00.0000.0.00.0000" />
           </label>
           <label className="field">
@@ -116,7 +116,7 @@ export default async function ProcessosPage({ searchParams }: ProcessosPageProps
         {processos.length === 0 ? (
           <article className="empty-state">
             <strong>Nenhum processo cadastrado</strong>
-            <p>Cadastre o primeiro processo para consultar movimentacoes publicas pelo DataJud/CNJ.</p>
+            <p>Cadastre o primeiro processo para consultar movimentações públicas pelo DataJud/CNJ.</p>
           </article>
         ) : (
           processos.map((processo) => (
@@ -124,7 +124,7 @@ export default async function ProcessosPage({ searchParams }: ProcessosPageProps
               <summary>
                 <span className="summary-main">
                   {processo.numeroCnj}
-                  {processo.possuiNovaMovimentacao ? <span className="badge warning">Nova movimentacao</span> : null}
+                  {processo.possuiNovaMovimentacao ? <span className="badge warning">Nova movimentação</span> : null}
                 </span>
                 <span>{processo.clienteNome}</span>
                 <span>{processo.tribunal} / {processo.grau || "-"}</span>
@@ -134,11 +134,11 @@ export default async function ProcessosPage({ searchParams }: ProcessosPageProps
               <div className="accordion-content">
                 <div className="detail-grid">
                   <Info label="Caso vinculado" value={processo.casoTitulo || "Sem caso vinculado"} />
-                  <Info label="Classe" value={processo.classeNome || "Nao sincronizada"} />
-                  <Info label="Orgao julgador" value={processo.orgaoJulgadorNome || "Nao sincronizado"} />
-                  <Info label="Ultima movimentacao" value={processo.ultimaMovimentacao || "Sem eventos salvos"} />
-                  <Info label="Ultima sincronizacao" value={formatDate(processo.ultimaSincronizacao) || "Nunca"} />
-                  <Info label="Movimentacoes" value={`${processo.movimentacoesCount} evento(s)`} />
+                  <Info label="Classe" value={processo.classeNome || "Não sincronizada"} />
+                  <Info label="Órgão julgador" value={processo.orgaoJulgadorNome || "Não sincronizado"} />
+                  <Info label="Última movimentação" value={processo.ultimaMovimentacao || "Sem eventos salvos"} />
+                  <Info label="Última atualização" value={formatDate(processo.ultimaSincronizacao) || "Nunca"} />
+                  <Info label="Quantidade de eventos" value={`${processo.movimentacoesCount} evento(s)`} />
                 </div>
                 <div className="button-row">
                   <a className="button" href={`/lexgestor/processos/${processo.id}`}>Ver eventos</a>
@@ -148,11 +148,12 @@ export default async function ProcessosPage({ searchParams }: ProcessosPageProps
                       <RefreshCw size={16} aria-hidden />
                       Atualizar
                     </button>
+                    <span className="muted">Busca movimentações públicas no DataJud/CNJ.</span>
                   </form>
                   {processo.urlEproc ? (
                     <a className="button secondary" href={processo.urlEproc} target="_blank" rel="noreferrer">
                       <SquareArrowOutUpRight size={16} aria-hidden />
-                      Abrir no eproc
+                      Abrir no tribunal
                     </a>
                   ) : null}
                 </div>
@@ -183,7 +184,7 @@ function formatDate(value: string) {
 
 function feedbackMessage(value: string) {
   const messages: Record<string, string> = {
-    "processo-invalido": "Processo indisponivel para este escritorio.",
+    "processo-invalido": "Processo indisponível para este escritório.",
   };
   return messages[value] ?? value;
 }

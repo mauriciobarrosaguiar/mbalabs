@@ -19,6 +19,8 @@ type UploadDocumentosProps = {
   defaultSubcategoria?: string;
   defaultTipoDocumento?: string;
   defaultObservacoes?: string;
+  defaultOrigem?: string;
+  defaultOrigemSistema?: string;
   replaceDocumentId?: string;
   defaultProcessoId?: string;
   defaultMovimentacaoId?: string;
@@ -83,6 +85,8 @@ export function UploadDocumentos({
   defaultSubcategoria = "",
   defaultTipoDocumento = "",
   defaultObservacoes = "",
+  defaultOrigem = "Upload",
+  defaultOrigemSistema = "",
   replaceDocumentId = "",
   defaultProcessoId = "",
   defaultMovimentacaoId = "",
@@ -254,6 +258,7 @@ export function UploadDocumentos({
         {replaceDocumentId ? <input type="hidden" name="documento_id" value={replaceDocumentId} /> : null}
         {defaultProcessoId ? <input type="hidden" name="processo_id" value={defaultProcessoId} /> : null}
         {defaultMovimentacaoId ? <input type="hidden" name="movimentacao_id" value={defaultMovimentacaoId} /> : null}
+        {defaultOrigemSistema ? <input type="hidden" name="origem_sistema" value={defaultOrigemSistema} /> : null}
         {checklistMeta ? (
           <>
             <input type="hidden" name="checklist_area" value={checklistMeta.area} />
@@ -298,12 +303,13 @@ export function UploadDocumentos({
           />
           <label className="field">
             Origem
-            <select name="origem" defaultValue="Upload">
-              <option>Upload</option>
-              <option>Foto pelo celular</option>
-              <option>WhatsApp</option>
-              <option>Scanner</option>
-              <option>Outro</option>
+            <select name="origem" defaultValue={defaultOrigem}>
+              <option value="Upload">Upload</option>
+              <option value="Tribunal/eproc">Tribunal/eproc</option>
+              <option value="Foto pelo celular">Foto pelo celular</option>
+              <option value="WhatsApp">WhatsApp</option>
+              <option value="Scanner">Scanner</option>
+              <option value="Outro">Outro</option>
             </select>
           </label>
           <label className="field">

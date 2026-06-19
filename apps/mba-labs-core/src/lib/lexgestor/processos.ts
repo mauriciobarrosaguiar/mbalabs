@@ -9,6 +9,22 @@ export type LexTribunalDataJud = {
   segmento: string;
 };
 
+export type LexConectorTribunal = {
+  id: string;
+  escritorioId: string;
+  advogadoId: string;
+  sistema: string;
+  tribunal: string;
+  uf: string;
+  nome: string;
+  urlBase: string;
+  modo: string;
+  status: string;
+  observacoes: string;
+  criadoEm: string;
+  atualizadoEm: string;
+};
+
 export type LexProcesso = {
   id: string;
   empresaId: string;
@@ -20,6 +36,7 @@ export type LexProcesso = {
   numeroCnjLimpo: string;
   tribunal: string;
   tribunalAliasDatajud: string;
+  sistemaJudicial: string;
   grau: string;
   classeCodigo: string;
   classeNome: string;
@@ -101,6 +118,34 @@ export async function listTribunaisDataJud() {
     aliasDatajud: text(row.alias_datajud),
     segmento: text(row.segmento),
   }));
+}
+
+export async function listConectoresTribunais(params: {
+  current: CurrentUserProfile;
+  escritorioId: string;
+  filters?: {
+    sistema?: string;
+    tribunal?: string;
+    status?: string;
+  };
+}) {
+  if (!params.escritorioId) return [];
+  const client = await getLexSupabaseClient();
+  let query = client
+    .from("lex_conectores_tribunais")
+    .select("*")
+    .eq("escritorio_id", params.escritorioId)
+    .order("updated_at", { ascending: false })
+    .limit(200);
+
+  const filters = params.filters ?? {};
+  if (filters.sistema) query = query.eq("sistema", filters.sistema);
+  if (filters.tribunal) query = query.eq("tribunal", filters.tribunal);
+  if (filters.status) query = query.eq("status", filters.status);
+
+  const { data, error } = await query;
+  if (error) return [];
+  return ((data ?? []) as Array<Record<string, unknown>>).map(mapConectorTribunal);
 }
 
 export async function listProcessosLex(params: {
@@ -383,6 +428,7 @@ function mapProcesso(row: Record<string, unknown>, latest?: LexMovimentacao, mov
     numeroCnjLimpo: text(row.numero_cnj_limpo),
     tribunal: text(row.tribunal),
     tribunalAliasDatajud: text(row.tribunal_alias_datajud),
+    sistemaJudicial: text(row.sistema_judicial) || text(row.sistema_nome),
     grau: text(row.grau),
     classeCodigo: text(row.classe_codigo),
     classeNome: text(row.classe_nome),
@@ -426,6 +472,28 @@ function mapMovimentacao(row: Record<string, unknown>): LexMovimentacao {
     documentoStatus: text(row.documento_status) || "sem_documento",
     visualizado: Boolean(row.visualizado),
   };
+}
+
+function mapConectorTribunal(row: Record<string, unknown>): LexConectorTribunal {
+  return {
+    id: text(row.id),
+    escritorioId: text(row.escritorio_id),
+    advogadoId: text(row.advogado_id),
+    sistema: text(row.sistema) || "outro",
+    tribunal: text(row.tribunal),
+    uf: text(row.uf),
+    nome: text(row.nome) || labelSistema(text(row.sistema), text(row.tribunal)),
+    urlBase: text(row.url_base),
+    modo: text(row.modo) || "fluxo_assistido",
+    status: text(row.status) || "ativo",
+    observacoes: text(row.observacoes),
+    criadoEm: text(row.created_at),
+    atualizadoEm: text(row.updated_at),
+  };
+}
+
+function labelSistema(sistema: string, tribunal: string) {
+  return [sistema || "Tribunal", tribunal].filter(Boolean).join(" - ");
 }
 
 async function listUltimasMovimentacoes(client: any, escritorioId: string, processoIds: string[]) {

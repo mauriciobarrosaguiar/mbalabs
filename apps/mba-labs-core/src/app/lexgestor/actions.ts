@@ -775,6 +775,7 @@ export async function salvarProcessoLexGestor(formData: FormData) {
     numero_cnj_limpo: numeroCnjLimpo,
     tribunal: required(formData, "tribunal"),
     tribunal_alias_datajud: required(formData, "tribunal_alias_datajud"),
+    sistema_judicial: value(formData, "sistema_judicial") || "eproc",
     grau: required(formData, "grau"),
     categoria: nullable(formData, "categoria"),
     subcategoria: nullable(formData, "subcategoria"),
@@ -808,6 +809,13 @@ export async function sincronizarProcessoLexGestor(formData: FormData) {
 
   try {
     const result = await syncProcessoDataJud({ processoId, current });
+    await registrarAuditoriaLexGestor({
+      current,
+      acao: "processo.eventos_atualizados",
+      entidade: "lex_processos",
+      entidadeId: processoId,
+      detalhes: { mensagem: result.message, eventosNovos: result.insertedMovements },
+    });
     destination = `/lexgestor/processos/${processoId}?status=${encodeURIComponent(result.message)}`;
   } catch (error) {
     destination = `/lexgestor/processos/${processoId}?erro=${encodeURIComponent(errorMessage(error))}`;
@@ -846,6 +854,66 @@ export async function marcarMovimentacoesVistasLexGestor(formData: FormData) {
   ]);
 
   redirect(`/lexgestor/processos/${processoId}?status=movimentacoes-vistas`);
+}
+
+export async function salvarConectorTribunalLexGestor(formData: FormData) {
+  const current = await requireAppAccess("lexgestor", "/lexgestor/conectores");
+  const usuarioLex = await obterUsuarioLexGestorAtual("/lexgestor/conectores");
+  if (!possuiPermissao(usuarioLex, "lex:configuracoes:editar")) {
+    redirect("/lexgestor/conectores?erro=sem-permissao");
+  }
+
+  const client = await getLexSupabaseClient();
+  const escritorio = await ensureLexEscritorio(client, current);
+  const escritorioId = String(escritorio?.id ?? "");
+  if (!escritorioId) {
+    redirect("/lexgestor/conectores?erro=configure-escritorio");
+  }
+
+  const id = value(formData, "id");
+  const sistema = required(formData, "sistema");
+  const tribunal = nullable(formData, "tribunal");
+  const payload = {
+    escritorio_id: escritorioId,
+    advogado_id: nullable(formData, "advogado_id"),
+    sistema,
+    tribunal,
+    uf: nullable(formData, "uf"),
+    nome: value(formData, "nome") || [sistema, tribunal].filter(Boolean).join(" - "),
+    url_base: nullable(formData, "url_base"),
+    modo: value(formData, "modo") || "fluxo_assistido",
+    status: value(formData, "status") || "ativo",
+    observacoes: nullable(formData, "observacoes"),
+    updated_at: new Date().toISOString(),
+  };
+
+  const result = id
+    ? await client
+        .from("lex_conectores_tribunais")
+        .update(payload)
+        .eq("id", id)
+        .eq("escritorio_id", escritorioId)
+        .select("id")
+        .single()
+    : await client
+        .from("lex_conectores_tribunais")
+        .insert(payload)
+        .select("id")
+        .single();
+
+  if (result.error || !result.data?.id) {
+    redirect(`/lexgestor/conectores?erro=${encodeURIComponent(result.error?.message ?? "Não foi possível salvar o conector.")}`);
+  }
+
+  await registrarAuditoriaLexGestor({
+    current,
+    acao: id ? "conector.atualizado" : "conector.criado",
+    entidade: "lex_conectores_tribunais",
+    entidadeId: String(result.data.id),
+    detalhes: { sistema, tribunal, status: payload.status },
+  });
+
+  redirect("/lexgestor/conectores?status=conector-salvo");
 }
 
 export async function testarArmazenamentoLexGestor(formData?: FormData) {

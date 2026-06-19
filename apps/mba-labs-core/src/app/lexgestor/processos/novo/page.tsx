@@ -15,7 +15,7 @@ export default async function NovoProcessoPage({ searchParams }: NovoProcessoPag
   return (
     <ResponsivePageContainer
       title="Novo processo"
-      description="Cadastre o numero CNJ, vincule cliente/caso e deixe o LexGestor pronto para consultar movimentacoes publicas pelo DataJud/CNJ."
+      description="Cadastre o número CNJ, vincule cliente/caso e deixe o LexGestor pronto para consultar movimentações públicas pelo DataJud/CNJ."
     >
       {params.erro ? <p className="notice danger" role="alert">{feedbackMessage(params.erro)}</p> : null}
 
@@ -23,13 +23,13 @@ export default async function NovoProcessoPage({ searchParams }: NovoProcessoPag
         <div className="section-title">
           <div>
             <h2>Dados do processo</h2>
-            <p>O LexGestor nao salva login e senha do eproc e nao baixa documentos automaticamente.</p>
+            <p>O LexGestor não salva login, senha, certificado digital ou credenciais de tribunais.</p>
           </div>
         </div>
 
         <div className="field-grid">
           <label className="field">
-            Numero CNJ
+            Número CNJ
             <input name="numero_cnj" required placeholder="0000000-00.0000.0.00.0000" inputMode="numeric" />
           </label>
 
@@ -54,6 +54,17 @@ export default async function NovoProcessoPage({ searchParams }: NovoProcessoPag
                   {tribunal.sigla} - {tribunal.aliasDatajud}
                 </option>
               ))}
+            </select>
+          </label>
+
+          <label className="field">
+            Sistema judicial
+            <select name="sistema_judicial" required defaultValue="eproc">
+              <option value="eproc">eproc</option>
+              <option value="pje">PJe</option>
+              <option value="projudi">Projudi</option>
+              <option value="esaj">ESAJ</option>
+              <option value="outro">Outro</option>
             </select>
           </label>
 
@@ -104,11 +115,11 @@ export default async function NovoProcessoPage({ searchParams }: NovoProcessoPag
 
           <label className="field">
             Chave do processo opcional
-            <input name="chave_eproc_opcional" placeholder="Chave eproc, se houver" />
+            <input name="chave_eproc_opcional" placeholder="Chave do processo, se houver" />
           </label>
 
           <label className="field">
-            Link do eproc opcional
+            Link do sistema oficial
             <input name="url_eproc" type="url" placeholder="https://..." />
           </label>
 
@@ -122,13 +133,13 @@ export default async function NovoProcessoPage({ searchParams }: NovoProcessoPag
           </label>
 
           <label className="field-full">
-            Observacoes
-            <textarea name="observacoes" placeholder="Observacoes internas do escritorio." />
+            Observações
+            <textarea name="observacoes" placeholder="Observações internas do escritório." />
           </label>
         </div>
 
         <p className="notice">
-          As movimentacoes sao consultadas por metadados publicos do DataJud/CNJ. Documentos do eproc podem exigir login do advogado no sistema oficial.
+          As movimentações são consultadas por metadados públicos do DataJud/CNJ. PDFs e anexos internos do tribunal devem ser baixados pelo advogado no sistema oficial e anexados ao LexGestor.
         </p>
 
         <div className="button-row">
@@ -142,10 +153,10 @@ export default async function NovoProcessoPage({ searchParams }: NovoProcessoPag
 
 function feedbackMessage(value: string) {
   const messages: Record<string, string> = {
-    "configure-escritorio": "Configure o escritorio antes de cadastrar processos.",
-    "numero-cnj-invalido": "Informe um numero CNJ valido.",
-    "cliente-invalido": "Cliente indisponivel para este escritorio.",
-    "caso-invalido": "Caso indisponivel ou vinculado a outro cliente.",
+    "configure-escritorio": "Configure o escritório antes de cadastrar processos.",
+    "numero-cnj-invalido": "Informe um número CNJ válido.",
+    "cliente-invalido": "Cliente indisponível para este escritório.",
+    "caso-invalido": "Caso indisponível ou vinculado a outro cliente.",
   };
   return messages[value] ?? value;
 }

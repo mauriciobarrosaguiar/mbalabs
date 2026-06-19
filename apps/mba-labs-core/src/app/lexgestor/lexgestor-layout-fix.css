@@ -364,6 +364,50 @@
   align-items: start;
 }
 
+.lexgestor-module .timeline-list,
+.lexgestor-module .timeline-item,
+.lexgestor-module .timeline-content,
+.lexgestor-module .instruction-list {
+  min-width: 0;
+}
+
+.lexgestor-module .timeline-content p {
+  overflow-wrap: anywhere;
+}
+
+.lexgestor-module .timeline-heading {
+  gap: 12px;
+}
+
+.lexgestor-module .modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.48);
+}
+
+.lexgestor-module .modal-card {
+  width: min(560px, 100%);
+  max-height: min(680px, calc(100vh - 36px));
+  overflow-y: auto;
+  border: 1px solid var(--lex-border);
+  border-radius: 16px;
+  background: var(--lex-panel);
+  padding: 18px;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.28);
+}
+
+.lexgestor-module .instruction-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 22px;
+  line-height: 1.5;
+}
+
 .lexgestor-module .document-mobile-card h2 {
   margin: 0;
   font-size: 1rem;
@@ -460,5 +504,18 @@
   .lexgestor-module .documents-table,
   .lexgestor-module .reports-table {
     min-width: 0;
+  }
+
+  .lexgestor-module .timeline-item {
+    grid-template-columns: 1fr;
+  }
+
+  .lexgestor-module .timeline-dot {
+    display: none;
+  }
+
+  .lexgestor-module .timeline-heading {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 }

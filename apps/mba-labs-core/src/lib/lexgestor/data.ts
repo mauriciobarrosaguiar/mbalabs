@@ -70,11 +70,13 @@ export type LexDocumento = {
   caso: string;
   processoId: string;
   movimentacaoId: string;
+  eventoNumero: string;
   categoria: string;
   subcategoria: string;
   tipo: string;
   mimeType: string;
   origem: string;
+  origemSistema: string;
   observacoes: string;
   status: string;
   provider: string;
@@ -807,11 +809,13 @@ function mapDocumentos(
       caso: text(caso?.titulo) || "-",
       processoId: text(documento.processo_id),
       movimentacaoId: text(documento.movimentacao_id),
+      eventoNumero: text(documento.evento_numero),
       categoria: text(documento.categoria) || text(documento.categoria_nome) || text(documento.area) || "-",
       subcategoria: text(documento.subcategoria) || text(documento.subcategoria_nome) || text(documento.subarea) || "-",
       tipo: text(documento.tipo_documento) || "Documento",
       mimeType: text(documento.mime_type),
       origem: text(documento.origem) || "Upload",
+      origemSistema: text(documento.origem_sistema),
       observacoes: text(documento.observacoes),
       status: statusDocumento(text(documento.status), provider),
       provider,
@@ -967,11 +971,13 @@ function demoWorkspace(
       caso: casos[0].titulo,
       processoId: "",
       movimentacaoId: "",
+      eventoNumero: "",
       categoria: "Documentos pessoais",
       subcategoria: "Previdenciário",
       tipo: "CNIS",
       mimeType: "application/pdf",
       origem: "Demo",
+      origemSistema: "",
       observacoes: "Documento fictício.",
       status: "Enviado ao Dropbox",
       provider: "dropbox",
@@ -995,11 +1001,13 @@ function demoWorkspace(
       caso: casos[0].titulo,
       processoId: "",
       movimentacaoId: "",
+      eventoNumero: "",
       categoria: "Documentos pessoais",
       subcategoria: "Cadastro",
       tipo: "Comprovante",
       mimeType: "image/png",
       origem: "Demo",
+      origemSistema: "",
       observacoes: "Documento fictício.",
       status: "Pendente de reenvio",
       provider: "",
