@@ -1,5 +1,3 @@
-import { BikeComandaClient } from "@/components/BikeComandaClient";
-
 export type BikeSection = {
   slug: string;
   label: string;
@@ -72,13 +70,20 @@ export const bikeSections: BikeSection[] = [
     slug: "configuracoes",
     label: "Configurações",
     title: "Configurações",
-    description: "Regras de status, armazenamento local e estrutura preparada para Supabase."
+    description: "Configure a oficina, mensagens, regras financeiras e estrutura SaaS."
   }
 ];
 
-export function BikeComandaApp({ activeSlug = "dashboard" }: { activeSlug?: string }) {
-  const active = bikeSections.find((section) => section.slug === activeSlug) ?? bikeSections[0];
-  return <BikeComandaClient active={active} sections={bikeSections} />;
+export function BikeComandaApp() {
+  return (
+    <main className="min-h-screen bg-[#f6f9fb]">
+      <iframe
+        className="h-screen w-full border-0"
+        src="/bikecomanda-static/index.html"
+        title="BikeComanda"
+      />
+    </main>
+  );
 }
 
 export function resolveBikeSection(slug?: string) {
