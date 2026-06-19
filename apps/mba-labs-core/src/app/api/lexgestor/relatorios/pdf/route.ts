@@ -10,6 +10,7 @@ import { createSimplePdf, type SimplePdfLine } from "@/lib/lexgestor/simple-pdf"
 import { montarPastaRaizEscritorio, uploadToConnectedStorage } from "@/lib/lexgestor/storage";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
@@ -47,11 +48,12 @@ export async function GET(request: Request) {
       detalhes: { documentos: selectedDocumentIds.length || documentos.length },
     });
 
-    return new NextResponse(pdf, {
+    return new NextResponse(new Uint8Array(pdf), {
       headers: {
         "content-type": "application/pdf",
         "content-disposition": `inline; filename="${safeFileName(`dossie-${caso.titulo}.pdf`)}"`,
-        "cache-control": "private, no-store",
+        ...noStoreHeaders(),
+        "x-lexgestor-pdf-version": "dossie-header-logo-only-v2",
       },
     });
   }
@@ -66,11 +68,11 @@ export async function GET(request: Request) {
     detalhes: { tipo },
   });
 
-  return new NextResponse(pdf, {
+  return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "content-type": "application/pdf",
       "content-disposition": `attachment; filename="${safeFileName(`lexgestor-relatorio-${tipo}.pdf`)}"`,
-      "cache-control": "private, no-store",
+      ...noStoreHeaders(),
     },
   });
 }
@@ -192,9 +194,17 @@ function friendlyPdfError(message: string, status: number) {
     status,
     headers: {
       "content-type": "text/html; charset=utf-8",
-      "cache-control": "private, no-store",
+      ...noStoreHeaders(),
     },
   });
+}
+
+function noStoreHeaders() {
+  return {
+    "cache-control": "no-store, no-cache, max-age=0, must-revalidate, proxy-revalidate",
+    pragma: "no-cache",
+    expires: "0",
+  };
 }
 
 function escapeHtml(value: string) {
