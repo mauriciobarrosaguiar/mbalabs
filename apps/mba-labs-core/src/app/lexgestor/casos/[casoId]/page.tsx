@@ -107,7 +107,13 @@ export default async function CasoDetalhePage({ params }: CasoDetalhePageProps) 
         </section>
 
         <section className="tabs-panel" id="checklist">
-          <ChecklistCaso items={checklist} />
+          <ChecklistCaso
+            items={checklist}
+            clienteId={caso.clienteId}
+            casoId={caso.id}
+            categoria={caso.categoria}
+            subcategoria={caso.subcategoria}
+          />
         </section>
 
         <section className="tabs-panel" id="documentos">
@@ -137,7 +143,7 @@ export default async function CasoDetalhePage({ params }: CasoDetalhePageProps) 
           <PdfPreview href={dossieUrl} />
           <div className="button-row">
             <a className="button" href={dossieUrl}>
-              Gerar dossiê PDF
+              Gerar dossiê do caso
             </a>
             <a className="button secondary" href={`/lexgestor/documentos?caso=${caso.id}`}>
               Ver documentos do caso

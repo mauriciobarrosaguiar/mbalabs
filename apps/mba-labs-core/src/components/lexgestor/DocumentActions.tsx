@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Download, Eye, FileText, FolderOpen, Printer, UploadCloud } from "lucide-react";
+import { excluirDocumentoLexGestor } from "@/app/lexgestor/actions";
+import { Download, Eye, FileText, FolderOpen, Printer, Trash2, UploadCloud } from "lucide-react";
 
 type DocumentActionsProps = {
   url: string;
@@ -30,43 +31,63 @@ export function DocumentActions({ url, path, id, provider, pendingWithoutFile }:
   }
 
   return (
-    <div className="button-row">
-      <a className="button secondary" href={visualizarUrl} target="_blank" rel="noreferrer" style={{ cursor: "pointer" }}>
+    <div className="button-row document-actions">
+      <Link className="button secondary icon-button" href={visualizarUrl} style={{ cursor: "pointer" }} title="Ver no LexGestor" aria-label="Ver no LexGestor">
         <Eye size={17} aria-hidden />
-        Ver no LexGestor
-      </a>
+        <span>Ver</span>
+      </Link>
 
       {url || path ? (
-        <a className="button secondary" href={baixarUrl} target="_blank" rel="noreferrer" style={{ cursor: "pointer" }}>
+        <a className="button secondary icon-button" href={baixarUrl} target="_blank" rel="noreferrer" style={{ cursor: "pointer" }} title="Baixar original" aria-label="Baixar original">
           <Download size={17} aria-hidden />
-          Baixar
+          <span>Baixar</span>
         </a>
       ) : null}
 
       {path || url ? (
-        <button className="button secondary" type="button" onClick={imprimirDocumento} style={{ cursor: "pointer" }}>
+        <button className="button secondary icon-button" type="button" onClick={imprimirDocumento} style={{ cursor: "pointer" }} title="Imprimir" aria-label="Imprimir">
           <Printer size={17} aria-hidden />
-          Imprimir
+          <span>Imprimir</span>
         </button>
       ) : null}
 
       {pendingWithoutFile ? (
-        <Link className="button" href={reenviarUrl} style={{ cursor: "pointer" }}>
+        <Link className="button icon-button" href={reenviarUrl} style={{ cursor: "pointer" }} title="Reenviar arquivo" aria-label="Reenviar arquivo">
           <UploadCloud size={17} aria-hidden />
-          Reenviar arquivo
+          <span>Reenviar</span>
         </Link>
       ) : (
-        <Link className="button secondary" href={gerarPdfUrl} target="_blank" rel="noreferrer" style={{ cursor: "pointer" }}>
+        <Link className="button secondary icon-button" href={gerarPdfUrl} target="_blank" rel="noreferrer" style={{ cursor: "pointer" }} title="Gerar PDF com marca d'água" aria-label="Gerar PDF com marca d'água">
           <FileText size={17} aria-hidden />
-          Gerar PDF
+          <span>PDF</span>
         </Link>
       )}
 
-      {path ? (
+      {url ? (
+        <a className="button secondary icon-button" href={url} target="_blank" rel="noreferrer" title={`Abrir no ${providerName}`} aria-label={`Abrir no ${providerName}`}>
+          <FolderOpen size={17} aria-hidden />
+          <span>Local</span>
+        </a>
+      ) : path ? (
         <span className="badge path-badge" title={path}>
-          <FolderOpen size={14} aria-hidden /> Local no {providerName}: {path}
+          <FolderOpen size={14} aria-hidden /> {providerName}
         </span>
       ) : null}
+
+      <form
+        action={excluirDocumentoLexGestor}
+        onSubmit={(event) => {
+          if (!window.confirm("Tem certeza que deseja excluir este documento? Esta ação removerá o registro e, se possível, os arquivos no armazenamento conectado.")) {
+            event.preventDefault();
+          }
+        }}
+      >
+        <input type="hidden" name="documento_id" value={id} />
+        <button className="button secondary icon-button danger-button" type="submit" style={{ cursor: "pointer" }} title="Excluir" aria-label="Excluir">
+          <Trash2 size={17} aria-hidden />
+          <span>Excluir</span>
+        </button>
+      </form>
     </div>
   );
 }

@@ -1,182 +1,275 @@
-import { FileText } from "lucide-react";
+import { FileText, FolderOpen, PackageCheck } from "lucide-react";
 import { atualizarPendentesDocumentosLexGestor } from "@/app/lexgestor/actions";
 import { DocumentActions } from "@/components/lexgestor/DocumentActions";
-import { PdfPreview } from "@/components/lexgestor/PdfPreview";
 import { ResponsivePageContainer } from "@/components/lexgestor/ResponsivePageContainer";
 import { UploadDocumentos } from "@/components/lexgestor/UploadDocumentos";
 import { getLexWorkspaceData, type LexDocumento } from "@/lib/lexgestor/data";
 
 type DocumentosPageProps = {
-  searchParams?: Promise<{ cliente?: string; caso?: string; reenviar?: string; erro?: string; status?: string }>;
+  searchParams?: Promise<{
+    cliente?: string;
+    caso?: string;
+    processo?: string;
+    movimentacao?: string;
+    categoria?: string;
+    subcategoria?: string;
+    documento_status?: string;
+    status?: string;
+    reenviar?: string;
+    erro?: string;
+  }>;
 };
 
 export default async function DocumentosPage({ searchParams }: DocumentosPageProps) {
   const params = (await searchParams) ?? {};
   const data = await getLexWorkspaceData("/lexgestor/documentos");
+  const clienteSelecionado = params.cliente ? data.clientes.find((cliente) => cliente.id === params.cliente) : null;
   const casoSelecionado = params.caso ? data.casos.find((caso) => caso.id === params.caso) : null;
   const documentoParaReenviar = params.reenviar
     ? data.documentos.find((documento) => documento.id === params.reenviar)
     : null;
-  const documentosFiltrados = data.documentos.filter((documento) => {
-    if (params.caso && documento.casoId !== params.caso) return false;
-    if (params.cliente && documento.clienteId !== params.cliente) return false;
-    return true;
-  });
+  const filtroClienteId = params.cliente ?? documentoParaReenviar?.clienteId ?? casoSelecionado?.clienteId ?? "";
+  const filtroCasoId = params.caso ?? documentoParaReenviar?.casoId ?? "";
+  const shouldList = Boolean(filtroClienteId || filtroCasoId || params.processo || documentoParaReenviar?.id);
+  const documentosFiltrados = shouldList
+    ? data.documentos.filter((documento) => {
+        if (filtroClienteId && documento.clienteId !== filtroClienteId) return false;
+        if (filtroCasoId && documento.casoId !== filtroCasoId) return false;
+        if (params.processo && documento.processoId !== params.processo) return false;
+        if (params.movimentacao && documento.movimentacaoId !== params.movimentacao) return false;
+        if (params.documento_status && documento.status !== params.documento_status) return false;
+        return true;
+      })
+    : [];
   const documentosVisiveis = dedupeDocumentos(documentosFiltrados);
+  const documentosPendentes = dedupeDocumentos(data.documentos.filter(isPendingWithoutFile));
+  const shouldShowPendingReview = params.status === "pendentes-atualizados" || params.status === "sem-pendentes";
+  const dossieCasoId = filtroCasoId || (documentosVisiveis.length > 0 && documentosVisiveis.every((doc) => doc.casoId === documentosVisiveis[0].casoId) ? documentosVisiveis[0].casoId : "");
 
   return (
     <ResponsivePageContainer
       title="Documentos"
-      description="Originais ficam no Dropbox ou Google Drive do escritório. O LexGestor guarda apenas os dados necessários para organizar os arquivos."
+      description="Anexe, organize e gere PDFs com marca d'água no Dropbox ou Google Drive do escritório."
     >
       <div className="button-row">
         <form action={atualizarPendentesDocumentosLexGestor}>
-          <button className="button secondary" type="submit">Atualizar pendentes</button>
+          <button className="button secondary" type="submit">Revisar pendentes</button>
         </form>
-        <a className="button secondary" href="/lexgestor/relatorios">Gerar dossiê</a>
-        <a className="button secondary" href="/api/lexgestor/relatorios/pdf?tipo=documentos" target="_blank" rel="noreferrer">Imprimir</a>
+        <a className="button secondary" href="/lexgestor/configuracoes#armazenamento">
+          <FolderOpen size={17} aria-hidden />
+          Abrir pasta raiz
+        </a>
+        <a className="button" href="#documentos">Novo upload</a>
       </div>
+
       {params.erro ? <p className="notice danger" role="alert">{feedbackMessage(params.erro)}</p> : null}
       {params.status ? <p className="notice success" role="status">{feedbackMessage(params.status)}</p> : null}
-      {data.error ? <p className="notice">Documentos ainda indisponíveis: {data.error}</p> : null}
+      {data.error ? <p className="notice">Documentos ainda indisponiveis: {data.error}</p> : null}
       {documentoParaReenviar ? (
         <p className="notice warning" role="status">
           Reenvio preparado para <strong>{documentoParaReenviar.nome}</strong>. Escolha o arquivo e envie para atualizar o registro antigo.
         </p>
       ) : null}
+
+      <section className="form-card stack">
+        <div className="section-title">
+          <div>
+            <h2>Filtros</h2>
+            <p>Selecione um cliente ou caso para visualizar os documentos.</p>
+          </div>
+        </div>
+        <form className="field-grid compact-fields" action="/lexgestor/documentos">
+          {params.processo ? <input type="hidden" name="processo" value={params.processo} /> : null}
+          {params.movimentacao ? <input type="hidden" name="movimentacao" value={params.movimentacao} /> : null}
+          <label className="field">
+            Cliente
+            <select name="cliente" defaultValue={filtroClienteId}>
+              <option value="">Selecione</option>
+              {data.clientes.map((cliente) => (
+                <option value={cliente.id} key={cliente.id}>{cliente.nome}</option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            Caso
+            <select name="caso" defaultValue={filtroCasoId}>
+              <option value="">Todos</option>
+              {data.casos
+                .filter((caso) => !filtroClienteId || caso.clienteId === filtroClienteId)
+                .map((caso) => (
+                  <option value={caso.id} key={caso.id}>{caso.titulo}</option>
+                ))}
+            </select>
+          </label>
+          <label className="field">
+            Status
+            <select name="documento_status" defaultValue={params.documento_status ?? ""}>
+              <option value="">Todos</option>
+              <option value="Pendente">Pendente</option>
+              <option value="Enviado ao Dropbox">Enviado ao Dropbox</option>
+              <option value="Enviado ao Drive">Enviado ao Drive</option>
+              <option value="PDF gerado">PDF gerado</option>
+              <option value="Falha no envio">Falha no envio</option>
+              <option value="Precisa reenviar arquivo">Precisa reenviar arquivo</option>
+            </select>
+          </label>
+          <div className="button-row">
+            <button className="button secondary" type="submit">Filtrar</button>
+            <a className="button secondary" href="/lexgestor/documentos">Limpar</a>
+          </div>
+        </form>
+      </section>
+
       <UploadDocumentos
         clientes={data.clientes}
         casos={data.casos}
         categorias={data.categorias}
         connections={data.storageConnections}
-        defaultClienteId={documentoParaReenviar?.clienteId ?? params.cliente ?? casoSelecionado?.clienteId ?? ""}
-        defaultCasoId={documentoParaReenviar?.casoId ?? params.caso ?? ""}
-        defaultCategoria={documentoParaReenviar?.categoria ?? casoSelecionado?.categoria ?? ""}
-        defaultSubcategoria={documentoParaReenviar?.subcategoria ?? casoSelecionado?.subcategoria ?? ""}
+        defaultClienteId={filtroClienteId}
+        defaultCasoId={filtroCasoId}
+        defaultCategoria={documentoParaReenviar?.categoria ?? params.categoria ?? casoSelecionado?.categoria ?? ""}
+        defaultSubcategoria={documentoParaReenviar?.subcategoria ?? params.subcategoria ?? casoSelecionado?.subcategoria ?? ""}
         defaultTipoDocumento={documentoParaReenviar?.tipo ?? ""}
         defaultObservacoes={documentoParaReenviar?.observacoes ?? ""}
         replaceDocumentId={documentoParaReenviar?.id ?? ""}
+        defaultProcessoId={params.processo ?? documentoParaReenviar?.processoId ?? ""}
+        defaultMovimentacaoId={params.movimentacao ?? documentoParaReenviar?.movimentacaoId ?? ""}
       />
 
-      <section className="table-panel desktop-only">
-        <table className="responsive-table documents-table">
-          <colgroup>
-            <col style={{ width: "30%" }} />
-            <col style={{ width: "20%" }} />
-            <col style={{ width: "16%" }} />
-            <col style={{ width: "13%" }} />
-            <col style={{ width: "21%" }} />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>Documento</th>
-              <th>Cliente/Caso</th>
-              <th>Categoria</th>
-              <th>Status</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {documentosVisiveis.length === 0 ? (
-              <tr>
-                <td colSpan={5}>Nenhum documento cadastrado.</td>
-              </tr>
-            ) : (
-              documentosVisiveis.map((documento) => (
-                <tr key={documento.id}>
-                  <td>
-                    <div className="document-title">
-                      <FileText size={17} aria-hidden />
-                      <strong>{documento.tipo}</strong>
-                      <span>{documento.nome}</span>
-                    </div>
-                    {isPendingWithoutFile(documento) ? (
-                      <p className="notice compact danger">
-                        Este documento foi cadastrado antes da conexão com o armazenamento. Reenvie o arquivo para salvar no provedor do escritório.
-                      </p>
-                    ) : null}
-                  </td>
-                  <td>
-                    {documento.cliente}
-                    <br />
-                    <span className="muted">{documento.caso}</span>
-                  </td>
-                  <td>{documento.categoria} / {documento.subcategoria}</td>
-                  <td>
-                    <span className="status-pill">{documento.status}</span>
-                  </td>
-                  <td>
-                    <DocumentActions
-                      url={documento.storageUrl}
-                      path={documento.storagePath}
-                      id={documento.id}
-                      provider={documento.provider}
-                      pendingWithoutFile={isPendingWithoutFile(documento)}
-                    />
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </section>
+      {!shouldList ? (
+        <article className="empty-state">
+          <strong>Selecione um cliente ou caso para visualizar os documentos.</strong>
+          <p>A lista permanece oculta até existir um filtro, evitando misturar arquivos de clientes diferentes.</p>
+        </article>
+      ) : (
+        <>
+          <section className="document-list-toolbar">
+            <form id="dossie-form" action="/api/lexgestor/relatorios/pdf">
+              <input type="hidden" name="tipo" value="dossie" />
+              {dossieCasoId ? <input type="hidden" name="caso" value={dossieCasoId} /> : null}
+              <button className="button secondary" type="submit" disabled={!dossieCasoId || documentosVisiveis.length === 0}>
+                <PackageCheck size={17} aria-hidden />
+                Gerar dossiê
+              </button>
+            </form>
+            <span className="muted">Marque os documentos desejados. Sem seleção, o dossiê usa todos os documentos do caso filtrado.</span>
+          </section>
 
-      <section className="mobile-card-list mobile-only">
-        {documentosVisiveis.length === 0 ? (
-          <article className="empty-state">
-            <strong>Nenhum documento cadastrado</strong>
-            <p>Anexe o primeiro documento do caso.</p>
-          </article>
-        ) : (
-          documentosVisiveis.map((documento) => (
-            <article className="card stack document-mobile-card" key={documento.id}>
-              <h2>{documento.tipo}</h2>
-              <p>{documento.nome}</p>
-              <div className="document-mobile-meta">
-                <span>{documento.cliente}</span>
-                <span>{documento.caso}</span>
-                <span>{documento.categoria} / {documento.subcategoria}</span>
-              </div>
-              <div className="button-row">
-                <span className="status-pill">{documento.status}</span>
-                {documento.provider ? <span className="badge">{storageProviderLabel(documento.provider)}</span> : null}
-              </div>
-              {isPendingWithoutFile(documento) ? (
-                <p className="notice compact danger">
-                  Este documento foi cadastrado antes da conexão com o armazenamento. Reenvie o arquivo para salvar no provedor do escritório.
-                </p>
-              ) : null}
-              <DocumentActions
-                url={documento.storageUrl}
-                path={documento.storagePath}
-                id={documento.id}
-                provider={documento.provider}
-                pendingWithoutFile={isPendingWithoutFile(documento)}
-              />
+          {documentosVisiveis.length === 0 ? (
+            <article className="empty-state">
+              <strong>Nenhum documento para o filtro selecionado.</strong>
+              <p>Ajuste os filtros ou anexe um novo arquivo.</p>
             </article>
-          ))
-        )}
-      </section>
-      <PdfPreview documentoId={documentosVisiveis[0]?.id} />
+          ) : null}
+
+          <section className="document-line-list desktop-only">
+            {documentosVisiveis.map((documento) => (
+              <article className="document-line" key={documento.id}>
+                <label className="document-select" title="Incluir no dossiê">
+                  <input form="dossie-form" name="documento" type="checkbox" value={documento.id} />
+                </label>
+                <FileText size={19} color="var(--primary)" aria-hidden />
+                <div className="document-line-main">
+                  <strong>{documento.tipo}</strong>
+                  <span>{documento.nome}</span>
+                  <small>{documento.cliente} / {documento.caso}</small>
+                </div>
+                <div className="document-line-meta">
+                  <span>{documento.categoria} / {documento.subcategoria}</span>
+                  {documento.storagePath ? <button className="badge path-badge" type="button" title={documento.storagePath}>Local</button> : null}
+                </div>
+                <span className="status-pill">{documento.status}</span>
+                <DocumentActions
+                  url={documento.storageUrl}
+                  path={documento.storagePath}
+                  id={documento.id}
+                  provider={documento.provider}
+                  pdfPath={documento.pdfPath}
+                  pdfUrl={documento.pdfUrl}
+                  pendingWithoutFile={isPendingWithoutFile(documento)}
+                />
+              </article>
+            ))}
+          </section>
+
+          <section className="mobile-card-list mobile-only">
+            {documentosVisiveis.map((documento) => (
+                <details className="card stack document-mobile-card" key={documento.id}>
+                  <summary>
+                    <span>
+                      <strong>{documento.tipo}</strong>
+                      <small>{documento.nome}</small>
+                    </span>
+                    <span className="status-pill">{documento.status}</span>
+                  </summary>
+                  <div className="document-mobile-meta">
+                    <span>{documento.cliente}</span>
+                    <span>{documento.caso}</span>
+                    <span>{documento.categoria} / {documento.subcategoria}</span>
+                  </div>
+                  <label className="check-option">
+                    <input form="dossie-form" name="documento" type="checkbox" value={documento.id} />
+                    <span>Incluir no dossiê</span>
+                  </label>
+                  {isPendingWithoutFile(documento) ? (
+                    <p className="notice compact danger">Arquivo original não encontrado. Reenvie para salvar no armazenamento do escritório.</p>
+                  ) : null}
+                  <DocumentActions
+                    url={documento.storageUrl}
+                    path={documento.storagePath}
+                    id={documento.id}
+                    provider={documento.provider}
+                    pdfPath={documento.pdfPath}
+                    pdfUrl={documento.pdfUrl}
+                    pendingWithoutFile={isPendingWithoutFile(documento)}
+                  />
+                </details>
+              ))}
+          </section>
+        </>
+      )}
+
+      {shouldShowPendingReview ? (
+        <section className="form-card stack">
+          <div className="section-title">
+            <div>
+              <h2>Documentos pendentes</h2>
+              <p>Arquivo original não encontrado. Reenvie para salvar no armazenamento do escritório.</p>
+            </div>
+            <span className="badge">{documentosPendentes.length} pendente(s)</span>
+          </div>
+          {documentosPendentes.length === 0 ? (
+            <p className="muted">Nenhum documento pendente precisa de reenvio.</p>
+          ) : (
+            <div className="compact-stack">
+              {documentosPendentes.map((documento) => (
+                <article className="list-row pending-document-row" key={documento.id}>
+                  <strong>{documento.tipo}: {documento.nome}</strong>
+                  <span>{documento.cliente} / {documento.caso}</span>
+                  <a className="button secondary" href={`/lexgestor/documentos?reenviar=${documento.id}#documentos`}>
+                    Reenviar
+                  </a>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
     </ResponsivePageContainer>
   );
-}
-
-function storageProviderLabel(provider: string) {
-  if (provider === "google_drive") return "Google Drive";
-  if (provider === "dropbox") return "Dropbox";
-  return "Armazenamento";
 }
 
 function dedupeDocumentos(documentos: LexDocumento[]) {
   const unique = new Map<string, LexDocumento>();
 
   for (const documento of documentos) {
-    if (["Substituído", "Substituído/Reenviado"].includes(documento.status)) continue;
+    if (["Substituido", "Substituido/Reenviado"].includes(documento.status)) continue;
 
     const key = [
       documento.clienteId,
       documento.casoId,
+      documento.processoId,
+      documento.movimentacaoId,
       documento.tipo,
       documento.nome,
       documento.categoria,
@@ -193,7 +286,7 @@ function dedupeDocumentos(documentos: LexDocumento[]) {
 }
 
 function isPendingWithoutFile(documento: LexDocumento) {
-  return ["Pendente", "Pendente de reenvio", "Precisa reenviar", "Precisa reenviar arquivo", "Erro no envio"].includes(documento.status) &&
+  return ["Pendente", "Original indisponível", "Original indisponivel", "Precisa reenviar arquivo", "Falha no envio"].includes(documento.status) &&
     !documento.storagePath &&
     !documento.storageUrl;
 }
@@ -211,8 +304,11 @@ function normalizeKey(value: string) {
 function feedbackMessage(value: string) {
   const messages: Record<string, string> = {
     "pendentes-atualizados": "Documentos pendentes revisados. Os arquivos sem original foram marcados para reenvio.",
-    "sem-pendentes": "Nenhum documento pendente precisava de atualização.",
-    "configure-escritorio": "Configure o escritório antes de atualizar documentos.",
+    "sem-pendentes": "Nenhum documento pendente precisava de atualizacao.",
+    "configure-escritorio": "Configure o escritório antes de revisar documentos.",
+    "documento-excluido": "Documento excluído e lista atualizada.",
+    "documento-excluido-storage-pendente": "Documento removido do LexGestor. Remova o arquivo externo manualmente se ele ainda aparecer no provedor.",
+    "sem-permissao": "Seu perfil não permite excluir documentos.",
   };
 
   return messages[value] ?? value;

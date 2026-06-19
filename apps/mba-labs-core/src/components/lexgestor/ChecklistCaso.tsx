@@ -15,9 +15,13 @@ const statusOptions = [
 
 type ChecklistCasoProps = {
   items: ChecklistTemplate[];
+  clienteId?: string;
+  casoId?: string;
+  categoria?: string;
+  subcategoria?: string;
 };
 
-export function ChecklistCaso({ items }: ChecklistCasoProps) {
+export function ChecklistCaso({ items, clienteId = "", casoId = "", categoria = "", subcategoria = "" }: ChecklistCasoProps) {
   const [statuses, setStatuses] = useState<Record<number, string>>({});
 
   useEffect(() => {
@@ -64,7 +68,19 @@ export function ChecklistCaso({ items }: ChecklistCasoProps) {
     );
 
     const target = document.getElementById("lexgestor-upload-documento") || document.getElementById("documentos");
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (target) {
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
+    if (clienteId || casoId) {
+      const params = new URLSearchParams();
+      if (clienteId) params.set("cliente", clienteId);
+      if (casoId) params.set("caso", casoId);
+      if (categoria || item.area) params.set("categoria", categoria || item.area);
+      if (subcategoria || item.subarea) params.set("subcategoria", subcategoria || item.subarea);
+      window.location.href = `/lexgestor/documentos?${params.toString()}#documentos`;
+    }
   }
 
   if (items.length === 0) {

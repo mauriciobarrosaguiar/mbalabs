@@ -116,7 +116,7 @@ export function CasoAccordionList({ casos }: CasoAccordionListProps) {
                   </Link>
                   <Link className="button secondary" href={`/api/lexgestor/relatorios/pdf?tipo=dossie&caso=${caso.id}`}>
                     <FileText size={17} aria-hidden />
-                    Gerar dossiê PDF
+                    Gerar dossiê do caso
                   </Link>
                   <button className="button secondary" type="button" onClick={() => window.print()}>
                     <Printer size={17} aria-hidden />

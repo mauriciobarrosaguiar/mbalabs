@@ -3,10 +3,14 @@
 import { redirect } from "next/navigation";
 import { obterChecklistPorAreaSubarea } from "@/lib/lexgestor/checklist";
 import { ensureLexEscritorio, getLexSupabaseClient, storageProviderLabel } from "@/lib/lexgestor/data";
-import { disconnectStorage, isStorageProvider, testStorageConnection } from "@/lib/lexgestor/storage";
+import { deleteFromConnectedStorage, disconnectStorage, isStorageProvider, montarPastaRaizEscritorio, testStorageConnection, uploadToConnectedStorage } from "@/lib/lexgestor/storage";
 import { requireAppAccess } from "@/lib/core-data";
 import { registrarAuditoriaLexGestor } from "@/lib/lexgestor/audit";
+import { obterUsuarioLexGestorAtual } from "@/lib/lexgestor/auth";
 import { checarLimiteLexGestor, obterPlanoLexGestor } from "@/lib/lexgestor/plans";
+import { createLogoStorageUrl } from "@/lib/lexgestor/pdf-branding";
+import { possuiPermissao } from "@/lib/lexgestor/permissions";
+import { normalizarNumeroCnj, numeroCnjMinimoValido, syncProcessoDataJud } from "@/lib/lexgestor/processos";
 
 export async function salvarClienteLexGestor(formData: FormData) {
   const current = await requireAppAccess("lexgestor", "/lexgestor/clientes/novo");
@@ -238,16 +242,24 @@ export async function salvarConfiguracoesLexGestor(formData: FormData) {
   const client = await getLexSupabaseClient();
   const escritorio = await ensureLexEscritorio(client, current);
   const escritorioId = String(escritorio?.id ?? "");
+  const nomeEscritorio = required(formData, "nome");
+  const logoUrl = await resolverLogoEscritorio({
+    current,
+    escritorioNome: nomeEscritorio,
+    file: formData.get("logo_file"),
+    currentLogoUrl: text(escritorio?.logo_url) || null,
+    currentStorageLogoUrl: text(escritorio?.watermark_image_url) || null,
+  });
 
   const payload = {
-    nome: required(formData, "nome"),
+    nome: nomeEscritorio,
     cnpj: nullable(formData, "cnpj"),
     telefone: nullable(formData, "telefone"),
     whatsapp: nullable(formData, "whatsapp"),
     email: nullable(formData, "email"),
     endereco: nullable(formData, "endereco"),
-    logo_url: nullable(formData, "logo_url"),
-    watermark_image_url: nullable(formData, "watermark_image_url"),
+    logo_url: logoUrl.pdfLogoUrl,
+    watermark_image_url: logoUrl.storageLogoUrl,
     watermark_text: nullable(formData, "watermark_text"),
     responsavel_principal: nullable(formData, "responsavel_principal"),
     responsavel_oab: nullable(formData, "responsavel_oab"),
@@ -291,9 +303,81 @@ export async function salvarConfiguracoesLexGestor(formData: FormData) {
   redirect("/lexgestor/configuracoes?status=configuracoes-salvas");
 }
 
+async function resolverLogoEscritorio({
+  current,
+  escritorioNome,
+  file,
+  currentLogoUrl,
+  currentStorageLogoUrl,
+}: {
+  current: Awaited<ReturnType<typeof requireAppAccess>>;
+  escritorioNome: string;
+  file: FormDataEntryValue | null;
+  currentLogoUrl: string | null;
+  currentStorageLogoUrl: string | null;
+}) {
+  if (!(file instanceof File) || file.size === 0) {
+    return {
+      pdfLogoUrl: currentLogoUrl,
+      storageLogoUrl: currentStorageLogoUrl,
+    };
+  }
+
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowedTypes.includes(file.type)) {
+    redirect(`/lexgestor/configuracoes?erro=${encodeURIComponent("Selecione uma logo em PNG, JPG ou WebP.")}`);
+  }
+
+  if (file.size > 4 * 1024 * 1024) {
+    redirect(`/lexgestor/configuracoes?erro=${encodeURIComponent("A logo deve ter no máximo 4 MB.")}`);
+  }
+
+  try {
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const pdfLogoUrl = `data:${file.type};base64,${bytes.toString("base64")}`;
+    const result = await uploadToConnectedStorage({
+      current,
+      provider: "google_drive",
+      fileName: logoFileName(escritorioNome, file),
+      mimeType: file.type,
+      bytes,
+      folderPath: `${montarPastaRaizEscritorio(escritorioNome)}/00 - Identidade Visual`,
+    });
+
+    if (!result?.fileId) {
+      redirect(`/lexgestor/configuracoes?erro=${encodeURIComponent("Conecte o Google Drive antes de carregar a logo.")}`);
+    }
+
+    return {
+      pdfLogoUrl,
+      storageLogoUrl: createLogoStorageUrl("google_drive", { fileId: result.fileId }),
+    };
+  } catch (error) {
+    redirect(`/lexgestor/configuracoes?erro=${encodeURIComponent(errorMessage(error))}`);
+  }
+}
+
+function logoFileName(escritorioNome: string, file: File) {
+  const extensionByMime: Record<string, string> = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+  };
+  const extension = extensionByMime[file.type] ?? "";
+  const name = escritorioNome
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .toLowerCase() || "escritorio";
+
+  return `logo-${name}${extension}`;
+}
+
 export async function salvarAdvogadoLexGestor(formData: FormData) {
   const id = value(formData, "id");
   const current = await requireAppAccess("lexgestor", "/lexgestor/equipe");
+  await ensureCanManageEquipeLexGestor();
   const client = await getLexSupabaseClient();
   const escritorio = await ensureLexEscritorio(client, current);
   const escritorioId = String(escritorio?.id ?? "");
@@ -317,8 +401,18 @@ export async function salvarAdvogadoLexGestor(formData: FormData) {
   }
 
   const coreUsuarioId = nullable(formData, "core_usuario_id");
-  if (coreUsuarioId && !(await belongsToCompanyUser(client, coreUsuarioId, current.empresaId))) {
-    redirect("/lexgestor/equipe?erro=usuario-invalido");
+  if (coreUsuarioId) {
+    const userValidation = await validateCoreUsuarioLexGestor({
+      client,
+      coreUsuarioId,
+      current,
+      escritorioId,
+      profissionalId: id,
+    });
+
+    if (!userValidation.ok) {
+      redirect(`/lexgestor/equipe?erro=${userValidation.reason}`);
+    }
   }
 
   const status = value(formData, "status") || "ativo";
@@ -374,6 +468,7 @@ export async function alterarStatusAdvogadoLexGestor(formData: FormData) {
   const id = required(formData, "id");
   const status = value(formData, "status") === "inativo" ? "inativo" : "ativo";
   const current = await requireAppAccess("lexgestor", "/lexgestor/equipe");
+  await ensureCanManageEquipeLexGestor();
   const client = await getLexSupabaseClient();
   const escritorio = await ensureLexEscritorio(client, current);
   const escritorioId = String(escritorio?.id ?? "");
@@ -403,6 +498,7 @@ export async function alterarStatusAdvogadoLexGestor(formData: FormData) {
 export async function excluirOuInativarAdvogadoLexGestor(formData: FormData) {
   const id = required(formData, "id");
   const current = await requireAppAccess("lexgestor", "/lexgestor/equipe");
+  await ensureCanManageEquipeLexGestor();
   const client = await getLexSupabaseClient();
   const escritorio = await ensureLexEscritorio(client, current);
   const escritorioId = String(escritorio?.id ?? "");
@@ -497,9 +593,9 @@ export async function atualizarPendentesDocumentosLexGestor() {
 
   const { data, error } = await client
     .from("lex_documentos")
-    .select("id,status,storage_path,storage_url,dropbox_path_original")
+    .select("id,status,storage_path,storage_url,dropbox_path_original,storage_file_id,dropbox_file_id")
     .eq("escritorio_id", escritorioId)
-    .in("status", ["metadados_criados", "pendente", "erro_envio"]);
+    .in("status", ["metadados_criados", "pendente", "erro_envio", "precisa_reenviar"]);
 
   if (error) {
     redirect(`/lexgestor/documentos?erro=${encodeURIComponent(error.message)}`);
@@ -520,12 +616,236 @@ export async function atualizarPendentesDocumentosLexGestor() {
 
   await registrarAuditoriaLexGestor({
     current,
-    acao: "documentos.pendentes_atualizados",
+    acao: "documentos.pendentes_revisados",
     entidade: "lex_documentos",
     detalhes: { documentosMarcados: ids.length },
   });
 
   redirect(`/lexgestor/documentos?status=${ids.length > 0 ? "pendentes-atualizados" : "sem-pendentes"}`);
+}
+
+export async function excluirDocumentoLexGestor(formData: FormData) {
+  const documentoId = required(formData, "documento_id");
+  const current = await requireAppAccess("lexgestor", "/lexgestor/documentos");
+  const usuarioLex = await obterUsuarioLexGestorAtual("/lexgestor/documentos");
+  if (!possuiPermissao(usuarioLex, "lex:documentos:excluir")) {
+    redirect("/lexgestor/documentos?erro=sem-permissao");
+  }
+  const client = await getLexSupabaseClient();
+  const escritorio = await ensureLexEscritorio(client, current);
+  const escritorioId = String(escritorio?.id ?? "");
+
+  if (!escritorioId) {
+    redirect("/lexgestor/documentos?erro=configure-escritorio");
+  }
+
+  const documentoResult = await client
+    .from("lex_documentos")
+    .select("*")
+    .eq("id", documentoId)
+    .eq("escritorio_id", escritorioId)
+    .maybeSingle();
+
+  if (documentoResult.error || !documentoResult.data) {
+    redirect("/lexgestor/documentos?erro=documento-invalido");
+  }
+
+  const documento = documentoResult.data as Record<string, unknown>;
+  const provider = text(documento.storage_provider) || text(documento.provider) || (text(documento.dropbox_path_original) ? "dropbox" : "");
+  const clienteId = text(documento.cliente_id);
+  const casoId = text(documento.caso_id);
+  const movimentacaoId = text(documento.movimentacao_id);
+
+  let storageDeleteError = "";
+
+  if (isStorageProvider(provider)) {
+    try {
+      await deleteFromConnectedStorage({
+        current,
+        provider,
+        path: text(documento.storage_path) || text(documento.caminho_original) || text(documento.dropbox_path_original),
+        fileId: text(documento.storage_file_id) || text(documento.dropbox_file_id),
+      });
+      await deleteFromConnectedStorage({
+        current,
+        provider,
+        path: text(documento.pdf_storage_path) || text(documento.caminho_pdf) || text(documento.dropbox_path_pdf_marca_dagua),
+        fileId: text(documento.pdf_storage_file_id),
+      });
+    } catch (error) {
+      storageDeleteError = errorMessage(error);
+    }
+  }
+
+  const deleted = await client
+    .from("lex_documentos")
+    .delete()
+    .eq("id", documentoId)
+    .eq("escritorio_id", escritorioId);
+
+  if (deleted.error) {
+    redirect(`/lexgestor/documentos?cliente=${clienteId}&caso=${casoId}&erro=${encodeURIComponent(deleted.error.message)}`);
+  }
+
+  if (movimentacaoId) {
+    const remaining = await client
+      .from("lex_documentos")
+      .select("id", { count: "exact", head: true })
+      .eq("escritorio_id", escritorioId)
+      .eq("movimentacao_id", movimentacaoId);
+
+    if ((remaining.count ?? 0) === 0) {
+      await client
+        .from("lex_movimentacoes")
+        .update({ tem_documento: false, documento_status: "sem_documento" })
+        .eq("id", movimentacaoId)
+        .eq("escritorio_id", escritorioId);
+    }
+  }
+
+  await registrarAuditoriaLexGestor({
+    current,
+    acao: "documento.excluido",
+    entidade: "lex_documentos",
+    entidadeId: documentoId,
+    detalhes: { provider, clienteId, casoId, storageDeleteError: storageDeleteError || null },
+  });
+
+  redirect(`/lexgestor/documentos?cliente=${clienteId}${casoId ? `&caso=${casoId}` : ""}&status=${storageDeleteError ? "documento-excluido-storage-pendente" : "documento-excluido"}`);
+}
+
+export async function salvarProcessoLexGestor(formData: FormData) {
+  const current = await requireAppAccess("lexgestor", "/lexgestor/processos/novo");
+  const client = await getLexSupabaseClient();
+  const escritorio = await ensureLexEscritorio(client, current);
+  const escritorioId = String(escritorio?.id ?? "");
+
+  if (!escritorioId) {
+    redirect("/lexgestor/processos/novo?erro=configure-escritorio");
+  }
+
+  const numeroCnj = required(formData, "numero_cnj");
+  const numeroCnjLimpo = normalizarNumeroCnj(numeroCnj);
+  if (!numeroCnjMinimoValido(numeroCnj)) {
+    redirect("/lexgestor/processos/novo?erro=numero-cnj-invalido");
+  }
+
+  const clienteId = required(formData, "cliente_id");
+  if (!(await belongsToOffice(client, "lex_clientes", clienteId, escritorioId))) {
+    redirect("/lexgestor/processos/novo?erro=cliente-invalido");
+  }
+
+  const casoId = nullable(formData, "caso_id");
+  if (casoId) {
+    const caso = await client
+      .from("lex_casos")
+      .select("id,cliente_id")
+      .eq("id", casoId)
+      .eq("escritorio_id", escritorioId)
+      .maybeSingle();
+
+    if (caso.error || !caso.data?.id || String(caso.data.cliente_id ?? "") !== clienteId) {
+      redirect("/lexgestor/processos/novo?erro=caso-invalido");
+    }
+  }
+
+  const duplicate = await client
+    .from("lex_processos")
+    .select("id")
+    .eq("escritorio_id", escritorioId)
+    .eq("numero_cnj_limpo", numeroCnjLimpo)
+    .maybeSingle();
+
+  if (duplicate.error && duplicate.error.code !== "PGRST116") {
+    redirect(`/lexgestor/processos/novo?erro=${encodeURIComponent(duplicate.error.message)}`);
+  }
+
+  if (duplicate.data?.id) {
+    redirect(`/lexgestor/processos/${duplicate.data.id}?erro=processo-duplicado`);
+  }
+
+  const advogadoId = await resolveAdvogadoAtual(client, escritorioId, current.usuario.id);
+  const payload = {
+    empresa_id: current.empresaId,
+    escritorio_id: escritorioId,
+    advogado_id: advogadoId,
+    cliente_id: clienteId,
+    caso_id: casoId,
+    numero_cnj: numeroCnj,
+    numero_cnj_limpo: numeroCnjLimpo,
+    tribunal: required(formData, "tribunal"),
+    tribunal_alias_datajud: required(formData, "tribunal_alias_datajud"),
+    grau: required(formData, "grau"),
+    categoria: nullable(formData, "categoria"),
+    subcategoria: nullable(formData, "subcategoria"),
+    chave_eproc_opcional: nullable(formData, "chave_eproc_opcional"),
+    url_eproc: nullable(formData, "url_eproc"),
+    observacoes: nullable(formData, "observacoes"),
+    status: value(formData, "status") || "ativo",
+    updated_at: new Date().toISOString(),
+  };
+
+  const created = await client.from("lex_processos").insert(payload).select("id").single();
+  if (created.error) {
+    redirect(`/lexgestor/processos/novo?erro=${encodeURIComponent(created.error.message)}`);
+  }
+
+  await registrarAuditoriaLexGestor({
+    current,
+    acao: "processo.criado",
+    entidade: "lex_processos",
+    entidadeId: String(created.data.id),
+    detalhes: { numeroCnj, tribunal: payload.tribunal, clienteId, casoId },
+  });
+
+  redirect(`/lexgestor/processos/${created.data.id}?status=processo-salvo`);
+}
+
+export async function sincronizarProcessoLexGestor(formData: FormData) {
+  const processoId = required(formData, "processo_id");
+  const current = await requireAppAccess("lexgestor", `/lexgestor/processos/${processoId}`);
+  let destination = `/lexgestor/processos/${processoId}`;
+
+  try {
+    const result = await syncProcessoDataJud({ processoId, current });
+    destination = `/lexgestor/processos/${processoId}?status=${encodeURIComponent(result.message)}`;
+  } catch (error) {
+    destination = `/lexgestor/processos/${processoId}?erro=${encodeURIComponent(errorMessage(error))}`;
+  }
+
+  redirect(destination);
+}
+
+export async function marcarMovimentacoesVistasLexGestor(formData: FormData) {
+  const processoId = required(formData, "processo_id");
+  const current = await requireAppAccess("lexgestor", `/lexgestor/processos/${processoId}`);
+  const client = await getLexSupabaseClient();
+  const escritorio = await ensureLexEscritorio(client, current);
+  const escritorioId = String(escritorio?.id ?? "");
+
+  if (!escritorioId) {
+    redirect(`/lexgestor/processos/${processoId}?erro=configure-escritorio`);
+  }
+
+  const processoExiste = await belongsToOffice(client, "lex_processos", processoId, escritorioId);
+  if (!processoExiste) {
+    redirect("/lexgestor/processos?erro=processo-invalido");
+  }
+
+  await Promise.all([
+    client
+      .from("lex_processos")
+      .update({ possui_nova_movimentacao: false, updated_at: new Date().toISOString() })
+      .eq("id", processoId)
+      .eq("escritorio_id", escritorioId),
+    client
+      .from("lex_movimentacoes")
+      .update({ visualizado: true })
+      .eq("processo_id", processoId)
+      .eq("escritorio_id", escritorioId),
+  ]);
+
+  redirect(`/lexgestor/processos/${processoId}?status=movimentacoes-vistas`);
 }
 
 export async function testarArmazenamentoLexGestor(formData?: FormData) {
@@ -657,17 +977,94 @@ async function belongsToOffice(client: any, table: string, id: string | null, es
   return !error && Boolean(data?.id);
 }
 
-async function belongsToCompanyUser(client: any, id: string, empresaId: string | null) {
-  if (!id || !empresaId) return false;
+async function validateCoreUsuarioLexGestor({
+  client,
+  coreUsuarioId,
+  current,
+  escritorioId,
+  profissionalId,
+}: {
+  client: any;
+  coreUsuarioId: string;
+  current: Awaited<ReturnType<typeof requireAppAccess>>;
+  escritorioId: string;
+  profissionalId?: string;
+}) {
+  if (!coreUsuarioId || !current.empresaId) return { ok: false, reason: "usuario-invalido" };
 
-  const { data, error } = await client
+  const usuario = await client
     .from("core_usuarios")
-    .select("id")
-    .eq("id", id)
-    .eq("empresa_id", empresaId)
+    .select("id,empresa_id,tipo,status")
+    .eq("id", coreUsuarioId)
+    .eq("empresa_id", current.empresaId)
+    .eq("status", "ativo")
     .maybeSingle();
 
-  return !error && Boolean(data?.id);
+  const tipo = text(usuario.data?.tipo);
+  if (usuario.error || !usuario.data?.id || tipo === "super_admin" || tipo === "admin_master") {
+    return { ok: false, reason: "usuario-invalido" };
+  }
+
+  const duplicateQuery = client
+    .from("lex_advogados")
+    .select("id")
+    .eq("escritorio_id", escritorioId)
+    .eq("core_usuario_id", coreUsuarioId);
+  const duplicates = profissionalId ? await duplicateQuery.neq("id", profissionalId) : await duplicateQuery;
+  if (!duplicates.error && (duplicates.data ?? []).length > 0) {
+    return { ok: false, reason: "usuario-ja-vinculado" };
+  }
+
+  const appId = await resolveLexGestorAppId(client);
+  if (!appId) return { ok: true, reason: "" };
+
+  const permission = await client
+    .from("core_usuario_app_permissoes")
+    .select("id,status")
+    .eq("empresa_id", current.empresaId)
+    .eq("usuario_id", coreUsuarioId)
+    .eq("app_id", appId)
+    .in("status", ["ativo", "teste"])
+    .maybeSingle();
+
+  if (permission.error && permission.error.code !== "PGRST116") {
+    return { ok: true, reason: "" };
+  }
+
+  return permission.data?.id ? { ok: true, reason: "" } : { ok: false, reason: "usuario-sem-lexgestor" };
+}
+
+async function resolveLexGestorAppId(client: any) {
+  const { data, error } = await client
+    .from("core_apps")
+    .select("id")
+    .in("slug", ["lexgestor", "lex-gestor"])
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data?.id) return "";
+  return text(data.id);
+}
+
+async function resolveAdvogadoAtual(client: any, escritorioId: string, coreUsuarioId: string) {
+  if (!escritorioId || !coreUsuarioId) return null;
+
+  const { data, error } = await client
+    .from("lex_advogados")
+    .select("id")
+    .eq("escritorio_id", escritorioId)
+    .eq("core_usuario_id", coreUsuarioId)
+    .maybeSingle();
+
+  if (error || !data?.id) return null;
+  return String(data.id);
+}
+
+async function ensureCanManageEquipeLexGestor() {
+  const usuarioLex = await obterUsuarioLexGestorAtual("/lexgestor/equipe");
+  if (!possuiPermissao(usuarioLex, "lex:equipe:gerenciar")) {
+    redirect("/lexgestor?erro=equipe-restrita");
+  }
 }
 
 async function insertWithLegacyFallback(

@@ -198,6 +198,48 @@ export async function uploadToConnectedStorage(params: {
   });
 }
 
+export async function deleteFromConnectedStorage(params: {
+  current: CurrentUserProfile;
+  provider: StorageProvider;
+  path?: string;
+  fileId?: string;
+}) {
+  const connection = await getConnectedStorage(params.current, params.provider);
+  if (!connection) {
+    throw new Error("Nenhum armazenamento conectado para este escritorio.");
+  }
+
+  const accessToken = await getFreshAccessToken(params.provider, connection);
+
+  if (params.provider === "google_drive") {
+    if (!params.fileId) return;
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(params.fileId)}`, {
+      method: "DELETE",
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    if (!response.ok && response.status !== 404) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error?.message || "Falha ao excluir arquivo no Google Drive.");
+    }
+    return;
+  }
+
+  if (!params.path) return;
+  const response = await fetch("https://api.dropboxapi.com/2/files/delete_v2", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${accessToken}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ path: params.path }),
+  });
+
+  if (!response.ok && response.status !== 409) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error_summary || "Falha ao excluir arquivo no Dropbox.");
+  }
+}
+
 export async function disconnectStorage(current: CurrentUserProfile, provider?: StorageProvider) {
   const client = await getLexSupabaseClient();
   const escritorio = await ensureLexEscritorio(client, current);

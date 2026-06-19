@@ -31,7 +31,7 @@ export default async function DocumentoViewerPage({ params }: DocumentoViewerPag
       title={documento.tipo || "Documento"}
       description={`${documento.cliente} - ${documento.caso}`}
       action={
-        <Link className="button secondary" href="/lexgestor/documentos">
+        <Link className="button secondary" href={`/lexgestor/documentos?cliente=${documento.clienteId}&caso=${documento.casoId}`}>
           Voltar aos documentos
         </Link>
       }
@@ -48,10 +48,8 @@ export default async function DocumentoViewerPage({ params }: DocumentoViewerPag
         {!hasOriginalFile ? (
           <div className="empty-state">
             <FileQuestion size={32} color="var(--primary)" aria-hidden />
-            <strong>Arquivo original indisponível. Reenvie o documento.</strong>
-            <p>
-              Este documento foi cadastrado antes da conexão com o armazenamento ou sem arquivo real salvo no provedor do escritório.
-            </p>
+            <strong>Arquivo original não encontrado.</strong>
+            <p>Reenvie o arquivo para salvar no armazenamento do escritório e liberar visualização, download e PDF.</p>
             <Link className="button" href={reuploadUrl}>
               <UploadCloud size={17} aria-hidden />
               Reenviar arquivo
@@ -70,8 +68,8 @@ export default async function DocumentoViewerPage({ params }: DocumentoViewerPag
                 Gerar PDF com marca d'água
               </a>
               {documento.storagePath ? (
-                <span className="badge path-badge">
-                  Local no {storageProviderLabel(documento.provider)}: {documento.storagePath}
+                <span className="badge path-badge" title={documento.storagePath}>
+                  Local no {storageProviderLabel(documento.provider)}
                 </span>
               ) : null}
             </div>

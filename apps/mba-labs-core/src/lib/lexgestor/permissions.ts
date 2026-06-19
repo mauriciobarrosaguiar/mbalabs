@@ -15,6 +15,7 @@ export type PermissaoLexGestor =
   | "lex:documentos:ler"
   | "lex:documentos:metadados"
   | "lex:documentos:upload"
+  | "lex:documentos:excluir"
   | "lex:documentos:sigilosos"
   | "lex:pdf:gerar"
   | "lex:dossie:gerar"
@@ -42,6 +43,7 @@ const PERMISSOES_POR_PERFIL: Record<PerfilLexGestor, PermissaoLexGestor[]> = {
     "lex:documentos:ler",
     "lex:documentos:metadados",
     "lex:documentos:upload",
+    "lex:documentos:excluir",
     "lex:documentos:sigilosos",
     "lex:pdf:gerar",
     "lex:dossie:gerar",
@@ -60,6 +62,7 @@ const PERMISSOES_POR_PERFIL: Record<PerfilLexGestor, PermissaoLexGestor[]> = {
     "lex:documentos:ler",
     "lex:documentos:metadados",
     "lex:documentos:upload",
+    "lex:documentos:excluir",
     "lex:documentos:sigilosos",
     "lex:pdf:gerar",
     "lex:dossie:gerar",
@@ -75,6 +78,7 @@ const PERMISSOES_POR_PERFIL: Record<PerfilLexGestor, PermissaoLexGestor[]> = {
     "lex:documentos:ler",
     "lex:documentos:metadados",
     "lex:documentos:upload",
+    "lex:documentos:excluir",
     "lex:documentos:sigilosos",
     "lex:pdf:gerar",
     "lex:dossie:gerar",

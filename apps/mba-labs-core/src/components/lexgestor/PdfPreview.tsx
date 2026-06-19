@@ -17,10 +17,10 @@ export function PdfPreview({ documentoId, href = "" }: { documentoId?: string; h
   }
 
   return (
-    <section className="pdf-preview" aria-label="Pre-visualizacao de PDF">
+    <section className="pdf-preview" aria-label="Pré-visualização de PDF">
       <div>
-        <strong>Pré-visualização do PDF com marca d'água</strong>
-        <p>O sistema gera uma cópia em PDF com identificação do escritório.</p>
+        <strong>Pré-visualização do PDF</strong>
+        <p>Abra o arquivo gerado para revisar ou imprimir dentro do LexGestor.</p>
       </div>
       <div className="pdf-watermark">Marca d'água do escritório</div>
       <div className="button-row">

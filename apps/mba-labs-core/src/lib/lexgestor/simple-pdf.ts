@@ -7,9 +7,23 @@ export type SimplePdfLine = {
   y?: number;
 };
 
+export type PdfBrandImage = {
+  bytes: Buffer;
+  mimeType?: string;
+  name?: string;
+};
+
+export type PdfBrandingOptions = {
+  headerText?: string;
+  watermarkText?: string;
+  logo?: PdfBrandImage | null;
+  watermarkOpacity?: number;
+};
+
 export type EmbeddedImagePdfOptions = {
   lines: SimplePdfLine[];
   watermark?: string;
+  branding?: PdfBrandingOptions;
   imageBytes: Buffer;
   imageMimeType?: string;
   imageName?: string;
@@ -22,54 +36,49 @@ type PdfImage = {
   filter: "/DCTDecode" | "/FlateDecode";
 };
 
-export function createSimplePdf(lines: SimplePdfLine[], watermark = "LexGestor") {
-  const pageWidth = 595;
-  const pageHeight = 842;
-  const contentLines = lines.map((line, index) => ({
-    ...line,
-    x: line.x ?? 48,
-    y: line.y ?? pageHeight - 64 - index * 18,
-    size: line.size ?? 11,
-  }));
+const pageWidth = 595;
+const pageHeight = 842;
+const marginX = 48;
+const fallbackHeaderText = "LexGestor";
 
-  const stream = [
-    "q",
-    "0.88 0.93 1 rg",
-    "BT /F1 42 Tf 90 360 Td 0.7 0.7 0.7 rg",
-    `${toPdfWinAnsiText(watermark)} Tj`,
-    "ET",
-    "Q",
-    "BT",
-    "/F1 18 Tf",
-    "0.05 0.13 0.27 rg",
-    `48 ${pageHeight - 40} Td ${toPdfWinAnsiText("LexGestor")} Tj`,
-    "ET",
-    ...contentLines.flatMap((line) => [
-      "BT",
-      `/F1 ${line.size} Tf`,
-      "0.09 0.12 0.18 rg",
-      `${line.x} ${line.y} Td ${toPdfWinAnsiText(line.text)} Tj`,
-      "ET",
-    ]),
-  ].join("\n");
+export function createSimplePdf(lines: SimplePdfLine[], watermarkOrBranding: string | PdfBrandingOptions = fallbackHeaderText) {
+  const branding = normalizeBranding(watermarkOrBranding);
+  const logoImage = parseBrandLogo(branding);
+  const pages = paginateLines(lines, logoImage);
+  const pageStreams = pages.map((contentLines) =>
+    [
+      renderPageWatermark(branding, logoImage),
+      renderPageHeader(branding, logoImage),
+      ...contentLines.flatMap((line) => [
+        "BT",
+        `/F1 ${line.size} Tf`,
+        "0.09 0.12 0.18 rg",
+        `${formatNumber(line.x)} ${formatNumber(line.y)} Td ${toPdfWinAnsiText(line.text)} Tj`,
+        "ET",
+      ]),
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
 
-  return buildPdf([
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>`,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
-    createStreamObject(stream),
-  ]);
+  return buildPdfDocument({
+    pageStreams,
+    xObjects: logoImage ? [{ name: "Logo", object: createImageObject(logoImage) }] : [],
+    extGStates: logoImage ? watermarkGraphicsState(branding) : "",
+  });
 }
 
 export function createImagePdfWithWatermark({
   lines,
   watermark = "LexGestor",
+  branding: providedBranding,
   imageBytes,
   imageMimeType = "",
   imageName = "documento",
 }: EmbeddedImagePdfOptions) {
   const image = parseImageForPdf(imageBytes, imageMimeType, imageName);
+  const branding = normalizeBranding(providedBranding ?? watermark);
+  const logoImage = parseBrandLogo(branding);
 
   if (!image) {
     return createSimplePdf(
@@ -77,23 +86,20 @@ export function createImagePdfWithWatermark({
         ...lines,
         { text: "Imagem original não pode ser incorporada automaticamente. O arquivo original foi preservado no armazenamento." },
       ],
-      watermark,
+      branding,
     );
   }
 
-  const pageWidth = 595;
-  const pageHeight = 842;
-  const marginX = 48;
-  const topY = pageHeight - 44;
+  const contentStartY = logoImage ? 650 : pageHeight - 74;
   const infoLines = lines.slice(0, 7).map((line, index) => ({
     ...line,
     x: line.x ?? marginX,
-    y: line.y ?? pageHeight - 74 - index * 17,
+    y: line.y ?? contentStartY - index * 17,
     size: line.size ?? 10,
   }));
 
   const maxImageWidth = pageWidth - marginX * 2;
-  const maxImageHeight = 560;
+  const maxImageHeight = logoImage ? 500 : 560;
   const scale = Math.min(maxImageWidth / image.width, maxImageHeight / image.height);
   const drawWidth = Math.max(1, image.width * scale);
   const drawHeight = Math.max(1, image.height * scale);
@@ -101,36 +107,186 @@ export function createImagePdfWithWatermark({
   const drawY = 86;
 
   const contentStream = [
-    "BT",
-    "/F1 18 Tf",
-    "0.05 0.13 0.27 rg",
-    `48 ${topY} Td ${toPdfWinAnsiText("LexGestor") } Tj`,
-    "ET",
+    "q",
+    `${formatNumber(drawWidth)} 0 0 ${formatNumber(drawHeight)} ${formatNumber(drawX)} ${formatNumber(drawY)} cm`,
+    "/Original Do",
+    "Q",
+    renderPageWatermark(branding, logoImage),
+    renderPageHeader(branding, logoImage),
     ...infoLines.flatMap((line) => [
       "BT",
       `/F1 ${line.size} Tf`,
       "0.09 0.12 0.18 rg",
-      `${line.x} ${line.y} Td ${toPdfWinAnsiText(line.text)} Tj`,
+      `${formatNumber(line.x)} ${formatNumber(line.y)} Td ${toPdfWinAnsiText(line.text)} Tj`,
       "ET",
     ]),
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const xObjects = [
+    ...(logoImage ? [{ name: "Logo", object: createImageObject(logoImage) }] : []),
+    { name: "Original", object: createImageObject(image) },
+  ];
+
+  return buildPdfDocument({
+    pageStreams: [contentStream],
+    xObjects,
+    extGStates: logoImage ? watermarkGraphicsState(branding) : "",
+  });
+}
+
+function normalizeBranding(value: string | PdfBrandingOptions): Required<Pick<PdfBrandingOptions, "headerText" | "watermarkText" | "watermarkOpacity">> & Pick<PdfBrandingOptions, "logo"> {
+  if (typeof value === "string") {
+    return {
+      headerText: fallbackHeaderText,
+      watermarkText: value || fallbackHeaderText,
+      logo: null,
+      watermarkOpacity: 0.1,
+    };
+  }
+
+  const headerText = value.headerText || fallbackHeaderText;
+  return {
+    headerText,
+    watermarkText: value.watermarkText || headerText,
+    logo: value.logo ?? null,
+    watermarkOpacity: clampOpacity(value.watermarkOpacity ?? 0.1),
+  };
+}
+
+function parseBrandLogo(branding: ReturnType<typeof normalizeBranding>) {
+  if (!branding.logo?.bytes.length) return null;
+  return parseImageForPdf(branding.logo.bytes, branding.logo.mimeType ?? "", branding.logo.name ?? "logo");
+}
+
+function paginateLines(lines: SimplePdfLine[], logoImage: PdfImage | null) {
+  const startY = logoImage ? 650 : pageHeight - 64;
+  const bottomY = 54;
+  const pages: Array<Array<Required<SimplePdfLine>>> = [[]];
+  let y = startY;
+
+  for (const line of lines) {
+    const size = line.size ?? 11;
+    const lineHeight = Math.max(16, size + 7);
+    const hasExplicitY = line.y !== undefined;
+
+    if (!hasExplicitY && y < bottomY && pages[pages.length - 1].length > 0) {
+      pages.push([]);
+      y = startY;
+    }
+
+    pages[pages.length - 1].push({
+      text: line.text,
+      size,
+      x: line.x ?? marginX,
+      y: line.y ?? y,
+    });
+
+    if (!hasExplicitY) {
+      y -= lineHeight;
+    }
+  }
+
+  return pages.length ? pages : [[]];
+}
+
+function renderPageWatermark(branding: ReturnType<typeof normalizeBranding>, logoImage: PdfImage | null) {
+  if (!logoImage) {
+    return [
+      "q",
+      "BT",
+      "/F1 42 Tf",
+      "0.70 0.70 0.70 rg",
+      `90 360 Td ${toPdfWinAnsiText(branding.watermarkText)} Tj`,
+      "ET",
+      "Q",
+    ].join("\n");
+  }
+
+  const watermark = fitInside(logoImage, 340, 360);
+  const watermarkX = (pageWidth - watermark.width) / 2;
+  const watermarkY = (pageHeight - watermark.height) / 2 - 24;
+
+  return [
     "q",
-    `${formatNumber(drawWidth)} 0 0 ${formatNumber(drawHeight)} ${formatNumber(drawX)} ${formatNumber(drawY)} cm`,
-    "/Im1 Do",
+    "/GSWatermark gs",
+    `${formatNumber(watermark.width)} 0 0 ${formatNumber(watermark.height)} ${formatNumber(watermarkX)} ${formatNumber(watermarkY)} cm`,
+    "/Logo Do",
     "Q",
-    "BT",
-    "/F1 46 Tf",
-    "0.70 0.70 0.70 rg",
-    `105 390 Td ${toPdfWinAnsiText(watermark)} Tj`,
-    "ET",
   ].join("\n");
+}
+
+function renderPageHeader(branding: ReturnType<typeof normalizeBranding>, logoImage: PdfImage | null) {
+  if (!logoImage) {
+    return [
+      "BT",
+      "/F1 18 Tf",
+      "0.05 0.13 0.27 rg",
+      `48 ${pageHeight - 40} Td ${toPdfWinAnsiText(branding.headerText)} Tj`,
+      "ET",
+    ].join("\n");
+  }
+
+  const header = fitInside(logoImage, 126, 126);
+  const headerX = (pageWidth - header.width) / 2;
+  const headerY = pageHeight - 28 - header.height;
+
+  return [
+    "q",
+    `${formatNumber(header.width)} 0 0 ${formatNumber(header.height)} ${formatNumber(headerX)} ${formatNumber(headerY)} cm`,
+    "/Logo Do",
+    "Q",
+  ].join("\n");
+}
+
+function fitInside(image: PdfImage, maxWidth: number, maxHeight: number) {
+  const scale = Math.min(maxWidth / image.width, maxHeight / image.height);
+  return {
+    width: Math.max(1, image.width * scale),
+    height: Math.max(1, image.height * scale),
+  };
+}
+
+function watermarkGraphicsState(branding: ReturnType<typeof normalizeBranding>) {
+  const opacity = formatNumber(clampOpacity(branding.watermarkOpacity));
+  return `/ExtGState << /GSWatermark << /Type /ExtGState /ca ${opacity} /CA ${opacity} >> >>`;
+}
+
+function clampOpacity(value: number) {
+  if (!Number.isFinite(value)) return 0.1;
+  return Math.min(0.35, Math.max(0.03, value));
+}
+
+function buildPdfDocument({
+  pageStreams,
+  xObjects = [],
+  extGStates = "",
+}: {
+  pageStreams: string[];
+  xObjects?: Array<{ name: string; object: Buffer }>;
+  extGStates?: string;
+}) {
+  const safePageStreams = pageStreams.length ? pageStreams : [""];
+  const pageCount = safePageStreams.length;
+  const fontObjectNumber = 3 + pageCount;
+  const xObjectStartNumber = fontObjectNumber + 1;
+  const contentStartNumber = xObjectStartNumber + xObjects.length;
+  const xObjectResources = xObjects.length
+    ? `/XObject << ${xObjects.map((item, index) => `/${item.name} ${xObjectStartNumber + index} 0 R`).join(" ")} >>`
+    : "";
+  const resourceDictionary = `<< /Font << /F1 ${fontObjectNumber} 0 R >> ${xObjectResources} ${extGStates} >>`;
 
   return buildPdf([
     "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 4 0 R >> /XObject << /Im1 5 0 R >> >> /Contents 6 0 R >>`,
+    `<< /Type /Pages /Kids [${Array.from({ length: pageCount }, (_, index) => `${3 + index} 0 R`).join(" ")}] /Count ${pageCount} >>`,
+    ...safePageStreams.map(
+      (_, index) =>
+        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources ${resourceDictionary} /Contents ${contentStartNumber + index} 0 R >>`,
+    ),
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
-    createImageObject(image),
-    createStreamObject(contentStream),
+    ...xObjects.map((item) => item.object),
+    ...safePageStreams.map((stream) => createStreamObject(stream)),
   ]);
 }
 
