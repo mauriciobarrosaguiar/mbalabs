@@ -72,13 +72,13 @@ function drawLogoWatermark(
   font?: Awaited<ReturnType<PDFDocument["embedFont"]>> | null,
 ) {
   const { width, height } = page.getSize();
-  const opacity = clampOpacity(branding.watermarkOpacity ?? 0.12);
+  const opacity = clampOpacity(branding.watermarkOpacity ?? 0.14);
 
   if (logo) {
-    const box = fitInside(logo, width * 0.72, height * 0.54);
+    const box = fitInside(logo, width * 0.78, height * 0.62);
     page.drawImage(logo, {
       x: (width - box.width) / 2,
-      y: (height - box.height) / 2 - 12,
+      y: (height - box.height) / 2,
       width: box.width,
       height: box.height,
       opacity,
@@ -142,6 +142,6 @@ function fitInside(image: PDFImage, maxWidth: number, maxHeight: number) {
 }
 
 function clampOpacity(value: number) {
-  if (!Number.isFinite(value)) return 0.12;
-  return Math.min(0.18, Math.max(0.1, value));
+  if (!Number.isFinite(value)) return 0.14;
+  return Math.min(0.2, Math.max(0.12, value));
 }
