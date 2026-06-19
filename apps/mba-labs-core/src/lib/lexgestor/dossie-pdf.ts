@@ -70,9 +70,10 @@ function addCoverPage(
   },
 ) {
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
+  drawWatermarkLogo(page, params.logo);
   drawHeaderLogo(page, params.logo);
 
-  let y = params.logo ? pageHeight - 190 : pageHeight - 126;
+  let y = params.logo ? pageHeight - 204 : pageHeight - 126;
   page.drawText("Dossiê do caso", { x: margin, y, size: 22, font: params.bold, color: rgb(0.08, 0.12, 0.2) });
   y -= 42;
 
@@ -103,9 +104,10 @@ function addRelatoPage(
   },
 ) {
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
+  drawWatermarkLogo(page, params.logo);
   drawHeaderLogo(page, params.logo);
 
-  const titleY = params.logo ? pageHeight - 190 : pageHeight - 88;
+  const titleY = params.logo ? pageHeight - 204 : pageHeight - 88;
   const relato = htmlToPlainText(params.caso.relatoInicial) || "Relato ainda não informado.";
   page.drawText("Relato do cliente", { x: margin, y: titleY, size: 18, font: params.bold, color: rgb(0.08, 0.12, 0.2) });
   drawWrappedText(page, relato, {
@@ -191,9 +193,10 @@ function addNotePage(
   },
 ) {
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
+  drawWatermarkLogo(page, params.logo);
   drawHeaderLogo(page, params.logo);
 
-  const titleY = params.logo ? pageHeight - 190 : pageHeight - 88;
+  const titleY = params.logo ? pageHeight - 204 : pageHeight - 88;
   page.drawText(params.title.slice(0, 120), {
     x: margin,
     y: titleY,
@@ -258,13 +261,26 @@ async function embedLogo(pdfDoc: PDFDocument, branding: PdfBrandingOptions) {
 function drawHeaderLogo(page: PDFPage, logo: PDFImage | null) {
   if (!logo) return;
   const { width, height } = page.getSize();
-  const box = fitInside(logo, 180, 116);
+  const box = fitInside(logo, 210, 136);
   page.drawImage(logo, {
     x: (width - box.width) / 2,
-    y: height - 24 - box.height,
+    y: height - 22 - box.height,
     width: box.width,
     height: box.height,
     opacity: 0.98,
+  });
+}
+
+function drawWatermarkLogo(page: PDFPage, logo: PDFImage | null) {
+  if (!logo) return;
+  const { width, height } = page.getSize();
+  const box = fitInside(logo, width * 0.58, height * 0.36);
+  page.drawImage(logo, {
+    x: (width - box.width) / 2,
+    y: (height - box.height) / 2 - 18,
+    width: box.width,
+    height: box.height,
+    opacity: 0.075,
   });
 }
 
