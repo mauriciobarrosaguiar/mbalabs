@@ -73,8 +73,9 @@ function addCoverPage(
 ) {
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
   drawWatermark(page, params.branding, params.logo, params.bold);
+  drawHeaderLogo(page, params.logo);
 
-  let y = pageHeight - 96;
+  let y = pageHeight - 126;
   page.drawText("Dossiê do caso", { x: margin, y, size: 22, font: params.bold, color: rgb(0.08, 0.12, 0.2) });
   y -= 42;
 
@@ -108,8 +109,9 @@ function addRelatoPage(
   const page = pdfDoc.addPage([pageWidth, pageHeight]);
   drawWatermark(page, params.branding, params.logo, params.bold);
 
+  const relato = htmlToPlainText(params.caso.relatoInicial) || "Relato ainda não informado.";
   page.drawText("Relato do cliente", { x: margin, y: pageHeight - 88, size: 18, font: params.bold, color: rgb(0.08, 0.12, 0.2) });
-  drawWrappedText(page, params.caso.relatoInicial || "Relato ainda não informado.", {
+  drawWrappedText(page, relato, {
     x: margin,
     y: pageHeight - 126,
     maxWidth: pageWidth - margin * 2,
@@ -262,7 +264,7 @@ function drawWatermark(page: PDFPage, branding: PdfBrandingOptions, logo: PDFIma
   const opacity = clampOpacity(branding.watermarkOpacity ?? 0.1);
 
   if (logo) {
-    const box = fitInside(logo, width * 0.58, height * 0.42);
+    const box = fitInside(logo, width * 0.6, height * 0.44);
     page.drawImage(logo, {
       x: (width - box.width) / 2,
       y: (height - box.height) / 2,
@@ -280,6 +282,19 @@ function drawWatermark(page: PDFPage, branding: PdfBrandingOptions, logo: PDFIma
     font,
     color: rgb(0.62, 0.65, 0.7),
     opacity,
+  });
+}
+
+function drawHeaderLogo(page: PDFPage, logo: PDFImage | null) {
+  if (!logo) return;
+  const { width, height } = page.getSize();
+  const box = fitInside(logo, 118, 78);
+  page.drawImage(logo, {
+    x: (width - box.width) / 2,
+    y: height - 46 - box.height,
+    width: box.width,
+    height: box.height,
+    opacity: 0.96,
   });
 }
 
@@ -336,6 +351,22 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number) {
   return lines;
 }
 
+function htmlToPlainText(value: string) {
+  return String(value ?? "")
+    .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+    .replace(/<\s*\/\s*(p|div|h1|h2|h3|h4|li|blockquote)\s*>/gi, "\n")
+    .replace(/<\s*li[^>]*>/gi, "- ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function fitInside(image: PDFImage, maxWidth: number, maxHeight: number) {
   const scale = Math.min(maxWidth / image.width, maxHeight / image.height);
   return {
@@ -346,5 +377,5 @@ function fitInside(image: PDFImage, maxWidth: number, maxHeight: number) {
 
 function clampOpacity(value: number) {
   if (!Number.isFinite(value)) return 0.1;
-  return Math.min(0.15, Math.max(0.08, value));
+  return Math.min(0.16, Math.max(0.07, value));
 }
