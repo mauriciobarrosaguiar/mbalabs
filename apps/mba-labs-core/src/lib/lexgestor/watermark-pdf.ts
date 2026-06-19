@@ -37,10 +37,10 @@ export async function createWatermarkedPdf({
 
     const page = pdfDoc.addPage([a4Width, a4Height]);
 
-    const imageBox = fitInside(originalImage, a4Width - 72, a4Height - 150);
+    const imageBox = fitInside(originalImage, a4Width - 72, a4Height - 120);
     page.drawImage(originalImage, {
       x: (a4Width - imageBox.width) / 2,
-      y: 58,
+      y: 48,
       width: imageBox.width,
       height: imageBox.height,
     });
@@ -72,13 +72,13 @@ function drawLogoWatermark(
   font?: Awaited<ReturnType<PDFDocument["embedFont"]>> | null,
 ) {
   const { width, height } = page.getSize();
-  const opacity = clampOpacity(branding.watermarkOpacity ?? 0.1);
+  const opacity = clampOpacity(branding.watermarkOpacity ?? 0.12);
 
   if (logo) {
-    const box = fitInside(logo, width * 0.58, height * 0.44);
+    const box = fitInside(logo, width * 0.72, height * 0.54);
     page.drawImage(logo, {
       x: (width - box.width) / 2,
-      y: (height - box.height) / 2 - 20,
+      y: (height - box.height) / 2 - 12,
       width: box.width,
       height: box.height,
       opacity,
@@ -142,6 +142,6 @@ function fitInside(image: PDFImage, maxWidth: number, maxHeight: number) {
 }
 
 function clampOpacity(value: number) {
-  if (!Number.isFinite(value)) return 0.1;
-  return Math.min(0.15, Math.max(0.08, value));
+  if (!Number.isFinite(value)) return 0.12;
+  return Math.min(0.18, Math.max(0.1, value));
 }
