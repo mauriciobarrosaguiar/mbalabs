@@ -1,26 +1,23 @@
 (function () {
   "use strict";
 
-  function ensurePortalSession() {
+  function usePortalAccess() {
     try {
-      if (typeof db !== "undefined" && (!db.session || !db.session.userId)) {
-        db.session = {
-          userId: "u_admin",
-          source: "mba-labs",
-          created_at: new Date().toISOString(),
-        };
+      if (typeof db === "undefined" || typeof ui === "undefined") return;
+      if (!db.session || !db.session.userId) {
+        db.session = { userId: "u_admin", source: "mba-labs" };
+        ui.view = "dashboard";
         if (typeof save === "function") save();
-        if (typeof ui !== "undefined") ui.view = "dashboard";
         if (typeof render === "function") render();
       }
     } catch {
-      // Não interrompe o carregamento visual do BikeComanda.
+      // Mantém o BikeComanda funcionando mesmo se o armazenamento local falhar.
     }
   }
 
   function injectResponsiveFixes() {
-    const previous = document.getElementById("bikecomanda-responsive-fix-style");
-    if (previous) previous.remove();
+    const oldStyle = document.getElementById("bikecomanda-responsive-fix-style");
+    if (oldStyle) oldStyle.remove();
 
     const style = document.createElement("style");
     style.id = "bikecomanda-responsive-fix-style";
@@ -28,19 +25,14 @@
       html,
       body,
       #app {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 0 !important;
-        overflow-x: hidden !important;
-        background: #f4f7f6 !important;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: hidden;
       }
 
       body {
         touch-action: pan-y;
-      }
-
-      .login-page {
-        display: none !important;
       }
 
       .app-shell,
@@ -54,35 +46,30 @@
       .form-grid,
       .command-list,
       .command-card,
-      .table-wrap {
-        min-width: 0 !important;
-        max-width: 100% !important;
+      .table-wrap,
+      .detail-layout {
+        min-width: 0;
+        max-width: 100%;
       }
 
       .sidebar {
-        overflow-x: hidden !important;
-        scrollbar-width: none !important;
-        -ms-overflow-style: none !important;
-      }
-
-      .sidebar [data-action="logout"] {
-        display: none !important;
+        overflow-x: hidden;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
       }
 
       .sidebar::-webkit-scrollbar,
       .nav::-webkit-scrollbar,
-      .mobile-nav::-webkit-scrollbar,
-      .table-wrap::-webkit-scrollbar {
-        width: 0 !important;
-        height: 0 !important;
-        display: none !important;
+      .mobile-nav::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+        display: none;
       }
 
       .nav,
-      .mobile-nav,
-      .table-wrap {
-        scrollbar-width: none !important;
-        -ms-overflow-style: none !important;
+      .mobile-nav {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
       }
 
       .nav-button,
@@ -90,18 +77,18 @@
       input,
       select,
       textarea {
-        max-width: 100% !important;
+        max-width: 100%;
       }
 
       @media (min-width: 901px) {
         .sidebar {
-          height: 100dvh !important;
-          overflow-y: auto !important;
-          padding-bottom: 18px !important;
+          height: 100dvh;
+          overflow-y: auto;
+          padding-bottom: 18px;
         }
 
         .nav {
-          padding-right: 0 !important;
+          padding-right: 0;
         }
       }
 
@@ -128,28 +115,22 @@
           border-right: 0 !important;
           border-bottom: 1px solid var(--line) !important;
           overflow: hidden !important;
-          background: #ffffff !important;
         }
 
         .sidebar .brand-mark {
-          width: 100% !important;
+          width: 100%;
           margin: 0 0 10px !important;
-          align-items: center !important;
-          justify-content: space-between !important;
-          gap: 10px !important;
-          font-size: 18px !important;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          font-size: 18px;
         }
 
         .sidebar .brand-mark .brand-icon {
           flex: 0 0 auto;
-          width: 34px !important;
-          height: 34px !important;
-          font-size: 16px !important;
-        }
-
-        .sidebar .brand-mark > span,
-        .sidebar .brand-mark > div {
-          min-width: 0;
+          width: 34px;
+          height: 34px;
+          font-size: 16px;
         }
 
         .user-card {
@@ -163,7 +144,7 @@
           width: 100% !important;
           max-width: 100% !important;
           margin: 8px 0 0 !important;
-          padding: 0 2px 7px 0 !important;
+          padding: 0 2px 8px 0 !important;
           overflow-x: auto !important;
           overflow-y: hidden !important;
           -webkit-overflow-scrolling: touch;
@@ -178,19 +159,13 @@
           flex: 0 0 auto !important;
           width: auto !important;
           min-width: max-content !important;
-          max-width: 84vw !important;
+          max-width: 86vw !important;
           min-height: 40px !important;
           padding: 9px 12px !important;
           border-radius: 12px !important;
           white-space: nowrap !important;
           font-size: 14px !important;
           scroll-snap-align: start;
-        }
-
-        .nav-button svg,
-        .nav-button .icon,
-        .nav-button span:first-child:not(:only-child) {
-          flex: 0 0 auto;
         }
 
         .main {
@@ -235,7 +210,9 @@
         .grid.four,
         .grid.auto,
         .form-grid,
-        .form-grid.three {
+        .form-grid.three,
+        .detail-layout,
+        .inline-edit {
           grid-template-columns: 1fr !important;
           gap: 12px !important;
         }
@@ -245,9 +222,7 @@
         .command-card {
           width: 100% !important;
           padding: 14px !important;
-          border-radius: 14px !important;
           overflow: hidden !important;
-          box-shadow: 0 6px 16px rgba(22, 36, 31, 0.06) !important;
         }
 
         .metric-card strong {
@@ -260,13 +235,11 @@
         .command-actions {
           display: grid !important;
           grid-template-columns: 1fr !important;
-          gap: 8px !important;
           width: 100% !important;
+          gap: 8px !important;
         }
 
-        .command-card,
-        .detail-layout,
-        .inline-edit {
+        .command-card {
           grid-template-columns: 1fr !important;
         }
 
@@ -277,7 +250,7 @@
         }
 
         table {
-          width: 100% !important;
+          min-width: 560px;
         }
 
         .field.full,
@@ -305,7 +278,6 @@
 
         .btn {
           min-height: 44px !important;
-          width: 100% !important;
         }
       }
     `;
@@ -313,12 +285,11 @@
     document.head.appendChild(style);
   }
 
-  ensurePortalSession();
+  usePortalAccess();
   injectResponsiveFixes();
-  setTimeout(ensurePortalSession, 0);
-  setTimeout(injectResponsiveFixes, 0);
+  setTimeout(usePortalAccess, 0);
   document.addEventListener("DOMContentLoaded", function () {
-    ensurePortalSession();
+    usePortalAccess();
     injectResponsiveFixes();
   });
   window.addEventListener("resize", injectResponsiveFixes);
