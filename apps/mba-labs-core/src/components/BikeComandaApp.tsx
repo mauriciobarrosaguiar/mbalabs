@@ -76,11 +76,32 @@ export const bikeSections: BikeSection[] = [
 
 export function BikeComandaApp() {
   return (
-    <main className="min-h-screen bg-[#f6f9fb]">
+    <main
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100dvh",
+        minWidth: 0,
+        maxWidth: "100vw",
+        overflow: "hidden",
+        background: "#f4f7f6",
+        colorScheme: "light"
+      }}
+    >
       <iframe
-        className="h-screen w-full border-0"
-        src="/bikecomanda-static/index.html"
+        src="/bikecomanda-static/index.html?v=20260619-viewport-2"
         title="BikeComanda"
+        style={{
+          display: "block",
+          width: "100vw",
+          height: "100dvh",
+          minWidth: 0,
+          maxWidth: "100vw",
+          border: 0,
+          background: "#f4f7f6",
+          overflow: "hidden"
+        }}
       />
     </main>
   );
