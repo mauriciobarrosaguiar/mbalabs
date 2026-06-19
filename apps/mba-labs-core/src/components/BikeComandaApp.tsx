@@ -74,7 +74,13 @@ export const bikeSections: BikeSection[] = [
   }
 ];
 
-export function BikeComandaApp() {
+type BikeComandaAppProps = {
+  activeSlug?: string;
+};
+
+export function BikeComandaApp({ activeSlug = "dashboard" }: BikeComandaAppProps = {}) {
+  const initialView = resolveBikeSection(activeSlug)?.slug ?? "dashboard";
+
   return (
     <main
       style={{
@@ -90,7 +96,7 @@ export function BikeComandaApp() {
       }}
     >
       <iframe
-        src="/bikecomanda-static/index.html?v=20260619-viewport-2"
+        src={`/bikecomanda-static/index.html?view=${encodeURIComponent(initialView)}&v=20260619-viewport-3`}
         title="BikeComanda"
         style={{
           display: "block",
