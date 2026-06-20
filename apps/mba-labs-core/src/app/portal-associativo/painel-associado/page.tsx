@@ -20,28 +20,28 @@ export default async function PortalAssociadoPage() {
         <PageHeader
           eyebrow="Portal Associativo"
           title="Painel do associado"
-          description="Acesse suas unidades, cobrancas, avisos, reunioes e documentos liberados."
+          description="Acesse suas chácaras/lotes, mensalidades, avisos, reuniões e documentos liberados."
         />
         <MessageBanner error={data.error ?? undefined} />
 
         <div className="grid gap-4 xl:grid-cols-3">
-          <Panel title="Suas unidades">
+          <Panel title="Suas chácaras/lotes">
             <DataTable
-              columns={[{ key: "codigo_unidade", label: "Codigo" }, { key: "numero_unidade", label: "Numero" }, { key: "tipo_unidade", label: "Tipo" }, { key: "status_unidade", label: "Status" }]}
+              columns={[{ key: "codigo_unidade", label: "Código" }, { key: "numero_unidade", label: "Chácara/Lote" }, { key: "tipo_unidade", label: "Tipo" }, { key: "status_unidade", label: "Status" }]}
               rows={data.unidades as Array<Record<string, unknown>>}
             />
           </Panel>
           <Panel title="Avisos ativos">
             <SimpleList rows={data.avisos as Array<Record<string, unknown>>} primary="titulo" secondary="prioridade" />
           </Panel>
-          <Panel title="Reunioes">
+          <Panel title="Reuniões">
             <SimpleList rows={(data.reunioes as Array<Record<string, unknown>>).map((row) => ({ ...row, data: formatDate(row.data_reuniao) }))} primary="titulo" secondary="data" />
           </Panel>
         </div>
 
-        <Panel title="Cobrancas abertas">
+        <Panel title="Mensalidades abertas">
           <DataTable
-            columns={[{ key: "descricao", label: "Descricao" }, { key: "unidade", label: "Unidade" }, { key: "data_vencimento", label: "Vencimento" }, { key: "valor_total", label: "Valor" }, { key: "status", label: "Status" }]}
+            columns={[{ key: "descricao", label: "Descrição" }, { key: "unidade", label: "Chácara/Lote" }, { key: "data_vencimento", label: "Vencimento" }, { key: "valor_total", label: "Valor" }, { key: "status", label: "Status" }]}
             rows={data.cobrancasAbertas.map((row) => ({ ...row, data_vencimento: formatDate(row.data_vencimento), valor_total: formatMoney(row.valor_total) }))}
             actions={(row) => (
               <div className="flex flex-wrap justify-end gap-2">
@@ -56,16 +56,16 @@ export default async function PortalAssociadoPage() {
           />
         </Panel>
 
-        <Panel title="Cobrancas pagas">
+        <Panel title="Mensalidades pagas">
           <DataTable
-            columns={[{ key: "descricao", label: "Descricao" }, { key: "unidade", label: "Unidade" }, { key: "data_pagamento", label: "Pagamento" }, { key: "valor_total", label: "Valor" }]}
+            columns={[{ key: "descricao", label: "Descrição" }, { key: "unidade", label: "Chácara/Lote" }, { key: "data_pagamento", label: "Pagamento" }, { key: "valor_total", label: "Valor" }]}
             rows={data.cobrancasPagas.map((row) => ({ ...row, data_pagamento: formatDate(row.data_pagamento), valor_total: formatMoney(row.valor_total) }))}
           />
         </Panel>
 
         <Panel title="Documentos liberados">
           <DataTable
-            columns={[{ key: "titulo", label: "Titulo" }, { key: "categoria", label: "Categoria" }, { key: "unidade", label: "Unidade" }, { key: "criado_em", label: "Criado em" }]}
+            columns={[{ key: "titulo", label: "Título" }, { key: "categoria", label: "Categoria" }, { key: "unidade", label: "Chácara/Lote" }, { key: "criado_em", label: "Criado em" }]}
             rows={(data.documentos as Array<Record<string, unknown>>).map((row) => ({ ...row, criado_em: formatDate(row.criado_em) }))}
           />
         </Panel>

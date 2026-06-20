@@ -12,10 +12,11 @@ export default async function PortalAssociativoPage() {
   }
 
   const metrics = [
-    { label: "Total de unidades", value: dashboard.metrics.totalUnidades },
-    { label: "Unidades ativas", value: dashboard.metrics.unidadesAtivas },
+    { label: "Loteamentos", value: dashboard.metrics.totalLoteamentos },
+    { label: "Chácaras/lotes", value: dashboard.metrics.totalUnidades },
+    { label: "Chácaras/lotes ativos", value: dashboard.metrics.unidadesAtivas },
     { label: "Associados ativos", value: dashboard.metrics.associadosAtivos },
-    { label: "Recebido no mes", value: formatMoney(dashboard.metrics.recebidoMes) },
+    { label: "Recebido no mês", value: formatMoney(dashboard.metrics.recebidoMes) },
     { label: "Total em aberto", value: formatMoney(dashboard.metrics.totalEmAberto) },
     { label: "Total vencido", value: formatMoney(dashboard.metrics.totalVencido) },
     { label: "Aguardando pagamento", value: dashboard.metrics.cobrancasAguardandoPagamento }
@@ -33,7 +34,7 @@ export default async function PortalAssociativoPage() {
         <PageHeader
           eyebrow="Portal Associativo"
           title="Dashboard"
-          description="Visao operacional de unidades, associados, financeiro, inadimplencia e auditoria."
+          description="Visão operacional de loteamentos, chácaras/lotes, associados, mensalidades, inadimplência e auditoria."
         />
         <MessageBanner error={dashboard.error ?? undefined} />
 
@@ -43,27 +44,32 @@ export default async function PortalAssociativoPage() {
           ))}
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-2">
-          <Panel title="Inadimplencia por unidade">
+        <div className="grid gap-4 xl:grid-cols-3">
+          <Panel title="Inadimplência por loteamento">
+            <MiniRanking rows={dashboard.inadimplenciaPorLoteamento} />
+          </Panel>
+          <Panel title="Inadimplência por chácara/lote">
             <MiniRanking rows={dashboard.inadimplenciaPorUnidade} />
           </Panel>
-          <Panel title="Inadimplencia por responsavel">
+          <Panel title="Inadimplência por responsável">
             <MiniRanking rows={dashboard.inadimplenciaPorResponsavel} />
           </Panel>
         </div>
 
-        <Panel title="Ultimas cobrancas">
+        <Panel title="Últimas mensalidades">
           <DataTable
             columns={[
-              { key: "descricao", label: "Descricao" },
-              { key: "unidade", label: "Unidade" },
-              { key: "responsavel", label: "Responsavel" },
+              { key: "descricao", label: "Descrição" },
+              { key: "loteamento", label: "Loteamento" },
+              { key: "unidade", label: "Chácara/Lote" },
+              { key: "responsavel", label: "Responsável" },
               { key: "data_vencimento", label: "Vencimento" },
               { key: "valor_total", label: "Valor" },
               { key: "status", label: "Status" }
             ]}
             rows={dashboard.ultimasCobrancas.map((row) => ({
               ...row,
+              loteamento: relationName(row.assoc_loteamentos),
               unidade: unitLabel(row.assoc_unidades),
               responsavel: relationName(row.assoc_pessoas),
               data_vencimento: formatDate(row.data_vencimento),
@@ -72,10 +78,10 @@ export default async function PortalAssociativoPage() {
           />
         </Panel>
 
-        <Panel title="Ultimos registros de auditoria">
+        <Panel title="Últimos registros de auditoria">
           <DataTable
             columns={[
-              { key: "acao", label: "Acao" },
+              { key: "acao", label: "Ação" },
               { key: "entidade", label: "Entidade" },
               { key: "criado_em", label: "Criado em" }
             ]}

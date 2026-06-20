@@ -46,35 +46,35 @@ export default async function PortalTransferenciasPage({
       <section className="grid gap-6">
         <PageHeader
           eyebrow="Portal Associativo"
-          title="Transferencias"
-          description="Transfira unidades mantendo historico, responsaveis, documento e responsabilidade por debitos."
+          title="Transferências"
+          description="Transfira chácaras/lotes mantendo histórico, responsáveis, documento e responsabilidade por débitos."
           actions={<BackButton href="/portal-associativo" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
         {canWrite ? (
           <form action={savePortalTransferencia}>
-            <ResourceForm title="Nova transferencia" actions={<SubmitButton>Registrar transferencia</SubmitButton>}>
-              <FormSelect label="Unidade" name="unidade_id" options={unitOptions} required />
-              <FormSelect label="Novo proprietario" name="nova_pessoa_id" options={personOptions} required />
-              <FormSelect label="Responsavel financeiro" name="responsavel_financeiro_id" options={personOptions} />
-              <FormSelect label="Responsavel de contato" name="responsavel_contato_id" options={personOptions} />
-              <FormDateInput label="Data da transferencia" name="data_transferencia" />
+            <ResourceForm title="Nova transferência" actions={<SubmitButton>Registrar transferência</SubmitButton>}>
+              <FormSelect label="Chácara/Lote" name="unidade_id" options={unitOptions} required />
+              <FormSelect label="Novo proprietário" name="nova_pessoa_id" options={personOptions} required />
+              <FormSelect label="Responsável financeiro" name="responsavel_financeiro_id" options={personOptions} />
+              <FormSelect label="Responsável de contato" name="responsavel_contato_id" options={personOptions} />
+              <FormDateInput label="Data da transferência" name="data_transferencia" />
               <FormSelect
-                label="Debitos anteriores"
+                label="Débitos anteriores"
                 name="responsabilidade_debitos"
                 defaultValue="novo"
                 options={[
-                  { value: "anterior", label: "Responsavel anterior" },
-                  { value: "novo", label: "Novo responsavel" },
+                  { value: "anterior", label: "Responsável anterior" },
+                  { value: "novo", label: "Novo responsável" },
                   { value: "dividida", label: "Responsabilidade dividida" },
                   { value: "entidade", label: "Assumido pela entidade" }
                 ]}
                 required
               />
-              <FormInput label="Documento da transferencia" name="documento_url" placeholder="Caminho no Supabase Storage" />
+              <FormInput label="Documento da transferência" name="documento_url" placeholder="Caminho no armazenamento" />
               <FormTextarea label="Motivo" name="motivo" />
-              <FormTextarea label="Observacoes" name="observacoes" />
+              <FormTextarea label="Observações" name="observacoes" />
             </ResourceForm>
           </form>
         ) : null}
@@ -82,10 +82,10 @@ export default async function PortalTransferenciasPage({
         <DataTable
           columns={[
             { key: "data_transferencia", label: "Data" },
-            { key: "unidade", label: "Unidade" },
+            { key: "unidade", label: "Chácara/Lote" },
             { key: "pessoa_anterior", label: "Anterior" },
-            { key: "nova_pessoa", label: "Novo responsavel" },
-            { key: "responsabilidade_debitos", label: "Debitos" },
+            { key: "nova_pessoa", label: "Novo responsável" },
+            { key: "responsabilidade_debitos", label: "Débitos" },
             { key: "motivo", label: "Motivo" }
           ]}
           rows={data.rows.map((row) => ({ ...row, data_transferencia: formatDate(row.data_transferencia) }))}

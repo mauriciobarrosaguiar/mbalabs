@@ -28,6 +28,7 @@ import {
   canPortalAccess,
   getPortalLookups,
   listPortalCobrancas,
+  loteamentoOptionLabel,
   PORTAL_CHARGE_STATUS_LABELS,
   unitOptionLabel
 } from "@/lib/portal-associativo-data";
@@ -44,6 +45,7 @@ export default async function PortalFinanceiroPage({
     status: firstParam(params.status) ?? "",
     q: firstParam(params.q) ?? "",
     mes: firstParam(params.mes) ?? "",
+    loteamento: firstParam(params.loteamento) ?? "",
     unidade: firstParam(params.unidade) ?? "",
     responsavel: firstParam(params.responsavel) ?? ""
   };
@@ -54,6 +56,7 @@ export default async function PortalFinanceiroPage({
 
   const lookups = await getPortalLookups("/portal-associativo/financeiro");
   const canWrite = data.perfil === "administrador" || data.perfil === "tesoureiro";
+  const loteamentoOptions: Array<{ value: string; label: string }> = lookups.loteamentos.map((item: Record<string, unknown>) => ({ value: String(item.id), label: loteamentoOptionLabel(item) }));
   const unitOptions = lookups.unidades.map((unit: Record<string, unknown>) => ({ value: String(unit.id), label: unitOptionLabel(unit) }));
   const personOptions = lookups.pessoas.map((person: Record<string, unknown>) => ({ value: String(person.id), label: String(person.nome_completo) }));
 
@@ -68,15 +71,21 @@ export default async function PortalFinanceiroPage({
       <section className="grid gap-6">
         <PageHeader
           eyebrow="Portal Associativo"
-          title="Financeiro"
-          description="Crie cobrancas, gere mensalidades em lote, baixe pagamentos manualmente e acompanhe status."
+          title="Mensalidades"
+          description="Gere mensalidades por loteamento, controle pagamentos, acompanhe inadimplência e envie cobranças aos responsáveis."
           actions={<BackButton href="/portal-associativo" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
-        <form className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-5" action="">
-          <input className="input md:col-span-2" name="q" defaultValue={filters.q} placeholder="Buscar por descricao, unidade ou responsavel" />
+        <form className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[1fr_170px_220px_170px_auto]" action="">
+          <input className="input" name="q" defaultValue={filters.q} placeholder="Buscar por descrição, chácara/lote ou responsável" />
           <input className="input" name="mes" defaultValue={filters.mes} type="month" />
+          <select className="input" name="loteamento" defaultValue={filters.loteamento}>
+            <option value="">Todos os loteamentos</option>
+            {loteamentoOptions.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
           <select className="input" name="status" defaultValue={filters.status}>
             <option value="">Todos os status</option>
             {Object.entries(PORTAL_CHARGE_STATUS_LABELS).map(([value, label]) => (
@@ -89,10 +98,10 @@ export default async function PortalFinanceiroPage({
         {canWrite ? (
           <div className="grid gap-4 xl:grid-cols-2">
             <form action={savePortalCobranca}>
-              <ResourceForm title="Cobranca individual" actions={<SubmitButton>Salvar cobranca</SubmitButton>}>
-                <FormSelect label="Unidade" name="unidade_id" options={unitOptions} required />
-                <FormSelect label="Responsavel" name="pessoa_responsavel_id" options={personOptions} />
-                <FormInput label="Descricao" name="descricao" defaultValue="Mensalidade" required />
+              <ResourceForm title="Mensalidade individual" actions={<SubmitButton>Salvar mensalidade</SubmitButton>}>
+                <FormSelect label="Chácara/Lote" name="unidade_id" options={unitOptions} required />
+                <FormSelect label="Responsável" name="pessoa_responsavel_id" options={personOptions} />
+                <FormInput label="Descrição" name="descricao" defaultValue="Mensalidade" required />
                 <FormSelect
                   label="Tipo"
                   name="tipo_cobranca"
@@ -116,17 +125,18 @@ export default async function PortalFinanceiroPage({
                   options={Object.entries(PORTAL_CHARGE_STATUS_LABELS).map(([value, label]) => ({ value, label }))}
                 />
                 <FormInput label="PIX copia e cola" name="pix_copia_cola" />
-                <FormTextarea label="Observacoes" name="observacoes" />
+                <FormTextarea label="Observações" name="observacoes" />
               </ResourceForm>
             </form>
 
             <form action={gerarPortalMensalidadesLote}>
               <ResourceForm title="Mensalidades em lote" actions={<SubmitButton>Gerar mensalidades</SubmitButton>}>
-                <FormInput label="Mes inicial" name="mes_inicial" type="month" required />
-                <FormMoneyInput label="Valor da mensalidade" name="valor_original" defaultValue={lookups.configuracoes.valor_mensalidade_padrao} required />
+                <FormSelect label="Loteamento" name="loteamento_id" options={loteamentoOptions} />
+                <FormInput label="Mês inicial" name="mes_inicial" type="month" required />
+                <FormMoneyInput label="Valor padrão de apoio" name="valor_original" defaultValue={lookups.configuracoes.valor_mensalidade_padrao} />
                 <FormInput label="Dia de vencimento" name="vencimento_dia" type="number" defaultValue={lookups.configuracoes.vencimento_padrao} required />
-                <FormInput label="Descricao" name="descricao" defaultValue={String(lookups.configuracoes.descricao_mensalidade_padrao ?? "Mensalidade")} />
-                <FormCheckbox label="Gerar ate dezembro" name="ate_dezembro" defaultChecked />
+                <FormInput label="Descrição" name="descricao" defaultValue={String(lookups.configuracoes.descricao_mensalidade_padrao ?? "Mensalidade")} />
+                <FormCheckbox label="Gerar até dezembro" name="ate_dezembro" defaultChecked />
               </ResourceForm>
             </form>
           </div>
@@ -134,9 +144,10 @@ export default async function PortalFinanceiroPage({
 
         <DataTable
           columns={[
-            { key: "descricao", label: "Descricao" },
-            { key: "unidade", label: "Unidade" },
-            { key: "responsavel", label: "Responsavel" },
+            { key: "descricao", label: "Descrição" },
+            { key: "loteamento", label: "Loteamento" },
+            { key: "unidade", label: "Chácara/Lote" },
+            { key: "responsavel", label: "Responsável" },
             { key: "data_vencimento", label: "Vencimento" },
             { key: "valor_total", label: "Valor" },
             { key: "status_calculado", label: "Status" }
