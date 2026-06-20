@@ -15,9 +15,10 @@ export async function GET(request: Request) {
 
   const rows = tipo === "inadimplencia" ? data.rows.filter((row) => row.status_calculado === "vencida") : data.rows;
   const csv = toCsv([
-    ["descricao", "unidade", "responsavel", "status", "vencimento", "valor"],
+    ["descricao", "loteamento", "chacara_lote", "responsavel", "status", "vencimento", "valor"],
     ...rows.map((row) => [
       row.descricao,
+      row.loteamento,
       row.unidade,
       row.responsavel,
       row.status_calculado ?? row.status,

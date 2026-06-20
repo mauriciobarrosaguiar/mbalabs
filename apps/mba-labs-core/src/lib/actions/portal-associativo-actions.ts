@@ -86,6 +86,62 @@ export async function inactivatePortalPessoa(formData: FormData) {
   redirectWithOk("/portal-associativo/pessoas", "Pessoa inativada.");
 }
 
+export async function savePortalLoteamento(formData: FormData) {
+  const context = await requirePortalWrite("loteamentos", "/portal-associativo/loteamentos");
+  const id = textValue(formData, "id");
+  const nome = textValue(formData, "nome");
+  const returnTo = "/portal-associativo/loteamentos";
+
+  if (!nome) {
+    redirectWithError(returnTo, "Informe o nome do loteamento.");
+  }
+
+  const payload = {
+    empresa_id: requireEmpresaId(context.empresaId, returnTo),
+    nome,
+    codigo: nullableTextValue(formData, "codigo"),
+    endereco: nullableTextValue(formData, "endereco"),
+    cidade: nullableTextValue(formData, "cidade"),
+    uf: nullableTextValue(formData, "uf"),
+    status: textValue(formData, "status") || "ativo",
+    valor_mensalidade_padrao: numberValue(formData, "valor_mensalidade_padrao"),
+    vencimento_padrao: clampDay(Number(textValue(formData, "vencimento_padrao") || 10)),
+    descricao_mensalidade_padrao: textValue(formData, "descricao_mensalidade_padrao") || "Mensalidade",
+    observacoes: nullableTextValue(formData, "observacoes")
+  };
+
+  const result = id
+    ? await context.client.from("assoc_loteamentos").update({ ...payload, atualizado_em: new Date().toISOString() }).eq("id", id).eq("empresa_id", context.empresaId)
+    : await context.client.from("assoc_loteamentos").insert(payload).select("id").single();
+
+  if (result.error) {
+    redirectWithError(returnTo, result.error.message);
+  }
+
+  const loteamentoId = id || String(result.data?.id ?? "");
+  await recordPortalAudit(context, id ? "editar_loteamento" : "criar_loteamento", "assoc_loteamentos", loteamentoId, { nome });
+  revalidatePortal(returnTo);
+  revalidatePath("/portal-associativo/unidades");
+  revalidatePath("/portal-associativo/financeiro");
+  redirectWithOk(returnTo, "Loteamento salvo com sucesso.");
+}
+
+export async function inactivatePortalLoteamento(formData: FormData) {
+  const context = await requirePortalWrite("loteamentos", "/portal-associativo/loteamentos");
+  const id = textValue(formData, "id");
+  const { error } = await context.client
+    .from("assoc_loteamentos")
+    .update({ status: "inativo", atualizado_em: new Date().toISOString() })
+    .eq("id", id)
+    .eq("empresa_id", context.empresaId);
+
+  if (error) redirectWithError("/portal-associativo/loteamentos", error.message);
+  await recordPortalAudit(context, "inativar_loteamento", "assoc_loteamentos", id);
+  revalidatePortal("/portal-associativo/loteamentos");
+  revalidatePath("/portal-associativo/unidades");
+  redirectWithOk("/portal-associativo/loteamentos", "Loteamento inativado.");
+}
+
 export async function savePortalUnidade(formData: FormData) {
   const context = await requirePortalWrite("unidades", "/portal-associativo/unidades");
   const id = textValue(formData, "id");
@@ -94,12 +150,18 @@ export async function savePortalUnidade(formData: FormData) {
   const returnTo = "/portal-associativo/unidades";
 
   if (!codigo || !numero) {
-    redirectWithError(returnTo, "Informe codigo e numero da unidade.");
+    redirectWithError(returnTo, "Informe codigo e numero da chacara/lote.");
   }
 
   const empresaId = requireEmpresaId(context.empresaId, returnTo);
+  const loteamentoId = nullableTextValue(formData, "loteamento_id");
+  if (loteamentoId) {
+    await assertRecordBelongsToEmpresa(context, "assoc_loteamentos", loteamentoId, returnTo, "Loteamento invalido para esta empresa.");
+  }
+
   const payload = {
     empresa_id: empresaId,
+    loteamento_id: loteamentoId,
     codigo_unidade: codigo,
     numero_unidade: numero,
     quadra_setor: nullableTextValue(formData, "quadra_setor"),
@@ -109,6 +171,9 @@ export async function savePortalUnidade(formData: FormData) {
     coordenadas_maps: nullableTextValue(formData, "coordenadas_maps"),
     status_unidade: textValue(formData, "status_unidade") || "ativa",
     possui_construcao: formData.get("possui_construcao") === "true",
+    valor_mensalidade: nullableNumberValue(formData, "valor_mensalidade"),
+    vencimento_dia: nullableDayValue(formData, "vencimento_dia"),
+    isento_mensalidade: formData.get("isento_mensalidade") === "true",
     observacoes: nullableTextValue(formData, "observacoes")
   };
 
@@ -127,7 +192,8 @@ export async function savePortalUnidade(formData: FormData) {
 
   await recordPortalAudit(context, id ? "editar_unidade" : "criar_unidade", "assoc_unidades", unidadeId, { codigo, numero });
   revalidatePortal(returnTo);
-  redirectWithOk(returnTo, "Unidade salva com sucesso.");
+  revalidatePath("/portal-associativo/financeiro");
+  redirectWithOk(returnTo, "Chacara/lote salvo com sucesso.");
 }
 
 export async function inactivatePortalUnidade(formData: FormData) {
@@ -142,7 +208,7 @@ export async function inactivatePortalUnidade(formData: FormData) {
   if (error) redirectWithError("/portal-associativo/unidades", error.message);
   await recordPortalAudit(context, "inativar_unidade", "assoc_unidades", id);
   revalidatePortal("/portal-associativo/unidades");
-  redirectWithOk("/portal-associativo/unidades", "Unidade inativada.");
+  redirectWithOk("/portal-associativo/unidades", "Chacara/lote inativado.");
 }
 
 export async function savePortalTransferencia(formData: FormData) {
@@ -154,7 +220,7 @@ export async function savePortalTransferencia(formData: FormData) {
   const motivo = textValue(formData, "motivo");
 
   if (!unidadeId || !novaPessoaId || !motivo) {
-    redirectWithError(returnTo, "Informe unidade, novo responsavel e motivo.");
+    redirectWithError(returnTo, "Informe chacara/lote, novo responsavel e motivo.");
   }
 
   const previousOwner = await context.client
@@ -218,12 +284,14 @@ export async function savePortalCobranca(formData: FormData) {
   const valorOriginal = numberValue(formData, "valor_original");
 
   if (!unidadeId || !dataVencimento || valorOriginal <= 0) {
-    redirectWithError(returnTo, "Informe unidade, vencimento e valor.");
+    redirectWithError(returnTo, "Informe chacara/lote, vencimento e valor.");
   }
 
+  const unidade = await resolvePortalUnidade(context, unidadeId, returnTo);
   const dueDate = new Date(String(dataVencimento));
   const payload = {
     empresa_id: requireEmpresaId(context.empresaId, returnTo),
+    loteamento_id: nullableRecordId(unidade.loteamento_id),
     unidade_id: unidadeId,
     pessoa_responsavel_id: nullableTextValue(formData, "pessoa_responsavel_id") || (await resolveResponsavelFinanceiro(context, unidadeId)),
     tipo_cobranca: textValue(formData, "tipo_cobranca") || "mensalidade",
@@ -255,7 +323,7 @@ export async function savePortalCobranca(formData: FormData) {
   const chargeId = id || String(result.data?.id ?? "");
   await recordPortalAudit(context, id ? "editar_cobranca" : "criar_cobranca", "assoc_cobrancas", chargeId, { valor_total: payload.valor_total });
   revalidatePortal(returnTo);
-  redirectWithOk(returnTo, "Cobranca salva com sucesso.");
+  redirectWithOk(returnTo, "Mensalidade salva com sucesso.");
 }
 
 export async function baixarPortalCobranca(formData: FormData) {
@@ -293,31 +361,49 @@ export async function cancelPortalCobranca(formData: FormData) {
   if (error) redirectWithError(returnTo, error.message);
   await recordPortalAudit(context, "cancelar_cobranca", "assoc_cobrancas", id);
   revalidatePortal(returnTo);
-  redirectWithOk(returnTo, "Cobranca cancelada.");
+  redirectWithOk(returnTo, "Mensalidade cancelada.");
 }
 
 export async function gerarPortalMensalidadesLote(formData: FormData) {
   const context = await requirePortalWrite("financeiro", "/portal-associativo/financeiro");
   const returnTo = "/portal-associativo/financeiro";
   const empresaId = requireEmpresaId(context.empresaId, returnTo);
-  const valor = numberValue(formData, "valor_original");
-  const vencimentoDia = Math.max(1, Math.min(31, Number(textValue(formData, "vencimento_dia") || 10)));
-  const descricao = textValue(formData, "descricao") || "Mensalidade";
+  const loteamentoId = nullableTextValue(formData, "loteamento_id");
+  const valorInformado = numberValue(formData, "valor_original");
+  const vencimentoInformado = nullableDayValue(formData, "vencimento_dia");
+  const descricaoInformada = textValue(formData, "descricao");
   const mesInicial = textValue(formData, "mes_inicial");
 
-  if (!mesInicial || valor <= 0) {
-    redirectWithError(returnTo, "Informe mes inicial e valor da mensalidade.");
+  if (!mesInicial) {
+    redirectWithError(returnTo, "Informe o mes inicial.");
+  }
+
+  if (loteamentoId) {
+    await assertRecordBelongsToEmpresa(context, "assoc_loteamentos", loteamentoId, returnTo, "Loteamento invalido para esta empresa.");
   }
 
   const [year, month] = mesInicial.split("-").map(Number);
+  if (!year || !month || month < 1 || month > 12) {
+    redirectWithError(returnTo, "Informe um mes inicial valido.");
+  }
+
   const untilDecember = formData.get("ate_dezembro") === "true";
   const months = [];
   for (let monthIndex = month; monthIndex <= (untilDecember ? 12 : month); monthIndex += 1) {
-    months.push({ year, month: monthIndex, due: `${year}-${String(monthIndex).padStart(2, "0")}-${String(vencimentoDia).padStart(2, "0")}` });
+    months.push({ year, month: monthIndex });
+  }
+
+  let unitsQuery = context.client
+    .from("assoc_unidades")
+    .select("id,loteamento_id,valor_mensalidade,vencimento_dia,isento_mensalidade,assoc_loteamentos(valor_mensalidade_padrao,vencimento_padrao,descricao_mensalidade_padrao)")
+    .eq("empresa_id", empresaId)
+    .eq("status_unidade", "ativa");
+  if (loteamentoId) {
+    unitsQuery = unitsQuery.eq("loteamento_id", loteamentoId);
   }
 
   const [unitsResult, linksResult, existingResult] = await Promise.all([
-    context.client.from("assoc_unidades").select("id").eq("empresa_id", empresaId).eq("status_unidade", "ativa"),
+    unitsQuery,
     context.client
       .from("assoc_vinculos_unidade_pessoa")
       .select("unidade_id,pessoa_id")
@@ -339,21 +425,44 @@ export async function gerarPortalMensalidadesLote(formData: FormData) {
 
   const responsaveis = new Map((linksResult.data ?? []).map((row: Record<string, unknown>) => [String(row.unidade_id), row.pessoa_id]));
   const existing = new Set((existingResult.data ?? []).map((row: Record<string, unknown>) => `${row.unidade_id}-${row.ano_referencia}-${row.mes_referencia}`));
+  const configResult = await context.client.from("assoc_configuracoes").select("valor_mensalidade_padrao,vencimento_padrao,descricao_mensalidade_padrao").eq("empresa_id", empresaId).maybeSingle();
+  const config = (configResult.data ?? {}) as Record<string, unknown>;
   const rows = [];
+  let semValor = 0;
+  let isentas = 0;
 
   for (const unit of unitsResult.data ?? []) {
+    const unitRecord = unit as Record<string, unknown>;
+    if (unitRecord.isento_mensalidade === true) {
+      isentas += 1;
+      continue;
+    }
+
+    const loteamento = relationObject(unitRecord.assoc_loteamentos);
+    const valor = firstPositiveMoney(unitRecord.valor_mensalidade, valorInformado, loteamento?.valor_mensalidade_padrao, config.valor_mensalidade_padrao);
+    if (valor <= 0) {
+      semValor += 1;
+      continue;
+    }
+
+    const vencimentoDia = clampDay(firstPositiveInteger(unitRecord.vencimento_dia, vencimentoInformado, loteamento?.vencimento_padrao, config.vencimento_padrao, 10));
+    const descricao =
+      descricaoInformada ||
+      String(loteamento?.descricao_mensalidade_padrao ?? config.descricao_mensalidade_padrao ?? "Mensalidade");
+
     for (const item of months) {
       const key = `${unit.id}-${item.year}-${item.month}`;
       if (existing.has(key)) continue;
       rows.push({
         empresa_id: empresaId,
+        loteamento_id: nullableRecordId(unitRecord.loteamento_id),
         unidade_id: unit.id,
         pessoa_responsavel_id: responsaveis.get(String(unit.id)) ?? null,
         tipo_cobranca: "mensalidade",
         descricao,
         mes_referencia: item.month,
         ano_referencia: item.year,
-        data_vencimento: item.due,
+        data_vencimento: buildDueDate(item.year, item.month, vencimentoDia),
         valor_original: valor,
         valor_total: valor,
         status: "aberta",
@@ -363,14 +472,14 @@ export async function gerarPortalMensalidadesLote(formData: FormData) {
   }
 
   if (rows.length === 0) {
-    redirectWithOk(returnTo, "Nenhuma nova mensalidade para gerar.");
+    redirectWithOk(returnTo, buildMensalidadeMessage(0, semValor, isentas));
   }
 
   const { error } = await context.client.from("assoc_cobrancas").insert(rows);
   if (error) redirectWithError(returnTo, error.message);
-  await recordPortalAudit(context, "gerar_mensalidades_lote", "assoc_cobrancas", null, { quantidade: rows.length });
+  await recordPortalAudit(context, "gerar_mensalidades_lote", "assoc_cobrancas", null, { quantidade: rows.length, loteamento_id: loteamentoId });
   revalidatePortal(returnTo);
-  redirectWithOk(returnTo, `${rows.length} mensalidades geradas.`);
+  redirectWithOk(returnTo, buildMensalidadeMessage(rows.length, semValor, isentas));
 }
 
 export async function savePortalReuniao(formData: FormData) {
@@ -427,7 +536,7 @@ export async function savePortalConfiguracoes(formData: FormData) {
     {
       empresa_id: empresaId,
       nome_publico_entidade: textValue(formData, "nome_publico_entidade") || "Portal Associativo",
-      subtitulo: textValue(formData, "subtitulo") || "Gestao integrada de associados, unidades, cobrancas e comunicados.",
+      subtitulo: textValue(formData, "subtitulo") || "Gestao integrada de loteamentos, chacaras/lotes, mensalidades e comunicados.",
       logo_url: nullableTextValue(formData, "logo_url"),
       tema_visual: textValue(formData, "tema_visual") || "padrao",
       tipo_unidade_padrao: textValue(formData, "tipo_unidade_padrao") || "propriedade",
@@ -498,6 +607,20 @@ function requireEmpresaId(empresaId: string | null, returnTo: string) {
     redirectWithError(returnTo, "Selecione uma empresa antes de gravar dados do Portal Associativo.");
   }
   return empresaId;
+}
+
+async function assertRecordBelongsToEmpresa(
+  context: Awaited<ReturnType<typeof getPortalContext>>,
+  table: string,
+  id: string,
+  returnTo: string,
+  message: string
+) {
+  if (!context.empresaId || !id) return;
+  const { data, error } = await context.client.from(table).select("id").eq("id", id).eq("empresa_id", context.empresaId).maybeSingle();
+  if (error || !data) {
+    redirectWithError(returnTo, error?.message ?? message);
+  }
 }
 
 async function assertNoDuplicatePessoa(
@@ -591,6 +714,24 @@ async function resolveResponsavelFinanceiro(context: Awaited<ReturnType<typeof g
   return data?.pessoa_id ?? null;
 }
 
+async function resolvePortalUnidade(context: Awaited<ReturnType<typeof getPortalContext>>, unidadeId: string, returnTo: string) {
+  if (!context.empresaId) {
+    redirectWithError(returnTo, "Selecione uma empresa antes de gravar dados do Portal Associativo.");
+  }
+  const { data, error } = await context.client
+    .from("assoc_unidades")
+    .select("id,loteamento_id,status_unidade")
+    .eq("id", unidadeId)
+    .eq("empresa_id", context.empresaId)
+    .maybeSingle();
+
+  if (error || !data) {
+    redirectWithError(returnTo, error?.message ?? "Chacara/lote nao encontrado nesta empresa.");
+  }
+
+  return data as Record<string, unknown>;
+}
+
 async function recordPortalAudit(
   context: Awaited<ReturnType<typeof getPortalContext>>,
   acao: string,
@@ -629,6 +770,58 @@ function safePath(path: string) {
 function nullableNumberValue(formData: FormData, key: string) {
   const raw = textValue(formData, key);
   return raw ? numberValue(formData, key) : null;
+}
+
+function nullableDayValue(formData: FormData, key: string) {
+  const raw = textValue(formData, key);
+  if (!raw) return null;
+  return clampDay(Number(raw));
+}
+
+function clampDay(value: number) {
+  if (!Number.isFinite(value)) return 10;
+  return Math.max(1, Math.min(31, Math.trunc(value)));
+}
+
+function firstPositiveMoney(...values: unknown[]) {
+  for (const value of values) {
+    const number = Number(value ?? 0);
+    if (Number.isFinite(number) && number > 0) return number;
+  }
+  return 0;
+}
+
+function firstPositiveInteger(...values: unknown[]) {
+  for (const value of values) {
+    const number = Number(value ?? 0);
+    if (Number.isFinite(number) && number > 0) return Math.trunc(number);
+  }
+  return 10;
+}
+
+function buildDueDate(year: number, month: number, day: number) {
+  const lastDay = new Date(year, month, 0).getDate();
+  const dueDay = Math.min(day, lastDay);
+  return `${year}-${String(month).padStart(2, "0")}-${String(dueDay).padStart(2, "0")}`;
+}
+
+function buildMensalidadeMessage(geradas: number, semValor: number, isentas: number) {
+  const detalhes = [
+    semValor ? `${semValor} chacara(s)/lote(s) sem valor configurado` : "",
+    isentas ? `${isentas} isenta(s)` : ""
+  ].filter(Boolean);
+  const base = geradas > 0 ? `${geradas} mensalidade(s) gerada(s).` : "Nenhuma nova mensalidade para gerar.";
+  return detalhes.length ? `${base} ${detalhes.join(". ")}.` : base;
+}
+
+function nullableRecordId(value: unknown) {
+  const id = String(value ?? "");
+  return id || null;
+}
+
+function relationObject(value: unknown) {
+  const relation = Array.isArray(value) ? value[0] : value;
+  return relation && typeof relation === "object" ? (relation as Record<string, unknown>) : null;
 }
 
 function clean(value: unknown) {

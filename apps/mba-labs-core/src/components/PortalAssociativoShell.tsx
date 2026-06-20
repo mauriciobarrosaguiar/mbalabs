@@ -10,6 +10,7 @@ import {
   Home,
   LayoutDashboard,
   LogOut,
+  Map as MapIcon,
   MoreHorizontal,
   Repeat,
   Settings,
@@ -26,10 +27,11 @@ type PortalNavItem = {
 
 const navItems: PortalNavItem[] = [
   { href: "/portal-associativo", label: "Dashboard", section: "dashboard", icon: LayoutDashboard },
-  { href: "/portal-associativo/pessoas", label: "Pessoas", section: "pessoas", icon: Users },
-  { href: "/portal-associativo/unidades", label: "Unidades", section: "unidades", icon: Home },
+  { href: "/portal-associativo/loteamentos", label: "Loteamentos", section: "loteamentos", icon: MapIcon },
+  { href: "/portal-associativo/pessoas", label: "Associados", section: "pessoas", icon: Users },
+  { href: "/portal-associativo/unidades", label: "Chácaras/Lotes", section: "unidades", icon: Home },
   { href: "/portal-associativo/transferencias", label: "Transferências", section: "transferencias", icon: Repeat },
-  { href: "/portal-associativo/financeiro", label: "Financeiro", section: "financeiro", icon: Banknote },
+  { href: "/portal-associativo/financeiro", label: "Mensalidades", section: "financeiro", icon: Banknote },
   { href: "/portal-associativo/relatorios", label: "Relatórios", section: "relatorios", icon: FileText },
   { href: "/portal-associativo/reunioes", label: "Reuniões", section: "reunioes", icon: ClipboardList },
   { href: "/portal-associativo/avisos", label: "Avisos", section: "avisos", icon: Bell },

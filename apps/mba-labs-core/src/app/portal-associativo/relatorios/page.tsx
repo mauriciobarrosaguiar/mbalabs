@@ -19,11 +19,12 @@ export default async function PortalRelatoriosPage({
   }
 
   const stats = [
-    { label: "Total de cobrancas", value: data.resumo.totalCobrancas },
+    { label: "Total de mensalidades", value: data.resumo.totalCobrancas },
     { label: "Pago", value: formatMoney(data.resumo.totalPago) },
     { label: "Em aberto", value: formatMoney(data.resumo.totalAberto) },
     { label: "Vencido", value: formatMoney(data.resumo.totalVencido) },
-    { label: "Unidades", value: data.resumo.totalUnidades }
+    { label: "Loteamentos", value: data.resumo.totalLoteamentos },
+    { label: "Chácaras/lotes", value: data.resumo.totalUnidades }
   ];
 
   return (
@@ -37,41 +38,45 @@ export default async function PortalRelatoriosPage({
       <section className="grid gap-6">
         <PageHeader
           eyebrow="Portal Associativo"
-          title="Relatorios"
-          description="Acompanhe inadimplencia, cobrancas pagas, vencidas e totais por unidade ou responsavel."
+          title="Relatórios"
+          description="Acompanhe inadimplência, mensalidades pagas, vencidas e totais por loteamento, chácara/lote ou responsável."
           actions={
             <>
-              <Link className="button-secondary" href="/api/portal-associativo/export?tipo=cobrancas">CSV cobrancas</Link>
-              <Link className="button-secondary" href="/api/portal-associativo/export?tipo=inadimplencia">CSV inadimplencia</Link>
+              <Link className="button-secondary" href="/api/portal-associativo/export?tipo=cobrancas">CSV mensalidades</Link>
+              <Link className="button-secondary" href="/api/portal-associativo/export?tipo=inadimplencia">CSV inadimplência</Link>
               <BackButton href="/portal-associativo" />
             </>
           }
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
           {stats.map((stat) => (
             <StatCard key={stat.label} label={stat.label} value={stat.value} />
           ))}
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-3">
-          <Panel title="Inadimplencia">
+        <div className="grid gap-4 xl:grid-cols-4">
+          <Panel title="Inadimplência">
             <MiniTable rows={data.inadimplencia} />
           </Panel>
-          <Panel title="Por unidade">
+          <Panel title="Por loteamento">
+            <MiniTable rows={data.porLoteamento} />
+          </Panel>
+          <Panel title="Por chácara/lote">
             <MiniTable rows={data.porUnidade} />
           </Panel>
-          <Panel title="Por responsavel">
+          <Panel title="Por responsável">
             <MiniTable rows={data.porResponsavel} />
           </Panel>
         </div>
 
         <DataTable
           columns={[
-            { key: "descricao", label: "Descricao" },
-            { key: "unidade", label: "Unidade" },
-            { key: "responsavel", label: "Responsavel" },
+            { key: "descricao", label: "Descrição" },
+            { key: "loteamento", label: "Loteamento" },
+            { key: "unidade", label: "Chácara/Lote" },
+            { key: "responsavel", label: "Responsável" },
             { key: "status", label: "Status" },
             { key: "valor_total", label: "Valor" }
           ]}
