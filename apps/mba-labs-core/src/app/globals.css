@@ -354,6 +354,7 @@ select.input option:disabled {
   color-scheme: light;
   background: #f7f9fc;
   color: #172033;
+  overflow-x: hidden;
   --background: #f7f9fc;
   --foreground: #172033;
   --card: #ffffff;
@@ -378,6 +379,72 @@ select.input option:disabled {
   --line: #dbe4f0;
   --panel: #ffffff;
   --panel-strong: #eef3fb;
+}
+
+.portal-associativo-module .portal-shell-top {
+  box-shadow: 0 1px 2px rgba(23, 32, 51, 0.04);
+}
+
+.portal-associativo-module .portal-nav-link,
+.portal-associativo-module .portal-mobile-nav-link {
+  color: #172033;
+}
+
+.portal-associativo-module .portal-nav-link:hover,
+.portal-associativo-module .portal-mobile-nav-link:hover {
+  background: #eef3fb;
+}
+
+.portal-associativo-module .portal-nav-link[aria-current="page"],
+.portal-associativo-module .portal-mobile-nav-link[aria-current="page"] {
+  background: #e8f1ff;
+  color: #1d4ed8;
+}
+
+.portal-associativo-module .portal-icon-button,
+.portal-associativo-module .portal-menu-trigger {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #dbe4f0;
+  border-radius: 0.5rem;
+  color: #172033;
+  display: inline-flex;
+  height: 2.5rem;
+  justify-content: center;
+  width: 2.5rem;
+  box-shadow: 0 1px 2px rgba(23, 32, 51, 0.06);
+}
+
+.portal-associativo-module .portal-icon-button:hover,
+.portal-associativo-module .portal-menu-trigger:hover {
+  background: #eef3fb;
+}
+
+.portal-associativo-module .portal-menu-trigger {
+  cursor: pointer;
+  list-style: none;
+}
+
+.portal-associativo-module .portal-menu-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.portal-associativo-module .portal-mobile-menu {
+  position: relative;
+}
+
+.portal-associativo-module .portal-mobile-panel {
+  background: #ffffff;
+  border: 1px solid #dbe4f0;
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 48px rgba(23, 32, 51, 0.18);
+  max-height: calc(100dvh - 6rem);
+  overflow-y: auto;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.75rem);
+  width: min(22rem, calc(100vw - 2rem));
+  z-index: 40;
 }
 
 .portal-associativo-module .panel {
@@ -440,14 +507,10 @@ select.input option:disabled {
   color: #172033;
 }
 
-.portal-associativo-module aside nav a,
-.portal-associativo-module header nav a {
-  color: #172033;
-}
-
-.portal-associativo-module aside nav a:hover,
-.portal-associativo-module header nav a:hover {
-  background: #eef3fb;
+@media (max-width: 1023px) {
+  .portal-associativo-module main {
+    padding-bottom: calc(2.5rem + env(safe-area-inset-bottom));
+  }
 }
 
 .eyebrow {
