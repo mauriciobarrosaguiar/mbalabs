@@ -68,6 +68,25 @@ export const internalApps: InternalAppDefinition[] = [
     ]
   },
   {
+    slug: "portal-associativo",
+    name: "Portal Associativo",
+    description: "Gestao completa para associacoes, associados, unidades, cobrancas, reunioes, avisos, documentos e projetos.",
+    urlPath: "/portal-associativo",
+    alternatePaths: [
+      { label: "Entrada do portal - /apps/portal-associativo", value: "/apps/portal-associativo" },
+      { label: "App direto - /portal-associativo", value: "/portal-associativo" }
+    ],
+    profileOptions: [
+      { label: "Administrador", value: "administrador" },
+      { label: "Presidente", value: "presidente" },
+      { label: "Tesoureiro", value: "tesoureiro" },
+      { label: "Secretario", value: "secretario" },
+      { label: "Conselho fiscal", value: "conselho_fiscal" },
+      { label: "Associado", value: "associado" },
+      { label: "Portaria", value: "portaria" }
+    ]
+  },
+  {
     slug: "lexgestor",
     name: "LexGestor",
     description: "Gestão jurídica inteligente para escritórios de advocacia.",

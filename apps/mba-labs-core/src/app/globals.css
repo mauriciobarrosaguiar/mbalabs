@@ -350,6 +350,106 @@ select.input option:disabled {
   color: #0f5132;
 }
 
+.portal-associativo-module {
+  color-scheme: light;
+  background: #f7f9fc;
+  color: #172033;
+  --background: #f7f9fc;
+  --foreground: #172033;
+  --card: #ffffff;
+  --card-foreground: #172033;
+  --popover: #ffffff;
+  --popover-foreground: #172033;
+  --primary: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --secondary: #e8f1ff;
+  --secondary-foreground: #1e3a8a;
+  --muted: #eef3fb;
+  --muted-foreground: #5d6b84;
+  --accent: #e8f1ff;
+  --accent-foreground: #1e3a8a;
+  --destructive: #b42318;
+  --success: #0f8f61;
+  --warning: #a15c07;
+  --border: #dbe4f0;
+  --input: #dbe4f0;
+  --ring: #1d4ed8;
+  --radius: 0.5rem;
+  --line: #dbe4f0;
+  --panel: #ffffff;
+  --panel-strong: #eef3fb;
+}
+
+.portal-associativo-module .panel {
+  border-color: #dbe4f0;
+  background: #ffffff;
+  color: #172033;
+  box-shadow: 0 1px 2px rgba(23, 32, 51, 0.06);
+  backdrop-filter: none;
+}
+
+.portal-associativo-module .button-primary {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #ffffff;
+}
+
+.portal-associativo-module .button-secondary {
+  border-color: #dbe4f0;
+  background: #ffffff;
+  color: #172033;
+}
+
+.portal-associativo-module .button-danger {
+  border-color: #fecaca;
+  background: #fff1f2;
+  color: #b42318;
+}
+
+.portal-associativo-module .input {
+  border-color: #dbe4f0;
+  background: #ffffff;
+  color: #172033;
+}
+
+.portal-associativo-module .input::placeholder {
+  color: #64748b;
+}
+
+.portal-associativo-module select.input {
+  color-scheme: light;
+}
+
+.portal-associativo-module select.input option {
+  background: #ffffff;
+  color: #172033;
+}
+
+.portal-associativo-module .text-slate-300,
+.portal-associativo-module .text-slate-400,
+.portal-associativo-module .text-slate-100 {
+  color: #5d6b84;
+}
+
+.portal-associativo-module table thead {
+  background: #eef3fb;
+  color: #5d6b84;
+}
+
+.portal-associativo-module table td {
+  color: #172033;
+}
+
+.portal-associativo-module aside nav a,
+.portal-associativo-module header nav a {
+  color: #172033;
+}
+
+.portal-associativo-module aside nav a:hover,
+.portal-associativo-module header nav a:hover {
+  background: #eef3fb;
+}
+
 .eyebrow {
   color: var(--accent);
   font-size: 0.78rem;

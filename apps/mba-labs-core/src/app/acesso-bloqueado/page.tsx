@@ -10,7 +10,8 @@ const appNames: Record<string, string> = {
   mbacotacoes: "MBA Cotações",
   lavagestor: "LavaGestor",
   bikecomanda: "BikeComanda",
-  "bike-comanda": "BikeComanda"
+  "bike-comanda": "BikeComanda",
+  "portal-associativo": "Portal Associativo"
 };
 
 const reasonNames: Record<string, string> = {
