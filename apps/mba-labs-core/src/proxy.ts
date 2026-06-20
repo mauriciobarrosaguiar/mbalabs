@@ -23,6 +23,7 @@ export const config = {
     "/cotacoes/:path*",
     "/lavagestor/:path*",
     "/bikecomanda/:path*",
+    "/portal-associativo/:path*",
     "/acesso-bloqueado"
   ]
 };

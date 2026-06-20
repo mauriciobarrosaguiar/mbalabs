@@ -61,6 +61,14 @@ export const fallbackApps: SystemCard[] = [
     canAccess: false
   },
   {
+    slug: "portal-associativo",
+    nome: "Portal Associativo",
+    descricao: "Gestao completa para associacoes, associados, unidades, cobrancas, reunioes, avisos, documentos e projetos.",
+    url_path: "/portal-associativo",
+    status: "sem_assinatura",
+    canAccess: false
+  },
+  {
     slug: "lexgestor",
     nome: "LexGestor",
     descricao: "Gestão jurídica inteligente para escritórios de advocacia.",
@@ -443,6 +451,13 @@ export const adminResources = {
           { label: "Gerente", value: "gerente" },
           { label: "Lavador", value: "lavador" },
           { label: "Caixa", value: "caixa" },
+          { label: "Portal Associativo - Administrador", value: "administrador" },
+          { label: "Portal Associativo - Presidente", value: "presidente" },
+          { label: "Portal Associativo - Tesoureiro", value: "tesoureiro" },
+          { label: "Portal Associativo - Secretario", value: "secretario" },
+          { label: "Portal Associativo - Conselho fiscal", value: "conselho_fiscal" },
+          { label: "Portal Associativo - Associado", value: "associado" },
+          { label: "Portal Associativo - Portaria", value: "portaria" },
           { label: "LexGestor - Dono do escritório", value: "dono" },
           { label: "LexGestor - Administrador", value: "administrador" },
           { label: "LexGestor - Advogado", value: "advogado" },
@@ -1157,6 +1172,7 @@ function canAccessRequestedPath(path: string, profile: CoreProfile, appsLiberado
       pathname.startsWith("/cotacoes") ||
       pathname.startsWith("/lavagestor") ||
       pathname.startsWith("/bikecomanda") ||
+      pathname.startsWith("/portal-associativo") ||
       pathname.startsWith("/lexgestor")
     );
   }
@@ -1188,6 +1204,10 @@ function getAppSlugFromPath(path: string) {
 
   if (path === "/bikecomanda" || path.startsWith("/bikecomanda/")) {
     return "bikecomanda";
+  }
+
+  if (path === "/portal-associativo" || path.startsWith("/portal-associativo/")) {
+    return "portal-associativo";
   }
 
   if (path === "/lexgestor" || path.startsWith("/lexgestor/")) {

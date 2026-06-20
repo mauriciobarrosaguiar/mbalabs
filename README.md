@@ -8,8 +8,10 @@ Portal central e monorepo inicial dos sistemas MBA Labs.
 - `apps/mba-cotacoes`: app MBA Cotacoes completo, com rotas protegidas, login central do MBA Labs e migrations operacionais originais.
 - `apps/lavagestor`: estrutura inicial do LavaGestor, com rotas protegidas e leitura das tabelas `lava_`.
 - `apps/mba-labs-core/public/bikecomanda-static`: prototipo funcional do BikeComanda integrado ao portal central.
+- `apps/mba-labs-core/src/app/portal-associativo`: Portal Associativo integrado ao login central do MBA Labs.
 - `packages/shared`: pacote compartilhado com clientes Supabase e tipos do banco.
 - `supabase/migrations/001_initial_schema.sql`: migration inicial do banco unico multiempresa.
+- `supabase/migrations/20260620103000_portal_associativo.sql`: schema `assoc_`, RLS, Storage e cadastro do Portal Associativo.
 - `supabase/seed.sql`: seed basico de apps e planos.
 - `docs/BIKECOMANDA_SCHEMA.sql`: schema de referencia das tabelas operacionais do BikeComanda.
 - `docs/GUIA_IMPLANTACAO.md`: passo a passo para Supabase, local, GitHub e Vercel.
@@ -65,6 +67,19 @@ Portas padrao:
 - MBA Cotacoes: `http://localhost:3001/app/dashboard` ou alias `http://localhost:3001/apps/mba-cotacoes`
 - LavaGestor: `http://localhost:3002/lavagestor`
 - BikeComanda: `http://localhost:3000/apps/bikecomanda` ou direto `http://localhost:3000/bikecomanda`
+- Portal Associativo: `http://localhost:3000/portal-associativo` ou `http://localhost:3000/apps/portal-associativo`
+
+## Portal Associativo
+
+O Portal Associativo e um app interno do MBA Labs para associacoes, condominios rurais, loteamentos, chacaras, comunidades, sindicatos, cooperativas e outras entidades que precisam gerir:
+
+- pessoas e usuarios vinculados ao login central;
+- unidades, proprietarios e responsaveis;
+- transferencias de titularidade;
+- cobrancas, mensalidades, baixas manuais e PIX;
+- reunioes, avisos, documentos, projetos e painel do associado.
+
+O app usa a rota `/portal-associativo`, slug `portal-associativo` e tabelas Supabase com prefixo `assoc_`. Todas as tabelas operacionais possuem `empresa_id` obrigatorio e RLS com `current_empresa_id()` + `can_access_app('portal-associativo')`.
 
 ## Variaveis de ambiente
 
@@ -85,9 +100,13 @@ DROPBOX_APP_KEY=
 DROPBOX_APP_SECRET=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
+PORTAL_ASSOCIATIVO_EFI_CLIENT_ID=
+PORTAL_ASSOCIATIVO_EFI_CLIENT_SECRET=
+PORTAL_ASSOCIATIVO_BB_CLIENT_ID=
+PORTAL_ASSOCIATIVO_BB_CLIENT_SECRET=
 ```
 
-Nunca exponha `SUPABASE_SERVICE_ROLE_KEY`, `LEXGESTOR_TOKEN_SECRET`, `DROPBOX_APP_KEY`, `DROPBOX_APP_SECRET`, `GOOGLE_CLIENT_ID` ou `GOOGLE_CLIENT_SECRET` em componente client-side.
+Nunca exponha `SUPABASE_SERVICE_ROLE_KEY`, tokens, client secrets, certificados ou credenciais bancarias em componente client-side.
 
 ## Dropbox do LexGestor
 
@@ -118,9 +137,16 @@ Depois entre em `/lexgestor/configuracoes`, clique em `Conectar Dropbox` e autor
 1. Abra o painel do Supabase.
 2. Entre no projeto MBA Labs.
 3. Va em SQL Editor.
-4. Cole e execute o conteudo de `supabase/migrations/001_initial_schema.sql`.
+4. Aplique as migrations em ordem, incluindo `supabase/migrations/20260620103000_portal_associativo.sql`.
 5. Depois cole e execute o conteudo de `supabase/seed.sql`.
-6. Confirme se aparecem as tabelas `core_`, `cot_` e `lava_`.
+6. Confirme se aparecem as tabelas `core_`, `cot_`, `lava_` e `assoc_`.
+
+Para liberar o Portal Associativo para uma empresa:
+
+1. Entre como Admin Master.
+2. Cadastre ou confirme o app `portal-associativo` em `/admin/apps`.
+3. Vincule o app a empresa em `/admin/empresas/[id]/apps` com status `ativo` ou `teste`.
+4. Em usuarios, libere o app para o usuario e defina o perfil interno: `administrador`, `presidente`, `tesoureiro`, `secretario`, `conselho_fiscal`, `associado` ou `portaria`.
 
 ## Como testar
 
@@ -130,9 +156,11 @@ Depois entre em `/lexgestor/configuracoes`, clique em `Conectar Dropbox` e autor
 4. Crie o Admin Master.
 5. Entre pelo login.
 6. Abra o dashboard.
-7. Confira os cards MBA Cotacoes, LavaGestor e BikeComanda.
+7. Confira os cards MBA Cotacoes, LavaGestor, BikeComanda e Portal Associativo.
 8. Abra `/api/health` para ver o teste simples de conexao com `core_apps`.
-9. Confira no Supabase se as tabelas foram criadas.
+9. Acesse `/portal-associativo` com uma empresa liberada.
+10. Teste um usuario sem liberacao e confirme o bloqueio de acesso.
+11. Confira no Supabase se as tabelas foram criadas e se os dados ficam filtrados por `empresa_id`.
 
 ## Deploy na Vercel
 
@@ -157,6 +185,10 @@ DROPBOX_APP_KEY=
 DROPBOX_APP_SECRET=
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
+PORTAL_ASSOCIATIVO_EFI_CLIENT_ID=
+PORTAL_ASSOCIATIVO_EFI_CLIENT_SECRET=
+PORTAL_ASSOCIATIVO_BB_CLIENT_ID=
+PORTAL_ASSOCIATIVO_BB_CLIENT_SECRET=
 ```
 
 ## O que ainda falta fazer
