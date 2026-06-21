@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { dateValue, messageParam, nullableTextValue, numberValue, textValue } from "@/lib/form-utils";
 import { canPortalAccess, getPortalContext, PORTAL_ASSOCIATIVO_PATH } from "@/lib/portal-associativo-data";
+import { deleteFromPortalStorage, isPortalStorageProvider } from "@/lib/portal-associativo-storage";
 
 export async function savePortalPessoa(formData: FormData) {
   const context = await requirePortalWrite("pessoas", "/portal-associativo/pessoas");
@@ -330,12 +331,16 @@ export async function baixarPortalCobranca(formData: FormData) {
   const context = await requirePortalWrite("financeiro", "/portal-associativo/financeiro");
   const id = textValue(formData, "id");
   const returnTo = textValue(formData, "return_to") || "/portal-associativo/financeiro";
+  const paidAt = new Date().toISOString();
+  const valorPago = nullableNumberValue(formData, "valor_pago");
   const { error } = await context.client
     .from("assoc_cobrancas")
     .update({
       status: "paga",
       forma_pagamento: textValue(formData, "forma_pagamento") || "manual",
-      data_pagamento: new Date().toISOString(),
+      data_pagamento: paidAt,
+      valor_pago: valorPago,
+      baixado_por: context.current.usuario.id,
       comprovante_url: nullableTextValue(formData, "comprovante_url"),
       atualizado_em: new Date().toISOString()
     })
@@ -343,7 +348,11 @@ export async function baixarPortalCobranca(formData: FormData) {
     .eq("empresa_id", context.empresaId);
 
   if (error) redirectWithError(returnTo, error.message);
-  await recordPortalAudit(context, "baixa_manual_cobranca", "assoc_cobrancas", id);
+  await recordPortalAudit(context, "baixar_cobranca", "assoc_cobrancas", id, {
+    forma_pagamento: textValue(formData, "forma_pagamento") || "manual",
+    data_pagamento: paidAt,
+    valor_pago: valorPago
+  });
   revalidatePortal(returnTo);
   redirectWithOk(returnTo, "Pagamento baixado manualmente.");
 }
@@ -352,14 +361,45 @@ export async function cancelPortalCobranca(formData: FormData) {
   const context = await requirePortalWrite("financeiro", "/portal-associativo/financeiro");
   const id = textValue(formData, "id");
   const returnTo = textValue(formData, "return_to") || "/portal-associativo/financeiro";
+  const motivo = textValue(formData, "motivo_cancelamento");
+  if (!motivo) {
+    redirectWithError(returnTo, "Informe o motivo do cancelamento.");
+  }
+
+  const current = await context.client
+    .from("assoc_cobrancas")
+    .select("id,status")
+    .eq("id", id)
+    .eq("empresa_id", context.empresaId)
+    .maybeSingle();
+
+  if (current.error || !current.data?.id) {
+    redirectWithError(returnTo, current.error?.message ?? "Cobranca nao encontrada.");
+  }
+
+  if (String(current.data.status) === "paga" && textValue(formData, "confirmar_cancelamento_pago") !== "CANCELAR PAGA") {
+    redirectWithError(returnTo, "Para cancelar uma cobranca paga, digite CANCELAR PAGA no campo de confirmacao.");
+  }
+
+  const canceledAt = new Date().toISOString();
   const { error } = await context.client
     .from("assoc_cobrancas")
-    .update({ status: "cancelada", atualizado_em: new Date().toISOString() })
+    .update({
+      status: "cancelada",
+      motivo_cancelamento: motivo,
+      cancelado_por: context.current.usuario.id,
+      cancelado_em: canceledAt,
+      atualizado_em: new Date().toISOString()
+    })
     .eq("id", id)
     .eq("empresa_id", context.empresaId);
 
   if (error) redirectWithError(returnTo, error.message);
-  await recordPortalAudit(context, "cancelar_cobranca", "assoc_cobrancas", id);
+  await recordPortalAudit(context, "cancelar_cobranca", "assoc_cobrancas", id, {
+    motivo,
+    status_anterior: current.data.status,
+    cancelado_em: canceledAt
+  });
   revalidatePortal(returnTo);
   redirectWithOk(returnTo, "Mensalidade cancelada.");
 }
@@ -376,6 +416,10 @@ export async function gerarPortalMensalidadesLote(formData: FormData) {
 
   if (!mesInicial) {
     redirectWithError(returnTo, "Informe o mes inicial.");
+  }
+
+  if (textValue(formData, "confirmar_previa") !== "true") {
+    redirectWithError(returnTo, "Confira a previa antes de gerar mensalidades em lote.");
   }
 
   if (loteamentoId) {
@@ -489,9 +533,14 @@ export async function savePortalReuniao(formData: FormData) {
     empresa_id: requireEmpresaId(context.empresaId, "/portal-associativo/reunioes"),
     titulo: textValue(formData, "titulo"),
     data_reuniao: textValue(formData, "data_reuniao"),
+    local: nullableTextValue(formData, "local"),
+    pauta: nullableTextValue(formData, "pauta"),
     status: textValue(formData, "status") || "agendada",
     descricao: nullableTextValue(formData, "descricao"),
-    ata_url: nullableTextValue(formData, "ata_url")
+    ata: nullableTextValue(formData, "ata"),
+    ata_url: nullableTextValue(formData, "ata_url"),
+    decisoes: nullableTextValue(formData, "decisoes"),
+    liberado_associado: formData.get("liberado_associado") === "true"
   };
   if (!payload.titulo || !payload.data_reuniao) redirectWithError("/portal-associativo/reunioes", "Informe titulo e data.");
   await saveGeneric(context, "assoc_reunioes", id, payload, "/portal-associativo/reunioes", "reuniao");
@@ -505,6 +554,11 @@ export async function savePortalAviso(formData: FormData) {
     titulo: textValue(formData, "titulo"),
     mensagem: textValue(formData, "mensagem"),
     prioridade: textValue(formData, "prioridade") || "media",
+    publico: textValue(formData, "publico") || "todos",
+    perfis: splitCsv(textValue(formData, "perfis")),
+    status_cobranca: nullableTextValue(formData, "status_cobranca"),
+    unidade_id: nullableTextValue(formData, "unidade_id"),
+    link_portal: nullableTextValue(formData, "link_portal"),
     visivel_de: dateValue(formData, "visivel_de") ?? new Date().toISOString().slice(0, 10),
     visivel_ate: dateValue(formData, "visivel_ate"),
     status: textValue(formData, "status") || "ativo",
@@ -523,7 +577,9 @@ export async function savePortalProjeto(formData: FormData) {
     descricao: nullableTextValue(formData, "descricao"),
     status: textValue(formData, "status") || "planejado",
     valor_previsto: numberValue(formData, "valor_previsto"),
-    valor_arrecadado: numberValue(formData, "valor_arrecadado")
+    valor_arrecadado: numberValue(formData, "valor_arrecadado"),
+    liberado_associado: formData.get("liberado_associado") === "true",
+    relatorio_url: nullableTextValue(formData, "relatorio_url")
   };
   if (!payload.nome) redirectWithError("/portal-associativo/projetos", "Informe o nome do projeto.");
   await saveGeneric(context, "assoc_projetos", id, payload, "/portal-associativo/projetos", "projeto");
@@ -548,6 +604,9 @@ export async function savePortalConfiguracoes(formData: FormData) {
       recebedor_nome: nullableTextValue(formData, "recebedor_nome"),
       recebedor_cidade: nullableTextValue(formData, "recebedor_cidade"),
       webhook_url: nullableTextValue(formData, "webhook_url"),
+      storage_provider_ativo: textValue(formData, "storage_provider_ativo") || "nenhum",
+      assinatura_entidade: nullableTextValue(formData, "assinatura_entidade"),
+      implantacao_concluida: formData.get("implantacao_concluida") === "true",
       atualizado_em: new Date().toISOString()
     },
     { onConflict: "empresa_id" }
@@ -572,6 +631,8 @@ export async function savePortalConfiguracoesPagamento(formData: FormData) {
       webhook_url: nullableTextValue(formData, "webhook_url"),
       modo_cobranca_padrao: textValue(formData, "modo_cobranca_padrao") || "manual",
       gerar_pix_automatico: formData.get("gerar_pix_automatico") === "true",
+      descricao_padrao: nullableTextValue(formData, "descricao_padrao"),
+      pix_preparado_automatico: formData.get("pix_preparado_automatico") === "true",
       atualizado_por: context.current.usuario.id,
       atualizado_em: new Date().toISOString()
     },
@@ -581,6 +642,68 @@ export async function savePortalConfiguracoesPagamento(formData: FormData) {
   await recordPortalAudit(context, "atualizar_configuracoes_pagamento", "assoc_configuracoes_pagamento", null);
   revalidatePortal("/portal-associativo/configuracoes");
   redirectWithOk("/portal-associativo/configuracoes", "Configuracoes de pagamento salvas.");
+}
+
+export async function togglePortalArquivoLiberado(formData: FormData) {
+  const context = await requirePortalWrite("documentos", "/portal-associativo/documentos");
+  const id = textValue(formData, "id");
+  const liberado = formData.get("liberado_associado") === "true";
+  const { error } = await context.client
+    .from("assoc_arquivos")
+    .update({
+      liberado_associado: liberado,
+      visibility: liberado ? "liberado_associado" : "interno",
+      atualizado_por: context.current.usuario.id,
+      atualizado_em: new Date().toISOString()
+    })
+    .eq("id", id)
+    .eq("empresa_id", context.empresaId);
+
+  if (error) redirectWithError("/portal-associativo/documentos", error.message);
+  await recordPortalAudit(context, liberado ? "liberar_documento" : "bloquear_documento", "assoc_arquivos", id, { liberado });
+  revalidatePortal("/portal-associativo/documentos");
+  revalidatePath("/portal-associativo/painel-associado");
+  redirectWithOk("/portal-associativo/documentos", liberado ? "Documento liberado ao associado." : "Documento marcado como interno.");
+}
+
+export async function deletePortalArquivo(formData: FormData) {
+  const context = await requirePortalWrite("documentos", "/portal-associativo/documentos");
+  const id = textValue(formData, "id");
+  const confirmacao = textValue(formData, "confirmacao");
+  if (confirmacao !== "EXCLUIR") {
+    redirectWithError("/portal-associativo/documentos", "Digite EXCLUIR para confirmar a exclusao do arquivo.");
+  }
+
+  const current = await context.client
+    .from("assoc_arquivos")
+    .select("id,provedor,file_id,path,file_name")
+    .eq("id", id)
+    .eq("empresa_id", context.empresaId)
+    .maybeSingle();
+  if (current.error || !current.data?.id) {
+    redirectWithError("/portal-associativo/documentos", current.error?.message ?? "Arquivo nao encontrado.");
+  }
+
+  const provider = String(current.data.provedor ?? "");
+  if (isPortalStorageProvider(provider)) {
+    try {
+      await deleteFromPortalStorage({
+        current: context.current,
+        provider,
+        path: String(current.data.path ?? ""),
+        fileId: String(current.data.file_id ?? "")
+      });
+    } catch (error) {
+      redirectWithError("/portal-associativo/documentos", error instanceof Error ? error.message : "Erro ao excluir no armazenamento.");
+    }
+  }
+
+  const { error } = await context.client.from("assoc_arquivos").delete().eq("id", id).eq("empresa_id", context.empresaId);
+  if (error) redirectWithError("/portal-associativo/documentos", error.message);
+  await recordPortalAudit(context, "excluir_documento", "assoc_arquivos", id, { nome: current.data.file_name, provedor: provider });
+  revalidatePortal("/portal-associativo/documentos");
+  revalidatePath("/portal-associativo/painel-associado");
+  redirectWithOk("/portal-associativo/documentos", "Arquivo excluido.");
 }
 
 async function saveGeneric(context: Awaited<ReturnType<typeof getPortalContext>>, table: string, id: string, payload: Record<string, unknown>, returnTo: string, label: string) {
@@ -826,6 +949,13 @@ function relationObject(value: unknown) {
 
 function clean(value: unknown) {
   return String(value ?? "").replace(/\D/g, "");
+}
+
+function splitCsv(value: string) {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function capitalize(value: string) {

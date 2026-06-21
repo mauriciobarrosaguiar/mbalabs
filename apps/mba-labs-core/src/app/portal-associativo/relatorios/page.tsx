@@ -44,6 +44,8 @@ export default async function PortalRelatoriosPage({
             <>
               <Link className="button-secondary" href="/api/portal-associativo/export?tipo=cobrancas">CSV mensalidades</Link>
               <Link className="button-secondary" href="/api/portal-associativo/export?tipo=inadimplencia">CSV inadimplência</Link>
+              <Link className="button-secondary" href="/api/portal-associativo/export?tipo=cobrancas&formato=pdf" target="_blank">PDF mensalidades</Link>
+              <Link className="button-secondary" href="/api/portal-associativo/export?tipo=inadimplencia&formato=pdf" target="_blank">PDF inadimplencia</Link>
               <BackButton href="/portal-associativo" />
             </>
           }

@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PortalAssociativoShell } from "@/components/PortalAssociativoShell";
 import { DataTable, MessageBanner, PageHeader, StatCard, formatDate, formatMoney } from "@/components/ui-kit";
-import { canPortalAccess, getPortalDashboard } from "@/lib/portal-associativo-data";
+import { canPortalAccess, getPortalDashboard, getPortalOnboarding } from "@/lib/portal-associativo-data";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,7 @@ export default async function PortalAssociativoPage() {
   if (!canPortalAccess(dashboard.perfil, "dashboard")) {
     redirect("/portal-associativo/painel-associado");
   }
+  const onboarding = await getPortalOnboarding();
 
   const metrics = [
     { label: "Loteamentos", value: dashboard.metrics.totalLoteamentos },
@@ -37,6 +39,39 @@ export default async function PortalAssociativoPage() {
           description="Visão operacional de loteamentos, chácaras/lotes, associados, mensalidades, inadimplência e auditoria."
         />
         <MessageBanner error={dashboard.error ?? undefined} />
+
+        {onboarding.shouldShow && dashboard.perfil !== "portaria" ? (
+          <section className="panel grid gap-4 p-5">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="eyebrow">Implantacao guiada</p>
+                <h2 className="text-2xl font-black">Prepare o Portal para usar com associados</h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Complete os passos principais para configurar entidade, pessoas, unidades, mensalidades e acesso.
+                </p>
+              </div>
+              <strong className="rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground">
+                {onboarding.completed}/{onboarding.total} passos
+              </strong>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {onboarding.steps.map((step) => (
+                <article className="grid gap-3 rounded-lg border border-border bg-muted/40 p-4" key={step.id}>
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="font-black">{step.title}</h3>
+                    <span className={step.done ? "rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700" : "rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-700"}>
+                      {step.done ? "Pronto" : "Pendente"}
+                    </span>
+                  </div>
+                  <p className="text-sm leading-6 text-muted-foreground">{step.description}</p>
+                  <Link className={step.done ? "button-secondary w-fit" : "button-primary w-fit"} href={step.href}>
+                    {step.action}
+                  </Link>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {metrics.map((metric) => (
