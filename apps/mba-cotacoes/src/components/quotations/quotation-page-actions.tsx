@@ -126,7 +126,7 @@ export function QuotationPageActions({
           {canGenerateLinks ? (
             <Button type="button" variant="outline" onClick={() => void generateLinks()} disabled={loadingAction === "reopen_links"}>
               <Link2 className="h-4 w-4" />
-              Gerar links
+              Enviar cotação aos vendedores
             </Button>
           ) : null}
           {currentPage !== "responses" ? (
