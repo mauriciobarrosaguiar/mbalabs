@@ -31,10 +31,10 @@ export default async function WhatsappMbaCotacoesPage({
 
   return (
     <AppShell
-      mode="app"
+      mode="admin"
       currentPath="/cotacoes/configuracoes/whatsapp"
       title="WhatsApp MBA Cotações"
-      subtitle="Configuração Admin Master"
+      subtitle="Admin Master MBA Labs"
       profileRole={auth.profile.role}
       tenantType={auth.tenantAccess?.tenantType}
       tenantName={auth.tenantAccess?.tenantName}
@@ -45,11 +45,12 @@ export default async function WhatsappMbaCotacoesPage({
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <Badge className="bg-teal-50 text-teal-800 hover:bg-teal-50">Número central</Badge>
+                <Badge className="bg-slate-900 text-white hover:bg-slate-900">Somente Admin Master</Badge>
                 <Badge variant={config?.ativo ? "default" : "outline"}>{config?.ativo ? "Ativo" : "Inativo"}</Badge>
               </div>
               <h2 className="mt-3 text-xl font-semibold text-slate-950">Envio automático pelo WhatsApp oficial</h2>
               <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
-                Esta área aparece somente para Admin Master. A farmácia não vê API, token, QR Code ou número conectado.
+                Esta área é exclusiva do Admin Master do MBA Labs. Clientes, farmácias e vendedores não acessam API, token, QR Code ou número conectado.
               </p>
             </div>
             <div className="flex h-12 w-12 items-center justify-center rounded-md bg-teal-50 text-teal-700">
