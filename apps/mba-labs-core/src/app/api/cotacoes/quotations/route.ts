@@ -6,6 +6,7 @@ import {
 import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/server";
 import { canFinishQuotation, isQuotationClosed } from "@/modules/cotacoes/lib/quotation-status";
 import { getCurrentAuthContext } from "@/modules/cotacoes/lib/auth/session";
+import { sendQuotationLinksByQuotation } from "@/modules/cotacoes/lib/whatsapp/mba-cotacoes";
 
 export async function POST(request: NextRequest) {
   if (!canUseSupabaseOperational()) {
@@ -26,13 +27,37 @@ export async function POST(request: NextRequest) {
       isSuperAdmin: auth.isSuperAdmin,
     });
     const result = await createSupabaseQuotation({ ...body, tenantId });
+    const responsePrefix = body.moduleType === "bidding" ? "licitacao" : "cotacao";
+    const links = result.sessions.map((session: { supplierId?: string; publicToken: string }) => ({
+      supplierId: session.supplierId,
+      token: session.publicToken,
+      url: `${request.nextUrl.origin}/${responsePrefix}/responder/${session.publicToken}`,
+    }));
+
+    let whatsapp: unknown = null;
+    if (body.status === "waiting_responses") {
+      try {
+        whatsapp = await sendQuotationLinksByQuotation({
+          quotationId: result.quotation.id,
+          origin: request.nextUrl.origin,
+        });
+      } catch (whatsappError) {
+        console.warn("[WhatsApp MBA Cotações] Cotação criada, mas o envio automático falhou.", whatsappError);
+        whatsapp = {
+          total: links.length,
+          enviado: 0,
+          falhou: links.length,
+          pendente: 0,
+          ignorado: 0,
+          error: whatsappError instanceof Error ? whatsappError.message : "Falha no envio automático de WhatsApp.",
+        };
+      }
+    }
+
     return NextResponse.json({
       ...result,
-      links: result.sessions.map((session: { supplierId?: string; publicToken: string }) => ({
-        supplierId: session.supplierId,
-        token: session.publicToken,
-        url: `${request.nextUrl.origin}/cotacoes/responder/${session.publicToken}`,
-      })),
+      links,
+      whatsapp,
     });
   } catch (error) {
     console.error("Erro ao criar cotação", error);
