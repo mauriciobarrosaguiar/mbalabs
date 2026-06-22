@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Menu,
+  MessageCircle,
   Package,
   PlusCircle,
   ReceiptText,
@@ -85,6 +86,10 @@ const supplierNav: NavItem[] = [
   { href: "/cotacoes/cotacoes-disponiveis", label: "Cotações disponíveis", icon: ListChecks, group: "principal" },
   { href: "/cotacoes/cotacoes-respondidas", label: "Cotações respondidas", icon: CheckCircle2, group: "principal" },
   { href: "/cotacoes/perfil", label: "Perfil", icon: Settings, group: "principal" },
+];
+
+const whatsappAdminNav: NavItem[] = [
+  { href: "/cotacoes/configuracoes/whatsapp", label: "WhatsApp MBA", icon: MessageCircle, group: "Admin Master" },
 ];
 
 export function AppShell({
@@ -266,7 +271,7 @@ function isActive(currentPath: string, href: string) {
 }
 
 function getAppNav(role?: UserRole, tenantType?: CustomerType) {
-  if (role === "SUPER_ADMIN") return mergeNav(pharmacyNav, biddingNav);
+  if (role === "SUPER_ADMIN") return mergeNav(pharmacyNav, biddingNav, whatsappAdminNav);
   if (role === "VENDEDOR_EXTERNO") return supplierNav;
   if (tenantType === "pharmacy") return pharmacyNav;
   if (tenantType === "distributor_bidding") return biddingNav;
@@ -281,7 +286,7 @@ function withReturnToMbaLabs(nav: NavItem[], role?: UserRole) {
       href: "/dashboard",
       label: "Voltar ao MBA Labs",
       icon: LayoutDashboard,
-      group: "Gestao"
+      group: role === "SUPER_ADMIN" ? "Admin Master" : "Gestao"
     }
   ];
 }
