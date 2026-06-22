@@ -35,15 +35,20 @@ export function normalizeWhatsappPhone(value?: string | null) { let digits = Str
 
 export async function getWhatsappGlobalConfigForAdmin(): Promise<WhatsappAdminConfig | null> {
   if (!ready()) return null;
-  const config = await getLatestConfig();
-  if (!config) return null;
-  const { api_token, ...safe } = config;
-  return { ...safe, api_token_configurado: Boolean(api_token) };
+  try {
+    const config = await getLatestConfig();
+    if (!config) return null;
+    const { api_token, ...safe } = config;
+    return { ...safe, api_token_configurado: Boolean(api_token) };
+  } catch (error) {
+    console.warn("[WhatsApp MBA Cotações] Configuração ainda indisponível. A migration pode não ter sido aplicada.", error);
+    return null;
+  }
 }
 
 export async function saveWhatsappGlobalConfig(input: SaveWhatsappConfigInput) {
   const supabase = requireDb();
-  const existing = await getLatestConfig();
+  const existing = await safeGetLatestConfig();
   const payload = {
     provider: input.provider,
     api_url: input.api_url || null,
@@ -172,6 +177,7 @@ async function callProvider(config: Config, phone: string, message: string) {
 
 async function getActiveConfig() { const { data, error } = await db().from("cot_whatsapp_global_config").select("*").eq("ativo", true).order("updated_at", { ascending: false }).limit(1).maybeSingle(); if (error) throw error; return data ? mapConfig(data) : null; }
 async function getLatestConfig() { const { data, error } = await db().from("cot_whatsapp_global_config").select("*").order("ativo", { ascending: false }).order("updated_at", { ascending: false }).limit(1).maybeSingle(); if (error) throw error; return data ? mapConfig(data) : null; }
+async function safeGetLatestConfig() { try { return await getLatestConfig(); } catch { return null; } }
 function validateConfig(config: Config | null) { if (!config) throw new Error("WhatsApp MBA Cotações não configurado pelo Admin Master."); if (!config.provider) throw new Error("Provider não configurado."); if (!config.api_url) throw new Error("API URL não configurada."); }
 function validPhone(phone: string) { return /^\d{12,15}$/.test(phone); }
 function mapConfig(row: any): Config { return { id: row.id, provider: row.provider, api_url: row.api_url, api_token: row.api_token, phone_number_id: row.phone_number_id, numero_oficial: row.numero_oficial, nome_exibicao: row.nome_exibicao, status_conexao: row.status_conexao, ativo: Boolean(row.ativo) }; }
