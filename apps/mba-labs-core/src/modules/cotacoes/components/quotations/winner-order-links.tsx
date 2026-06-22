@@ -32,7 +32,8 @@ export function WinnerOrderLinks({ order }: { order?: PurchaseOrder }) {
   if (!order) return <span className="text-sm text-muted-foreground">Pedido pendente</span>;
   if (!order.publicToken) return <span className="text-sm text-muted-foreground">Link pendente</span>;
 
-  const path = `/${order.moduleType === "bidding" ? "licitacao" : "cotacao"}/pedido/${order.publicToken}`;
+  const safeOrder = order;
+  const path = `/${safeOrder.moduleType === "bidding" ? "licitacao" : "cotacao"}/pedido/${safeOrder.publicToken}`;
   const status = envio?.status ?? "pendente";
 
   function buildPublicLink() { return `${window.location.origin}${path}`; }
@@ -40,7 +41,16 @@ export function WinnerOrderLinks({ order }: { order?: PurchaseOrder }) {
 
   async function resend() {
     try {
-      const response = await fetch("/api/whatsapp-envios", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "resend", quotationId: order.quotationId, tipoEnvio: "resultado_cotacao", vendedorId: vendorIdFor(order) }) });
+      const response = await fetch("/api/whatsapp-envios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "resend",
+          quotationId: safeOrder.quotationId,
+          tipoEnvio: "resultado_cotacao",
+          vendedorId: vendorIdFor(safeOrder),
+        }),
+      });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Não foi possível reenviar.");
       const result = payload.whatsapp?.results?.[0] as WhatsappEnvio | undefined;
