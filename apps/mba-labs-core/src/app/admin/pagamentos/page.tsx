@@ -1,8 +1,20 @@
 import Link from "next/link";
 import { AppNav } from "@/components/AppNav";
-import { DataTable, MessageBanner, PageHeader, formatDate, formatMoney } from "@/components/ui-kit";
+import {
+  DataTable,
+  FormDateInput,
+  FormMoneyInput,
+  FormSelect,
+  MessageBanner,
+  PageHeader,
+  ResourceForm,
+  SubmitButton,
+  formatDate,
+  formatMoney,
+} from "@/components/ui-kit";
 import { generateAsaasPaymentAction } from "@/lib/actions/billing-actions";
-import { getCurrentUserProfile } from "@/lib/core-data";
+import { saveAdminResource } from "@/lib/actions/admin-actions";
+import { getAdminOptions, getCurrentUserProfile } from "@/lib/core-data";
 import { getSupabaseServer } from "@/lib/supabase";
 import { firstParam } from "@/lib/form-utils";
 
@@ -14,14 +26,21 @@ export default async function AdminPagamentosPage({ searchParams }: { searchPara
   if (!current.isAdminMaster) return null;
 
   const query = await searchParams;
+  const editId = firstParam(query.edit);
+  const showForm = firstParam(query.novo) === "1" || Boolean(editId);
   const supabase = await getSupabaseServer();
-  const { data, error } = await (supabase as any)
-    .from("core_pagamentos")
-    .select("id,empresa_id,assinatura_id,valor,vencimento,pagamento_em,status,metodo,referencia_externa,provider,billing_type,payment_url,invoice_url,asaas_payment_id,asaas_status,created_at,core_empresas(nome,nome_fantasia),core_assinaturas(core_apps(nome),core_planos(nome))")
-    .order("created_at", { ascending: false })
-    .limit(200);
+  const [options, paymentsResult] = await Promise.all([
+    getAdminOptions(),
+    (supabase as any)
+      .from("core_pagamentos")
+      .select("id,empresa_id,assinatura_id,valor,vencimento,pagamento_em,status,metodo,referencia_externa,provider,billing_type,payment_url,invoice_url,asaas_payment_id,asaas_status,created_at,core_empresas(nome,nome_fantasia),core_assinaturas(core_apps(nome),core_planos(nome))")
+      .order("created_at", { ascending: false })
+      .limit(200),
+  ]);
 
-  const rows = ((data ?? []) as Array<Record<string, unknown>>).map((row) => {
+  const data = (paymentsResult.data ?? []) as Array<Record<string, unknown>>;
+  const editing = editId ? data.find((row) => row.id === editId) : undefined;
+  const rows = data.map((row) => {
     const assinatura = relationObject(row.core_assinaturas);
     return {
       ...row,
@@ -51,7 +70,53 @@ export default async function AdminPagamentosPage({ searchParams }: { searchPara
             </div>
           }
         />
-        <MessageBanner ok={firstParam(query.ok)} error={firstParam(query.error) ?? error?.message} />
+        <MessageBanner ok={firstParam(query.ok)} error={firstParam(query.error) ?? paymentsResult.error?.message} />
+
+        {showForm ? (
+          <form action={saveAdminResource}>
+            <input name="resource" type="hidden" value="pagamentos" />
+            <input name="id" type="hidden" value={String(editing?.id ?? "")} />
+            <ResourceForm
+              title={editing ? "Editar pagamento" : "Novo pagamento"}
+              actions={
+                <>
+                  <SubmitButton>{editing ? "Salvar alterações" : "Salvar pagamento"}</SubmitButton>
+                  <Link className="button-secondary" href="/admin/pagamentos">Cancelar</Link>
+                </>
+              }
+            >
+              <FormSelect label="Empresa" name="empresa_id" defaultValue={String(editing?.empresa_id ?? "")} options={options.empresas} required />
+              <FormSelect label="Assinatura" name="assinatura_id" defaultValue={String(editing?.assinatura_id ?? "")} options={options.assinaturas} required />
+              <FormMoneyInput label="Valor" name="valor" defaultValue={String(editing?.valor ?? "")} required />
+              <FormDateInput label="Vencimento" name="vencimento" defaultValue={editing?.vencimento ? String(editing.vencimento).slice(0, 10) : ""} />
+              <FormDateInput label="Pago em" name="pagamento_em" defaultValue={editing?.pagamento_em ? String(editing.pagamento_em).slice(0, 10) : ""} />
+              <FormSelect
+                label="Status"
+                name="status"
+                defaultValue={String(editing?.status ?? "pendente")}
+                options={[
+                  { label: "Pendente", value: "pendente" },
+                  { label: "Pago", value: "pago" },
+                  { label: "Vencido", value: "vencido" },
+                  { label: "Cancelado", value: "cancelado" },
+                ]}
+                required
+              />
+              <FormSelect
+                label="Forma preferida"
+                name="metodo"
+                defaultValue={String(editing?.metodo ?? "UNDEFINED")}
+                options={[
+                  { label: "Cliente escolhe", value: "UNDEFINED" },
+                  { label: "Pix", value: "PIX" },
+                  { label: "Cartão de crédito", value: "CREDIT_CARD" },
+                  { label: "Boleto", value: "BOLETO" },
+                ]}
+              />
+            </ResourceForm>
+          </form>
+        ) : null}
+
         <DataTable
           columns={[
             { key: "empresa", label: "Empresa" },
@@ -72,7 +137,7 @@ export default async function AdminPagamentosPage({ searchParams }: { searchPara
               {String(row.status ?? "") !== "pago" ? (
                 <form action={generateAsaasPaymentAction}>
                   <input name="payment_id" type="hidden" value={String(row.id)} />
-                  <input name="billing_type" type="hidden" value="UNDEFINED" />
+                  <input name="billing_type" type="hidden" value={String(row.metodo ?? row.billing_type ?? "UNDEFINED")} />
                   <button className="button-primary" type="submit">Gerar Asaas</button>
                 </form>
               ) : null}
