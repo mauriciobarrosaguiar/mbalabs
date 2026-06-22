@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Menu,
+  MessageCircle,
   Package,
   PlusCircle,
   ReceiptText,
@@ -54,6 +55,7 @@ const adminNav: NavItem[] = [
   { href: "/admin/mensalidades", label: "Mensalidades", icon: ReceiptText },
   { href: "/admin/pagamentos", label: "Pagamentos", icon: CreditCard },
   { href: "/admin/configuracoes/pagamentos", label: "Config. pagamentos", icon: CreditCard },
+  { href: "/admin/configuracoes/whatsapp", label: "WhatsApp MBA", icon: MessageCircle },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
   { href: "/admin/logs", label: "Logs", icon: ShieldCheck },
 ];
