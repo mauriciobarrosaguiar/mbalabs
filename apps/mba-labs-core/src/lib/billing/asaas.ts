@@ -189,24 +189,16 @@ export async function processAsaasWebhook(payload: AsaasWebhookPayload, received
   const externalReference = String(payment.externalReference ?? "").trim();
   const admin = getSupabaseAdmin() as any;
 
-  const eventId = String(payload.id ?? `${eventType}:${paymentId || externalReference}`).trim();
-  const { data: eventRow, error: eventError } = await admin
-    .from("core_payment_webhook_events")
-    .upsert(
-      {
-        provider: "asaas",
-        event_id: eventId || null,
-        event_type: eventType || null,
-        payment_id: paymentId || null,
-        external_reference: externalReference || null,
-        payload,
-      },
-      { onConflict: "provider,event_id" },
-    )
-    .select("id,processed")
-    .single();
+  const eventId = String(payload.id ?? `${eventType}:${paymentId || externalReference || crypto.randomUUID()}`).trim();
+  const eventRow = await createOrUpdateWebhookEvent(admin, {
+    provider: "asaas",
+    event_id: eventId,
+    event_type: eventType || null,
+    payment_id: paymentId || null,
+    external_reference: externalReference || null,
+    payload,
+  });
 
-  if (eventError) throw new Error(eventError.message);
   if (eventRow?.processed) {
     return { ok: true, duplicate: true };
   }
@@ -225,20 +217,24 @@ export async function processAsaasWebhook(payload: AsaasWebhookPayload, received
       });
     }
 
-    await admin
-      .from("core_payment_webhook_events")
-      .update({ processed: true, processed_at: new Date().toISOString(), processing_error: null })
-      .eq("id", eventRow.id);
+    if (eventRow?.id) {
+      await admin
+        .from("core_payment_webhook_events")
+        .update({ processed: true, processed_at: new Date().toISOString(), processing_error: null })
+        .eq("id", eventRow.id);
+    }
 
     return { ok: true, duplicate: false };
   } catch (error) {
-    await admin
-      .from("core_payment_webhook_events")
-      .update({
-        processed: false,
-        processing_error: error instanceof Error ? error.message : "Erro ao processar webhook Asaas.",
-      })
-      .eq("id", eventRow.id);
+    if (eventRow?.id) {
+      await admin
+        .from("core_payment_webhook_events")
+        .update({
+          processed: false,
+          processing_error: error instanceof Error ? error.message : "Erro ao processar webhook Asaas.",
+        })
+        .eq("id", eventRow.id);
+    }
     throw error;
   }
 }
@@ -278,6 +274,55 @@ async function ensureAsaasCustomer(empresa: Record<string, unknown>, settings: A
 
   if (error) throw new Error(error.message);
   return customer.id;
+}
+
+async function createOrUpdateWebhookEvent(admin: any, payload: Record<string, unknown>) {
+  const eventId = String(payload.event_id ?? "").trim();
+
+  if (eventId) {
+    const { data: existing, error: findError } = await admin
+      .from("core_payment_webhook_events")
+      .select("id,processed")
+      .eq("provider", payload.provider)
+      .eq("event_id", eventId)
+      .maybeSingle();
+
+    if (findError) throw new Error(findError.message);
+
+    if (existing?.id) {
+      const { data: updated, error: updateError } = await admin
+        .from("core_payment_webhook_events")
+        .update(payload)
+        .eq("id", existing.id)
+        .select("id,processed")
+        .single();
+
+      if (updateError) throw new Error(updateError.message);
+      return updated;
+    }
+  }
+
+  const { data: inserted, error: insertError } = await admin
+    .from("core_payment_webhook_events")
+    .insert(payload)
+    .select("id,processed")
+    .single();
+
+  if (!insertError) return inserted;
+
+  if (eventId && isUniqueViolation(insertError)) {
+    const { data: existing, error: refetchError } = await admin
+      .from("core_payment_webhook_events")
+      .select("id,processed")
+      .eq("provider", payload.provider)
+      .eq("event_id", eventId)
+      .maybeSingle();
+
+    if (refetchError) throw new Error(refetchError.message);
+    return existing;
+  }
+
+  throw new Error(insertError.message);
 }
 
 async function updateCorePaymentFromAsaasPayment(input: {
@@ -466,4 +511,10 @@ function addDays(dateInput: string, days: number) {
 
 function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
+}
+
+function isUniqueViolation(error: unknown) {
+  const code = typeof error === "object" && error !== null ? String((error as Record<string, unknown>).code ?? "") : "";
+  const message = typeof error === "object" && error !== null ? String((error as Record<string, unknown>).message ?? "") : "";
+  return code === "23505" || message.toLowerCase().includes("duplicate key");
 }
