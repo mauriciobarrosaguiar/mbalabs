@@ -12,7 +12,7 @@ import {
   formatDate,
   formatMoney,
 } from "@/components/ui-kit";
-import { generateAsaasPaymentAction } from "@/lib/actions/billing-actions";
+import { generateAsaasPaymentAction, syncAsaasPaymentAction } from "@/lib/actions/billing-actions";
 import { saveAdminResource } from "@/lib/actions/admin-actions";
 import { getAdminOptions, getCurrentUserProfile } from "@/lib/core-data";
 import { getSupabaseServer } from "@/lib/supabase";
@@ -134,7 +134,13 @@ export default async function AdminPagamentosPage({ searchParams }: { searchPara
               {row.payment_url || row.invoice_url ? (
                 <a className="button-secondary" href={String(row.payment_url ?? row.invoice_url)} rel="noreferrer" target="_blank">Abrir link</a>
               ) : null}
-              {String(row.status ?? "") !== "pago" ? (
+              {row.asaas_payment_id ? (
+                <form action={syncAsaasPaymentAction}>
+                  <input name="payment_id" type="hidden" value={String(row.id)} />
+                  <button className="button-secondary" type="submit">Sincronizar Asaas</button>
+                </form>
+              ) : null}
+              {String(row.status ?? "") !== "pago" && !row.asaas_payment_id ? (
                 <form action={generateAsaasPaymentAction}>
                   <input name="payment_id" type="hidden" value={String(row.id)} />
                   <input name="billing_type" type="hidden" value={String(row.metodo ?? row.billing_type ?? "UNDEFINED")} />
@@ -146,7 +152,7 @@ export default async function AdminPagamentosPage({ searchParams }: { searchPara
           )}
         />
         <div className="panel p-4 text-sm leading-6 text-slate-300">
-          <strong className="text-slate-100">Importante:</strong> o link Asaas com forma de pagamento indefinida permite o cliente escolher os meios habilitados na sua conta Asaas, como Pix, cartão de crédito e boleto.
+          <strong className="text-slate-100">Importante:</strong> o link Asaas com forma de pagamento indefinida permite o cliente escolher os meios habilitados na sua conta Asaas, como Pix, cartão de crédito e boleto. Se o webhook falhar, use o botão Sincronizar Asaas.
         </div>
       </section>
     </main>
