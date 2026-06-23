@@ -66,7 +66,7 @@ export default async function AdminPagamentosPage({ searchParams }: { searchPara
           actions={
             <div className="flex flex-wrap gap-2">
               <Link className="button-primary" href="/admin/pagamentos?novo=1">Novo pagamento</Link>
-              <Link className="button-secondary" href="/admin/configuracoes">Configurações</Link>
+              <Link className="button-secondary" href="/admin/configuracoes/asaas">Configurar Asaas</Link>
             </div>
           }
         />
