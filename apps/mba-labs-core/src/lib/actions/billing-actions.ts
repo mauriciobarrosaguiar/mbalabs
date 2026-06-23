@@ -10,6 +10,7 @@ import {
   testAsaasConnection,
   type AsaasBillingType,
 } from "@/lib/billing/asaas";
+import { syncAsaasPaymentStatus } from "@/lib/billing/asaas-sync";
 
 const billingTypes = new Set(["UNDEFINED", "PIX", "CREDIT_CARD", "BOLETO"]);
 
@@ -37,6 +38,25 @@ export async function generateAsaasPaymentAction(formData: FormData) {
 
   revalidatePath("/admin/pagamentos");
   redirect(`/admin/pagamentos?ok=${messageParam("Cobrança Asaas gerada. O link já pode ser enviado ao cliente.")}`);
+}
+
+export async function syncAsaasPaymentAction(formData: FormData) {
+  const current = await getCurrentUserProfile("/admin/pagamentos");
+  if (!current.isAdminMaster) redirect("/dashboard");
+
+  const paymentId = textValue(formData, "payment_id");
+  if (!paymentId) {
+    redirect(`/admin/pagamentos?error=${messageParam("Informe o pagamento para sincronizar.")}`);
+  }
+
+  try {
+    const result = await syncAsaasPaymentStatus(paymentId);
+    await logAction({ acao: "sincronizar cobrança Asaas", detalhes: { paymentId, result } });
+    revalidatePath("/admin/pagamentos");
+    redirect(`/admin/pagamentos?ok=${messageParam(`Pagamento sincronizado: ${result.status}.`)}`);
+  } catch (error) {
+    redirect(`/admin/pagamentos?error=${messageParam(error instanceof Error ? error.message : "Erro ao sincronizar cobrança Asaas.")}`);
+  }
 }
 
 export async function saveAsaasSettingsAction(formData: FormData) {
