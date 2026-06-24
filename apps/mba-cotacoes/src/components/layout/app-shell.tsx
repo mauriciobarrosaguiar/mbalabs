@@ -191,13 +191,13 @@ function MobileNav({
           <Menu className="h-4 w-4" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-80 p-0">
+      <SheetContent side="left" className="flex h-full w-80 flex-col p-0">
         <SheetHeader className="sr-only">
           <SheetTitle>Menu</SheetTitle>
         </SheetHeader>
         <Brand mode={mode} />
         <Separator />
-        <nav className="space-y-4 p-3">
+        <nav className="flex-1 space-y-4 overflow-y-auto p-3 pb-8">
           <GroupedNav nav={nav} currentPath={currentPath} />
         </nav>
       </SheetContent>
