@@ -31,7 +31,7 @@ export default async function ProcessoDetalhePage({ params, searchParams }: Proc
   if (!result) {
     return (
       <ResponsivePageContainer title="Processo não encontrado">
-        <EmptyState title="Registro indisponível" description="Verifique se o processo existe ou se pertence ao seu escritório." />
+        <EmptyState title="Registro indisponível" description="" />
       </ResponsivePageContainer>
     );
   }
@@ -57,23 +57,12 @@ export default async function ProcessoDetalhePage({ params, searchParams }: Proc
       {query.erro ? <p className="notice danger" role="alert">{feedbackMessage(query.erro)}</p> : null}
       {query.status ? <p className="notice success" role="status">{feedbackMessage(query.status)}</p> : null}
 
-      <p className="notice">
-        O LexGestor consulta movimentações públicas pelo DataJud/CNJ. PDFs e anexos internos do eproc/PJe/Projudi devem ser acessados pelo advogado no sistema oficial e anexados aqui. O LexGestor não salva senha de tribunais.
-      </p>
-
-      {!processo.casoId ? (
-        <p className="notice warning">
-          Este processo ainda não está vinculado a um caso. Vincule a um caso existente ou crie um caso automático com os dados deste processo antes de anexar PDFs do tribunal.
-        </p>
-      ) : null}
-
       {!processo.casoId ? <ProcessoCasoActions processo={processo} casos={data.casos} /> : null}
 
       <section className="form-card stack">
         <div className="section-title">
           <div>
             <h2>Dados principais</h2>
-            <p>Atualize eventos públicos e organize anexos salvos pelo escritório.</p>
           </div>
           {processo.possuiNovaMovimentacao ? <span className="badge warning">Nova movimentação</span> : null}
         </div>
@@ -101,7 +90,6 @@ export default async function ProcessoDetalhePage({ params, searchParams }: Proc
               Atualizar eventos
             </button>
           </form>
-          <span className="muted">Busca movimentações públicas no DataJud/CNJ.</span>
           {tribunalUrl ? (
             <a className="button secondary" href={tribunalUrl} target="_blank" rel="noreferrer">
               <SquareArrowOutUpRight size={16} aria-hidden />
@@ -121,7 +109,7 @@ export default async function ProcessoDetalhePage({ params, searchParams }: Proc
           {processo.casoId ? (
             <a className="button secondary" href={documentosHref(processo, null)}>
               <FileUp size={16} aria-hidden />
-              Anexar PDF baixado do tribunal
+              Anexar PDF
             </a>
           ) : (
             <a className="button secondary" href="#vincular-caso">
@@ -130,7 +118,7 @@ export default async function ProcessoDetalhePage({ params, searchParams }: Proc
           )}
           <form action={marcarMovimentacoesVistasLexGestor}>
             <input type="hidden" name="processo_id" value={processo.id} />
-            <button className="button secondary" type="submit">Marcar movimentações como vistas</button>
+            <button className="button secondary" type="submit">Marcar como vistas</button>
           </form>
         </div>
       </section>
@@ -138,8 +126,7 @@ export default async function ProcessoDetalhePage({ params, searchParams }: Proc
       <section className="form-card stack">
         <div className="section-title">
           <div>
-            <h2>Fluxo assistido do tribunal</h2>
-            <p>Use o login local do advogado no sistema oficial. Nenhuma credencial fica salva no LexGestor.</p>
+            <h2>Fluxo do tribunal</h2>
           </div>
           <span className={`status-pill${conector ? " success" : " warning"}`}>
             {conector ? "Conector configurado" : "Conector não configurado"}
@@ -160,14 +147,12 @@ export default async function ProcessoDetalhePage({ params, searchParams }: Proc
         <div className="section-title">
           <div>
             <h2>Linha do tempo</h2>
-            <p>{movimentacoes.length} evento(s) salvos para este processo.</p>
           </div>
         </div>
 
         {movimentacoes.length === 0 ? (
           <article className="empty-state">
             <strong>Nenhuma movimentação salva</strong>
-            <p>Clique em Atualizar eventos para consultar o DataJud/CNJ.</p>
           </article>
         ) : (
           <div className="timeline-list">
@@ -195,8 +180,7 @@ function ProcessoCasoActions({ processo, casos }: { processo: LexProcesso; casos
     <section className="form-card stack" id="vincular-caso">
       <div className="section-title">
         <div>
-          <h2>Organizar este processo em um caso</h2>
-          <p>Use os dados já importados do tribunal. Não precisa cadastrar cliente nem processo novamente.</p>
+          <h2>Vincular caso</h2>
         </div>
         <span className="status-pill warning">Sem caso vinculado</span>
       </div>
@@ -205,24 +189,22 @@ function ProcessoCasoActions({ processo, casos }: { processo: LexProcesso; casos
         <div className="detail-box">
           <span>Opção rápida</span>
           <strong>Criar caso automático</strong>
-          <p className="muted">Cria o caso com cliente, número, tribunal, classe, assunto, grau e órgão julgador deste processo.</p>
           <form action={criarCasoAPartirProcessoLexGestor} className="button-row">
             <input type="hidden" name="processo_id" value={processo.id} />
             <button className="button" type="submit">
               <FolderPlus size={16} aria-hidden />
-              Criar caso a partir deste processo
+              Criar caso
             </button>
           </form>
         </div>
 
         <div className="detail-box">
-          <span>Já existe um caso?</span>
-          <strong>Vincular a caso existente</strong>
-          <p className="muted">Mostrando somente casos do mesmo cliente para evitar vínculo errado.</p>
+          <span>Caso existente</span>
+          <strong>Vincular</strong>
           <form action={vincularProcessoAoCasoLexGestor} className="stack">
             <input type="hidden" name="processo_id" value={processo.id} />
             <select className="input" name="caso_id" required disabled={casosDoCliente.length === 0} defaultValue="">
-              <option value="" disabled>{casosDoCliente.length === 0 ? "Nenhum caso deste cliente encontrado" : "Selecione um caso deste cliente"}</option>
+              <option value="" disabled>{casosDoCliente.length === 0 ? "Nenhum caso encontrado" : "Selecione um caso"}</option>
               {casosDoCliente.map((caso) => (
                 <option key={caso.id} value={caso.id}>
                   {caso.titulo} {caso.numeroProcesso ? `- ${caso.numeroProcesso}` : ""}
@@ -231,7 +213,7 @@ function ProcessoCasoActions({ processo, casos }: { processo: LexProcesso; casos
             </select>
             <button className="button secondary" type="submit" disabled={casosDoCliente.length === 0}>
               <Link2 size={16} aria-hidden />
-              Vincular a caso existente
+              Vincular
             </button>
           </form>
         </div>
@@ -293,7 +275,7 @@ function TimelineEvent({
               Criar ou vincular caso
             </a>
           )}
-          <a className="button secondary" href={documentosUrl}>Ver anexos salvos</a>
+          <a className="button secondary" href={documentosUrl}>Ver anexos</a>
         </div>
       </div>
     </article>
@@ -373,16 +355,16 @@ function formatDate(value: string) {
 
 function feedbackMessage(value: string) {
   const messages: Record<string, string> = {
-    "processo-salvo": "Processo salvo. Agora você pode atualizar eventos pelo DataJud/CNJ.",
+    "processo-salvo": "Processo salvo.",
     "movimentacoes-vistas": "Movimentações marcadas como vistas.",
-    "processo-duplicado": "Este processo já está cadastrado neste escritório.",
-    "processo-vinculado-caso": "Processo vinculado ao caso com sucesso.",
-    "caso-criado-vinculado": "Caso criado automaticamente e processo vinculado com sucesso.",
-    "processo-ja-vinculado": "Este processo já estava vinculado a um caso.",
-    "processo-invalido": "Processo inválido ou fora deste escritório.",
-    "caso-invalido": "Caso inválido ou fora deste escritório.",
-    "cliente-invalido": "Cliente inválido ou fora deste escritório.",
-    "caso-cliente-diferente": "O caso selecionado pertence a outro cliente. Selecione um caso do mesmo cliente para evitar vínculo errado.",
+    "processo-duplicado": "Processo já cadastrado.",
+    "processo-vinculado-caso": "Processo vinculado ao caso.",
+    "caso-criado-vinculado": "Caso criado e vinculado.",
+    "processo-ja-vinculado": "Processo já vinculado.",
+    "processo-invalido": "Processo inválido.",
+    "caso-invalido": "Caso inválido.",
+    "cliente-invalido": "Cliente inválido.",
+    "caso-cliente-diferente": "Caso de outro cliente.",
   };
   return messages[value] ?? value;
 }
