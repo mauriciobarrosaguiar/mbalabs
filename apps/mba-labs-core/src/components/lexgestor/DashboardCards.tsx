@@ -31,7 +31,6 @@ export function DashboardCards({ metrics }: { metrics: LexDashboardMetric[] }) {
             <Icon size={22} color="var(--primary)" aria-hidden />
             <span>{card.label}</span>
             <strong>{card.value}</strong>
-            <small>{card.note}</small>
           </article>
         );
       })}
