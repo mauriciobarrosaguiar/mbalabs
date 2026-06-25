@@ -16,8 +16,7 @@ export function DropboxStatus({ connections = [] }: DropboxStatusProps) {
     <section className="storage-status" id="armazenamento">
       <div className="section-title">
         <div>
-          <h2>Armazenamento dos documentos</h2>
-          <p>Escolha Dropbox ou Google Drive do próprio escritório para guardar originais e PDFs.</p>
+          <h2>Armazenamento</h2>
         </div>
         <Cloud size={24} color="var(--primary)" aria-hidden />
       </div>
@@ -32,9 +31,6 @@ export function DropboxStatus({ connections = [] }: DropboxStatusProps) {
               <header>
                 <div>
                   <h3>{label}</h3>
-                  <p className="muted">
-                    {connection ? "Conectado para uploads e PDFs." : "Disponível para conexão OAuth."}
-                  </p>
                 </div>
                 <span className={`status-pill${connection ? " success" : " warning"}`}>
                   {connection ? "Conectado" : "Não conectado"}
@@ -42,7 +38,7 @@ export function DropboxStatus({ connections = [] }: DropboxStatusProps) {
               </header>
 
               <div className="storage-meta">
-                <span className="badge">Pasta raiz: {connection?.rootFolderPath || "/LexGestor"}</span>
+                <span className="badge">{connection?.rootFolderPath || "/LexGestor"}</span>
                 {connection?.accountEmail ? <span className="badge">{connection.accountEmail}</span> : null}
               </div>
 
@@ -71,12 +67,8 @@ export function DropboxStatus({ connections = [] }: DropboxStatusProps) {
         })}
       </div>
 
-      <p className="notice">
-        A MBA Labs salva apenas metadados, links e caminhos no Supabase. Arquivos originais e PDFs
-        ficam no armazenamento escolhido pelo escritório.
-      </p>
       <span className={`status-pill${connectedCount > 0 ? " success" : " warning"}`}>
-        {connectedCount > 0 ? `${connectedCount} provedor(es) conectado(s)` : "Nenhum armazenamento conectado"}
+        {connectedCount > 0 ? `${connectedCount} conectado(s)` : "Nenhum armazenamento conectado"}
       </span>
     </section>
   );
