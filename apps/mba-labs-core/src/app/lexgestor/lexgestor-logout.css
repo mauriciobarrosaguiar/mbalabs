@@ -1,0 +1,48 @@
+.lexgestor-module button.nav-link {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lexgestor-module .topbar-icon-button {
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .lexgestor-module .mobile-nav {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .lexgestor-module .mobile-nav a,
+  .lexgestor-module .mobile-nav button {
+    display: grid;
+    min-width: 0;
+    place-items: center;
+    gap: 2px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: inherit;
+    padding: 6px 2px;
+    font: inherit;
+    font-size: 0.62rem;
+    line-height: 1.05;
+  }
+
+  .lexgestor-module .mobile-nav button {
+    cursor: pointer;
+  }
+
+  .lexgestor-module .mobile-nav a svg,
+  .lexgestor-module .mobile-nav button svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .lexgestor-module .lex-content {
+    padding-bottom: 128px;
+  }
+}
