@@ -1,0 +1,52 @@
+.lexgestor-module select,
+.lexgestor-module select option,
+.lexgestor-module select optgroup {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+.lexgestor-module select option:checked {
+  background-color: #bfdbfe;
+  color: #0f172a;
+}
+
+.lexgestor-module select option:disabled {
+  color: #64748b;
+}
+
+.lexgestor-module[data-theme="dark"] select,
+.lexgestor-module[data-theme="dark"] select option,
+.lexgestor-module[data-theme="dark"] select optgroup {
+  background-color: #1f2937 !important;
+  color: #f8fafc !important;
+}
+
+.lexgestor-module[data-theme="dark"] select option:checked {
+  background-color: #38bdf8 !important;
+  color: #031111 !important;
+}
+
+.lexgestor-module[data-theme="dark"] select option:hover,
+.lexgestor-module[data-theme="dark"] select option:focus {
+  background-color: #334155 !important;
+  color: #ffffff !important;
+}
+
+.lexgestor-module[data-theme="dark"] select option:disabled {
+  color: #cbd5e1 !important;
+}
+
+.lexgestor-module[data-theme="dark"] input::placeholder,
+.lexgestor-module[data-theme="dark"] textarea::placeholder {
+  color: #cbd5e1;
+  opacity: 1;
+}
+
+.lexgestor-module[data-theme="dark"] input,
+.lexgestor-module[data-theme="dark"] select,
+.lexgestor-module[data-theme="dark"] textarea,
+.lexgestor-module[data-theme="dark"] .input {
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  background-color: #1f2937 !important;
+  color: #f8fafc !important;
+}
