@@ -10,15 +10,20 @@ import {
   type WhatsappProvider,
 } from "@/modules/cotacoes/lib/whatsapp/mba-cotacoes";
 
-const settingsPath = "/cotacoes/configuracoes/whatsapp";
+const defaultSettingsPath = "/cotacoes/configuracoes/whatsapp";
+const allowedReturnPaths = new Set([
+  defaultSettingsPath,
+  "/admin/configuracoes/whatsapp",
+]);
 const providers = new Set(["evolution_api", "zapi", "meta_cloud_api", "outro"]);
 
 export async function saveWhatsappSettingsAction(formData: FormData) {
-  await requireSuperAdmin(settingsPath);
+  const returnPath = getReturnPath(formData);
+  await requireSuperAdmin(returnPath);
   const provider = field(formData, "provider") as WhatsappProvider;
 
   if (!providers.has(provider)) {
-    go("erro", "Provider inválido.");
+    go(returnPath, "erro", "Provider inválido.");
   }
 
   try {
@@ -32,50 +37,60 @@ export async function saveWhatsappSettingsAction(formData: FormData) {
       status_conexao: field(formData, "status_conexao") || "configurado",
       ativo: formData.get("ativo") === "on",
     });
-    revalidatePath(settingsPath);
+    revalidatePath(defaultSettingsPath);
+    revalidatePath("/admin/configuracoes/whatsapp");
   } catch (error) {
-    go("erro", errorMessage(error, "Não foi possível salvar a configuração."));
+    go(returnPath, "erro", errorMessage(error, "Não foi possível salvar a configuração."));
   }
 
-  go("sucesso", "Configuração do WhatsApp MBA Cotações salva.");
+  go(returnPath, "sucesso", "Configuração do WhatsApp MBA Cotações salva.");
 }
 
-export async function testWhatsappConnectionAction() {
-  await requireSuperAdmin(settingsPath);
+export async function testWhatsappConnectionAction(formData?: FormData) {
+  const returnPath = getReturnPath(formData);
+  await requireSuperAdmin(returnPath);
 
   try {
     await testWhatsappGlobalConfig();
-    revalidatePath(settingsPath);
+    revalidatePath(defaultSettingsPath);
+    revalidatePath("/admin/configuracoes/whatsapp");
   } catch (error) {
-    go("erro", errorMessage(error, "Não foi possível testar a conexão."));
+    go(returnPath, "erro", errorMessage(error, "Não foi possível testar a conexão."));
   }
 
-  go("sucesso", "Configuração validada. Envie uma mensagem teste para confirmar o provider.");
+  go(returnPath, "sucesso", "Configuração validada. Envie uma mensagem teste para confirmar o provider.");
 }
 
 export async function sendWhatsappTestMessageAction(formData: FormData) {
-  await requireSuperAdmin(settingsPath);
+  const returnPath = getReturnPath(formData);
+  await requireSuperAdmin(returnPath);
 
   try {
     await sendWhatsappGlobalTestMessage(
       field(formData, "telefone_teste"),
       field(formData, "mensagem_teste") || "Mensagem de teste do MBA Cotações.",
     );
-    revalidatePath(settingsPath);
+    revalidatePath(defaultSettingsPath);
+    revalidatePath("/admin/configuracoes/whatsapp");
   } catch (error) {
-    go("erro", errorMessage(error, "Não foi possível enviar a mensagem teste."));
+    go(returnPath, "erro", errorMessage(error, "Não foi possível enviar a mensagem teste."));
   }
 
-  go("sucesso", "Mensagem teste enviada pelo WhatsApp oficial do MBA Cotações.");
+  go(returnPath, "sucesso", "Mensagem teste enviada pelo WhatsApp oficial do MBA Cotações.");
+}
+
+function getReturnPath(formData?: FormData) {
+  const value = formData ? field(formData, "return_to") : "";
+  return allowedReturnPaths.has(value) ? value : defaultSettingsPath;
 }
 
 function field(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
 }
 
-function go(status: "sucesso" | "erro", message: string): never {
+function go(path: string, status: "sucesso" | "erro", message: string): never {
   const params = new URLSearchParams({ status, mensagem: message });
-  redirect(`${settingsPath}?${params.toString()}`);
+  redirect(`${path}?${params.toString()}`);
 }
 
 function errorMessage(error: unknown, fallback: string) {
