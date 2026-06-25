@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Settings } from "lucide-react";
+import { LogoutButtonLexGestor } from "./LogoutButtonLexGestor";
 import { ThemeToggleLexGestor } from "./ThemeToggleLexGestor";
 
 export function HeaderLexGestor() {
@@ -10,9 +11,10 @@ export function HeaderLexGestor() {
       </div>
       <div className="topbar-actions">
         <ThemeToggleLexGestor />
-        <Link className="button secondary topbar-icon-button" href="/lexgestor/configuracoes" aria-label="Configurar escritório" title="Configurar escritório">
+        <Link className="button secondary topbar-icon-button" href="/lexgestor/configuracoes" aria-label="Configurações" title="Configurações">
           <Settings size={17} aria-hidden />
         </Link>
+        <LogoutButtonLexGestor variant="topbar" />
       </div>
     </header>
   );
