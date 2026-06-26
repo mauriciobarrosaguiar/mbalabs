@@ -4,7 +4,12 @@ import { useMemo, useState } from "react";
 import { BackButton, MessageBanner, SubmitButton } from "@/components/ui-kit";
 import { createLavagemMelhorada } from "@/lib/actions/lavagestor-lavagem-actions";
 
-type Cliente = { id: string; nome: string };
+type Cliente = {
+  id: string;
+  nome: string;
+  telefone?: string | null;
+  observacao?: string | null;
+};
 
 type Veiculo = {
   id: string;
@@ -14,6 +19,7 @@ type Veiculo = {
   modelo?: string | null;
   cor?: string | null;
   tipo?: string | null;
+  observacao?: string | null;
 };
 
 type Funcionario = {
@@ -68,9 +74,20 @@ const tipos = [
 ];
 
 export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok, error }: Props) {
+  const [clienteModo, setClienteModo] = useState<"existente" | "novo">("existente");
   const [clienteId, setClienteId] = useState("");
+  const [clienteNome, setClienteNome] = useState("");
+  const [clienteWhatsapp, setClienteWhatsapp] = useState("");
+  const [clienteObservacao, setClienteObservacao] = useState("");
+  const [veiculoModo, setVeiculoModo] = useState<"existente" | "novo">("existente");
+  const [veiculoId, setVeiculoId] = useState("");
   const [tipo, setTipo] = useState("carro");
+  const [placa, setPlaca] = useState("");
   const [marca, setMarca] = useState("");
+  const [modelo, setModelo] = useState("");
+  const [cor, setCor] = useState("");
+  const [veiculoObservacao, setVeiculoObservacao] = useState("");
+  const [entregaTipo, setEntregaTipo] = useState<"retirar" | "levar">("retirar");
   const [servicoId, setServicoId] = useState("");
   const [adicionais, setAdicionais] = useState<string[]>([]);
   const [lavadores, setLavadores] = useState<string[]>([]);
@@ -101,10 +118,58 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
   const isCarLike = ["carro", "moto", "caminhonete", "caminhao"].includes(tipo);
   const modelos = marca ? modelosPorMarca[marca] ?? [] : [];
 
+  function handleClienteModo(value: "existente" | "novo") {
+    setClienteModo(value);
+    setClienteId("");
+    setClienteNome("");
+    setClienteWhatsapp("");
+    setClienteObservacao("");
+    setVeiculoModo(value === "novo" ? "novo" : "existente");
+    clearVeiculo();
+  }
+
+  function handleCliente(value: string) {
+    setClienteId(value);
+    const cliente = clientes.find((item) => item.id === value);
+    setClienteNome(cliente?.nome ?? "");
+    setClienteWhatsapp(cliente?.telefone ?? "");
+    setClienteObservacao(cliente?.observacao ?? "");
+    clearVeiculo();
+  }
+
+  function handleVeiculoModo(value: "existente" | "novo") {
+    setVeiculoModo(value);
+    clearVeiculo();
+  }
+
+  function handleVeiculo(value: string) {
+    setVeiculoId(value);
+    const veiculo = veiculos.find((item) => item.id === value);
+    setTipo(veiculo?.tipo || "carro");
+    setPlaca(veiculo?.placa ?? "");
+    setMarca(veiculo?.marca ?? "");
+    setModelo(veiculo?.modelo ?? "");
+    setCor(veiculo?.cor ?? "");
+    setVeiculoObservacao(veiculo?.observacao ?? "");
+    setServicoId("");
+    setAdicionais([]);
+  }
+
   function handleTipo(value: string) {
     setTipo(value);
     setServicoId("");
     setAdicionais([]);
+    if (!["carro", "moto", "caminhonete", "caminhao"].includes(value)) {
+      setPlaca("");
+      setMarca("");
+      setModelo("");
+      setCor("");
+    }
+  }
+
+  function handleMarca(value: string) {
+    setMarca(value);
+    setModelo("");
   }
 
   function handleServicoPrincipal(value: string) {
@@ -124,31 +189,71 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
     setLavadores((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   }
 
+  function clearVeiculo() {
+    setVeiculoId("");
+    setTipo("carro");
+    setPlaca("");
+    setMarca("");
+    setModelo("");
+    setCor("");
+    setVeiculoObservacao("");
+    setServicoId("");
+    setAdicionais([]);
+  }
+
   return (
     <form action={createLavagemMelhorada} className="grid gap-5">
       <MessageBanner ok={ok} error={error} />
 
-      <Step title="1. Cliente" description="Selecione um cliente existente ou cadastre rapidamente.">
-        <label className="grid gap-2 md:col-span-2">
-          <span className="text-sm font-bold">Cliente existente</span>
-          <select className="input" name="cliente_id" value={clienteId} onChange={(event) => setClienteId(event.target.value)}>
-            <option value="">Selecione</option>
-            {clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.nome}</option>)}
-          </select>
-        </label>
-        <Field label="Novo cliente" name="cliente_nome" placeholder="Nome do cliente" />
-        <Field label="WhatsApp" name="cliente_whatsapp" placeholder="5599999999999" />
-        <Textarea label="Observação do cliente" name="cliente_observacao" />
+      <Step title="1. Cliente" description="Escolha se é cliente existente ou cliente novo. Se for existente, os dados aparecem editáveis.">
+        <SegmentedChoice
+          label="Tipo de cliente"
+          name="cliente_modo"
+          value={clienteModo}
+          onChange={(value) => handleClienteModo(value as "existente" | "novo")}
+          options={[
+            { label: "Cliente existente", value: "existente" },
+            { label: "Cliente novo", value: "novo" }
+          ]}
+        />
+
+        {clienteModo === "existente" ? (
+          <label className="grid gap-2 md:col-span-2">
+            <span className="text-sm font-bold">Escolher cliente</span>
+            <select className="input" name="cliente_id" value={clienteId} onChange={(event) => handleCliente(event.target.value)} required>
+              <option value="">Selecione o cliente</option>
+              {clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.nome}</option>)}
+            </select>
+          </label>
+        ) : null}
+
+        <Field label={clienteModo === "existente" ? "Nome do cliente" : "Novo cliente"} name="cliente_nome" value={clienteNome} onChange={setClienteNome} placeholder="Nome do cliente" required={clienteModo === "novo"} />
+        <Field label="WhatsApp" name="cliente_whatsapp" value={clienteWhatsapp} onChange={setClienteWhatsapp} placeholder="5599999999999" required={clienteModo === "novo"} />
+        <Textarea label="Observação do cliente" name="cliente_observacao" value={clienteObservacao} onChange={setClienteObservacao} />
       </Step>
 
-      <Step title="2. Veículo ou item" description="O veículo existente só aparece depois de escolher o cliente. Para sofá, tapete ou máquina, os dados de carro são ocultados.">
-        <label className="grid gap-2 md:col-span-2">
-          <span className="text-sm font-bold">Veículo existente</span>
-          <select className="input" name="veiculo_id" disabled={!clienteId || veiculosDoCliente.length === 0} defaultValue="">
-            <option value="">{clienteId ? "Selecione" : "Selecione primeiro o cliente"}</option>
-            {veiculosDoCliente.map((veiculo) => <option key={veiculo.id} value={veiculo.id}>{vehicleLabel(veiculo)}</option>)}
-          </select>
-        </label>
+      <Step title="2. Veículo ou item" description="Escolha veículo existente ou cadastre um novo. Veículo existente só aparece depois do cliente.">
+        <SegmentedChoice
+          label="Tipo de veículo/item"
+          name="veiculo_modo"
+          value={veiculoModo}
+          onChange={(value) => handleVeiculoModo(value as "existente" | "novo")}
+          options={[
+            { label: "Existente", value: "existente" },
+            { label: "Novo", value: "novo" }
+          ]}
+        />
+
+        {veiculoModo === "existente" ? (
+          <label className="grid gap-2 md:col-span-2">
+            <span className="text-sm font-bold">Escolher veículo/item</span>
+            <select className="input" name="veiculo_id" disabled={!clienteId || veiculosDoCliente.length === 0} value={veiculoId} onChange={(event) => handleVeiculo(event.target.value)} required={veiculoModo === "existente"}>
+              <option value="">{clienteId ? "Selecione" : "Selecione primeiro o cliente"}</option>
+              {veiculosDoCliente.map((veiculo) => <option key={veiculo.id} value={veiculo.id}>{vehicleLabel(veiculo)}</option>)}
+            </select>
+            {clienteId && veiculosDoCliente.length === 0 ? <span className="text-xs font-semibold text-muted-foreground">Este cliente ainda não tem veículo cadastrado. Selecione “Novo”.</span> : null}
+          </label>
+        ) : null}
 
         <label className="grid gap-2">
           <span className="text-sm font-bold">Tipo</span>
@@ -159,35 +264,54 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
 
         {isCarLike ? (
           <>
-            <Field label="Placa" name="veiculo_placa" placeholder="ABC1D23" />
+            <Field label="Placa" name="veiculo_placa" value={placa} onChange={setPlaca} placeholder="ABC1D23" />
             <label className="grid gap-2">
               <span className="text-sm font-bold">Marca</span>
-              <select className="input" name="veiculo_marca" value={marca} onChange={(event) => setMarca(event.target.value)}>
+              <select className="input" name="veiculo_marca" value={marca} onChange={(event) => handleMarca(event.target.value)}>
                 <option value="">Selecione</option>
                 {Object.keys(modelosPorMarca).map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
             </label>
             <label className="grid gap-2">
               <span className="text-sm font-bold">Modelo</span>
-              <select className="input" name="veiculo_modelo" disabled={!marca} defaultValue="">
+              <select className="input" name="veiculo_modelo" disabled={!marca} value={modelo} onChange={(event) => setModelo(event.target.value)}>
                 <option value="">{marca ? "Selecione" : "Selecione a marca"}</option>
                 {modelos.map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
             </label>
-            <Field label="Cor" name="veiculo_cor" />
+            <Field label="Cor" name="veiculo_cor" value={cor} onChange={setCor} />
           </>
         ) : (
           <>
             <input type="hidden" name="veiculo_placa" value="" />
             <input type="hidden" name="veiculo_marca" value="" />
-            <Field label="Descrição do item" name="veiculo_modelo" placeholder={tipo === "sofa" ? "Ex.: Sofá 3 lugares" : "Ex.: Tapete grande"} />
+            <Field label="Descrição do item" name="veiculo_modelo" value={modelo} onChange={setModelo} placeholder={tipo === "sofa" ? "Ex.: Sofá 3 lugares" : "Ex.: Tapete grande"} />
             <input type="hidden" name="veiculo_cor" value="" />
           </>
         )}
-        <Textarea label="Observação do veículo/item" name="veiculo_observacao" />
+        <Textarea label="Observação do veículo/item" name="veiculo_observacao" value={veiculoObservacao} onChange={setVeiculoObservacao} />
       </Step>
 
-      <Step title="3. Serviços e lavadores" description="O serviço puxa o valor cadastrado. Se houver mais de um lavador, a comissão é dividida igualmente.">
+      <Step title="3. Entrega" description="Defina se o cliente irá retirar ou se o lava-jato vai levar. Isso muda a mensagem do WhatsApp.">
+        <SegmentedChoice
+          label="Entrega"
+          name="entrega_tipo"
+          value={entregaTipo}
+          onChange={(value) => setEntregaTipo(value as "retirar" | "levar")}
+          options={[
+            { label: "Cliente retira", value: "retirar" },
+            { label: "Levar ao cliente", value: "levar" }
+          ]}
+        />
+        {entregaTipo === "levar" ? (
+          <label className="grid gap-2 md:col-span-2">
+            <span className="text-sm font-bold">Endereço / referência para entrega</span>
+            <textarea className="input min-h-24 resize-y" name="endereco_entrega" placeholder="Ex.: entregar na casa do cliente, endereço ou referência" />
+          </label>
+        ) : null}
+      </Step>
+
+      <Step title="4. Serviços e lavadores" description="O serviço puxa o valor cadastrado. Se houver mais de um lavador, a comissão é dividida igualmente.">
         <label className="grid gap-2 md:col-span-2">
           <span className="text-sm font-bold">Serviço cadastrado</span>
           <select className="input" name="servico_id" value={servicoId} onChange={(event) => handleServicoPrincipal(event.target.value)} required>
@@ -234,7 +358,7 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
         <Textarea label="Descrição extra" name="descricao_extra" />
       </Step>
 
-      <Step title="4. Valores" description="O total é calculado com base no serviço principal e nos adicionais. O pagamento será registrado depois, pela fila.">
+      <Step title="5. Valores" description="O total é calculado com base no serviço principal e nos adicionais. O pagamento será registrado depois, pela fila.">
         <input type="hidden" name="valor_servico" value={String(Number(servicoPrincipal?.preco ?? 0))} />
         <input type="hidden" name="valor_total" value={String(totalBruto)} />
         <input type="hidden" name="valor_final" value={String(totalFinal)} />
@@ -253,7 +377,7 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
       </Step>
 
       <div className="panel grid gap-3 p-5">
-        <h2 className="text-xl font-black">5. Confirmar entrada</h2>
+        <h2 className="text-xl font-black">6. Confirmar entrada</h2>
         <p className="text-sm leading-6 text-slate-300">
           Ao confirmar, a lavagem entra com status <strong>Na fila</strong> e pagamento <strong>Aberto</strong>.
         </p>
@@ -278,20 +402,77 @@ function Step({ title, description, children }: { title: string; description: st
   );
 }
 
-function Field({ label, name, placeholder }: { label: string; name: string; placeholder?: string }) {
+function SegmentedChoice({
+  label,
+  name,
+  value,
+  onChange,
+  options
+}: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ label: string; value: string }>;
+}) {
+  return (
+    <div className="grid gap-2 md:col-span-2">
+      <span className="text-sm font-bold">{label}</span>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {options.map((option) => (
+          <label
+            key={option.value}
+            className={`flex min-h-12 cursor-pointer items-center justify-center rounded-lg border px-3 text-center text-sm font-black ${
+              value === option.value ? "border-emerald-500 bg-emerald-50 text-emerald-800" : "border-border bg-white"
+            }`}
+          >
+            <input className="sr-only" type="radio" name={name} value={option.value} checked={value === option.value} onChange={() => onChange(option.value)} />
+            {option.label}
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  name,
+  value,
+  onChange,
+  placeholder,
+  required = false
+}: {
+  label: string;
+  name: string;
+  value?: string;
+  onChange?: (value: string) => void;
+  placeholder?: string;
+  required?: boolean;
+}) {
   return (
     <label className="grid gap-2">
       <span className="text-sm font-bold">{label}</span>
-      <input className="input" name={name} placeholder={placeholder} />
+      <input className="input" name={name} value={value ?? ""} onChange={(event) => onChange?.(event.target.value)} placeholder={placeholder} required={required} />
     </label>
   );
 }
 
-function Textarea({ label, name }: { label: string; name: string }) {
+function Textarea({
+  label,
+  name,
+  value,
+  onChange
+}: {
+  label: string;
+  name: string;
+  value?: string;
+  onChange?: (value: string) => void;
+}) {
   return (
     <label className="grid gap-2 md:col-span-2">
       <span className="text-sm font-bold">{label}</span>
-      <textarea className="input min-h-24 resize-y" name={name} />
+      <textarea className="input min-h-24 resize-y" name={name} value={value ?? ""} onChange={(event) => onChange?.(event.target.value)} />
     </label>
   );
 }
