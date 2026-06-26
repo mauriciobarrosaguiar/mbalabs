@@ -29,7 +29,9 @@ export const LAVA_SERVICE_CATEGORY_OPTIONS = [
   { label: "Pacote", value: "pacote" }
 ];
 
-export async function listLavaServicosAvancados(search = "") {
+export type LavaServicoAvancadoRow = Record<string, unknown>;
+
+export async function listLavaServicosAvancados(search = ""): Promise<{ rows: LavaServicoAvancadoRow[]; error: string | null }> {
   const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const { data, error } = await (supabase as any)
@@ -40,8 +42,8 @@ export async function listLavaServicosAvancados(search = "") {
     .order("nome", { ascending: true })
     .limit(300);
 
-  const rows = ((data ?? []) as Array<Record<string, unknown>>)
-    .map((row) => normalizeServico(row))
+  const rows = ((data ?? []) as LavaServicoAvancadoRow[])
+    .map((row): LavaServicoAvancadoRow => normalizeServico(row))
     .filter((row) => includesSearch(row, ["nome", "descricao", "tipo_label", "aplicacao_label", "categoria_label"], search));
 
   return { rows, error: error?.message ?? null };
@@ -59,7 +61,7 @@ export function serviceCategoryLabel(value: unknown) {
   return optionLabel(LAVA_SERVICE_CATEGORY_OPTIONS, value) || "Serviço principal";
 }
 
-function normalizeServico(row: Record<string, unknown>) {
+function normalizeServico(row: LavaServicoAvancadoRow): LavaServicoAvancadoRow {
   const tipo = String(row.tipo ?? "lavagem");
   const aplicacao = String(row.aplicacao ?? "carro");
   const categoria = String(row.categoria ?? (row.adicional ? "adicional" : "principal"));
