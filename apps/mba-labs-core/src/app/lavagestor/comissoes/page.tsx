@@ -1,35 +1,16 @@
 import { LavaGestorShell } from "@/components/LavaGestorShell";
-import {
-  BackButton,
-  DataTable,
-  MessageBanner,
-  PageHeader,
-  StatCard,
-  SubmitButton,
-  formatDate,
-  formatMoney
-} from "@/components/ui-kit";
-import { markComissaoPaga } from "@/lib/actions/lavagestor-actions";
+import { BackButton, MessageBanner, PageHeader, StatCard, SubmitButton, formatMoney } from "@/components/ui-kit";
+import { pagarComissoesFuncionario as registrarAcertoFuncionario } from "@/lib/actions/lavagestor-comissoes-actions";
 import { firstParam } from "@/lib/form-utils";
-import { getLavaLookups, listLavaComissoes } from "@/lib/lavagestor-data";
+import { listLavaComissoesResumo } from "@/lib/lavagestor-comissoes-data";
 
 export const dynamic = "force-dynamic";
 
-export default async function ComissoesPage({
-  searchParams
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+type Row = Record<string, unknown>;
+
+export default async function ComissoesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
-  const filters = {
-    funcionario: firstParam(params.funcionario),
-    status: firstParam(params.status)
-  };
-  const [{ rows, error }, lookups] = await Promise.all([listLavaComissoes(filters), getLavaLookups()]);
-  const totalPendente = rows
-    .filter((row) => row.status === "pendente")
-    .reduce((sum, row) => sum + Number(row.valor ?? 0), 0);
-  const totalPago = rows.filter((row) => row.status === "pago").reduce((sum, row) => sum + Number(row.valor ?? 0), 0);
+  const { rows, totals, error } = await listLavaComissoesResumo();
 
   return (
     <LavaGestorShell activePath="/lavagestor/comissoes">
@@ -37,66 +18,84 @@ export default async function ComissoesPage({
         <PageHeader
           eyebrow="LavaGestor"
           title="Comissões"
-          description="Acompanhe comissões pendentes e pagas por funcionário."
+          description="Acerto por funcionário com opção de descontar vales agora ou deixar para o próximo acerto."
           actions={<BackButton href="/lavagestor" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? undefined} />
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <StatCard label="Total pendente" value={formatMoney(totalPendente)} />
-          <StatCard label="Total pago" value={formatMoney(totalPago)} />
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard label="Comissões pendentes" value={formatMoney(totals.totalPendente)} />
+          <StatCard label="Vales em aberto" value={formatMoney(totals.totalValesAbertos)} />
+          <StatCard label="Líquido com desconto" value={formatMoney(totals.liquidoSeAbaterTudo)} />
+          <StatCard label="Comissões já acertadas" value={formatMoney(totals.totalPago)} />
         </div>
 
-        <form className="panel grid gap-3 p-4 md:grid-cols-3" action="">
-          <label className="grid gap-2">
-            <span className="text-sm font-bold">Funcionário</span>
-            <select className="input" name="funcionario" defaultValue={filters.funcionario ?? ""}>
-              <option value="">Todos</option>
-              {lookups.funcionarios.map((row) => (
-                <option key={String(row.id)} value={String(row.id)}>
-                  {String(row.nome)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-2">
-            <span className="text-sm font-bold">Status</span>
-            <select className="input" name="status" defaultValue={filters.status ?? ""}>
-              <option value="">Todos</option>
-              <option value="pendente">Pendente</option>
-              <option value="pago">Pago</option>
-              <option value="cancelado">Cancelado</option>
-            </select>
-          </label>
-          <button className="button-secondary self-end" type="submit">
-            Filtrar
-          </button>
-        </form>
-
-        <DataTable
-          columns={[
-            { key: "funcionario", label: "Funcionário" },
-            { key: "valor", label: "Valor" },
-            { key: "status", label: "Status" },
-            { key: "pago_em", label: "Pago em" },
-            { key: "created_at", label: "Criado em" }
-          ]}
-          rows={rows.map((row) => ({
-            ...row,
-            valor: formatMoney(row.valor),
-            pago_em: formatDate(row.pago_em),
-            created_at: formatDate(row.created_at)
-          }))}
-          actions={(row) =>
-            row.status === "pendente" ? (
-              <form action={markComissaoPaga}>
-                <input name="id" type="hidden" value={String(row.id)} />
-                <SubmitButton>Marcar como pago</SubmitButton>
-              </form>
-            ) : null
-          }
-        />
+        <div className="grid gap-4">
+          {rows.length === 0 ? (
+            <div className="rounded-lg border border-border bg-card p-6 text-center text-sm font-semibold text-muted-foreground">Nenhum acerto para exibir.</div>
+          ) : (
+            rows.map((row) => <AcertoCard key={String(row.funcionario_id)} row={row} />)
+          )}
+        </div>
       </section>
     </LavaGestorShell>
+  );
+}
+
+function AcertoCard({ row }: { row: Row }) {
+  const totalComissao = Number(row.total_pendente ?? 0);
+  const totalVales = Number(row.total_vales_abertos ?? 0);
+  const liquido = Number(row.liquido_com_vales ?? 0);
+  const temComissao = totalComissao > 0;
+  const temVale = totalVales > 0;
+
+  return (
+    <section className="rounded-xl border border-border bg-white p-4 shadow-sm">
+      <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr] lg:items-start">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">Funcionário</p>
+          <h2 className="mt-1 text-2xl font-black">{String(row.funcionario)}</h2>
+          <p className="mt-2 text-sm font-semibold text-muted-foreground">
+            {String(row.qtd_comissoes_pendentes ?? 0)} comissão(ões) · {String(row.qtd_vales_abertos ?? 0)} vale(s) aberto(s)
+          </p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <Mini label="Comissão" value={formatMoney(totalComissao)} />
+          <Mini label="Vales" value={formatMoney(totalVales)} />
+          <Mini label="Líquido" value={formatMoney(liquido)} />
+        </div>
+      </div>
+
+      {temComissao ? (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <form action={registrarAcertoFuncionario} className="grid gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+            <input name="funcionario_id" type="hidden" value={String(row.funcionario_id)} />
+            <input name="abater_vales" type="hidden" value="sim" />
+            <p className="text-sm font-black">Acertar descontando vales</p>
+            <p className="text-sm text-muted-foreground">Marca as comissões como acertadas e baixa os vales em aberto.</p>
+            <SubmitButton>{temVale ? "Acertar e descontar vales" : "Acertar comissões"}</SubmitButton>
+          </form>
+
+          <form action={registrarAcertoFuncionario} className="grid gap-2 rounded-lg border border-border bg-white p-3">
+            <input name="funcionario_id" type="hidden" value={String(row.funcionario_id)} />
+            <input name="abater_vales" type="hidden" value="nao" />
+            <p className="text-sm font-black">Acertar sem descontar vales</p>
+            <p className="text-sm text-muted-foreground">Marca as comissões como acertadas e mantém os vales para o próximo acerto.</p>
+            <SubmitButton>Acertar sem descontar</SubmitButton>
+          </form>
+        </div>
+      ) : temVale ? (
+        <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-900">Há vale aberto, mas não há comissão pendente. Fica para o próximo acerto.</p>
+      ) : null}
+    </section>
+  );
+}
+
+function Mini({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-muted p-3">
+      <p className="text-xs font-black uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
+      <p className="mt-1 text-lg font-black">{value}</p>
+    </div>
   );
 }
