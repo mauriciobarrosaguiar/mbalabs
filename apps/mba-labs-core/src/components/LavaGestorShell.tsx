@@ -37,6 +37,10 @@ const lavaNavItems: LavaNavItem[] = [
   { href: "/lavagestor/configuracoes", label: "Configurações", icon: Settings }
 ];
 
+const mobileNavItems = lavaNavItems.filter((item) =>
+  ["/lavagestor", "/lavagestor/nova-lavagem", "/lavagestor/fila", "/lavagestor/pagamentos", "/lavagestor/relatorios"].includes(item.href)
+);
+
 export function LavaGestorShell({
   children,
   activePath,
@@ -51,7 +55,7 @@ export function LavaGestorShell({
   roleLabel?: string;
 }) {
   return (
-    <div className="lavagestor-module min-h-screen bg-background text-foreground">
+    <div className="lavagestor-module min-h-screen overflow-x-hidden bg-background text-foreground">
       <aside className="fixed inset-y-0 left-0 z-20 hidden h-screen w-72 flex-col border-r border-border bg-card px-4 py-5 lg:flex">
         <Link className="block shrink-0" href="/lavagestor">
           <div className="text-xl font-bold tracking-tight text-primary">LavaGestor</div>
@@ -80,24 +84,24 @@ export function LavaGestorShell({
         </div>
       </aside>
 
-      <header className="sticky top-0 z-10 border-b border-border bg-card/95 px-4 py-3 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-30 border-b border-border bg-card/95 px-4 py-2 shadow-sm backdrop-blur lg:hidden">
         <div className="flex items-center justify-between gap-3">
-          <Link href="/lavagestor">
-            <div className="font-bold text-primary">LavaGestor</div>
-            <div className="text-xs text-muted-foreground">{companyName}</div>
+          <Link className="min-w-0" href="/lavagestor">
+            <div className="truncate font-bold text-primary">LavaGestor</div>
+            <div className="truncate text-xs text-muted-foreground" title={companyName}>{companyName}</div>
           </Link>
-          <Link className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold" href="/dashboard">
+          <Link className="shrink-0 rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold" href="/dashboard">
             MBA Labs
           </Link>
         </div>
-        <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
-          {lavaNavItems.map((item) => (
+        <nav className="mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
+          {mobileNavItems.map((item) => (
             <LavaNavLink activePath={activePath} item={item} key={`${item.href}-mobile`} mobile />
           ))}
         </nav>
       </header>
 
-      <main className="px-4 py-6 lg:ml-72 lg:px-8">
+      <main className="px-4 py-5 lg:ml-72 lg:px-8">
         <div className="mx-auto max-w-7xl">{children}</div>
       </main>
     </div>
@@ -120,7 +124,7 @@ function LavaNavLink({
     return (
       <Link
         aria-current={active ? "page" : undefined}
-        className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg bg-muted px-3 text-sm font-semibold aria-[current=page]:bg-[#dff7ec] aria-[current=page]:text-[#0f5132]"
+        className="inline-flex min-h-10 shrink-0 snap-start items-center gap-2 rounded-lg bg-muted px-3 text-sm font-semibold aria-[current=page]:bg-[#dff7ec] aria-[current=page]:text-[#0f5132]"
         href={item.href}
       >
         <Icon className="h-4 w-4 text-primary" aria-hidden />
