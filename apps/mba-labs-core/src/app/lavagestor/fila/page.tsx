@@ -14,6 +14,17 @@ const groups = [
   { title: "Retirada", statuses: ["cliente_avisado", "pago"] }
 ];
 
+const cancelReasons = [
+  "Cliente desistiu",
+  "Cliente informou serviço errado",
+  "Veículo/serviço duplicado",
+  "Serviço lançado errado",
+  "Veículo não ficou no lava-jato",
+  "Problema operacional interno",
+  "Preço não aprovado pelo cliente",
+  "Outro motivo administrativo"
+];
+
 export default async function FilaLavagemPage({
   searchParams
 }: {
@@ -182,13 +193,23 @@ function StatusButton({ id, action, label }: { id: string; action: string; label
 
 function CancelForm({ id }: { id: string }) {
   return (
-    <form action={updateLavagemStatus} className="grid gap-2">
+    <form action={updateLavagemStatus} className="grid gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
       <input name="id" type="hidden" value={id} />
       <input name="acao" type="hidden" value="cancelar" />
       <input name="return_to" type="hidden" value="/lavagestor/fila" />
-      <input className="input" name="motivo_cancelamento" placeholder="Motivo do cancelamento" />
+      <label className="grid gap-2 text-sm font-bold text-red-900">
+        Motivo do cancelamento
+        <select className="input border-red-200 bg-white" name="motivo_cancelamento" required defaultValue="">
+          <option value="">Selecione o motivo</option>
+          {cancelReasons.map((reason) => (
+            <option key={reason} value={reason}>
+              {reason}
+            </option>
+          ))}
+        </select>
+      </label>
       <button className="button-danger w-full" type="submit">
-        Cancelar
+        Cancelar lavagem
       </button>
     </form>
   );
