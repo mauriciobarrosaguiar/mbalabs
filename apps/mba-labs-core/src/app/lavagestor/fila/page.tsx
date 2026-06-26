@@ -3,7 +3,7 @@ import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, MessageBanner, PageHeader, formatDateTime, formatMoney } from "@/components/ui-kit";
 import { registrarPagamentoLavagem, updateLavagemStatus } from "@/lib/actions/lavagestor-actions";
 import { firstParam } from "@/lib/form-utils";
-import { listLavaFila } from "@/lib/lavagestor-data";
+import { listLavaFila } from "@/lib/lavagestor-fila-data";
 
 export const dynamic = "force-dynamic";
 
@@ -102,7 +102,7 @@ function FilaCard({ row }: { row: Record<string, unknown> }) {
           <MiniInfo label="Pagamento" value={String(row.status_pagamento_label ?? "Aberto")} />
           <MiniInfo label="Valor" value={formatMoney(row.valor_final ?? row.valor)} strong />
           <MiniInfo label="Funcionário" value={String(row.funcionario || "-")} />
-          <MiniInfo label="Entrada" value={formatDateTime(row.data_entrada ?? row.data_lavagem)} />
+          <MiniInfo label="Entrega" value={String(row.entrega_label || "Cliente retira")} />
         </div>
 
         <span className="text-xs font-black uppercase tracking-[0.1em] text-primary group-open:hidden">Expandir</span>
@@ -113,6 +113,8 @@ function FilaCard({ row }: { row: Record<string, unknown> }) {
         <dl className="grid gap-3 text-sm">
           <Info label="Serviços" value={String(row.servicos_resumo || row.servico || "-")} />
           <Info label="WhatsApp" value={String(row.whatsapp || "Não informado")} />
+          <Info label="Entrada" value={formatDateTime(row.data_entrada ?? row.data_lavagem)} />
+          <Info label="Entrega" value={entregaInfo(row)} />
           <Info label="Observações" value={String(row.observacoes || "-")} />
         </dl>
 
@@ -145,7 +147,7 @@ function FilaCard({ row }: { row: Record<string, unknown> }) {
           {status === "cliente_avisado" || status === "pago" ? (
             <>
               <MiniPaymentForm row={row} />
-              <StatusButton id={String(row.id)} action="entregar" label="Entregar veículo" />
+              <StatusButton id={String(row.id)} action="entregar" label={row.entrega_tipo === "levar" ? "Marcar como entregue ao cliente" : "Entregar veículo"} />
             </>
           ) : null}
 
@@ -243,9 +245,24 @@ function whatsappLink(row: Record<string, unknown>) {
   const phone = phoneFromRow(row);
   const vehicle = String(row.veiculo ?? "-");
   const value = formatMoney(row.valor_final ?? row.valor);
-  const text = `Olá, ${String(row.cliente ?? "")}! Seu veículo está pronto.\n\nVeículo: ${vehicle}\nValor total: ${value}\n\nJá pode retirar.`;
+  const entregaTipo = String(row.entrega_tipo ?? "retirar");
+  const endereco = String(row.endereco_entrega ?? "").trim();
+  const entregaTexto =
+    entregaTipo === "levar"
+      ? `Nossa equipe vai levar até você.${endereco ? `\nEndereço/referência: ${endereco}` : ""}`
+      : "Já pode retirar.";
+  const text = `Olá, ${String(row.cliente ?? "")}! Seu veículo está pronto.\n\nVeículo: ${vehicle}\nValor total: ${value}\n\n${entregaTexto}`;
 
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+}
+
+function entregaInfo(row: Record<string, unknown>) {
+  const entregaTipo = String(row.entrega_tipo ?? "retirar");
+  if (entregaTipo !== "levar") {
+    return "Cliente irá retirar";
+  }
+  const endereco = String(row.endereco_entrega ?? "").trim();
+  return endereco ? `Levar ao cliente: ${endereco}` : "Levar ao cliente";
 }
 
 function phoneFromRow(row: Record<string, unknown>) {
