@@ -417,6 +417,12 @@ export async function updateLavagemStatus(formData: FormData) {
     }
     statusNovo = "cancelado";
     payload.motivo_cancelamento = motivo;
+    payload.status_pagamento = "cancelado";
+    payload.valor_recebido = 0;
+    payload.valor_pendente = 0;
+    payload.comissao = 0;
+    payload.forma_pagamento = null;
+    payload.data_pagamento = null;
     observacao = motivo;
   } else {
     redirect(`${returnTo}?error=${messageParam("Ação inválida para a lavagem.")}`);
@@ -433,6 +439,10 @@ export async function updateLavagemStatus(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam(updateError.message)}`);
   }
 
+  if (action === "cancelar") {
+    await client.from("lava_comissoes").update({ status: "cancelado" }).eq("lavagem_id", id).eq("empresa_id", current.empresaId);
+  }
+
   await insertLavaHistory(client, {
     empresaId: current.empresaId,
     lavagemId: id,
@@ -447,7 +457,10 @@ export async function updateLavagemStatus(formData: FormData) {
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/fila");
   revalidatePath("/lavagestor/lavagens");
-  redirect(`${returnTo}?ok=${messageParam("Status atualizado.")}`);
+  revalidatePath("/lavagestor/pagamentos");
+  revalidatePath("/lavagestor/comissoes");
+  revalidatePath("/lavagestor/relatorios");
+  redirect(`${returnTo}?ok=${messageParam(action === "cancelar" ? "Lavagem cancelada. Pagamento e comissão foram zerados." : "Status atualizado.")}`);
 }
 
 export async function registrarPagamentoLavagem(formData: FormData) {
