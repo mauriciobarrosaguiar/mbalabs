@@ -153,21 +153,15 @@ export function LoadingState({ label = "Carregando..." }: { label?: string }) {
   return <div className="panel p-5 text-sm text-slate-300">{label}</div>;
 }
 
-export function MessageBanner({
-  ok,
-  error
-}: {
-  ok?: string;
-  error?: string;
-}) {
+export function MessageBanner({ ok, error }: { ok?: string; error?: string }) {
   if (!ok && !error) {
     return null;
   }
 
   return (
     <p
-      className={`rounded-[8px] border p-3 text-sm font-semibold leading-6 shadow-sm ${
-        error ? "border-red-300 bg-red-50 text-red-900" : "border-emerald-300 bg-emerald-50 text-emerald-950"
+      className={`rounded-[8px] border p-3 text-sm font-black leading-6 opacity-100 shadow-sm ${
+        error ? "border-red-500 bg-red-50 text-red-950" : "border-emerald-500 bg-emerald-50 text-emerald-950"
       }`}
     >
       {error ?? ok}
@@ -217,4 +211,153 @@ export function FormMoneyInput(props: Omit<Parameters<typeof FormInput>[0], "typ
 
 export function FormDateInput(props: Omit<Parameters<typeof FormInput>[0], "type">) {
   return <FormInput {...props} type="date" />;
+}
+
+export function FormTextarea({ name, label, defaultValue }: { name: string; label: string; defaultValue?: string | null }) {
+  return (
+    <label className="grid gap-2 md:col-span-2">
+      <span className="text-sm font-bold">{label}</span>
+      <textarea className="input min-h-24 resize-y" name={name} defaultValue={defaultValue ?? ""} />
+    </label>
+  );
+}
+
+export function FormSelect({
+  name,
+  label,
+  defaultValue,
+  options,
+  required = false
+}: {
+  name: string;
+  label: string;
+  defaultValue?: string | null;
+  options: Array<{ label: string; value: string; disabled?: boolean }>;
+  required?: boolean;
+}) {
+  return (
+    <label className="grid gap-2">
+      <span className="text-sm font-bold">{label}</span>
+      <select className="input" name={name} defaultValue={defaultValue ?? ""} required={required}>
+        <option value="">Selecione</option>
+        {options.map((option) => (
+          <option disabled={option.disabled} key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+export function FormCheckbox({ name, label, defaultChecked = false }: { name: string; label: string; defaultChecked?: boolean }) {
+  return (
+    <label className="flex items-center gap-2 rounded-[8px] border border-white/10 bg-white/[0.04] px-3 py-3 text-sm font-bold">
+      <input name={name} type="checkbox" defaultChecked={defaultChecked} value="true" />
+      {label}
+    </label>
+  );
+}
+
+export function SubmitButton({ children = "Salvar" }: { children?: React.ReactNode }) {
+  return (
+    <button className="button-primary" type="submit">
+      {children}
+    </button>
+  );
+}
+
+export function DeleteButton({ children = "Excluir" }: { children?: React.ReactNode }) {
+  return (
+    <button className="button-danger" type="submit">
+      {children}
+    </button>
+  );
+}
+
+export function ConfirmDialog({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-[8px] border border-red-300/20 bg-red-300/10 p-4">
+      <h3 className="font-black text-red-100">{title}</h3>
+      <p className="mt-1 text-sm leading-6 text-red-100/80">{description}</p>
+      <div className="mt-3">{children}</div>
+    </div>
+  );
+}
+
+export function AccessDenied({ appName = "este sistema", backHref = "/dashboard" }: { appName?: string; backHref?: string }) {
+  return (
+    <div className="panel mx-auto grid max-w-xl gap-4 p-6 text-center">
+      <p className="eyebrow">Acesso bloqueado</p>
+      <h1 className="text-3xl font-black">Você não tem acesso a {appName}</h1>
+      <p className="text-sm leading-6 text-slate-300">Verifique a assinatura da empresa ou peça para um administrador liberar sua permissão.</p>
+      <Link className="button-primary mx-auto" href={backHref}>
+        Voltar ao dashboard
+      </Link>
+    </div>
+  );
+}
+
+export function BackButton({ href, label = "Voltar" }: { href: string; label?: string }) {
+  return (
+    <Link className="button-secondary" href={href}>
+      {label}
+    </Link>
+  );
+}
+
+export function ResourceForm({ title, children, actions }: { title: string; children: React.ReactNode; actions: React.ReactNode }) {
+  return (
+    <div className="panel grid gap-4 p-5">
+      <h2 className="text-xl font-black">{title}</h2>
+      <div className="grid gap-4 md:grid-cols-2">{children}</div>
+      <div className="flex flex-wrap gap-2">{actions}</div>
+    </div>
+  );
+}
+
+export function SearchBox({ placeholder, defaultValue }: { placeholder: string; defaultValue?: string }) {
+  return (
+    <form className="flex flex-col gap-2 sm:flex-row" action="">
+      <input className="input sm:max-w-md" name="q" defaultValue={defaultValue ?? ""} placeholder={placeholder} />
+      <button className="button-secondary" type="submit">
+        Buscar
+      </button>
+    </form>
+  );
+}
+
+export function formatMoney(value: unknown) {
+  const number = Number(value ?? 0);
+  return number.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+export function formatDate(value: unknown) {
+  if (!value) {
+    return "-";
+  }
+  return new Date(String(value)).toLocaleDateString("pt-BR");
+}
+
+export function formatDateTime(value: unknown) {
+  if (!value) {
+    return "-";
+  }
+  return new Date(String(value)).toLocaleString("pt-BR");
+}
+
+function formatValue(value: unknown) {
+  if (value === null || value === undefined || value === "") {
+    return "-";
+  }
+
+  if (typeof value === "boolean") {
+    return value ? "Sim" : "Não";
+  }
+
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+
+  return String(value);
 }
