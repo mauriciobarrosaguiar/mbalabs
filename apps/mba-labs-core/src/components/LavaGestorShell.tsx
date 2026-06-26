@@ -9,6 +9,7 @@ import {
   HandCoins,
   LayoutDashboard,
   LogOut,
+  MoreVertical,
   Settings,
   Sparkles,
   Users,
@@ -36,10 +37,6 @@ const lavaNavItems: LavaNavItem[] = [
   { href: "/lavagestor/relatorios", label: "Relatórios", icon: FileText },
   { href: "/lavagestor/configuracoes", label: "Configurações", icon: Settings }
 ];
-
-const mobileNavItems = lavaNavItems.filter((item) =>
-  ["/lavagestor", "/lavagestor/nova-lavagem", "/lavagestor/fila", "/lavagestor/pagamentos", "/lavagestor/relatorios"].includes(item.href)
-);
 
 export function LavaGestorShell({
   children,
@@ -90,15 +87,34 @@ export function LavaGestorShell({
             <div className="truncate font-bold text-primary">LavaGestor</div>
             <div className="truncate text-xs text-muted-foreground" title={companyName}>{companyName}</div>
           </Link>
-          <Link className="shrink-0 rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold" href="/dashboard">
-            MBA Labs
-          </Link>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <Link className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold" href="/dashboard">
+              MBA Labs
+            </Link>
+            <details className="group relative">
+              <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg border border-border bg-white shadow-sm [&::-webkit-details-marker]:hidden" aria-label="Abrir menu">
+                <MoreVertical className="h-5 w-5" aria-hidden />
+              </summary>
+              <div className="absolute right-0 top-12 z-40 grid w-64 gap-1 rounded-xl border border-border bg-white p-2 shadow-xl">
+                {lavaNavItems.map((item) => (
+                  <LavaNavLink activePath={activePath} item={item} key={`${item.href}-dropdown`} mobile />
+                ))}
+                <div className="my-1 border-t border-border" />
+                <Link className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold hover:bg-muted" href="/dashboard">
+                  <ArrowLeft className="h-4 w-4 text-primary" aria-hidden />
+                  MBA Labs
+                </Link>
+                <form action="/sair" method="post">
+                  <button className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-semibold hover:bg-muted" type="submit">
+                    <LogOut className="h-4 w-4 text-primary" aria-hidden />
+                    Sair
+                  </button>
+                </form>
+              </div>
+            </details>
+          </div>
         </div>
-        <nav className="mt-3 flex snap-x gap-2 overflow-x-auto pb-1">
-          {mobileNavItems.map((item) => (
-            <LavaNavLink activePath={activePath} item={item} key={`${item.href}-mobile`} mobile />
-          ))}
-        </nav>
       </header>
 
       <main className="px-4 py-5 lg:ml-72 lg:px-8">
@@ -124,7 +140,7 @@ function LavaNavLink({
     return (
       <Link
         aria-current={active ? "page" : undefined}
-        className="inline-flex min-h-10 shrink-0 snap-start items-center gap-2 rounded-lg bg-muted px-3 text-sm font-semibold aria-[current=page]:bg-[#dff7ec] aria-[current=page]:text-[#0f5132]"
+        className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition hover:bg-muted aria-[current=page]:bg-[#dff7ec] aria-[current=page]:text-[#0f5132]"
         href={item.href}
       >
         <Icon className="h-4 w-4 text-primary" aria-hidden />
