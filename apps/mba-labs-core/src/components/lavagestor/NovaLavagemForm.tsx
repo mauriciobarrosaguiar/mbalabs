@@ -4,10 +4,7 @@ import { useMemo, useState } from "react";
 import { BackButton, MessageBanner, SubmitButton } from "@/components/ui-kit";
 import { createLavagemMelhorada } from "@/lib/actions/lavagestor-lavagem-actions";
 
-type Cliente = {
-  id: string;
-  nome: string;
-};
+type Cliente = { id: string; nome: string };
 
 type Veiculo = {
   id: string;
@@ -30,6 +27,10 @@ type Servico = {
   nome: string;
   preco?: number | null;
   percentual_comissao?: number | null;
+  tipo?: string | null;
+  aplicacao?: string | null;
+  categoria?: string | null;
+  adicional?: boolean | null;
 };
 
 type Props = {
@@ -76,6 +77,14 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
   const [desconto, setDesconto] = useState("0");
 
   const veiculosDoCliente = useMemo(() => veiculos.filter((veiculo) => veiculo.cliente_id === clienteId), [clienteId, veiculos]);
+  const servicosPrincipais = useMemo(
+    () => servicos.filter((servico) => isPrincipal(servico) && serviceMatchesType(servico, tipo)),
+    [servicos, tipo]
+  );
+  const servicosAdicionaisDisponiveis = useMemo(
+    () => servicos.filter((servico) => isAdicional(servico) && serviceMatchesType(servico, tipo) && servico.id !== servicoId),
+    [servicos, tipo, servicoId]
+  );
   const servicoPrincipal = servicos.find((servico) => servico.id === servicoId);
   const servicosAdicionais = servicos.filter((servico) => adicionais.includes(servico.id));
   const totalBruto = roundMoney(Number(servicoPrincipal?.preco ?? 0) + servicosAdicionais.reduce((total, item) => total + Number(item.preco ?? 0), 0));
@@ -92,17 +101,19 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
   const isCarLike = ["carro", "moto", "caminhonete", "caminhao"].includes(tipo);
   const modelos = marca ? modelosPorMarca[marca] ?? [] : [];
 
+  function handleTipo(value: string) {
+    setTipo(value);
+    setServicoId("");
+    setAdicionais([]);
+  }
+
   function handleServicoPrincipal(value: string) {
     setServicoId(value);
     const servico = servicos.find((item) => item.id === value);
-    const nome = normalizeText(servico?.nome ?? "");
-
-    if (nome.includes("sofa")) setTipo("sofa");
-    if (nome.includes("tapete")) setTipo("tapete");
-    if (nome.includes("moto")) setTipo("moto");
-    if (nome.includes("caminhonete")) setTipo("caminhonete");
-    if (nome.includes("caminhao")) setTipo("caminhao");
-    if (nome.includes("carro")) setTipo("carro");
+    const aplicacao = String(servico?.aplicacao ?? "");
+    if (aplicacao && aplicacao !== "todos") {
+      setTipo(aplicacao);
+    }
   }
 
   function toggleAdicional(id: string) {
@@ -122,9 +133,7 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
           <span className="text-sm font-bold">Cliente existente</span>
           <select className="input" name="cliente_id" value={clienteId} onChange={(event) => setClienteId(event.target.value)}>
             <option value="">Selecione</option>
-            {clientes.map((cliente) => (
-              <option key={cliente.id} value={cliente.id}>{cliente.nome}</option>
-            ))}
+            {clientes.map((cliente) => <option key={cliente.id} value={cliente.id}>{cliente.nome}</option>)}
           </select>
         </label>
         <Field label="Novo cliente" name="cliente_nome" placeholder="Nome do cliente" />
@@ -137,15 +146,13 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
           <span className="text-sm font-bold">Veículo existente</span>
           <select className="input" name="veiculo_id" disabled={!clienteId || veiculosDoCliente.length === 0} defaultValue="">
             <option value="">{clienteId ? "Selecione" : "Selecione primeiro o cliente"}</option>
-            {veiculosDoCliente.map((veiculo) => (
-              <option key={veiculo.id} value={veiculo.id}>{vehicleLabel(veiculo)}</option>
-            ))}
+            {veiculosDoCliente.map((veiculo) => <option key={veiculo.id} value={veiculo.id}>{vehicleLabel(veiculo)}</option>)}
           </select>
         </label>
 
         <label className="grid gap-2">
           <span className="text-sm font-bold">Tipo</span>
-          <select className="input" name="veiculo_tipo" value={tipo} onChange={(event) => setTipo(event.target.value)}>
+          <select className="input" name="veiculo_tipo" value={tipo} onChange={(event) => handleTipo(event.target.value)}>
             {tipos.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
         </label>
@@ -185,7 +192,7 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
           <span className="text-sm font-bold">Serviço cadastrado</span>
           <select className="input" name="servico_id" value={servicoId} onChange={(event) => handleServicoPrincipal(event.target.value)} required>
             <option value="">Selecione</option>
-            {servicos.map((servico) => (
+            {servicosPrincipais.map((servico) => (
               <option key={servico.id} value={servico.id}>{servico.nome} - {formatMoney(servico.preco)}</option>
             ))}
           </select>
@@ -207,17 +214,21 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
 
         <div className="grid gap-2 md:col-span-2">
           <span className="text-sm font-bold">Serviços adicionais</span>
-          <div className="grid gap-2">
-            {servicos.filter((servico) => servico.id !== servicoId).map((servico) => (
-              <label key={servico.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-white px-3 py-3 text-sm font-semibold">
-                <span className="flex items-center gap-2">
-                  <input type="checkbox" name="servico_adicional_ids" value={servico.id} checked={adicionais.includes(servico.id)} onChange={() => toggleAdicional(servico.id)} />
-                  {servico.nome}
-                </span>
-                <strong>{formatMoney(servico.preco)}</strong>
-              </label>
-            ))}
-          </div>
+          {servicosAdicionaisDisponiveis.length === 0 ? (
+            <p className="rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground">Nenhum adicional cadastrado para este tipo.</p>
+          ) : (
+            <div className="grid gap-2">
+              {servicosAdicionaisDisponiveis.map((servico) => (
+                <label key={servico.id} className="flex items-center justify-between gap-3 rounded-lg border border-border bg-white px-3 py-3 text-sm font-semibold">
+                  <span className="flex items-center gap-2">
+                    <input type="checkbox" name="servico_adicional_ids" value={servico.id} checked={adicionais.includes(servico.id)} onChange={() => toggleAdicional(servico.id)} />
+                    {servico.nome}
+                  </span>
+                  <strong>{formatMoney(servico.preco)}</strong>
+                </label>
+              ))}
+            </div>
+          )}
         </div>
 
         <Textarea label="Descrição extra" name="descricao_extra" />
@@ -298,6 +309,19 @@ function vehicleLabel(veiculo: Veiculo) {
   return [veiculo.placa || "Sem placa", [veiculo.marca, veiculo.modelo].filter(Boolean).join(" "), veiculo.cor].filter(Boolean).join(" - ");
 }
 
+function isPrincipal(servico: Servico) {
+  return !isAdicional(servico) && String(servico.categoria ?? "principal") !== "adicional";
+}
+
+function isAdicional(servico: Servico) {
+  return Boolean(servico.adicional) || String(servico.categoria ?? "") === "adicional" || String(servico.tipo ?? "") === "adicional";
+}
+
+function serviceMatchesType(servico: Servico, tipo: string) {
+  const aplicacao = String(servico.aplicacao ?? "todos");
+  return aplicacao === "todos" || aplicacao === tipo;
+}
+
 function formatMoney(value: unknown) {
   return Number(value ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -308,8 +332,4 @@ function parseMoney(value: string) {
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
-}
-
-function normalizeText(value: string) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
