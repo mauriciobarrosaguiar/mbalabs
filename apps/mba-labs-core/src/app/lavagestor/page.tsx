@@ -27,7 +27,12 @@ export default async function LavaGestorPortalPage() {
     ["Nova lavagem", "/lavagestor/nova-lavagem"],
     ["Fila de lavagem", "/lavagestor/fila"],
     ["Clientes", "/lavagestor/clientes"],
-    ["Relatórios", "/lavagestor/relatorios"]
+    ["Pagamentos", "/lavagestor/pagamentos"],
+    ["Relatórios", "/lavagestor/relatorios"],
+    ["Comissões", "/lavagestor/comissoes"],
+    ["Vales", "/lavagestor/vales"],
+    ["Serviços", "/lavagestor/servicos"],
+    ["Funcionários", "/lavagestor/funcionarios"]
   ];
 
   return (
@@ -66,10 +71,10 @@ export default async function LavaGestorPortalPage() {
         </div>
 
         <Panel title="Ações rápidas">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {quickLinks.map(([label, href]) => (
               <Link
-                className="inline-flex min-h-14 items-center justify-center rounded-lg border border-border bg-white px-4 py-3 text-base font-semibold shadow-sm transition hover:bg-muted"
+                className="inline-flex min-h-14 items-center justify-center rounded-lg border border-border bg-white px-4 py-3 text-center text-base font-semibold shadow-sm transition hover:bg-muted"
                 href={href}
                 key={href}
               >
@@ -80,42 +85,62 @@ export default async function LavaGestorPortalPage() {
         </Panel>
 
         <Panel title="Últimas lavagens">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
-              <thead className="text-xs uppercase text-muted-foreground">
-                <tr>
-                  <th className="py-2 pr-3">Data</th>
-                  <th className="py-2 pr-3">Cliente</th>
-                  <th className="py-2 pr-3">Veículo</th>
-                  <th className="py-2 pr-3">Serviço</th>
-                  <th className="py-2 pr-3">Funcionário</th>
-                  <th className="py-2 pr-3">Status</th>
-                  <th className="py-2 pr-3">Valor</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {dashboard.ultimasLavagens.length === 0 ? (
-                  <tr>
-                    <td className="py-6 text-center text-muted-foreground" colSpan={7}>
-                      Nenhuma lavagem registrada ainda.
-                    </td>
-                  </tr>
-                ) : (
-                  dashboard.ultimasLavagens.map((wash) => (
-                    <tr key={String(wash.id)}>
-                      <td className="py-3 pr-3">{formatDate(wash.data_lavagem)}</td>
-                      <td className="py-3 pr-3">{wash.cliente}</td>
-                      <td className="py-3 pr-3">{wash.veiculo}</td>
-                      <td className="py-3 pr-3">{wash.servico}</td>
-                      <td className="py-3 pr-3">{wash.funcionario}</td>
-                      <td className="py-3 pr-3">{wash.status_label}</td>
-                      <td className="py-3 pr-3 font-semibold">{formatMoney(wash.valor)}</td>
+          {dashboard.ultimasLavagens.length === 0 ? (
+            <p className="rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">Nenhuma lavagem registrada ainda.</p>
+          ) : (
+            <>
+              <div className="grid gap-3 lg:hidden">
+                {dashboard.ultimasLavagens.map((wash) => (
+                  <article className="rounded-lg border border-border bg-white p-4 shadow-sm" key={String(wash.id)}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="break-words text-base font-black">{wash.cliente}</h3>
+                        <p className="mt-1 break-words text-sm font-semibold text-muted-foreground">{wash.veiculo}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-[#dff7ec] px-2 py-1 text-xs font-black text-[#0f5132]">
+                        {wash.status_label}
+                      </span>
+                    </div>
+                    <div className="mt-4 grid gap-2 text-sm">
+                      <MobileInfo label="Data" value={formatDate(wash.data_lavagem)} />
+                      <MobileInfo label="Serviço" value={String(wash.servico ?? "-")} />
+                      <MobileInfo label="Funcionário" value={String(wash.funcionario ?? "-")} />
+                      <MobileInfo label="Valor" value={formatMoney(wash.valor)} strong />
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              <div className="hidden overflow-x-auto lg:block">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="py-2 pr-3">Data</th>
+                      <th className="py-2 pr-3">Cliente</th>
+                      <th className="py-2 pr-3">Veículo</th>
+                      <th className="py-2 pr-3">Serviço</th>
+                      <th className="py-2 pr-3">Funcionário</th>
+                      <th className="py-2 pr-3">Status</th>
+                      <th className="py-2 pr-3">Valor</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {dashboard.ultimasLavagens.map((wash) => (
+                      <tr key={String(wash.id)}>
+                        <td className="py-3 pr-3">{formatDate(wash.data_lavagem)}</td>
+                        <td className="py-3 pr-3">{wash.cliente}</td>
+                        <td className="py-3 pr-3">{wash.veiculo}</td>
+                        <td className="py-3 pr-3">{wash.servico}</td>
+                        <td className="py-3 pr-3">{wash.funcionario}</td>
+                        <td className="py-3 pr-3">{wash.status_label}</td>
+                        <td className="py-3 pr-3 font-semibold">{formatMoney(wash.valor)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </Panel>
       </div>
     </LavaGestorShell>
@@ -142,6 +167,15 @@ function MetricCard({
     <div className={`rounded-lg border p-4 shadow-sm ${toneClass}`}>
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
       <p className="mt-2 text-2xl font-semibold tracking-tight">{value}</p>
+    </div>
+  );
+}
+
+function MobileInfo({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="rounded-lg bg-muted px-3 py-2">
+      <p className="text-xs font-black uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
+      <p className={`mt-1 break-words ${strong ? "font-black" : "font-semibold"}`}>{value}</p>
     </div>
   );
 }
