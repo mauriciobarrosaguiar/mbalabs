@@ -9,7 +9,7 @@ import {
   HandCoins,
   LayoutDashboard,
   LogOut,
-  MoreVertical,
+  Menu,
   Settings,
   Sparkles,
   Users,
@@ -94,7 +94,7 @@ export function LavaGestorShell({
             </Link>
             <details className="group relative">
               <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg border border-border bg-white shadow-sm [&::-webkit-details-marker]:hidden" aria-label="Abrir menu">
-                <MoreVertical className="h-5 w-5" aria-hidden />
+                <Menu className="h-5 w-5" aria-hidden />
               </summary>
               <div className="absolute right-0 top-12 z-40 grid w-64 gap-1 rounded-xl border border-border bg-white p-2 shadow-xl">
                 {lavaNavItems.map((item) => (
