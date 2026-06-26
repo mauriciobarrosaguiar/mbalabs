@@ -17,6 +17,9 @@ export async function createLavagemMelhorada(formData: FormData) {
   const servicoPrincipalId = textValue(formData, "servico_id");
   const adicionalIds = uniqueValues(formData.getAll("servico_adicional_ids").map(String)).filter((id) => id !== servicoPrincipalId);
   const funcionarioIds = uniqueValues(formData.getAll("funcionario_ids").map(String)).filter(Boolean);
+  const entregaTipoRaw = textValue(formData, "entrega_tipo") || "retirar";
+  const entregaTipo = entregaTipoRaw === "levar" ? "levar" : "retirar";
+  const enderecoEntrega = entregaTipo === "levar" ? nullableTextValue(formData, "endereco_entrega") : null;
 
   if (!clienteId || !veiculoId || !servicoPrincipalId || funcionarioIds.length === 0) {
     redirect(`/lavagestor/nova-lavagem?error=${messageParam("Informe cliente, veículo/item, serviço e pelo menos um lavador.")}`);
@@ -102,6 +105,8 @@ export async function createLavagemMelhorada(formData: FormData) {
       status: "na_fila",
       data_entrada: now,
       data_lavagem: now,
+      entrega_tipo: entregaTipo,
+      endereco_entrega: enderecoEntrega,
       observacoes
     })
     .select("id")
@@ -152,7 +157,7 @@ export async function createLavagemMelhorada(formData: FormData) {
     acao: "entrada_lavagem",
     status_anterior: null,
     status_novo: "na_fila",
-    observacao: `Lavagem criada com ${funcionarioIds.length} lavador(es). Comissão total: ${comissaoTotal}.`
+    observacao: `Lavagem criada com ${funcionarioIds.length} lavador(es). Comissão total: ${comissaoTotal}. Entrega: ${entregaTipo}.`
   });
 
   await logAction({
@@ -163,7 +168,8 @@ export async function createLavagemMelhorada(formData: FormData) {
       valor: valorFinal,
       comissao_total: comissaoTotal,
       lavadores: funcionarioIds.length,
-      servicos: allServicoIds.length
+      servicos: allServicoIds.length,
+      entrega_tipo: entregaTipo
     }
   });
 
@@ -174,16 +180,39 @@ export async function createLavagemMelhorada(formData: FormData) {
 }
 
 async function resolveCliente(client: any, empresaId: string | null, formData: FormData) {
+  const modo = textValue(formData, "cliente_modo") || "existente";
   const selectedClienteId = textValue(formData, "cliente_id");
-  if (selectedClienteId) {
+  const nome = textValue(formData, "cliente_nome");
+  const telefone = textValue(formData, "cliente_whatsapp");
+  const observacao = nullableTextValue(formData, "cliente_observacao");
+
+  if (modo === "existente") {
+    if (!selectedClienteId) {
+      redirect(`/lavagestor/nova-lavagem?error=${messageParam("Selecione o cliente existente.")}`);
+    }
+
+    const updatePayload: Record<string, unknown> = {};
+    if (nome) updatePayload.nome = nome;
+    if (telefone) updatePayload.telefone = telefone;
+    updatePayload.observacao = observacao;
+
+    if (Object.keys(updatePayload).length > 0) {
+      const { error } = await client
+        .from("lava_clientes")
+        .update(updatePayload)
+        .eq("id", selectedClienteId)
+        .eq("empresa_id", empresaId);
+
+      if (error) {
+        redirect(`/lavagestor/nova-lavagem?error=${messageParam(error.message)}`);
+      }
+    }
+
     return selectedClienteId;
   }
 
-  const nome = textValue(formData, "cliente_nome");
-  const telefone = textValue(formData, "cliente_whatsapp");
-
   if (!nome || !telefone) {
-    redirect(`/lavagestor/nova-lavagem?error=${messageParam("Selecione um cliente ou informe nome e WhatsApp.")}`);
+    redirect(`/lavagestor/nova-lavagem?error=${messageParam("Informe nome e WhatsApp do novo cliente.")}`);
   }
 
   const { data, error } = await client
@@ -192,7 +221,7 @@ async function resolveCliente(client: any, empresaId: string | null, formData: F
       empresa_id: empresaId,
       nome,
       telefone,
-      observacao: nullableTextValue(formData, "cliente_observacao")
+      observacao
     })
     .select("id")
     .single();
@@ -205,18 +234,45 @@ async function resolveCliente(client: any, empresaId: string | null, formData: F
 }
 
 async function resolveVeiculo(client: any, empresaId: string | null, clienteId: string, formData: FormData) {
+  const modo = textValue(formData, "veiculo_modo") || "existente";
   const selectedVeiculoId = textValue(formData, "veiculo_id");
-  if (selectedVeiculoId) {
-    return selectedVeiculoId;
-  }
-
   const tipo = textValue(formData, "veiculo_tipo") || "carro";
   const placa = nullableTextValue(formData, "veiculo_placa");
   const marca = nullableTextValue(formData, "veiculo_marca");
   const modelo = nullableTextValue(formData, "veiculo_modelo") || defaultModeloByTipo(tipo);
+  const cor = nullableTextValue(formData, "veiculo_cor");
+  const observacao = nullableTextValue(formData, "veiculo_observacao");
+
+  if (modo === "existente") {
+    if (!selectedVeiculoId) {
+      redirect(`/lavagestor/nova-lavagem?error=${messageParam("Selecione o veículo/item existente.")}`);
+    }
+
+    const updatePayload = {
+      cliente_id: clienteId,
+      tipo,
+      placa,
+      marca,
+      modelo,
+      cor,
+      observacao
+    };
+
+    const { error } = await client
+      .from("lava_veiculos")
+      .update(updatePayload)
+      .eq("id", selectedVeiculoId)
+      .eq("empresa_id", empresaId);
+
+    if (error) {
+      redirect(`/lavagestor/nova-lavagem?error=${messageParam(error.message)}`);
+    }
+
+    return selectedVeiculoId;
+  }
 
   if (!tipo || (!placa && !marca && !modelo)) {
-    redirect(`/lavagestor/nova-lavagem?error=${messageParam("Selecione um veículo ou cadastre um veículo/item no fluxo.")}`);
+    redirect(`/lavagestor/nova-lavagem?error=${messageParam("Informe os dados do novo veículo/item.")}`);
   }
 
   const { data, error } = await client
@@ -228,8 +284,8 @@ async function resolveVeiculo(client: any, empresaId: string | null, clienteId: 
       placa,
       marca,
       modelo,
-      cor: nullableTextValue(formData, "veiculo_cor"),
-      observacao: nullableTextValue(formData, "veiculo_observacao")
+      cor,
+      observacao
     })
     .select("id")
     .single();
