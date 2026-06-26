@@ -23,18 +23,6 @@ export default async function LavaGestorPortalPage() {
     { label: "Vales em aberto", value: formatMoney(dashboard.totalValesAbertos), tone: "warning" }
   ];
 
-  const quickLinks = [
-    ["Nova lavagem", "/lavagestor/nova-lavagem"],
-    ["Fila de lavagem", "/lavagestor/fila"],
-    ["Clientes", "/lavagestor/clientes"],
-    ["Pagamentos", "/lavagestor/pagamentos"],
-    ["Relatórios", "/lavagestor/relatorios"],
-    ["Comissões", "/lavagestor/comissoes"],
-    ["Vales", "/lavagestor/vales"],
-    ["Serviços", "/lavagestor/servicos"],
-    ["Funcionários", "/lavagestor/funcionarios"]
-  ];
-
   return (
     <LavaGestorShell
       activePath="/lavagestor"
@@ -69,20 +57,6 @@ export default async function LavaGestorPortalPage() {
             <MetricCard key={metric.label} label={metric.label} tone={metric.tone} value={metric.value} />
           ))}
         </div>
-
-        <Panel title="Ações rápidas">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {quickLinks.map(([label, href]) => (
-              <Link
-                className="inline-flex min-h-14 items-center justify-center rounded-lg border border-border bg-white px-4 py-3 text-center text-base font-semibold shadow-sm transition hover:bg-muted"
-                href={href}
-                key={href}
-              >
-                {label}
-              </Link>
-            ))}
-          </div>
-        </Panel>
 
         <Panel title="Últimas lavagens">
           {dashboard.ultimasLavagens.length === 0 ? (
