@@ -3,12 +3,13 @@ import { BackButton, EmptyState, PageHeader } from "@/components/ui-kit";
 import { NovaLavagemForm } from "@/components/lavagestor/NovaLavagemForm";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaLookups } from "@/lib/lavagestor-data";
+import { listLavaServicosAvancados } from "@/lib/lavagestor-servicos-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function NovaLavagemPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
-  const lookups = await getLavaLookups();
+  const [lookups, servicosResult] = await Promise.all([getLavaLookups(), listLavaServicosAvancados()]);
   const clientes = lookups.clientes.map((row) => ({ id: String(row.id), nome: String(row.nome) }));
   const veiculos = lookups.veiculos.map((row) => ({
     id: String(row.id),
@@ -24,12 +25,18 @@ export default async function NovaLavagemPage({ searchParams }: { searchParams: 
     nome: String(row.nome),
     percentual_comissao: row.percentual_comissao == null ? null : Number(row.percentual_comissao)
   }));
-  const servicos = lookups.servicos.map((row) => ({
-    id: String(row.id),
-    nome: String(row.nome),
-    preco: row.preco == null ? 0 : Number(row.preco),
-    percentual_comissao: row.percentual_comissao == null ? null : Number(row.percentual_comissao)
-  }));
+  const servicos = servicosResult.rows
+    .filter((row) => row.ativo !== false)
+    .map((row) => ({
+      id: String(row.id),
+      nome: String(row.nome),
+      preco: row.preco == null ? 0 : Number(row.preco),
+      percentual_comissao: row.percentual_comissao == null ? null : Number(row.percentual_comissao),
+      tipo: toText(row.tipo),
+      aplicacao: toText(row.aplicacao),
+      categoria: toText(row.categoria),
+      adicional: Boolean(row.adicional)
+    }));
   const ready = funcionarios.length > 0 && servicos.length > 0;
 
   return (
@@ -50,7 +57,7 @@ export default async function NovaLavagemPage({ searchParams }: { searchParams: 
             funcionarios={funcionarios}
             servicos={servicos}
             ok={firstParam(params.ok)}
-            error={firstParam(params.error)}
+            error={firstParam(params.error) ?? servicosResult.error ?? undefined}
           />
         )}
       </section>
