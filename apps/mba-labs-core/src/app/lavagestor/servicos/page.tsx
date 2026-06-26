@@ -27,6 +27,8 @@ import {
 } from "@/lib/lavagestor-servicos-data";
 import { firstParam } from "@/lib/form-utils";
 
+type ServiceRow = Record<string, unknown>;
+
 export const dynamic = "force-dynamic";
 
 export default async function ServicosPage({
@@ -37,8 +39,10 @@ export default async function ServicosPage({
   const params = await searchParams;
   const search = firstParam(params.q) ?? "";
   const editId = firstParam(params.edit);
-  const { rows, error } = await listLavaServicosAvancados(search);
-  const editing = rows.find((row) => row.id === editId);
+  const result = await listLavaServicosAvancados(search);
+  const rows = result.rows as ServiceRow[];
+  const error = result.error;
+  const editing = rows.find((row) => String(row.id) === String(editId ?? ""));
 
   return (
     <LavaGestorShell activePath="/lavagestor/servicos">
