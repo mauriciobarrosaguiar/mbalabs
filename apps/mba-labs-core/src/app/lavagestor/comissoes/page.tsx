@@ -1,5 +1,6 @@
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, MessageBanner, PageHeader, StatCard, SubmitButton, formatMoney } from "@/components/ui-kit";
+import { AcertoValeFields } from "@/components/lavagestor/AcertoValeFields";
 import { pagarComissoesFuncionario as registrarAcertoFuncionario } from "@/lib/actions/lavagestor-comissoes-actions";
 import { firstParam } from "@/lib/form-utils";
 import { listLavaComissoesResumo } from "@/lib/lavagestor-comissoes-data";
@@ -15,7 +16,7 @@ export default async function ComissoesPage({ searchParams }: { searchParams: Pr
   return (
     <LavaGestorShell activePath="/lavagestor/comissoes">
       <section className="grid gap-6">
-        <PageHeader eyebrow="LavaGestor" title="Comissões" description="Acerto por funcionário com desconto de vale integral, parcial ou sem desconto." actions={<BackButton href="/lavagestor" />} />
+        <PageHeader eyebrow="LavaGestor" title="Comissões" description="Acerto por funcionário. Vale só aparece quando houver saldo pendente." actions={<BackButton href="/lavagestor" />} />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? undefined} />
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Comissões pendentes" value={formatMoney(totals.totalPendente)} />
@@ -53,10 +54,8 @@ function AcertoCard({ row }: { row: Row }) {
       {totalComissao > 0 ? (
         <form action={registrarAcertoFuncionario} className="mt-4 grid gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
           <input name="funcionario_id" type="hidden" value={String(row.funcionario_id)} />
-          <p className="text-sm font-black">Como deseja tratar os vales neste acerto?</p>
-          <label className="flex items-center gap-2 rounded-lg bg-white p-3 text-sm font-bold"><input name="modo_desconto" type="radio" value="nao" defaultChecked /> Não descontar vale agora</label>
-          <label className="flex items-center gap-2 rounded-lg bg-white p-3 text-sm font-bold"><input name="modo_desconto" type="radio" value="integral" /> Descontar valor integral possível</label>
-          <label className="grid gap-2 rounded-lg bg-white p-3 text-sm font-bold"><span className="flex items-center gap-2"><input name="modo_desconto" type="radio" value="parcial" /> Descontar valor parcial</span><input className="input" name="valor_desconto_vale" inputMode="decimal" placeholder="Valor parcial. Ex.: 50,00" /></label>
+          {totalVales > 0 ? <AcertoValeFields /> : <input name="modo_desconto" type="hidden" value="nao" />}
+          {totalVales <= 0 ? <p className="text-sm font-semibold text-muted-foreground">Este funcionário não possui vale pendente. O acerto será salvo sem desconto de vale.</p> : null}
           <SubmitButton>Salvar acerto</SubmitButton>
         </form>
       ) : totalVales > 0 ? <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-900">Há vale aberto, mas não há comissão pendente. Fica para o próximo acerto.</p> : null}
