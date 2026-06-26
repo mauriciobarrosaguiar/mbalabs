@@ -10,7 +10,12 @@ export const dynamic = "force-dynamic";
 export default async function NovaLavagemPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const [lookups, servicosResult] = await Promise.all([getLavaLookups(), listLavaServicosAvancados()]);
-  const clientes = lookups.clientes.map((row) => ({ id: String(row.id), nome: String(row.nome) }));
+  const clientes = lookups.clientes.map((row) => ({
+    id: String(row.id),
+    nome: String(row.nome),
+    telefone: toText(row.telefone),
+    observacao: toText(row.observacao)
+  }));
   const veiculos = lookups.veiculos.map((row) => ({
     id: String(row.id),
     cliente_id: String(row.cliente_id ?? ""),
@@ -18,7 +23,8 @@ export default async function NovaLavagemPage({ searchParams }: { searchParams: 
     marca: toText(row.marca),
     modelo: toText(row.modelo),
     cor: toText(row.cor),
-    tipo: toText(row.tipo)
+    tipo: toText(row.tipo),
+    observacao: toText(row.observacao)
   }));
   const funcionarios = lookups.funcionarios.map((row) => ({
     id: String(row.id),
