@@ -371,8 +371,9 @@ export async function listLavaVales(search = "") {
         .in("vale_id", valeIds)
         .order("created_at", { ascending: false })
     : { data: [], error: null };
-  const movimentos = ((movimentosResult.data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+  const movimentos: Array<Record<string, unknown>> = ((movimentosResult.data ?? []) as Array<Record<string, unknown>>).map<Record<string, unknown>>((row) => ({
     ...row,
+    vale_id: row.vale_id,
     valor_descontado: moneyNumber(row.valor_descontado),
     saldo_antes: moneyNumber(row.saldo_antes),
     saldo_depois: moneyNumber(row.saldo_depois)
