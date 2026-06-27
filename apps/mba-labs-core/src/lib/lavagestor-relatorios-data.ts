@@ -40,23 +40,23 @@ export async function getLavaRelatorio(filters: ReportFilters = {}) {
       : Promise.resolve({ data: null, error: null })
   ]);
 
-  const lavagens = ((lavagensResult.data ?? []) as Row[])
+  const lavagens: Row[] = ((lavagensResult.data ?? []) as Row[])
     .map(mapLavagem)
     .filter((row) => inPeriod(row.data_ref, period.start, period.endExclusive));
-  const comissoes = ((comissoesResult.data ?? []) as Row[])
-    .map((row) => ({ ...row, funcionario: relationName(row.lava_funcionarios), valor: Number(row.valor ?? 0) }))
+  const comissoes: Row[] = ((comissoesResult.data ?? []) as Row[])
+    .map((row): Row => ({ ...row, funcionario: relationName(row.lava_funcionarios), valor: Number(row.valor ?? 0) }))
     .filter((row) => inPeriod(row.pago_em ?? row.created_at, period.start, period.endExclusive));
-  const vales = ((valesResult.data ?? []) as Row[])
-    .map((row) => ({ ...row, funcionario: relationName(row.lava_funcionarios), valor: Number(row.valor ?? 0) }))
+  const vales: Row[] = ((valesResult.data ?? []) as Row[])
+    .map((row): Row => ({ ...row, funcionario: relationName(row.lava_funcionarios), valor: Number(row.valor ?? 0) }))
     .filter((row) => inPeriod(row.data_vale ?? row.created_at, period.start, period.endExclusive));
 
-  const activeLavagens = lavagens.filter((row) => row.status !== "cancelado");
-  const paidLavagens = activeLavagens.filter((row) => row.status_pagamento === "pago");
-  const openLavagens = activeLavagens.filter((row) => ["aberto", "parcial", "fiado"].includes(String(row.status_pagamento ?? "aberto")));
-  const pendingComissoes = comissoes.filter((row) => String(row.status ?? "pendente") === "pendente");
-  const paidComissoes = comissoes.filter((row) => String(row.status ?? "") === "pago");
-  const openVales = vales.filter((row) => ["aberto", "parcial"].includes(String(row.status ?? "aberto")));
-  const closedVales = vales.filter((row) => ["descontado", "cancelado"].includes(String(row.status ?? "")));
+  const activeLavagens: Row[] = lavagens.filter((row) => String(row.status ?? "") !== "cancelado");
+  const paidLavagens: Row[] = activeLavagens.filter((row) => String(row.status_pagamento ?? "") === "pago");
+  const openLavagens: Row[] = activeLavagens.filter((row) => ["aberto", "parcial", "fiado"].includes(String(row.status_pagamento ?? "aberto")));
+  const pendingComissoes: Row[] = comissoes.filter((row) => String(row.status ?? "pendente") === "pendente");
+  const paidComissoes: Row[] = comissoes.filter((row) => String(row.status ?? "") === "pago");
+  const openVales: Row[] = vales.filter((row) => ["aberto", "parcial"].includes(String(row.status ?? "aberto")));
+  const closedVales: Row[] = vales.filter((row) => ["descontado", "cancelado"].includes(String(row.status ?? "")));
   const empresa = (empresaResult.data ?? {}) as Row;
 
   return {
@@ -76,10 +76,10 @@ export async function getLavaRelatorio(filters: ReportFilters = {}) {
       valesAbertos: sum(openVales, "valor"),
       valesBaixados: sum(closedVales, "valor")
     },
-    porPagamento: groupBy(activeLavagens, "forma_pagamento", (row) => String(row.forma_pagamento || "não informado"), LAVA_PAYMENT_METHOD_LABELS),
-    porFuncionario: groupBy(activeLavagens, "funcionario", (row) => String(row.funcionario || "Sem funcionário")),
-    porStatus: groupBy(activeLavagens, "status", (row) => String(row.status || "na_fila"), LAVA_STATUS_LABELS),
-    porPagamentoStatus: groupBy(activeLavagens, "status_pagamento", (row) => String(row.status_pagamento || "aberto"), LAVA_PAYMENT_STATUS_LABELS),
+    porPagamento: groupBy(activeLavagens, (row) => String(row.forma_pagamento || "não informado"), LAVA_PAYMENT_METHOD_LABELS),
+    porFuncionario: groupBy(activeLavagens, (row) => String(row.funcionario || "Sem funcionário")),
+    porStatus: groupBy(activeLavagens, (row) => String(row.status || "na_fila"), LAVA_STATUS_LABELS),
+    porPagamentoStatus: groupBy(activeLavagens, (row) => String(row.status_pagamento || "aberto"), LAVA_PAYMENT_STATUS_LABELS),
     lavagens: activeLavagens.slice(0, 80),
     comissoes: comissoes.slice(0, 80),
     vales: vales.slice(0, 80),
@@ -87,7 +87,7 @@ export async function getLavaRelatorio(filters: ReportFilters = {}) {
   };
 }
 
-function mapLavagem(row: Row) {
+function mapLavagem(row: Row): Row {
   const status = normalizeLavaStatus(row.status);
   const statusPagamento = String(row.status_pagamento ?? "aberto");
   return {
@@ -132,7 +132,7 @@ function sum(rows: Row[], primary: string, fallback?: string) {
   return rows.reduce((total, row) => total + Number(row[primary] ?? (fallback ? row[fallback] : 0) ?? 0), 0);
 }
 
-function groupBy(rows: Row[], _key: string, valueGetter: (row: Row) => string, labels: Record<string, string> = {}) {
+function groupBy(rows: Row[], valueGetter: (row: Row) => string, labels: Record<string, string> = {}) {
   const map = new Map<string, { label: string; quantidade: number; valor: number; recebido: number; pendente: number }>();
   for (const row of rows) {
     const raw = valueGetter(row);
