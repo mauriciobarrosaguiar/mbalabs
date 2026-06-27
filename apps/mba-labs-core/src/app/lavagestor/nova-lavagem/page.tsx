@@ -2,6 +2,7 @@ import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, EmptyState, PageHeader } from "@/components/ui-kit";
 import { NovaLavagemForm } from "@/components/lavagestor/NovaLavagemForm";
 import { firstParam } from "@/lib/form-utils";
+import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
 import { getLavaLookups } from "@/lib/lavagestor-data";
 import { listLavaServicosAvancados } from "@/lib/lavagestor-servicos-data";
 
@@ -9,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NovaLavagemPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
-  const [lookups, servicosResult] = await Promise.all([getLavaLookups(), listLavaServicosAvancados()]);
+  const [lookups, servicosResult, { config, error: configError }] = await Promise.all([getLavaLookups(), listLavaServicosAvancados(), getLavaConfiguracoesEmpresa()]);
   const clientes = lookups.clientes.map((row) => ({
     id: String(row.id),
     nome: String(row.nome),
@@ -46,7 +47,7 @@ export default async function NovaLavagemPage({ searchParams }: { searchParams: 
   const ready = funcionarios.length > 0 && servicos.length > 0;
 
   return (
-    <LavaGestorShell activePath="/lavagestor/nova-lavagem">
+    <LavaGestorShell activePath="/lavagestor/nova-lavagem" companyName={config.nome_exibicao}>
       <section className="grid gap-6">
         <PageHeader
           eyebrow="LavaGestor"
@@ -62,8 +63,13 @@ export default async function NovaLavagemPage({ searchParams }: { searchParams: 
             veiculos={veiculos}
             funcionarios={funcionarios}
             servicos={servicos}
+            config={{
+              percentual_comissao_padrao: config.percentual_comissao_padrao,
+              permitir_desconto: config.permitir_desconto,
+              tipos_entrega: config.tipos_entrega
+            }}
             ok={firstParam(params.ok)}
-            error={firstParam(params.error) ?? servicosResult.error ?? undefined}
+            error={firstParam(params.error) ?? servicosResult.error ?? configError ?? undefined}
           />
         )}
       </section>
