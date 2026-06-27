@@ -38,7 +38,7 @@ export async function getLavaConfiguracoesEmpresa() {
   }
 
   const [empresaResult, configResult] = await Promise.all([
-    client.from("core_empresas").select("id,nome,nome_fantasia,razao_social,cnpj,telefone,whatsapp,endereco,cidade,estado").eq("id", empresaId).maybeSingle(),
+    client.from("core_empresas").select("id,nome,nome_fantasia,razao_social,cnpj,telefone,whatsapp,cidade,estado").eq("id", empresaId).maybeSingle(),
     client.from("lava_configuracoes").select("*").eq("empresa_id", empresaId).maybeSingle()
   ]);
 
@@ -54,7 +54,7 @@ export async function getLavaConfiguracoesEmpresa() {
       documento: String(config.documento ?? empresa.cnpj ?? ""),
       whatsapp: String(config.whatsapp ?? empresa.whatsapp ?? empresa.telefone ?? ""),
       telefone: String(config.telefone ?? empresa.telefone ?? ""),
-      endereco: String(config.endereco ?? empresa.endereco ?? ""),
+      endereco: String(config.endereco ?? ""),
       cidade: String(config.cidade ?? empresa.cidade ?? ""),
       estado: String(config.estado ?? empresa.estado ?? ""),
       chave_pix: String(config.chave_pix ?? ""),
