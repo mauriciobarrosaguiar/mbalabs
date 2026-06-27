@@ -62,10 +62,10 @@ export function serviceCategoryLabel(value: unknown) {
 }
 
 function normalizeServico(row: LavaServicoAvancadoRow): LavaServicoAvancadoRow {
-  const tipo = String(row.tipo ?? "lavagem");
-  const aplicacao = String(row.aplicacao ?? "carro");
-  const categoria = String(row.categoria ?? (row.adicional ? "adicional" : "principal"));
-  const adicional = Boolean(row.adicional ?? categoria === "adicional");
+  const tipo = normalizeOption(row.tipo, LAVA_SERVICE_TYPE_OPTIONS, "lavagem");
+  const aplicacao = normalizeOption(row.aplicacao, LAVA_SERVICE_APPLICATION_OPTIONS, "carro");
+  const categoria = normalizeOption(row.categoria, LAVA_SERVICE_CATEGORY_OPTIONS, row.adicional ? "adicional" : "principal");
+  const adicional = Boolean(row.adicional ?? categoria === "adicional") || categoria === "adicional" || tipo === "adicional";
 
   return {
     ...row,
@@ -81,6 +81,24 @@ function normalizeServico(row: LavaServicoAvancadoRow): LavaServicoAvancadoRow {
 }
 
 function optionLabel(options: Array<{ label: string; value: string }>, value: unknown) {
-  const match = options.find((option) => option.value === String(value ?? ""));
+  const key = normalizeText(value);
+  const match = options.find((option) => normalizeText(option.value) === key || normalizeText(option.label) === key);
   return match?.label ?? "";
+}
+
+function normalizeOption(optionsValue: unknown, options: Array<{ label: string; value: string }>, fallback: string) {
+  const key = normalizeText(optionsValue);
+  const match = options.find((option) => normalizeText(option.value) === key || normalizeText(option.label) === key);
+  return match?.value ?? fallback;
+}
+
+function normalizeText(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/ç/g, "c")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
