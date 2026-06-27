@@ -8,7 +8,7 @@ export async function getLavaRecibo(lavagemId: string) {
   const supabase = await getSupabaseServer();
   const client = supabase as any;
 
-  const [lavagemResult, empresaResult, servicosResult, pagamentosResult] = await Promise.all([
+  const [lavagemResult, empresaResult, configResult, servicosResult, pagamentosResult] = await Promise.all([
     client
       .from("lava_lavagens")
       .select("id,empresa_id,cliente_id,veiculo_id,funcionario_id,servico_id,descricao_extra,observacoes,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,comissao,status,status_pagamento,forma_pagamento,data_entrada,data_inicio,data_finalizacao,data_cliente_avisado,data_pagamento,data_entrega,entrega_tipo,endereco_entrega,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor,tipo),lava_funcionarios(nome),lava_servicos(nome)")
@@ -20,6 +20,13 @@ export async function getLavaRecibo(lavagemId: string) {
           .from("core_empresas")
           .select("id,nome,nome_fantasia,razao_social,cnpj,telefone,whatsapp,email,cidade,estado")
           .eq("id", current.empresaId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    current.empresaId
+      ? client
+          .from("lava_configuracoes")
+          .select("nome_exibicao,nome_fantasia,documento,whatsapp,telefone,endereco,cidade,estado,chave_pix,logo_url,cor_principal,mensagem_recibo")
+          .eq("empresa_id", current.empresaId)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     client
@@ -42,6 +49,7 @@ export async function getLavaRecibo(lavagemId: string) {
 
   const lavagem = lavagemResult.data as Row;
   const empresa = (empresaResult.data ?? {}) as Row;
+  const config = (configResult.data ?? {}) as Row;
   const servicos = ((servicosResult.data ?? []) as Row[]).map((row) => ({
     id: String(row.id),
     descricao: String(row.descricao ?? "Serviço"),
@@ -59,18 +67,26 @@ export async function getLavaRecibo(lavagemId: string) {
 
   const servicoPrincipal = relationName(lavagem.lava_servicos);
   const fallbackService = servicoPrincipal || String(lavagem.descricao_extra ?? "").trim();
+  const empresaNome = String(config.nome_exibicao ?? config.nome_fantasia ?? empresa.nome_fantasia ?? empresa.nome ?? "LavaGestor");
+  const empresaDocumento = String(config.documento ?? empresa.cnpj ?? "");
+  const empresaTelefone = String(config.whatsapp ?? config.telefone ?? empresa.whatsapp ?? empresa.telefone ?? "");
+  const empresaCidadeUf = [config.cidade ?? empresa.cidade, config.estado ?? empresa.estado].filter(Boolean).join(" - ");
 
   return {
     recibo: {
       id: String(lavagem.id),
       numero: String(lavagem.id).slice(0, 8).toUpperCase(),
       empresa: {
-        nome: String(empresa.nome_fantasia ?? empresa.nome ?? "LavaGestor"),
-        razao_social: String(empresa.razao_social ?? ""),
-        cnpj: String(empresa.cnpj ?? ""),
-        telefone: String(empresa.whatsapp ?? empresa.telefone ?? ""),
+        nome: empresaNome,
+        razao_social: String(config.nome_fantasia ?? empresa.razao_social ?? ""),
+        cnpj: empresaDocumento,
+        telefone: empresaTelefone,
         email: String(empresa.email ?? ""),
-        cidade_uf: [empresa.cidade, empresa.estado].filter(Boolean).join(" - ")
+        cidade_uf: empresaCidadeUf,
+        endereco: String(config.endereco ?? ""),
+        logo_url: String(config.logo_url ?? ""),
+        cor_principal: String(config.cor_principal ?? "#059669"),
+        mensagem_recibo: String(config.mensagem_recibo ?? defaultReceiptMessage())
       },
       cliente: relationName(lavagem.lava_clientes) || "Cliente",
       whatsapp: relationPhone(lavagem.lava_clientes),
@@ -94,8 +110,12 @@ export async function getLavaRecibo(lavagemId: string) {
       endereco_entrega: String(lavagem.endereco_entrega ?? ""),
       observacoes: String(lavagem.observacoes ?? "")
     },
-    error: empresaResult.error?.message ?? servicosResult.error?.message ?? pagamentosResult.error?.message ?? null
+    error: empresaResult.error?.message ?? configResult.error?.message ?? servicosResult.error?.message ?? pagamentosResult.error?.message ?? null
   };
+}
+
+function defaultReceiptMessage() {
+  return "Olá, {cliente}! Segue o recibo da lavagem {recibo}. Veículo/item: {veiculo}. Total pago: {total}. Obrigado pela preferência!";
 }
 
 function relationName(value: unknown) {
