@@ -63,11 +63,6 @@ export default async function NovaLavagemPage({ searchParams }: { searchParams: 
             veiculos={veiculos}
             funcionarios={funcionarios}
             servicos={servicos}
-            config={{
-              percentual_comissao_padrao: config.percentual_comissao_padrao,
-              permitir_desconto: config.permitir_desconto,
-              tipos_entrega: config.tipos_entrega
-            }}
             ok={firstParam(params.ok)}
             error={firstParam(params.error) ?? servicosResult.error ?? configError ?? undefined}
           />
