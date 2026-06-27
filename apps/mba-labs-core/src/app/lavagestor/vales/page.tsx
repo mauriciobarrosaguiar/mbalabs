@@ -16,6 +16,7 @@ import {
   formatMoney
 } from "@/components/ui-kit";
 import { saveVale, updateValeStatus } from "@/lib/actions/lavagestor-actions";
+import { descontarValeIntegral } from "@/lib/actions/lavagestor-vales-actions";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaLookups, listLavaVales } from "@/lib/lavagestor-data";
 
@@ -125,9 +126,8 @@ function ValeCard({ row }: { row: AnyRow }) {
 
       {canUpdate ? (
         <div className="grid gap-2 sm:flex sm:flex-wrap sm:justify-end">
-          <form action={updateValeStatus}>
+          <form action={descontarValeIntegral}>
             <input name="id" type="hidden" value={String(row.id)} />
-            <input name="status" type="hidden" value="descontado" />
             <SubmitButton>Marcar descontado integral</SubmitButton>
           </form>
           <form action={updateValeStatus}>
