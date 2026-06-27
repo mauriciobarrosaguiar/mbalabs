@@ -26,39 +26,27 @@ export async function createLavagemMelhorada(formData: FormData) {
   }
 
   const allServicoIds = uniqueValues([servicoPrincipalId, ...adicionalIds]);
-
-  const [funcionariosResult, servicosResult] = await Promise.all([
-    client
-      .from("lava_funcionarios")
-      .select("id,nome,percentual_comissao")
-      .eq("empresa_id", empresaId)
-      .in("id", funcionarioIds),
-    client
-      .from("lava_servicos")
-      .select("id,nome,preco,percentual_comissao")
-      .eq("empresa_id", empresaId)
-      .in("id", allServicoIds)
+  const [funcionariosResult, servicosResult, configResult] = await Promise.all([
+    client.from("lava_funcionarios").select("id,nome,percentual_comissao").eq("empresa_id", empresaId).in("id", funcionarioIds),
+    client.from("lava_servicos").select("id,nome,preco,percentual_comissao").eq("empresa_id", empresaId).in("id", allServicoIds),
+    empresaId ? client.from("lava_configuracoes").select("percentual_comissao_padrao,permitir_desconto").eq("empresa_id", empresaId).maybeSingle() : Promise.resolve({ data: null, error: null })
   ]);
 
-  if (funcionariosResult.error || (funcionariosResult.data ?? []).length !== funcionarioIds.length) {
-    redirect(`/lavagestor/nova-lavagem?error=${messageParam("Um ou mais lavadores não foram encontrados.")}`);
-  }
-
-  if (servicosResult.error || (servicosResult.data ?? []).length !== allServicoIds.length) {
-    redirect(`/lavagestor/nova-lavagem?error=${messageParam("Um ou mais serviços não foram encontrados.")}`);
-  }
+  if (funcionariosResult.error || (funcionariosResult.data ?? []).length !== funcionarioIds.length) redirect(`/lavagestor/nova-lavagem?error=${messageParam("Um ou mais lavadores não foram encontrados.")}`);
+  if (servicosResult.error || (servicosResult.data ?? []).length !== allServicoIds.length) redirect(`/lavagestor/nova-lavagem?error=${messageParam("Um ou mais serviços não foram encontrados.")}`);
 
   const funcionarios = (funcionariosResult.data ?? []) as Array<Record<string, unknown>>;
   const servicos = (servicosResult.data ?? []) as Array<Record<string, unknown>>;
+  const config = (configResult.data ?? {}) as Record<string, unknown>;
+  const percentualComissaoPadrao = Number(config.percentual_comissao_padrao ?? 35);
+  const permitirDesconto = config.permitir_desconto === false ? false : true;
   const servicoPrincipal = servicos.find((row) => String(row.id) === servicoPrincipalId);
 
-  if (!servicoPrincipal) {
-    redirect(`/lavagestor/nova-lavagem?error=${messageParam("Serviço principal não encontrado.")}`);
-  }
+  if (!servicoPrincipal) redirect(`/lavagestor/nova-lavagem?error=${messageParam("Serviço principal não encontrado.")}`);
 
   const funcionarioPrincipal = funcionarios.find((row) => String(row.id) === funcionarioIds[0]) ?? funcionarios[0];
-  const funcionarioPercentualPadrao = Number(funcionarioPrincipal?.percentual_comissao ?? 0);
-  const desconto = numberValue(formData, "valor_desconto");
+  const funcionarioPercentualPadrao = Number(funcionarioPrincipal?.percentual_comissao ?? percentualComissaoPadrao);
+  const desconto = permitirDesconto ? numberValue(formData, "valor_desconto") : 0;
   const observacoes = nullableTextValue(formData, "observacoes");
   const now = new Date().toISOString();
 
@@ -68,15 +56,7 @@ export async function createLavagemMelhorada(formData: FormData) {
     const percentualConfigurado = servico.percentual_comissao;
     const percentual = percentualConfigurado === null || percentualConfigurado === undefined ? funcionarioPercentualPadrao : Number(percentualConfigurado);
     const comissao = roundMoney((valor * percentual) / 100);
-
-    return {
-      id,
-      nome: String(servico.nome ?? "Serviço"),
-      valor,
-      percentual,
-      comissao,
-      principal: id === servicoPrincipalId
-    };
+    return { id, nome: String(servico.nome ?? "Serviço"), valor, percentual, comissao, principal: id === servicoPrincipalId };
   });
 
   const totalBruto = roundMoney(itensServico.reduce((total, item) => total + item.valor, 0));
@@ -84,37 +64,31 @@ export async function createLavagemMelhorada(formData: FormData) {
   const comissaoTotal = roundMoney(itensServico.reduce((total, item) => total + item.comissao, 0));
   const comissaoPorLavador = funcionarioIds.length > 0 ? roundMoney(comissaoTotal / funcionarioIds.length) : 0;
 
-  const { data: lavagem, error } = await client
-    .from("lava_lavagens")
-    .insert({
-      empresa_id: empresaId,
-      cliente_id: clienteId,
-      veiculo_id: veiculoId,
-      funcionario_id: funcionarioIds[0],
-      servico_id: servicoPrincipalId,
-      descricao_extra: nullableTextValue(formData, "descricao_extra"),
-      valor: valorFinal,
-      valor_total: totalBruto,
-      valor_desconto: desconto,
-      valor_final: valorFinal,
-      valor_recebido: 0,
-      valor_pendente: valorFinal,
-      status_pagamento: "aberto",
-      forma_pagamento: null,
-      comissao: comissaoTotal,
-      status: "na_fila",
-      data_entrada: now,
-      data_lavagem: now,
-      entrega_tipo: entregaTipo,
-      endereco_entrega: enderecoEntrega,
-      observacoes
-    })
-    .select("id")
-    .single();
+  const { data: lavagem, error } = await client.from("lava_lavagens").insert({
+    empresa_id: empresaId,
+    cliente_id: clienteId,
+    veiculo_id: veiculoId,
+    funcionario_id: funcionarioIds[0],
+    servico_id: servicoPrincipalId,
+    descricao_extra: nullableTextValue(formData, "descricao_extra"),
+    valor: valorFinal,
+    valor_total: totalBruto,
+    valor_desconto: desconto,
+    valor_final: valorFinal,
+    valor_recebido: 0,
+    valor_pendente: valorFinal,
+    status_pagamento: "aberto",
+    forma_pagamento: null,
+    comissao: comissaoTotal,
+    status: "na_fila",
+    data_entrada: now,
+    data_lavagem: now,
+    entrega_tipo: entregaTipo,
+    endereco_entrega: enderecoEntrega,
+    observacoes
+  }).select("id").single();
 
-  if (error || !lavagem?.id) {
-    redirect(`/lavagestor/nova-lavagem?error=${messageParam(error?.message ?? "Não foi possível salvar a lavagem.")}`);
-  }
+  if (error || !lavagem?.id) redirect(`/lavagestor/nova-lavagem?error=${messageParam(error?.message ?? "Não foi possível salvar a lavagem.")}`);
 
   const serviceRows = itensServico.map((item) => ({
     empresa_id: empresaId,
@@ -130,24 +104,13 @@ export async function createLavagemMelhorada(formData: FormData) {
 
   if (serviceRows.length > 0) {
     const { error: serviceError } = await client.from("lava_lavagem_servicos").insert(serviceRows);
-    if (serviceError) {
-      redirect(`/lavagestor/nova-lavagem?error=${messageParam(serviceError.message)}`);
-    }
+    if (serviceError) redirect(`/lavagestor/nova-lavagem?error=${messageParam(serviceError.message)}`);
   }
 
   if (comissaoPorLavador > 0) {
-    const comissaoRows = funcionarioIds.map((funcionarioId) => ({
-      empresa_id: empresaId,
-      funcionario_id: funcionarioId,
-      lavagem_id: lavagem.id,
-      valor: comissaoPorLavador,
-      status: "pendente"
-    }));
-
+    const comissaoRows = funcionarioIds.map((funcionarioId) => ({ empresa_id: empresaId, funcionario_id: funcionarioId, lavagem_id: lavagem.id, valor: comissaoPorLavador, status: "pendente" }));
     const { error: comissaoError } = await client.from("lava_comissoes").insert(comissaoRows);
-    if (comissaoError) {
-      redirect(`/lavagestor/nova-lavagem?error=${messageParam(comissaoError.message)}`);
-    }
+    if (comissaoError) redirect(`/lavagestor/nova-lavagem?error=${messageParam(comissaoError.message)}`);
   }
 
   await client.from("lava_historico").insert({
@@ -160,19 +123,7 @@ export async function createLavagemMelhorada(formData: FormData) {
     observacao: `Lavagem criada com ${funcionarioIds.length} lavador(es). Comissão total: ${comissaoTotal}. Entrega: ${entregaTipo}.`
   });
 
-  await logAction({
-    appSlug: "lavagestor",
-    acao: "criar lavagem",
-    detalhes: {
-      lavagem_id: lavagem.id,
-      valor: valorFinal,
-      comissao_total: comissaoTotal,
-      lavadores: funcionarioIds.length,
-      servicos: allServicoIds.length,
-      entrega_tipo: entregaTipo
-    }
-  });
-
+  await logAction({ appSlug: "lavagestor", acao: "criar lavagem", detalhes: { lavagem_id: lavagem.id, valor: valorFinal, comissao_total: comissaoTotal, lavadores: funcionarioIds.length, servicos: allServicoIds.length, entrega_tipo: entregaTipo } });
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/fila");
   revalidatePath("/lavagestor/comissoes");
@@ -185,51 +136,21 @@ async function resolveCliente(client: any, empresaId: string | null, formData: F
   const nome = textValue(formData, "cliente_nome");
   const telefone = textValue(formData, "cliente_whatsapp");
   const observacao = nullableTextValue(formData, "cliente_observacao");
-
   if (modo === "existente") {
-    if (!selectedClienteId) {
-      redirect(`/lavagestor/nova-lavagem?error=${messageParam("Selecione o cliente existente.")}`);
-    }
-
+    if (!selectedClienteId) redirect(`/lavagestor/nova-lavagem?error=${messageParam("Selecione o cliente existente.")}`);
     const updatePayload: Record<string, unknown> = {};
     if (nome) updatePayload.nome = nome;
     if (telefone) updatePayload.telefone = telefone;
     updatePayload.observacao = observacao;
-
     if (Object.keys(updatePayload).length > 0) {
-      const { error } = await client
-        .from("lava_clientes")
-        .update(updatePayload)
-        .eq("id", selectedClienteId)
-        .eq("empresa_id", empresaId);
-
-      if (error) {
-        redirect(`/lavagestor/nova-lavagem?error=${messageParam(error.message)}`);
-      }
+      const { error } = await client.from("lava_clientes").update(updatePayload).eq("id", selectedClienteId).eq("empresa_id", empresaId);
+      if (error) redirect(`/lavagestor/nova-lavagem?error=${messageParam(error.message)}`);
     }
-
     return selectedClienteId;
   }
-
-  if (!nome || !telefone) {
-    redirect(`/lavagestor/nova-lavagem?error=${messageParam("Informe nome e WhatsApp do novo cliente.")}`);
-  }
-
-  const { data, error } = await client
-    .from("lava_clientes")
-    .insert({
-      empresa_id: empresaId,
-      nome,
-      telefone,
-      observacao
-    })
-    .select("id")
-    .single();
-
-  if (error || !data?.id) {
-    redirect(`/lavagestor/nova-lavagem?error=${messageParam(error?.message ?? "Não foi possível cadastrar o cliente.")}`);
-  }
-
+  if (!nome || !telefone) redirect(`/lavagestor/nova-lavagem?error=${messageParam("Informe nome e WhatsApp do novo cliente.")}`);
+  const { data, error } = await client.from("lava_clientes").insert({ empresa_id: empresaId, nome, telefone, observacao }).select("id").single();
+  if (error || !data?.id) redirect(`/lavagestor/nova-lavagem?error=${messageParam(error?.message ?? "Não foi possível cadastrar o cliente.")}`);
   return String(data.id);
 }
 
@@ -242,76 +163,19 @@ async function resolveVeiculo(client: any, empresaId: string | null, clienteId: 
   const modelo = nullableTextValue(formData, "veiculo_modelo") || defaultModeloByTipo(tipo);
   const cor = nullableTextValue(formData, "veiculo_cor");
   const observacao = nullableTextValue(formData, "veiculo_observacao");
-
   if (modo === "existente") {
-    if (!selectedVeiculoId) {
-      redirect(`/lavagestor/nova-lavagem?error=${messageParam("Selecione o veículo/item existente.")}`);
-    }
-
-    const updatePayload = {
-      cliente_id: clienteId,
-      tipo,
-      placa,
-      marca,
-      modelo,
-      cor,
-      observacao
-    };
-
-    const { error } = await client
-      .from("lava_veiculos")
-      .update(updatePayload)
-      .eq("id", selectedVeiculoId)
-      .eq("empresa_id", empresaId);
-
-    if (error) {
-      redirect(`/lavagestor/nova-lavagem?error=${messageParam(error.message)}`);
-    }
-
+    if (!selectedVeiculoId) redirect(`/lavagestor/nova-lavagem?error=${messageParam("Selecione o veículo/item existente.")}`);
+    const updatePayload = { cliente_id: clienteId, tipo, placa, marca, modelo, cor, observacao };
+    const { error } = await client.from("lava_veiculos").update(updatePayload).eq("id", selectedVeiculoId).eq("empresa_id", empresaId);
+    if (error) redirect(`/lavagestor/nova-lavagem?error=${messageParam(error.message)}`);
     return selectedVeiculoId;
   }
-
-  if (!tipo || (!placa && !marca && !modelo)) {
-    redirect(`/lavagestor/nova-lavagem?error=${messageParam("Informe os dados do novo veículo/item.")}`);
-  }
-
-  const { data, error } = await client
-    .from("lava_veiculos")
-    .insert({
-      empresa_id: empresaId,
-      cliente_id: clienteId,
-      tipo,
-      placa,
-      marca,
-      modelo,
-      cor,
-      observacao
-    })
-    .select("id")
-    .single();
-
-  if (error || !data?.id) {
-    redirect(`/lavagestor/nova-lavagem?error=${messageParam(error?.message ?? "Não foi possível cadastrar o veículo/item.")}`);
-  }
-
+  if (!tipo || (!placa && !marca && !modelo)) redirect(`/lavagestor/nova-lavagem?error=${messageParam("Informe os dados do novo veículo/item.")}`);
+  const { data, error } = await client.from("lava_veiculos").insert({ empresa_id: empresaId, cliente_id: clienteId, tipo, placa, marca, modelo, cor, observacao }).select("id").single();
+  if (error || !data?.id) redirect(`/lavagestor/nova-lavagem?error=${messageParam(error?.message ?? "Não foi possível cadastrar o veículo/item.")}`);
   return String(data.id);
 }
 
-function defaultModeloByTipo(tipo: string) {
-  const labels: Record<string, string> = {
-    sofa: "Sofá",
-    tapete: "Tapete",
-    maquina: "Máquina",
-    outro: "Item avulso"
-  };
-
-  return labels[tipo] ?? null;
-}
-
-function uniqueValues(values: string[]) {
-  return Array.from(new Set(values.filter(Boolean)));
-}
-
-function roundMoney(value: number) {
-  return Math.round(value * 100) / 100;
-}
+function defaultModeloByTipo(tipo: string) { const labels: Record<string, string> = { sofa: "Sofá", tapete: "Tapete", maquina: "Máquina", outro: "Item avulso" }; return labels[tipo] ?? null; }
+function uniqueValues(values: string[]) { return Array.from(new Set(values.filter(Boolean))); }
+function roundMoney(value: number) { return Math.round(value * 100) / 100; }
