@@ -13,6 +13,7 @@ type AnyRow = Record<string, unknown>;
 export default async function RelatoriosPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const relatorio = await getLavaRelatorio({ inicio: firstParam(params.inicio), fim: firstParam(params.fim) });
+  const lavagens = relatorio.lavagens as AnyRow[];
 
   return (
     <LavaGestorShell activePath="/lavagestor/relatorios" companyName={relatorio.companyName}>
@@ -65,7 +66,7 @@ export default async function RelatoriosPage({ searchParams }: { searchParams: P
 
           <section className="grid gap-3">
             <h3 className="text-xl font-black">Lavagens do período</h3>
-            {relatorio.lavagens.length === 0 ? <Empty text="Nenhuma lavagem no período." /> : relatorio.lavagens.map((row) => <Lavagem key={String(row.id)} row={row as AnyRow} />)}
+            {lavagens.length === 0 ? <Empty text="Nenhuma lavagem no período." /> : lavagens.map((row, index) => <Lavagem key={String(row.id ?? index)} row={row} />)}
           </section>
 
           <section className="grid gap-4 lg:grid-cols-2">
@@ -92,7 +93,7 @@ function Lavagem({ row }: { row: AnyRow }) {
 }
 
 function Simple({ title, rows, dateKey }: { title: string; rows: AnyRow[]; dateKey: string }) {
-  return <div className="rounded-lg border border-border p-3"><h3 className="mb-3 text-lg font-black">{title}</h3><div className="grid gap-2">{rows.length === 0 ? <Empty text="Sem dados." /> : rows.map((row) => <div className="grid grid-cols-[1fr_auto] gap-2 rounded-lg bg-muted p-2 text-sm" key={String(row.id)}><div><strong>{String(row.funcionario || "-")}</strong><p className="text-xs text-muted-foreground">{String(row.status || "-")} · {formatDate(row[dateKey])}</p></div><strong>{formatMoney(row.valor)}</strong></div>)}</div></div>;
+  return <div className="rounded-lg border border-border p-3"><h3 className="mb-3 text-lg font-black">{title}</h3><div className="grid gap-2">{rows.length === 0 ? <Empty text="Sem dados." /> : rows.map((row, index) => <div className="grid grid-cols-[1fr_auto] gap-2 rounded-lg bg-muted p-2 text-sm" key={String(row.id ?? index)}><div><strong>{String(row.funcionario || "-")}</strong><p className="text-xs text-muted-foreground">{String(row.status || "-")} · {formatDate(row[dateKey])}</p></div><strong>{formatMoney(row.valor)}</strong></div>)}</div></div>;
 }
 
 function Empty({ text }: { text: string }) {
