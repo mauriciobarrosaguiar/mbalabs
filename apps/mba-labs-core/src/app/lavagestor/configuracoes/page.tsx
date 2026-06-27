@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
+import { MessageTemplateEditor } from "@/components/lavagestor/MessageTemplateEditor";
 import { BackButton, MessageBanner, PageHeader } from "@/components/ui-kit";
 import { saveLavaConfiguracoesEmpresa } from "@/lib/actions/lavagestor-configuracoes-actions";
 import { firstParam } from "@/lib/form-utils";
@@ -72,10 +73,8 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
             <TextArea label="Tipos de entrega" name="tipos_entrega" defaultValue={config.tipos_entrega.join("\n")} helper="Um tipo por linha. Ex.: Cliente retira / Levar ao cliente." />
           </ConfigBlock>
 
-          <ConfigBlock badge="04" title="WhatsApp" description="Textos enviados ao cliente. Use as variáveis para puxar os dados automaticamente.">
-            <VariableHelp />
-            <TextArea compact label="Veículo pronto" name="mensagem_veiculo_pronto" defaultValue={config.mensagem_veiculo_pronto} />
-            <TextArea compact label="Recibo no WhatsApp" name="mensagem_recibo" defaultValue={config.mensagem_recibo} />
+          <ConfigBlock badge="04" title="WhatsApp" description="Textos enviados ao cliente. Toque numa mensagem e depois numa variável para inserir.">
+            <MessageTemplateEditor readyDefault={config.mensagem_veiculo_pronto} receiptDefault={config.mensagem_recibo} />
           </ConfigBlock>
 
           <ConfigBlock badge="05" title="Identidade visual" description="Cor e aparência do LavaGestor para esta empresa.">
@@ -128,9 +127,4 @@ function TextArea({ label, name, defaultValue, helper, compact = false }: { labe
 
 function Toggle({ label, description, name, defaultChecked }: { label: string; description: string; name: string; defaultChecked: boolean }) {
   return <label className="grid grid-cols-[1fr_auto] items-center gap-3 rounded-xl border border-border bg-muted/40 p-4"><span><span className="block font-black">{label}</span><span className="mt-1 block text-xs font-semibold leading-5 text-muted-foreground">{description}</span></span><input className="h-6 w-6" name={name} type="checkbox" defaultChecked={defaultChecked} /></label>;
-}
-
-function VariableHelp() {
-  const variables = ["{cliente}", "{veiculo}", "{total}", "{recibo}", "{entrega}"];
-  return <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 md:col-span-2"><p className="text-sm font-black text-emerald-950">Variáveis disponíveis</p><div className="mt-2 flex flex-wrap gap-2">{variables.map((item) => <code className="rounded-full bg-white px-3 py-1 text-xs font-black text-emerald-800 shadow-sm" key={item}>{item}</code>)}</div></div>;
 }
