@@ -354,18 +354,49 @@ export async function listLavaComissoes(filters: { funcionario?: string; status?
 export async function listLavaVales(search = "") {
   const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
-  const { data, error } = await (supabase as any)
+  const client = supabase as any;
+  const { data, error } = await client
     .from("lava_vales")
-    .select("id,funcionario_id,valor,descricao,data_vale,status,created_at,lava_funcionarios(nome)")
+    .select("id,funcionario_id,valor,valor_descontado,descricao,data_vale,status,created_at,lava_funcionarios(nome)")
     .eq("empresa_id", current.empresaId)
     .order("data_vale", { ascending: false })
     .limit(200);
 
+  const valeIds = ((data ?? []) as Array<Record<string, unknown>>).map((row) => String(row.id));
+  const movimentosResult = valeIds.length
+    ? await client
+        .from("lava_vale_movimentos")
+        .select("id,vale_id,valor_descontado,saldo_antes,saldo_depois,tipo,observacao,created_at")
+        .eq("empresa_id", current.empresaId)
+        .in("vale_id", valeIds)
+        .order("created_at", { ascending: false })
+    : { data: [], error: null };
+  const movimentos = ((movimentosResult.data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+    ...row,
+    valor_descontado: moneyNumber(row.valor_descontado),
+    saldo_antes: moneyNumber(row.saldo_antes),
+    saldo_depois: moneyNumber(row.saldo_depois)
+  }));
+
   const rows = ((data ?? []) as Array<Record<string, unknown>>)
-    .map<Record<string, unknown>>((row) => ({ ...row, funcionario: relationName(row.lava_funcionarios) }))
+    .map<Record<string, unknown>>((row) => {
+      const valor = moneyNumber(row.valor);
+      const descontado = moneyNumber(row.valor_descontado);
+      const saldo = Math.max(valor - descontado, 0);
+      const valeMovimentos = movimentos.filter((movimento) => String(movimento.vale_id) === String(row.id));
+      return {
+        ...row,
+        funcionario: relationName(row.lava_funcionarios),
+        valor,
+        valor_original: valor,
+        valor_descontado: descontado,
+        saldo_restante: saldo,
+        movimentos: valeMovimentos
+      };
+    })
     .filter((row) => includesSearch(row, ["funcionario", "descricao", "status"], search));
 
-  return { rows, error: error?.message ?? null };
+  return { rows, error: error?.message ?? movimentosResult.error?.message ?? null };
 }
 
 async function countByEmpresa(
@@ -442,4 +473,9 @@ function vehicleLabel(value: unknown) {
   const veiculo = relation as { placa?: unknown; marca?: unknown; modelo?: unknown; cor?: unknown };
   const model = [veiculo.marca, veiculo.modelo].filter(Boolean).join(" ");
   return [veiculo.placa, model, veiculo.cor].filter(Boolean).join(" - ") || "-";
+}
+
+function moneyNumber(value: unknown) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? number : 0;
 }
