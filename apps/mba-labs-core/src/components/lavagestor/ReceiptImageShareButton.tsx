@@ -28,24 +28,34 @@ export type ReceiptImageData = {
 export function ReceiptImageShareButton({ receipt }: { receipt: ReceiptImageData }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [conversationUrl, setConversationUrl] = useState<string | null>(null);
 
   async function handleClick() {
     setLoading(true);
     setMessage(null);
+    setConversationUrl(null);
 
     try {
       const file = await makeReceiptImage(receipt);
-      const text = `Olá, ${receipt.cliente}!\nSegue o recibo da lavagem ${receipt.numero}.\nVeículo/item: ${receipt.veiculo}.\nTotal pago: ${receipt.totalFinal}.`;
-      const nav = navigator as Navigator & { canShare?: (data: { files?: File[] }) => boolean };
+      const text = receiptMessage(receipt);
+      const url = buildWhatsappUrl(receipt.whatsapp, text);
 
+      downloadFile(file);
+
+      if (url) {
+        setConversationUrl(url);
+        setMessage("Imagem do recibo gerada. Abra a conversa do cliente e anexe a imagem baixada.");
+        return;
+      }
+
+      const nav = navigator as Navigator & { canShare?: (data: { files?: File[] }) => boolean };
       if (nav.share && nav.canShare?.({ files: [file] })) {
         await nav.share({ title: `Recibo ${receipt.numero}`, text, files: [file] } as ShareData);
         setMessage("Imagem pronta para enviar no WhatsApp.");
         return;
       }
 
-      downloadFile(file);
-      setMessage("Seu navegador não permitiu anexar direto. Baixei o recibo em imagem para você enviar pelo WhatsApp.");
+      setMessage("Imagem do recibo baixada. O cliente não possui WhatsApp válido cadastrado.");
     } catch (error) {
       console.error(error);
       setMessage("Não foi possível gerar a imagem do recibo.");
@@ -59,6 +69,7 @@ export function ReceiptImageShareButton({ receipt }: { receipt: ReceiptImageData
       <button className="button-primary" disabled={loading} onClick={handleClick} type="button">
         {loading ? "Gerando imagem..." : "Enviar recibo via WhatsApp"}
       </button>
+      {conversationUrl ? <a className="button-secondary text-center" href={conversationUrl} target="_blank" rel="noreferrer">Abrir conversa do cliente</a> : null}
       {message ? <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-black text-emerald-950">{message}</p> : null}
     </div>
   );
@@ -239,6 +250,29 @@ function line(ctx: CanvasRenderingContext2D, x1: number, y: number, x2: number, 
   ctx.moveTo(x1, y);
   ctx.lineTo(x2, y);
   ctx.stroke();
+}
+
+function receiptMessage(receipt: ReceiptImageData) {
+  return [
+    `Olá, ${receipt.cliente}!`,
+    `Segue o recibo da lavagem ${receipt.numero}.`,
+    `Veículo/item: ${receipt.veiculo}.`,
+    `Total pago: ${receipt.totalFinal}.`,
+    "A imagem do recibo já foi gerada."
+  ].join("\n");
+}
+
+function buildWhatsappUrl(whatsapp: string, message: string) {
+  const phone = normalizeWhatsapp(whatsapp);
+  if (!phone) return null;
+  return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+}
+
+function normalizeWhatsapp(value: string) {
+  const digits = String(value || "").replace(/\D/g, "");
+  if (digits.length === 10 || digits.length === 11) return `55${digits}`;
+  if (digits.length >= 12) return digits;
+  return "";
 }
 
 function downloadFile(file: File) {
