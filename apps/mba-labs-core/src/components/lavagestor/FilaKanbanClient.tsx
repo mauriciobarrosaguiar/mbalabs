@@ -202,6 +202,8 @@ function FilaCard({
   const phone = phoneFromRow(row);
   const isPaid = row.status_pagamento === "pago";
   const pendingPayment = moneyNumber(row.valor_pendente) > 0 || row.status_pagamento !== "pago";
+  const isRetirada = status === "cliente_avisado" || status === "pago";
+  const pendingAmount = paymentDisplayAmount(row);
 
   return (
     <details className={`group min-w-0 max-w-full overflow-hidden rounded-2xl border border-border bg-[#fbfdfc] shadow-sm transition hover:shadow-md ${disabled ? "opacity-60" : ""} ${dragging ? "scale-[0.98] ring-4 ring-emerald-300" : ""}`}>
@@ -221,6 +223,16 @@ function FilaCard({
           <MiniInfo label="Lavador" value={String(row.funcionario || "-")} />
           <MiniInfo label="Entrega" value={String(row.entrega_label || "Cliente retira")} />
         </div>
+
+        {isRetirada && pendingPayment ? (
+          <Link
+            className="grid rounded-xl border border-amber-300 bg-amber-50 px-3 py-3 text-center text-xs font-black uppercase tracking-[0.08em] text-amber-950 shadow-sm active:scale-[0.98]"
+            href={`/lavagestor/pagamentos?lavagem=${id}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            Receber pagamento • {formatMoney(pendingAmount)}
+          </Link>
+        ) : null}
 
         <div className="grid gap-2 text-xs font-black uppercase tracking-[0.1em] text-primary">
           <div className="flex items-center justify-between gap-2">
@@ -301,6 +313,7 @@ function entregaInfo(row: FilaRow) { const entregaTipo = String(row.entrega_tipo
 function phoneFromRow(row: FilaRow) { return String(row.whatsapp ?? "").replace(/\D/g, ""); }
 function applyTemplate(template: string, variables: Record<string, string>) { return Object.entries(variables).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, value), template); }
 function paymentInputValue(row: FilaRow) { const pending = moneyNumber(row.valor_pendente); const finalValue = moneyNumber(row.valor_final ?? row.valor); const received = moneyNumber(row.valor_recebido); const value = pending > 0 ? pending : Math.max(finalValue - received, 0); return value > 0 ? value.toFixed(2) : ""; }
+function paymentDisplayAmount(row: FilaRow) { const pending = moneyNumber(row.valor_pendente); const finalValue = moneyNumber(row.valor_final ?? row.valor); const received = moneyNumber(row.valor_recebido); return pending > 0 ? pending : Math.max(finalValue - received, 0); }
 function moneyNumber(value: unknown) { const number = Number(value ?? 0); return Number.isFinite(number) ? number : 0; }
 function timeValue(value: unknown) { const time = new Date(String(value ?? "")).getTime(); return Number.isFinite(time) ? time : 0; }
 function sortByPriority(rows: FilaRow[], statuses: string[]) { return [...rows].sort((a, b) => priorityScore(a, statuses) - priorityScore(b, statuses) || timeValue(a.data_entrada ?? a.data_lavagem ?? a.created_at) - timeValue(b.data_entrada ?? b.data_lavagem ?? b.created_at)); }
