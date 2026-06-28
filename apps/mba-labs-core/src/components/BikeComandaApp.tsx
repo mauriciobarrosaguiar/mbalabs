@@ -96,7 +96,7 @@ export function BikeComandaApp({ activeSlug = "dashboard" }: BikeComandaAppProps
       }}
     >
       <iframe
-        src={`/bikecomanda-static/index.html?view=${encodeURIComponent(initialView)}&v=20260628-lava-menu-style`}
+        src={`/bikecomanda-static/index.html?view=${encodeURIComponent(initialView)}&v=20260628-rotas-organizadas-menu-lavagestor`}
         title="BikeComanda"
         style={{
           display: "block",
