@@ -17,6 +17,8 @@
       .bike-menu-backdrop { display: none; }
 
       @media (max-width: 900px) {
+        body.${OPEN_CLASS} { overflow: hidden !important; }
+
         .sidebar {
           position: sticky !important;
           top: 0 !important;
@@ -103,7 +105,8 @@
         }
 
         .bike-mobile-menu-panel {
-          display: block !important;
+          display: flex !important;
+          flex-direction: column !important;
           position: fixed !important;
           top: 0 !important;
           right: 0 !important;
@@ -111,8 +114,8 @@
           z-index: 140 !important;
           width: min(86vw, 360px) !important;
           height: 100dvh !important;
-          max-height: none !important;
-          padding: 16px !important;
+          max-height: 100dvh !important;
+          padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
           border: 0 !important;
           border-left: 1px solid rgba(15, 138, 95, 0.14) !important;
           border-radius: 0 !important;
@@ -121,11 +124,17 @@
           transform: translateX(104%);
           transition: transform .22s ease;
           overflow-y: auto !important;
+          overscroll-behavior: contain !important;
+          -webkit-overflow-scrolling: touch !important;
+          touch-action: pan-y !important;
         }
 
         body.${OPEN_CLASS} .bike-mobile-menu-panel { transform: translateX(0) !important; }
 
         .bike-menu-head {
+          position: sticky;
+          top: 0;
+          z-index: 2;
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -133,6 +142,7 @@
           padding-bottom: 14px;
           margin-bottom: 14px;
           border-bottom: 1px solid var(--line);
+          background: #ffffff;
         }
 
         .bike-menu-head strong { display: block; font-size: 22px; }
@@ -268,6 +278,16 @@
     syncToggle();
   }
 
+  function navigateFromMenu(button) {
+    const view = button?.dataset?.view;
+    if (!view || typeof ui === "undefined") return false;
+    ui.view = view;
+    closeMenu();
+    if (typeof render === "function") render();
+    setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: "instant" }), 0);
+    return true;
+  }
+
   function patchRender() {
     if (window.__bikeComandaMenuPatched || typeof render !== "function") return;
     const originalRender = render;
@@ -287,8 +307,17 @@
   document.addEventListener("click", function (event) {
     const target = event.target;
     if (!(target instanceof Element)) return;
+
+    const menuNavButton = target.closest('.bike-mobile-menu-panel [data-action="nav"]');
+    if (menuNavButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      navigateFromMenu(menuNavButton);
+      return;
+    }
+
     if (target.closest(".bike-mobile-menu-panel [data-action]")) closeMenu();
-  });
+  }, true);
 
   document.addEventListener("keydown", function (event) {
     if (event.key === "Escape") closeMenu();
