@@ -4,14 +4,34 @@
   function usePortalAccess() {
     try {
       if (typeof db === "undefined" || typeof ui === "undefined") return;
-      if (!db.session || !db.session.userId) {
-        db.session = { userId: "u_admin", source: "mba-labs" };
-        ui.view = "dashboard";
+      const portalUser = window.BikeComandaPortalUser;
+      if (!portalUser?.id) return;
+
+      if (!Array.isArray(db.usuarios)) db.usuarios = [];
+      const existing = db.usuarios.find((user) => user.id === portalUser.id);
+      const userPayload = {
+        id: portalUser.id,
+        nome: portalUser.nome || "Usuário MBA Labs",
+        email: portalUser.email || "",
+        senha_hash: "",
+        perfil: portalUser.perfil || "Admin",
+        ativo: true,
+        source: "mba-labs",
+        empresa_id: portalUser.empresa_id || null,
+        created_at: portalUser.created_at || new Date().toISOString(),
+      };
+
+      if (existing) Object.assign(existing, userPayload);
+      else db.usuarios = [userPayload];
+
+      if (!db.session || db.session.userId !== portalUser.id) {
+        db.session = { userId: portalUser.id, source: "mba-labs" };
+        ui.view = ui.view === "login" ? "dashboard" : ui.view;
         if (typeof save === "function") save();
         if (typeof render === "function") render();
       }
     } catch {
-      // Mantém o BikeComanda funcionando mesmo se o armazenamento local falhar.
+      // Mantém o BikeComanda funcionando mesmo se o contexto do portal ainda não carregou.
     }
   }
 
@@ -259,7 +279,7 @@
         }
       }
 
-      @media (max-width: 520px) {
+      @media (max-width: 430px) {
         .sidebar {
           padding-left: 12px !important;
           padding-right: 12px !important;
