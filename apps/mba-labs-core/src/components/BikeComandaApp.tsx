@@ -96,7 +96,7 @@ export function BikeComandaApp({ activeSlug = "dashboard" }: BikeComandaAppProps
       }}
     >
       <iframe
-        src={`/bikecomanda-static/index.html?view=${encodeURIComponent(initialView)}&v=20260628-mobile-dashboard-2x2`}
+        src={`/bikecomanda-static/index.html?view=${encodeURIComponent(initialView)}&v=20260628-menu-mobile`}
         title="BikeComanda"
         style={{
           display: "block",
