@@ -97,16 +97,33 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
 
   const tipoNormalizado = normalizeTipo(tipo);
   const veiculosDoCliente = useMemo(() => veiculos.filter((veiculo) => veiculo.cliente_id === clienteId), [clienteId, veiculos]);
+  const clientesParecidos = useMemo(() => {
+    if (clienteModo !== "novo") return [];
+    const busca = normalizeSearch(clienteNome);
+    const buscaTelefone = onlyDigits(clienteNome);
+    if (busca.length < 2 && buscaTelefone.length < 4) return [];
+
+    return clientes
+      .filter((cliente) => {
+        const nome = normalizeSearch(cliente.nome);
+        const telefone = onlyDigits(cliente.telefone);
+        return (busca.length >= 2 && nome.includes(busca)) || (buscaTelefone.length >= 4 && telefone.includes(buscaTelefone));
+      })
+      .slice(0, 6);
+  }, [clienteModo, clienteNome, clientes]);
+
   const servicosPrincipais = useMemo(() => {
     const principais = servicos.filter(isPrincipal);
     const porTipo = principais.filter((servico) => serviceMatchesType(servico, tipoNormalizado));
     return porTipo.length > 0 ? porTipo : principais;
   }, [servicos, tipoNormalizado]);
+
   const servicosAdicionaisDisponiveis = useMemo(() => {
     const adicionaisAtivos = servicos.filter((servico) => isAdicional(servico) && servico.id !== servicoId);
     const porTipo = adicionaisAtivos.filter((servico) => serviceMatchesType(servico, tipoNormalizado));
     return porTipo.length > 0 ? porTipo : adicionaisAtivos;
   }, [servicos, tipoNormalizado, servicoId]);
+
   const servicoPrincipal = servicos.find((servico) => servico.id === servicoId);
   const servicosAdicionais = servicos.filter((servico) => adicionais.includes(servico.id));
   const totalBruto = roundMoney(Number(servicoPrincipal?.preco ?? 0) + servicosAdicionais.reduce((total, item) => total + Number(item.preco ?? 0), 0));
@@ -140,6 +157,23 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
     setClienteWhatsapp(cliente?.telefone ?? "");
     setClienteObservacao(cliente?.observacao ?? "");
     clearVeiculo();
+  }
+
+  function usarClienteExistente(cliente: Cliente) {
+    setClienteModo("existente");
+    setClienteId(cliente.id);
+    setClienteNome(cliente.nome);
+    setClienteWhatsapp(cliente.telefone ?? "");
+    setClienteObservacao(cliente.observacao ?? "");
+    setVeiculoModo("existente");
+    clearVeiculo();
+  }
+
+  function handleClienteNome(value: string) {
+    setClienteNome(value);
+    if (clienteModo === "novo") {
+      setClienteId("");
+    }
   }
 
   function handleVeiculoModo(value: "existente" | "novo") {
@@ -233,7 +267,22 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
           </label>
         ) : null}
 
-        <Field label={clienteModo === "existente" ? "Nome do cliente" : "Novo cliente"} name="cliente_nome" value={clienteNome} onChange={setClienteNome} placeholder="Nome do cliente" required={clienteModo === "novo"} />
+        <Field
+          label={clienteModo === "existente" ? "Nome do cliente" : "Novo cliente"}
+          name="cliente_nome"
+          value={clienteNome}
+          onChange={handleClienteNome}
+          placeholder="Nome do cliente"
+          required={clienteModo === "novo"}
+          list={clienteModo === "novo" ? "clientes-cadastrados" : undefined}
+        />
+        {clienteModo === "novo" ? (
+          <datalist id="clientes-cadastrados">
+            {clientes.map((cliente) => <option key={cliente.id} value={cliente.nome}>{cliente.telefone ?? "Cliente já cadastrado"}</option>)}
+          </datalist>
+        ) : null}
+        {clienteModo === "novo" ? <ClientesParecidos clientes={clientesParecidos} onUse={usarClienteExistente} /> : null}
+
         <Field label="WhatsApp" name="cliente_whatsapp" value={clienteWhatsapp} onChange={setClienteWhatsapp} placeholder="5599999999999" required={clienteModo === "novo"} />
         <Textarea label="Observação do cliente" name="cliente_observacao" value={clienteObservacao} onChange={setClienteObservacao} />
       </Step>
@@ -322,9 +371,7 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
           <span className="text-sm font-bold">Serviço cadastrado</span>
           <select className="input" name="servico_id" value={servicoId} onChange={(event) => handleServicoPrincipal(event.target.value)} required>
             <option value="">Selecione</option>
-            {servicosPrincipais.map((servico) => (
-              <option key={servico.id} value={servico.id}>{servico.nome} - {formatMoney(servico.preco)}</option>
-            ))}
+            {servicosPrincipais.map((servico) => <option key={servico.id} value={servico.id}>{servico.nome} - {formatMoney(servico.preco)}</option>)}
           </select>
           {servicosPrincipais.length === 0 ? <span className="text-xs font-semibold text-red-700">Nenhum serviço principal ativo encontrado. Confira o cadastro de serviços.</span> : null}
         </label>
@@ -385,15 +432,42 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
 
       <div className="panel grid gap-3 p-5">
         <h2 className="text-xl font-black">6. Confirmar entrada</h2>
-        <p className="text-sm leading-6 text-muted-foreground">
-          Ao confirmar, a lavagem entra com status <strong>Na fila</strong> e pagamento <strong>Aberto</strong>.
-        </p>
+        <p className="text-sm leading-6 text-muted-foreground">Ao confirmar, a lavagem entra com status <strong>Na fila</strong> e pagamento <strong>Aberto</strong>.</p>
         <div className="flex flex-wrap gap-2">
           <SubmitButton>Confirmar entrada</SubmitButton>
           <BackButton href="/lavagestor/fila" label="Ver fila" />
         </div>
       </div>
     </form>
+  );
+}
+
+function ClientesParecidos({ clientes, onUse }: { clientes: Cliente[]; onUse: (cliente: Cliente) => void }) {
+  if (clientes.length === 0) return null;
+
+  return (
+    <div className="grid gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 md:col-span-2">
+      <div>
+        <p className="text-sm font-black text-amber-950">Possível cliente já cadastrado</p>
+        <p className="mt-1 text-xs font-semibold leading-5 text-amber-900">Toque no nome abaixo para usar o cadastro existente e evitar duplicidade.</p>
+      </div>
+      <div className="grid gap-2">
+        {clientes.map((cliente) => (
+          <button
+            key={cliente.id}
+            type="button"
+            className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-white p-3 text-left shadow-sm"
+            onClick={() => onUse(cliente)}
+          >
+            <span className="min-w-0">
+              <strong className="block truncate text-sm font-black text-slate-950">{cliente.nome}</strong>
+              <span className="block truncate text-xs font-bold text-slate-500">{cliente.telefone || "Sem WhatsApp"}</span>
+            </span>
+            <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-900">Usar</span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -448,7 +522,8 @@ function Field({
   value,
   onChange,
   placeholder,
-  required = false
+  required = false,
+  list
 }: {
   label: string;
   name: string;
@@ -456,11 +531,12 @@ function Field({
   onChange?: (value: string) => void;
   placeholder?: string;
   required?: boolean;
+  list?: string;
 }) {
   return (
     <label className="grid gap-2">
       <span className="text-sm font-bold">{label}</span>
-      <input className="input" name={name} value={value ?? ""} onChange={(event) => onChange?.(event.target.value)} placeholder={placeholder} required={required} />
+      <input className="input" name={name} value={value ?? ""} onChange={(event) => onChange?.(event.target.value)} placeholder={placeholder} required={required} list={list} />
     </label>
   );
 }
@@ -542,6 +618,21 @@ function normalizeKey(value: unknown) {
     .replace(/ç/g, "c")
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
+}
+
+function normalizeSearch(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/ç/g, "c")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function onlyDigits(value: unknown) {
+  return String(value ?? "").replace(/\D/g, "");
 }
 
 function isCarLikeTipo(value: unknown) {
