@@ -73,6 +73,8 @@ const tipos = [
   { label: "Outro", value: "outro" }
 ];
 
+const carLikeTypes = ["carro", "moto", "caminhonete", "caminhao"];
+
 export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok, error }: Props) {
   const [clienteModo, setClienteModo] = useState<"existente" | "novo">("existente");
   const [clienteId, setClienteId] = useState("");
@@ -93,15 +95,18 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
   const [lavadores, setLavadores] = useState<string[]>([]);
   const [desconto, setDesconto] = useState("0");
 
+  const tipoNormalizado = normalizeTipo(tipo);
   const veiculosDoCliente = useMemo(() => veiculos.filter((veiculo) => veiculo.cliente_id === clienteId), [clienteId, veiculos]);
-  const servicosPrincipais = useMemo(
-    () => servicos.filter((servico) => isPrincipal(servico) && serviceMatchesType(servico, tipo)),
-    [servicos, tipo]
-  );
-  const servicosAdicionaisDisponiveis = useMemo(
-    () => servicos.filter((servico) => isAdicional(servico) && serviceMatchesType(servico, tipo) && servico.id !== servicoId),
-    [servicos, tipo, servicoId]
-  );
+  const servicosPrincipais = useMemo(() => {
+    const principais = servicos.filter(isPrincipal);
+    const porTipo = principais.filter((servico) => serviceMatchesType(servico, tipoNormalizado));
+    return porTipo.length > 0 ? porTipo : principais;
+  }, [servicos, tipoNormalizado]);
+  const servicosAdicionaisDisponiveis = useMemo(() => {
+    const adicionaisAtivos = servicos.filter((servico) => isAdicional(servico) && servico.id !== servicoId);
+    const porTipo = adicionaisAtivos.filter((servico) => serviceMatchesType(servico, tipoNormalizado));
+    return porTipo.length > 0 ? porTipo : adicionaisAtivos;
+  }, [servicos, tipoNormalizado, servicoId]);
   const servicoPrincipal = servicos.find((servico) => servico.id === servicoId);
   const servicosAdicionais = servicos.filter((servico) => adicionais.includes(servico.id));
   const totalBruto = roundMoney(Number(servicoPrincipal?.preco ?? 0) + servicosAdicionais.reduce((total, item) => total + Number(item.preco ?? 0), 0));
@@ -115,7 +120,7 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
     return total + (Number(item.preco ?? 0) * percent) / 100;
   }, 0));
   const comissaoPorLavador = lavadores.length > 0 ? roundMoney(comissaoTotal / lavadores.length) : 0;
-  const isCarLike = ["carro", "moto", "caminhonete", "caminhao"].includes(tipo);
+  const isCarLike = isCarLikeTipo(tipoNormalizado);
   const modelos = marca ? modelosPorMarca[marca] ?? [] : [];
 
   function handleClienteModo(value: "existente" | "novo") {
@@ -145,7 +150,7 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
   function handleVeiculo(value: string) {
     setVeiculoId(value);
     const veiculo = veiculos.find((item) => item.id === value);
-    setTipo(veiculo?.tipo || "carro");
+    setTipo(normalizeTipo(veiculo?.tipo || "carro"));
     setPlaca(veiculo?.placa ?? "");
     setMarca(veiculo?.marca ?? "");
     setModelo(veiculo?.modelo ?? "");
@@ -156,10 +161,11 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
   }
 
   function handleTipo(value: string) {
-    setTipo(value);
+    const normalized = normalizeTipo(value);
+    setTipo(normalized);
     setServicoId("");
     setAdicionais([]);
-    if (!["carro", "moto", "caminhonete", "caminhao"].includes(value)) {
+    if (!isCarLikeTipo(normalized)) {
       setPlaca("");
       setMarca("");
       setModelo("");
@@ -175,7 +181,7 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
   function handleServicoPrincipal(value: string) {
     setServicoId(value);
     const servico = servicos.find((item) => item.id === value);
-    const aplicacao = String(servico?.aplicacao ?? "");
+    const aplicacao = normalizeTipo(servico?.aplicacao ?? "");
     if (aplicacao && aplicacao !== "todos") {
       setTipo(aplicacao);
     }
@@ -257,7 +263,7 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
 
         <label className="grid gap-2">
           <span className="text-sm font-bold">Tipo</span>
-          <select className="input" name="veiculo_tipo" value={tipo} onChange={(event) => handleTipo(event.target.value)}>
+          <select className="input" name="veiculo_tipo" value={tipoNormalizado} onChange={(event) => handleTipo(event.target.value)}>
             {tipos.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
           </select>
         </label>
@@ -285,7 +291,7 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
           <>
             <input type="hidden" name="veiculo_placa" value="" />
             <input type="hidden" name="veiculo_marca" value="" />
-            <Field label="Descrição do item" name="veiculo_modelo" value={modelo} onChange={setModelo} placeholder={tipo === "sofa" ? "Ex.: Sofá 3 lugares" : "Ex.: Tapete grande"} />
+            <Field label="Descrição do item" name="veiculo_modelo" value={modelo} onChange={setModelo} placeholder={tipoNormalizado === "sofa" ? "Ex.: Sofá 3 lugares" : "Ex.: Tapete grande"} />
             <input type="hidden" name="veiculo_cor" value="" />
           </>
         )}
@@ -320,6 +326,7 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
               <option key={servico.id} value={servico.id}>{servico.nome} - {formatMoney(servico.preco)}</option>
             ))}
           </select>
+          {servicosPrincipais.length === 0 ? <span className="text-xs font-semibold text-red-700">Nenhum serviço principal ativo encontrado. Confira o cadastro de serviços.</span> : null}
         </label>
         <ReadOnlyMoney label="Valor do serviço" value={Number(servicoPrincipal?.preco ?? 0)} />
 
@@ -378,7 +385,7 @@ export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok
 
       <div className="panel grid gap-3 p-5">
         <h2 className="text-xl font-black">6. Confirmar entrada</h2>
-        <p className="text-sm leading-6 text-slate-300">
+        <p className="text-sm leading-6 text-muted-foreground">
           Ao confirmar, a lavagem entra com status <strong>Na fila</strong> e pagamento <strong>Aberto</strong>.
         </p>
         <div className="flex flex-wrap gap-2">
@@ -395,7 +402,7 @@ function Step({ title, description, children }: { title: string; description: st
     <section className="panel grid gap-4 p-5">
       <div>
         <h2 className="text-xl font-black">{title}</h2>
-        <p className="mt-1 text-sm leading-6 text-slate-300">{description}</p>
+        <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2">{children}</div>
     </section>
@@ -491,16 +498,54 @@ function vehicleLabel(veiculo: Veiculo) {
 }
 
 function isPrincipal(servico: Servico) {
-  return !isAdicional(servico) && String(servico.categoria ?? "principal") !== "adicional";
+  return !isAdicional(servico) && normalizeKey(servico.categoria ?? "principal") !== "adicional";
 }
 
 function isAdicional(servico: Servico) {
-  return Boolean(servico.adicional) || String(servico.categoria ?? "") === "adicional" || String(servico.tipo ?? "") === "adicional";
+  const categoria = normalizeKey(servico.categoria);
+  const tipo = normalizeKey(servico.tipo);
+  return Boolean(servico.adicional) || categoria === "adicional" || tipo === "adicional" || categoria === "servico_adicional";
 }
 
 function serviceMatchesType(servico: Servico, tipo: string) {
-  const aplicacao = String(servico.aplicacao ?? "todos");
-  return aplicacao === "todos" || aplicacao === tipo;
+  const aplicacao = normalizeTipo(servico.aplicacao ?? "todos");
+  const tipoAtual = normalizeTipo(tipo);
+  if (!aplicacao || aplicacao === "todos" || aplicacao === "all") return true;
+  if (!tipoAtual) return true;
+  return aplicacao === tipoAtual;
+}
+
+function normalizeTipo(value: unknown) {
+  const key = normalizeKey(value);
+  const aliases: Record<string, string> = {
+    carro_pequeno: "carro",
+    carro_grande: "carro",
+    automovel: "carro",
+    veículo: "carro",
+    veiculo: "carro",
+    veiculo_item: "carro",
+    sofa: "sofa",
+    sofá: "sofa",
+    caminhao: "caminhao",
+    caminhão: "caminhao",
+    todos: "todos"
+  };
+  return aliases[key] ?? key;
+}
+
+function normalizeKey(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/ç/g, "c")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function isCarLikeTipo(value: unknown) {
+  return carLikeTypes.includes(normalizeTipo(value));
 }
 
 function formatMoney(value: unknown) {
