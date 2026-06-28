@@ -109,22 +109,22 @@ export function FilaKanbanClient({ rows, config }: { rows: FilaRow[]; config: La
   }
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-4 sm:gap-5">
       {notice ? (
         <p className={`rounded-[8px] border p-3 text-sm font-black leading-6 shadow-sm ${notice.type === "error" ? "border-red-500 bg-red-50 text-red-950" : "border-emerald-500 bg-emerald-50 text-emerald-950"}`}>
           {notice.text}
         </p>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-4 gap-2 sm:gap-3">
         {groups.map((group) => {
           const count = items.filter((row) => group.statuses.includes(String(row.status))).length;
           return <MiniCounter key={group.title} label={group.title} value={count} />;
         })}
       </div>
 
-      <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-black text-emerald-950">
-        No celular: segure o botão <strong>SEGURAR E ARRASTAR</strong>, leve até a coluna desejada e solte. Também existe a opção <strong>Mover para</strong> dentro do card.
+      <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-[11px] font-black leading-5 text-emerald-950 sm:p-3 sm:text-xs">
+        No celular: segure <strong>SEGURAR E ARRASTAR</strong> e solte na coluna desejada. Também existe <strong>Mover para</strong> dentro do card.
       </p>
 
       <div className="-mx-3 overflow-x-auto px-3 pb-3 xl:mx-0 xl:overflow-visible xl:px-0">
@@ -297,7 +297,8 @@ function MoveSelect({ currentStatus, disabled, id, onMove }: { currentStatus: st
 }
 
 function MiniCounter({ label, value }: { label: string; value: number }) {
-  return <div className="rounded-2xl border border-border bg-white p-3 shadow-sm"><p className="text-xs font-black uppercase tracking-[0.1em] text-muted-foreground">{label}</p><strong className="mt-1 block text-2xl font-black">{value}</strong></div>;
+  const shortLabel: Record<string, string> = { "Na fila": "Fila", "Em lavagem": "Lavando", Finalizadas: "Final.", Retirada: "Retirada" };
+  return <div className="min-w-0 rounded-xl border border-border bg-white px-2 py-2 text-center shadow-sm"><p className="truncate text-[10px] font-black uppercase tracking-[0.06em] text-muted-foreground sm:text-xs">{shortLabel[label] ?? label}</p><strong className="mt-0.5 block text-xl font-black leading-none sm:text-2xl">{value}</strong></div>;
 }
 
 function MiniInfo({ label, value, strong = false, warning = false }: { label: string; value: string; strong?: boolean; warning?: boolean }) {
