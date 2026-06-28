@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, MessageBanner, PageHeader, formatDateTime, formatMoney } from "@/components/ui-kit";
 import { PrintButton } from "@/components/lavagestor/PrintButton";
+import { ReceiptImageShareButton, type ReceiptImageData } from "@/components/lavagestor/ReceiptImageShareButton";
 import { updateLavagemStatus } from "@/lib/actions/lavagestor-actions";
 import { getLavaRecibo } from "@/lib/lavagestor-recibo-data";
 
@@ -18,7 +19,7 @@ export default async function ReciboLavagemPage({ params }: { params: Promise<{ 
   }
 
   if (recibo.status_pagamento !== "pago") {
-    return <LavaGestorShell activePath="/lavagestor/fila" companyName={recibo.empresa.nome}><section className="grid gap-6"><PageHeader eyebrow="LavaGestor" title="Recibo bloqueado" description="O recibo só é liberado depois que o pagamento for registrado." actions={<BackButton href="/lavagestor/fila" />} /><div className="mx-auto grid w-full max-w-2xl gap-4 rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-950 shadow-sm"><h2 className="text-2xl font-black">Pagamento ainda não foi feito</h2><p className="text-sm font-semibold leading-6">Para evitar recibo de serviço não pago, registre o pagamento primeiro. Depois o sistema libera imprimir, salvar em PDF e enviar o texto do recibo pelo WhatsApp.</p><div className="flex flex-wrap gap-2"><Link className="button-primary" href={`/lavagestor/pagamentos?lavagem=${recibo.id}`}>Registrar pagamento</Link><BackButton href="/lavagestor/fila" /></div></div></section></LavaGestorShell>;
+    return <LavaGestorShell activePath="/lavagestor/fila" companyName={recibo.empresa.nome}><section className="grid gap-6"><PageHeader eyebrow="LavaGestor" title="Recibo bloqueado" description="O recibo só é liberado depois que o pagamento for registrado." actions={<BackButton href="/lavagestor/fila" />} /><div className="mx-auto grid w-full max-w-2xl gap-4 rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-950 shadow-sm"><h2 className="text-2xl font-black">Pagamento ainda não foi feito</h2><p className="text-sm font-semibold leading-6">Para evitar recibo de serviço não pago, registre o pagamento primeiro. Depois o sistema libera imprimir, salvar em PDF e enviar o recibo como imagem pelo WhatsApp.</p><div className="flex flex-wrap gap-2"><Link className="button-primary" href={`/lavagestor/pagamentos?lavagem=${recibo.id}`}>Registrar pagamento</Link><BackButton href="/lavagestor/fila" /></div></div></section></LavaGestorShell>;
   }
 
   return (
@@ -29,8 +30,8 @@ export default async function ReciboLavagemPage({ params }: { params: Promise<{ 
           <PageHeader
             eyebrow="LavaGestor"
             title={`Recibo ${recibo.numero}`}
-            description="Comprovante da lavagem para imprimir, salvar em PDF ou enviar o texto ao cliente."
-            actions={<><BackButton href="/lavagestor/fila" /><PrintButton />{recibo.whatsapp ? <a className="button-primary" href={whatsappReciboLink(recibo)} target="_blank" rel="noreferrer">Enviar recibo via WhatsApp</a> : null}</>}
+            description="Comprovante da lavagem para imprimir, salvar em PDF ou enviar como imagem ao cliente."
+            actions={<><BackButton href="/lavagestor/fila" /><PrintButton /><ReceiptImageShareButton receipt={receiptImageData(recibo)} /></>}
           />
         </div>
         <MessageBanner error={error ?? undefined} />
@@ -57,8 +58,7 @@ function Info({ label, value }: { label: string; value: string }) { return <div 
 function MoneyLine({ label, value, strong = false }: { label: string; value: number; strong?: boolean }) { return <div className="flex items-center justify-between gap-3"><span className="text-sm font-semibold text-slate-600">{label}</span><strong className={strong ? "text-lg" : "text-sm"}>{formatMoney(value)}</strong></div>; }
 function paymentLabel(recibo: Recibo) { return ["Pago", recibo.forma_pagamento].filter(Boolean).join(" · "); }
 function deliveryLabel(recibo: Recibo) { if (recibo.entrega_tipo === "levar") return recibo.endereco_entrega ? `Levar ao cliente: ${recibo.endereco_entrega}` : "Levar ao cliente"; return "Cliente retira"; }
-function whatsappReciboLink(recibo: Recibo) { const phone = String(recibo.whatsapp ?? "").replace(/\D/g, ""); const servicos = recibo.servicos.map((item) => `- ${item.descricao}: ${formatMoney(item.valor)}`).join("\n"); const variables: Record<string, string> = { cliente: recibo.cliente, veiculo: recibo.veiculo, total: formatMoney(recibo.valor_final), recibo: recibo.numero, entrega: deliveryLabel(recibo), servicos: servicos || "-", pagamento: paymentLabel(recibo), empresa: recibo.empresa.nome }; const fallback = `Olá, {cliente}!\n\nSegue o recibo da lavagem {recibo}.\nVeículo/item: {veiculo}\nServiços:\n{servicos}\n\nTotal pago: {total}\nPagamento: {pagamento}\nEntrega: {entrega}\n\nObrigado pela preferência!`; const texto = applyTemplate(recibo.empresa.mensagem_recibo || fallback, variables); return `https://wa.me/${phone}?text=${encodeURIComponent(texto)}`; }
-function applyTemplate(template: string, variables: Record<string, string>) { return Object.entries(variables).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, value), template); }
+function receiptImageData(recibo: Recibo): ReceiptImageData { return { numero: recibo.numero, empresaNome: recibo.empresa.nome, empresaRazao: recibo.empresa.razao_social ?? undefined, empresaInfo: [recibo.empresa.cnpj, recibo.empresa.telefone, recibo.empresa.cidade_uf, recibo.empresa.endereco].filter(Boolean).join(" · "), corPrincipal: recibo.empresa.cor_principal ?? undefined, cliente: recibo.cliente, whatsapp: recibo.whatsapp || "Não informado", veiculo: recibo.veiculo, lavador: recibo.funcionario, entrada: formatDateTime(recibo.data_entrada), finalizacao: formatDateTime(recibo.data_finalizacao), pagamento: paymentLabel(recibo), entrega: deliveryLabel(recibo), servicos: recibo.servicos.map((servico) => ({ descricao: servico.descricao, valor: formatMoney(servico.valor) })), totalBruto: formatMoney(recibo.valor_total), desconto: formatMoney(recibo.valor_desconto), totalFinal: formatMoney(recibo.valor_final), valorRecebido: formatMoney(recibo.valor_recebido), valorPendente: formatMoney(recibo.valor_pendente), pagamentos: recibo.pagamentos.map((pagamento) => `${formatMoney(pagamento.valor)} ${pagamento.forma_pagamento} · ${formatDateTime(pagamento.data_pagamento)}`) }; }
 
 const printCss = `
 @media print {
