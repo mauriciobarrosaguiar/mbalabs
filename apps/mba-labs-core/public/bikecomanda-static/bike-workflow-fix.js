@@ -2,6 +2,7 @@
   "use strict";
 
   const STYLE_ID = "bikecomanda-workflow-fix-style";
+  let pendingClientName = "";
 
   function injectStyle() {
     const old = document.getElementById(STYLE_ID);
@@ -18,7 +19,7 @@
         right: 0;
         top: calc(100% + 6px);
         z-index: 80;
-        max-height: 240px;
+        max-height: 260px;
         overflow-y: auto;
         border: 1px solid rgba(15, 138, 95, 0.16);
         border-radius: 16px;
@@ -26,7 +27,7 @@
         box-shadow: 0 18px 42px rgba(12, 30, 24, 0.14);
         padding: 6px;
       }
-      .client-suggestions.is-open { display: grid; gap: 6px; }
+      .client-suggestions.is-open { display: grid; gap: 8px; }
       .client-suggestion {
         width: 100%;
         border: 0;
@@ -39,6 +40,29 @@
       }
       .client-suggestion strong { display: block; font-size: 15px; }
       .client-suggestion span { display: block; margin-top: 2px; color: #64746e; font-size: 12px; }
+      .client-not-found {
+        display: grid;
+        gap: 10px;
+        padding: 12px;
+        border: 1px dashed rgba(15, 138, 95, 0.22);
+        border-radius: 14px;
+        background: #fbfefd;
+        text-align: center;
+      }
+      .client-not-found strong {
+        color: #173d31;
+        font-size: 15px;
+      }
+      .client-not-found span {
+        color: #65736e;
+        font-size: 13px;
+        line-height: 1.35;
+      }
+      .client-create-btn {
+        width: 100% !important;
+        min-height: 44px !important;
+        border-radius: 14px !important;
+      }
       .bike-inline-title {
         grid-column: 1 / -1;
         margin: 4px 0 -2px;
@@ -83,7 +107,7 @@
           font-size: 12px;
         }
         .table-wrap td .btn { width: 100% !important; margin: 4px 0 !important; }
-        .client-suggestions { position: static; margin-top: 8px; max-height: 220px; }
+        .client-suggestions { position: static; margin-top: 8px; max-height: none; overflow: visible; }
       }
     `;
     document.head.appendChild(style);
@@ -120,7 +144,8 @@
     const hidden = wrap?.querySelector('input[name="cliente_id"]');
     if (!box || !hidden) return;
 
-    const q = normalizeText(input.value);
+    const typedName = input.value.trim();
+    const q = normalizeText(typedName);
     hidden.value = "";
     if (!q) {
       box.classList.remove("is-open");
@@ -134,7 +159,13 @@
 
     if (!matches.length) {
       box.classList.add("is-open");
-      box.innerHTML = `<div class="empty" style="padding:10px">Cliente não encontrado. Cadastre o cliente antes de abrir a comanda.</div>`;
+      box.innerHTML = `
+        <div class="client-not-found">
+          <strong>Cliente não encontrado</strong>
+          <span>Cadastre este cliente para abrir a comanda.</span>
+          <button class="btn primary client-create-btn" type="button" data-client-create="${esc(typedName)}">Cadastrar cliente</button>
+        </div>
+      `;
       return;
     }
 
@@ -260,10 +291,34 @@
     saveAndRender();
   }
 
+  function fillPendingClientName() {
+    if (!pendingClientName || typeof ui === "undefined" || ui.view !== "clientes") return;
+    const input = document.querySelector('form[data-form="cliente"] input[name="nome"]');
+    if (input && !input.value) {
+      input.value = pendingClientName;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      const whatsapp = document.querySelector('form[data-form="cliente"] input[name="whatsapp"]');
+      if (whatsapp) whatsapp.focus();
+      pendingClientName = "";
+    }
+  }
+
+  function patchRenderForPrefill() {
+    if (window.__bikeWorkflowRenderPatched || typeof render !== "function") return;
+    const originalRender = render;
+    render = function patchedWorkflowRender(...args) {
+      const result = originalRender.apply(this, args);
+      setTimeout(fillPendingClientName, 0);
+      return result;
+    };
+    window.__bikeWorkflowRenderPatched = true;
+  }
+
   function patchWorkflow() {
     injectStyle();
     if (typeof renderNovaComanda === "function") renderNovaComanda = renderNovaComandaFixed;
     if (typeof createComanda === "function") createComanda = createComandaFixed;
+    patchRenderForPrefill();
   }
 
   document.addEventListener("input", function (event) {
@@ -273,6 +328,17 @@
   });
 
   document.addEventListener("click", function (event) {
+    const createButton = event.target.closest("[data-client-create]");
+    if (createButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      pendingClientName = createButton.dataset.clientCreate || "";
+      ui.view = "clientes";
+      render();
+      setTimeout(fillPendingClientName, 0);
+      return;
+    }
+
     const button = event.target.closest("[data-client-pick]");
     if (!button) return;
     event.preventDefault();
