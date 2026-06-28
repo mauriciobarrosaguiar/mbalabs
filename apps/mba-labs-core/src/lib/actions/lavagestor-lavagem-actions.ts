@@ -148,10 +148,31 @@ async function resolveCliente(client: any, empresaId: string | null, formData: F
     }
     return selectedClienteId;
   }
+
   if (!nome || !telefone) redirect(`/lavagestor/nova-lavagem?error=${messageParam("Informe nome e WhatsApp do novo cliente.")}`);
+
+  const clienteExistente = await findExistingCliente(client, empresaId, nome, telefone);
+  if (clienteExistente?.id) {
+    const updatePayload = { nome, telefone, observacao };
+    const { error } = await client.from("lava_clientes").update(updatePayload).eq("id", clienteExistente.id).eq("empresa_id", empresaId);
+    if (error) redirect(`/lavagestor/nova-lavagem?error=${messageParam(error.message)}`);
+    return String(clienteExistente.id);
+  }
+
   const { data, error } = await client.from("lava_clientes").insert({ empresa_id: empresaId, nome, telefone, observacao }).select("id").single();
   if (error || !data?.id) redirect(`/lavagestor/nova-lavagem?error=${messageParam(error?.message ?? "Não foi possível cadastrar o cliente.")}`);
   return String(data.id);
+}
+
+async function findExistingCliente(client: any, empresaId: string | null, nome: string, telefone: string) {
+  const { data } = await client.from("lava_clientes").select("id,nome,telefone").eq("empresa_id", empresaId);
+  const nomeAlvo = normalizeComparable(nome);
+  const telefoneAlvo = onlyDigits(telefone);
+  return (data ?? []).find((row: Record<string, unknown>) => {
+    const mesmoNome = normalizeComparable(row.nome) === nomeAlvo;
+    const mesmoTelefone = telefoneAlvo.length >= 8 && onlyDigits(row.telefone) === telefoneAlvo;
+    return mesmoNome || mesmoTelefone;
+  });
 }
 
 async function resolveVeiculo(client: any, empresaId: string | null, clienteId: string, formData: FormData) {
@@ -179,3 +200,5 @@ async function resolveVeiculo(client: any, empresaId: string | null, clienteId: 
 function defaultModeloByTipo(tipo: string) { const labels: Record<string, string> = { sofa: "Sofá", tapete: "Tapete", maquina: "Máquina", outro: "Item avulso" }; return labels[tipo] ?? null; }
 function uniqueValues(values: string[]) { return Array.from(new Set(values.filter(Boolean))); }
 function roundMoney(value: number) { return Math.round(value * 100) / 100; }
+function onlyDigits(value: unknown) { return String(value ?? "").replace(/\D/g, ""); }
+function normalizeComparable(value: unknown) { return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/ç/g, "c").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " "); }
