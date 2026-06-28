@@ -3,6 +3,10 @@
 
   const STYLE_ID = "bikecomanda-workflow-fix-style";
   let pendingClientName = "";
+  let pendingReturnToOrder = false;
+  let pendingSelectedClientId = "";
+  let pendingSelectedClientName = "";
+  let originalUpsertCliente = null;
 
   function injectStyle() {
     const old = document.getElementById(STYLE_ID);
@@ -132,6 +136,14 @@
     );
   }
 
+  function findNewestClientByFormData(data) {
+    const name = normalizeText(data?.nome || pendingClientName);
+    const whatsapp = normalizeText(data?.whatsapp || "");
+    return [...db.clientes]
+      .reverse()
+      .find((client) => normalizeText(client.nome) === name && (!whatsapp || normalizeText(client.whatsapp) === whatsapp)) || findClientBySearch(data?.nome || pendingClientName);
+  }
+
   function clientOptionsHtml() {
     return db.clientes
       .map((client) => `<option value="${esc(client.nome)}">${esc(client.whatsapp || "")}</option>`)
@@ -147,6 +159,8 @@
     const typedName = input.value.trim();
     const q = normalizeText(typedName);
     hidden.value = "";
+    pendingSelectedClientId = "";
+    pendingSelectedClientName = "";
     if (!q) {
       box.classList.remove("is-open");
       box.innerHTML = "";
@@ -197,6 +211,10 @@
       `;
     }
 
+    const selectedClient = pendingSelectedClientId ? findById("clientes", pendingSelectedClientId) : null;
+    const selectedClientName = selectedClient?.nome || pendingSelectedClientName || "";
+    const selectedClientId = selectedClient?.id || pendingSelectedClientId || "";
+
     return `
       <section class="card">
         <h2>Entrada da bike</h2>
@@ -205,8 +223,8 @@
           <div class="form-grid three">
             <div class="field full client-search-wrap">
               <label>Cliente cadastrado</label>
-              <input name="cliente_busca" type="search" list="clientes-cadastrados" data-client-search autocomplete="off" placeholder="Digite o nome do cliente" required />
-              <input type="hidden" name="cliente_id" />
+              <input name="cliente_busca" type="search" list="clientes-cadastrados" data-client-search autocomplete="off" placeholder="Digite o nome do cliente" value="${esc(selectedClientName)}" required />
+              <input type="hidden" name="cliente_id" value="${esc(selectedClientId)}" />
               <datalist id="clientes-cadastrados">${clientOptionsHtml()}</datalist>
               <div class="client-suggestions"></div>
             </div>
@@ -286,6 +304,10 @@
     };
     db.comandas.push(order);
     addHistory(order.id, "Comanda aberta", "", "Entrada realizada", "Entrada da bike registrada com dados informados no balcão.");
+    pendingClientName = "";
+    pendingReturnToOrder = false;
+    pendingSelectedClientId = "";
+    pendingSelectedClientName = "";
     ui.selectedOrderId = order.id;
     ui.view = "detalhe";
     saveAndRender();
@@ -299,8 +321,34 @@
       input.dispatchEvent(new Event("input", { bubbles: true }));
       const whatsapp = document.querySelector('form[data-form="cliente"] input[name="whatsapp"]');
       if (whatsapp) whatsapp.focus();
-      pendingClientName = "";
     }
+  }
+
+  function patchUpsertClienteReturnFlow() {
+    if (originalUpsertCliente || typeof upsertCliente !== "function") return;
+    originalUpsertCliente = upsertCliente;
+    upsertCliente = function patchedUpsertCliente(data) {
+      const shouldContinueOrder = pendingReturnToOrder;
+      const fallbackName = pendingClientName || data?.nome || "";
+      originalUpsertCliente(data);
+
+      if (!shouldContinueOrder) return;
+
+      const client = findNewestClientByFormData({ ...data, nome: data?.nome || fallbackName });
+      pendingReturnToOrder = false;
+      pendingClientName = "";
+
+      if (client) {
+        pendingSelectedClientId = client.id;
+        pendingSelectedClientName = client.nome;
+        ui.view = "nova-comanda";
+        saveAndRender();
+        setTimeout(() => {
+          const marca = document.querySelector('form[data-form="nova-comanda"] input[name="bike_marca"]');
+          if (marca) marca.focus();
+        }, 0);
+      }
+    };
   }
 
   function patchRenderForPrefill() {
@@ -318,6 +366,7 @@
     injectStyle();
     if (typeof renderNovaComanda === "function") renderNovaComanda = renderNovaComandaFixed;
     if (typeof createComanda === "function") createComanda = createComandaFixed;
+    patchUpsertClienteReturnFlow();
     patchRenderForPrefill();
   }
 
@@ -333,6 +382,9 @@
       event.preventDefault();
       event.stopPropagation();
       pendingClientName = createButton.dataset.clientCreate || "";
+      pendingReturnToOrder = true;
+      pendingSelectedClientId = "";
+      pendingSelectedClientName = "";
       ui.view = "clientes";
       render();
       setTimeout(fillPendingClientName, 0);
@@ -348,6 +400,8 @@
     const input = wrap?.querySelector('input[name="cliente_busca"]');
     const hidden = wrap?.querySelector('input[name="cliente_id"]');
     const box = wrap?.querySelector(".client-suggestions");
+    pendingSelectedClientId = client.id;
+    pendingSelectedClientName = client.nome;
     if (input) input.value = client.nome;
     if (hidden) hidden.value = client.id;
     if (box) {
