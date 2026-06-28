@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { FilaKanbanClient } from "@/components/lavagestor/FilaKanbanClient";
-import { BackButton, MessageBanner, PageHeader } from "@/components/ui-kit";
+import { MessageBanner, PageHeader } from "@/components/ui-kit";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
 import { listLavaFila } from "@/lib/lavagestor-fila-data";
@@ -14,16 +14,16 @@ export default async function FilaLavagemPage({ searchParams }: { searchParams: 
 
   return (
     <LavaGestorShell activePath="/lavagestor/fila" companyName={config.nome_exibicao}>
-      <section className="grid max-w-full gap-6 overflow-x-hidden">
+      <section className="grid max-w-full gap-5 overflow-x-hidden">
         <PageHeader
           eyebrow="LavaGestor"
           title="Fila de lavagem"
           description="Kanban por etapa, com prioridade automática. Arraste os cards para avançar a lavagem."
           actions={
-            <>
-              <BackButton href="/lavagestor" />
-              <Link className="button-primary" href="/lavagestor/nova-lavagem">Nova lavagem</Link>
-            </>
+            <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:flex-wrap">
+              <Link className="button-secondary min-h-11 px-4 text-sm" href="/lavagestor">Voltar</Link>
+              <Link className="button-primary min-h-11 px-4 text-sm" href="/lavagestor/nova-lavagem">Nova lavagem</Link>
+            </div>
           }
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? configError ?? undefined} />
