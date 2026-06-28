@@ -10,94 +10,73 @@
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
+      .product-action-group { display: none !important; }
+
       .bike-simple-flow {
         display: grid;
-        gap: 14px;
+        gap: 12px;
       }
       .bike-flow-head {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: space-between;
         gap: 12px;
       }
       .bike-flow-head h2 {
         margin: 0;
+        font-size: 24px;
       }
       .bike-flow-status {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: 34px;
-        padding: 7px 12px;
+        min-height: 32px;
+        padding: 6px 11px;
         border: 1px solid rgba(15, 138, 95, 0.14);
         border-radius: 999px;
         background: #f6fbf8;
         color: #174336;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 900;
         white-space: nowrap;
       }
-      .bike-flow-next {
-        border: 1px solid rgba(15, 138, 95, 0.12);
-        border-radius: 18px;
-        background: linear-gradient(180deg, #fbfefd 0%, #f5fbf8 100%);
-        padding: 14px;
-      }
-      .bike-flow-next strong {
-        display: block;
-        color: #10201a;
-        font-size: 17px;
-      }
-      .bike-flow-next span {
-        display: block;
-        margin-top: 4px;
-        color: #66756f;
-        line-height: 1.4;
-      }
-      .bike-flow-actions {
+      .bike-flow-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
       }
-      .bike-flow-actions .btn {
+      .bike-flow-button {
+        display: grid !important;
+        align-content: center;
+        gap: 2px;
         width: 100% !important;
-        min-height: 48px !important;
-        border-radius: 15px !important;
-        box-shadow: none !important;
-      }
-      .bike-flow-actions .btn.primary,
-      .bike-flow-actions .btn.blue,
-      .bike-flow-actions .btn.warning,
-      .bike-flow-actions .btn.danger {
-        background: var(--primary) !important;
-        color: #fff !important;
-        border-color: var(--primary) !important;
-      }
-      .bike-flow-actions .btn.ghost,
-      .bike-flow-actions .btn.secondary {
+        min-height: 70px !important;
+        padding: 12px !important;
+        border-radius: 16px !important;
+        border: 1px solid var(--line) !important;
         background: #fff !important;
         color: #15231e !important;
-        border: 1px solid var(--line) !important;
-      }
-      .bike-flow-secondary {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
-        padding-top: 2px;
-      }
-      .bike-flow-secondary .btn {
-        width: 100% !important;
-        min-height: 42px !important;
-        border-radius: 14px !important;
-        background: #fff !important;
-        color: #1d2d27 !important;
-        border: 1px solid var(--line) !important;
         box-shadow: none !important;
+        text-align: left !important;
       }
-      .bike-flow-secondary .btn.danger {
-        color: #9f1d35 !important;
-        background: #fff7f8 !important;
-        border-color: #f5c9d0 !important;
+      .bike-flow-button strong {
+        display: block;
+        font-size: 15px;
+        line-height: 1.15;
+      }
+      .bike-flow-button span {
+        display: block;
+        color: #6a7973;
+        font-size: 11.5px;
+        line-height: 1.25;
+      }
+      .bike-flow-button.is-current {
+        background: var(--primary) !important;
+        border-color: var(--primary) !important;
+        color: #fff !important;
+      }
+      .bike-flow-button.is-current span {
+        color: rgba(255,255,255,.82) !important;
       }
       .bike-flow-muted {
         color: #66756f;
@@ -107,131 +86,75 @@
 
       @media (max-width: 900px) {
         .bike-flow-head {
-          display: grid;
-          grid-template-columns: 1fr;
+          align-items: flex-start;
         }
-        .bike-flow-status {
-          width: max-content;
-          max-width: 100%;
+        .bike-flow-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          gap: 8px;
         }
-        .bike-flow-actions,
-        .bike-flow-secondary {
-          grid-template-columns: 1fr !important;
+        .bike-flow-button {
+          min-height: 66px !important;
+          padding: 10px !important;
+          border-radius: 15px !important;
+        }
+        .bike-flow-button strong {
+          font-size: 14px;
+        }
+        .bike-flow-button span {
+          font-size: 10.8px;
         }
       }
     `;
     document.head.appendChild(style);
   }
 
-  function flowStep(order) {
+  function currentStage(order) {
     const status = order.status || "Aberta";
-    if (["Aberta", "Entrada realizada", "Aguardando orçamento"].includes(status)) {
-      return {
-        title: "Enviar orçamento",
-        text: "Monte serviços e peças. Depois envie o orçamento para aprovação do cliente.",
-        actions: [
-          { label: "Enviar orçamento", action: "whatsapp-budget", style: "primary" },
-          { label: "Cliente aprovou", action: "client-approved", style: "ghost" },
-        ],
-      };
-    }
-    if (["Aguardando aprovação", "Aguardando resposta"].includes(status)) {
-      return {
-        title: "Aguardando decisão do cliente",
-        text: "Quando o cliente responder, marque se aprovou ou recusou.",
-        actions: [
-          { label: "Cliente aprovou", action: "client-approved", style: "primary" },
-          { label: "Cliente recusou", action: "client-rejected", style: "ghost" },
-        ],
-      };
-    }
-    if (["Aprovada", "Aprovado", "Cliente aprovou"].includes(status)) {
-      return {
-        title: "Pronto para iniciar",
-        text: "A aprovação foi registrada. Agora inicie o serviço na oficina.",
-        actions: [{ label: "Iniciar serviço", action: "start-service", style: "primary" }],
-      };
-    }
-    if (["Em manutenção", "Em execução"].includes(status)) {
-      return {
-        title: "Serviço em andamento",
-        text: "Quando a bike estiver pronta, marque como concluída.",
-        actions: [{ label: "Concluir serviço", action: "finish-service", style: "primary" }],
-      };
-    }
-    if (["Serviço concluído", "Finalizada", "Cliente avisado"].includes(status)) {
-      return {
-        title: "Avisar e receber",
-        text: "Avise o cliente pelo WhatsApp e registre o pagamento quando receber.",
-        actions: [
-          { label: "Avisar cliente", action: "whatsapp-ready", style: "primary" },
-          { label: "Gerar recibo", action: "print-receipt", style: "ghost" },
-        ],
-      };
-    }
-    if (["Pago", "Paga", "Aguardando retirada"].includes(status) || order.status_pagamento === "Pago") {
-      return {
-        title: "Liberar entrega",
-        text: "Pagamento registrado. Entregue a bike e finalize a comanda.",
-        actions: [{ label: "Entregar bike", action: "deliver-order", style: "primary" }],
-      };
-    }
-    if (["Entregue"].includes(status)) {
-      return {
-        title: "Comanda finalizada",
-        text: "Bike entregue ao cliente.",
-        actions: [{ label: "Enviar recibo", action: "whatsapp-receipt", style: "ghost" }],
-      };
-    }
-    if (["Cancelada", "Cancelado"].includes(status)) {
-      return {
-        title: "Comanda cancelada",
-        text: "Esta comanda não entra no faturamento.",
-        actions: [],
-      };
-    }
-    return {
-      title: "Próximo passo",
-      text: "Escolha a ação principal para continuar o atendimento.",
-      actions: [{ label: "Iniciar serviço", action: "start-service", style: "primary" }],
-    };
+    if (["Aberta", "Entrada realizada", "Aguardando orçamento"].includes(status)) return "orcamento";
+    if (["Aguardando aprovação", "Aguardando resposta"].includes(status)) return "aprovacao";
+    if (["Aprovada", "Aprovado", "Cliente aprovou", "Em manutenção", "Em execução", "Aguardando peça"].includes(status)) return "manutencao";
+    if (["Serviço concluído", "Finalizada", "Cliente avisado", "Aguardando pagamento", "Pago", "Paga", "Aguardando retirada", "Entregue"].includes(status) || order.status_pagamento === "Pago") return "entrega";
+    if (["Cancelada", "Cancelado"].includes(status)) return "cancelada";
+    return "orcamento";
+  }
+
+  function stageButtons(order, canManage, canExecute) {
+    const stage = currentStage(order);
+    const maintenanceAction = stage === "manutencao" && ["Em manutenção", "Em execução"].includes(order.status) ? "finish-service" : "start-service";
+    const deliveryAction = order.status_pagamento === "Pago" || ["Pago", "Paga", "Aguardando retirada"].includes(order.status) ? "deliver-order" : "whatsapp-ready";
+
+    const items = [
+      { key: "orcamento", title: "Orçamento", hint: "Enviar ao cliente", action: "whatsapp-budget", allowed: canManage },
+      { key: "aprovacao", title: "Aprovação", hint: "Cliente autorizou", action: "client-approved", allowed: canManage },
+      { key: "manutencao", title: "Manutenção", hint: stage === "manutencao" && ["Em manutenção", "Em execução"].includes(order.status) ? "Concluir serviço" : "Iniciar revisão", action: maintenanceAction, allowed: canExecute },
+      { key: "entrega", title: "Entrega", hint: deliveryAction === "deliver-order" ? "Finalizar saída" : "Avisar retirada", action: deliveryAction, allowed: canManage },
+    ];
+
+    return items
+      .filter((item) => item.allowed)
+      .map(
+        (item) => `
+          <button class="btn bike-flow-button ${stage === item.key ? "is-current" : ""}" type="button" data-action="${item.action}" data-id="${order.id}">
+            <strong>${esc(item.title)}</strong>
+            <span>${esc(item.hint)}</span>
+          </button>
+        `,
+      )
+      .join("");
   }
 
   function renderSimpleFlow(order, canManage, canExecute) {
-    const step = flowStep(order);
-    const actions = step.actions
-      .filter((item) => {
-        if (["start-service", "finish-service"].includes(item.action)) return canExecute;
-        return canManage;
-      })
-      .map((item) => `<button class="btn ${item.style}" type="button" data-action="${item.action}" data-id="${order.id}">${item.label}</button>`)
-      .join("");
-
-    const secondary = canManage
-      ? `
-        <div class="bike-flow-secondary">
-          <button class="btn ghost" type="button" data-action="whatsapp-receipt" data-id="${order.id}">Recibo WhatsApp</button>
-          <button class="btn ghost" type="button" data-action="print-receipt" data-id="${order.id}">PDF/recibo</button>
-          ${order.status !== "Cancelada" ? `<button class="btn danger" type="button" data-action="cancel-order" data-id="${order.id}">Cancelar</button>` : ""}
-        </div>
-      `
-      : "";
-
+    const buttons = stageButtons(order, canManage, canExecute);
     return `
       <div class="bike-simple-flow">
         <div class="bike-flow-head">
           <div>
-            <h2>Fluxo da comanda</h2>
-            <div class="bike-flow-muted">Controle simples, sem excesso de botões.</div>
+            <h2>Fluxo</h2>
+            <div class="bike-flow-muted">Use só a etapa atual da comanda.</div>
           </div>
           <span class="bike-flow-status">${esc(order.status || "Aberta")}</span>
         </div>
-        <div class="bike-flow-next">
-          <strong>${esc(step.title)}</strong>
-          <span>${esc(step.text)}</span>
-        </div>
-        ${actions ? `<div class="bike-flow-actions">${actions}</div>` : ""}
-        ${secondary}
+        <div class="bike-flow-grid">${buttons}</div>
       </div>
     `;
   }
