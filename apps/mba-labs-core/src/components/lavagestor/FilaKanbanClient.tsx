@@ -123,10 +123,6 @@ export function FilaKanbanClient({ rows, config }: { rows: FilaRow[]; config: La
         })}
       </div>
 
-      <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-[11px] font-black leading-5 text-emerald-950 sm:p-3 sm:text-xs">
-        No celular: segure <strong>SEGURAR E ARRASTAR</strong> e solte na coluna desejada. Também existe <strong>Mover para</strong> dentro do card.
-      </p>
-
       <div className="-mx-3 overflow-x-auto px-3 pb-3 xl:mx-0 xl:overflow-visible xl:px-0">
         <div className="grid auto-cols-[minmax(292px,86vw)] grid-flow-col gap-4 xl:grid-flow-row xl:grid-cols-4 xl:auto-cols-auto">
           {groups.map((group) => {
