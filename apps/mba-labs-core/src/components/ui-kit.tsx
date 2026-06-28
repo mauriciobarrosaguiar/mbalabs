@@ -12,6 +12,10 @@ export type ActionCardItem = {
   badge?: string;
 };
 
+type SmartColumn = DataColumn & {
+  value: string;
+};
+
 export function PageHeader({
   eyebrow,
   title,
@@ -83,61 +87,191 @@ export function DataTable({
   actions?: (row: Record<string, unknown>) => React.ReactNode;
 }) {
   return (
-    <div className="rounded-[8px] border border-white/10">
+    <div className="overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.02] shadow-sm">
       <table className="hidden w-full table-fixed border-collapse text-left text-sm lg:table">
         <thead className="bg-white/10 text-xs uppercase text-slate-300">
           <tr>
             {columns.map((column) => (
-              <th className="px-3 py-3 font-bold" key={column.key}>
+              <th className="px-4 py-4 font-black tracking-wide" key={column.key}>
                 {column.label}
               </th>
             ))}
-            {actions ? <th className="w-[220px] px-3 py-3 text-right font-bold">Ações</th> : null}
+            {actions ? <th className="w-[240px] px-4 py-4 text-right font-black tracking-wide">Ações</th> : null}
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td className="px-4 py-8 text-center text-slate-300" colSpan={columns.length + (actions ? 1 : 0)}>
+              <td className="px-4 py-10 text-center text-slate-300" colSpan={columns.length + (actions ? 1 : 0)}>
                 {emptyMessage}
               </td>
             </tr>
           ) : (
             rows.map((row, index) => (
-              <tr className="border-t border-white/10" key={String(row.id ?? index)}>
+              <tr className="border-t border-white/10 transition hover:bg-white/[0.035]" key={String(row.id ?? index)}>
                 {columns.map((column) => (
-                  <td className="truncate px-3 py-3 text-slate-100" key={column.key} title={formatValue(row[column.key])}>
+                  <td className="truncate px-4 py-4 font-semibold text-slate-100" key={column.key} title={formatValue(row[column.key])}>
                     {formatValue(row[column.key])}
                   </td>
                 ))}
-                {actions ? <td className="px-3 py-3 text-right">{actions(row)}</td> : null}
+                {actions ? <td className="px-4 py-4 text-right">{actions(row)}</td> : null}
               </tr>
             ))
           )}
         </tbody>
       </table>
 
-      <div className="grid gap-3 p-3 lg:hidden">
+      <div className="grid gap-4 p-3 lg:hidden">
         {rows.length === 0 ? (
-          <p className="px-2 py-5 text-center text-sm text-slate-300">{emptyMessage}</p>
+          <div className="rounded-[18px] border border-white/10 bg-white p-5 text-center text-sm font-bold text-slate-300">
+            {emptyMessage}
+          </div>
         ) : (
-          rows.map((row, index) => (
-            <article className="grid gap-3 rounded-[8px] border border-white/10 bg-white/[0.04] p-3" key={String(row.id ?? index)}>
-              <div className="grid gap-2">
-                {columns.map((column) => (
-                  <div className="grid gap-1" key={column.key}>
-                    <span className="text-xs font-bold uppercase text-slate-400">{column.label}</span>
-                    <strong className="break-words text-sm text-slate-100">{formatValue(row[column.key])}</strong>
-                  </div>
-                ))}
-              </div>
-              {actions ? <div className="flex flex-wrap justify-end gap-2">{actions(row)}</div> : null}
-            </article>
-          ))
+          rows.map((row, index) => <SmartMobileCard actions={actions} columns={columns} index={index} key={String(row.id ?? index)} row={row} />)
         )}
       </div>
     </div>
   );
+}
+
+function SmartMobileCard({
+  row,
+  columns,
+  actions,
+  index
+}: {
+  row: Record<string, unknown>;
+  columns: DataColumn[];
+  actions?: (row: Record<string, unknown>) => React.ReactNode;
+  index: number;
+}) {
+  const title = getCardTitle(row, columns);
+  const subtitle = getCardSubtitle(row, columns, title?.key);
+  const badge = getCardBadge(row, columns);
+  const highlights = getHighlightColumns(row, columns, [title?.key, subtitle?.key]);
+  const hiddenKeys = new Set([title?.key, subtitle?.key, badge?.key, ...highlights.map((item) => item.key)].filter(Boolean));
+  const details = columns
+    .map((column) => ({ ...column, value: formatValue(row[column.key]) }))
+    .filter((column) => !hiddenKeys.has(column.key) && column.value !== "-");
+
+  return (
+    <article className="overflow-hidden rounded-[22px] border border-white/10 bg-white p-4 shadow-[0_1px_8px_rgba(15,81,50,0.08)]">
+      <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
+        <div className="min-w-0">
+          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Registro #{index + 1}</p>
+          <h3 className="mt-2 break-words text-2xl font-black leading-tight text-slate-100">{title?.value ?? "Registro"}</h3>
+          {subtitle ? <p className="mt-1 break-words text-sm font-bold leading-5 text-slate-300">{subtitle.value}</p> : null}
+        </div>
+        {badge ? <span className={badgeClassName(badge.value)}>{badge.value}</span> : null}
+      </div>
+
+      {highlights.length ? (
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {highlights.map((item) => (
+            <div className="rounded-[16px] border border-white/10 bg-emerald-50 p-3" key={item.key}>
+              <span className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">{item.label}</span>
+              <strong className="mt-1 block break-words text-xl font-black text-slate-100">{item.value}</strong>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {details.length ? (
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {details.map((column) => (
+            <div className="rounded-[16px] bg-slate-50 p-3" key={column.key}>
+              <span className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">{column.label}</span>
+              <strong className="mt-1 block break-words text-base font-black text-slate-100">{column.value}</strong>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {actions ? (
+        <div className="mt-4 border-t border-white/10 pt-4 [&>div]:grid [&>div]:grid-cols-2 [&>div]:gap-2 [&>div]:justify-stretch [&_a]:w-full [&_button]:w-full [&_form]:contents">
+          {actions(row)}
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function getCardTitle(row: Record<string, unknown>, columns: DataColumn[]): SmartColumn | null {
+  const placa = formatValue(row.placa);
+  const marca = formatValue(row.marca);
+  const modelo = formatValue(row.modelo);
+  const veiculo = formatValue(row.veiculo);
+
+  if (placa !== "-" || modelo !== "-" || marca !== "-") {
+    const value = [placa, marca, modelo].filter((item) => item !== "-").join(" - ");
+    return { key: placa !== "-" ? "placa" : modelo !== "-" ? "modelo" : "marca", label: "Veículo", value };
+  }
+
+  if (row.nome !== undefined) {
+    return { key: "nome", label: "Nome", value: formatValue(row.nome) };
+  }
+
+  if (row.cliente !== undefined && veiculo !== "-") {
+    return { key: "cliente", label: "Cliente", value: formatValue(row.cliente) };
+  }
+
+  const first = columns.find((column) => formatValue(row[column.key]) !== "-");
+  return first ? { ...first, value: formatValue(row[first.key]) } : null;
+}
+
+function getCardSubtitle(row: Record<string, unknown>, columns: DataColumn[], titleKey?: string): SmartColumn | null {
+  const candidates = ["telefone", "whatsapp", "cliente", "veiculo", "servico", "aplicacao_label", "categoria_label", "email", "documento"];
+  for (const key of candidates) {
+    if (key === titleKey) continue;
+    const column = columns.find((item) => item.key === key);
+    const value = formatValue(row[key]);
+    if (column && value !== "-") {
+      return { ...column, value };
+    }
+  }
+  const fallback = columns.find((column) => column.key !== titleKey && formatValue(row[column.key]) !== "-");
+  return fallback ? { ...fallback, value: formatValue(row[fallback.key]) } : null;
+}
+
+function getCardBadge(row: Record<string, unknown>, columns: DataColumn[]): SmartColumn | null {
+  const candidates = ["status_label", "status", "status_pagamento_label", "status_pagamento", "ativo", "categoria_label"];
+  for (const key of candidates) {
+    const column = columns.find((item) => item.key === key);
+    const value = formatValue(row[key]);
+    if (column && value !== "-") {
+      return { ...column, value };
+    }
+  }
+  return null;
+}
+
+function getHighlightColumns(row: Record<string, unknown>, columns: DataColumn[], ignoredKeys: Array<string | undefined>) {
+  const ignored = new Set(ignoredKeys.filter(Boolean));
+  return columns
+    .map((column) => ({ ...column, value: formatValue(row[column.key]) }))
+    .filter((column) => !ignored.has(column.key) && column.value !== "-" && isMetricColumn(column))
+    .slice(0, 4);
+}
+
+function isMetricColumn(column: SmartColumn) {
+  const key = column.key.toLowerCase();
+  const label = column.label.toLowerCase();
+  return ["valor", "preco", "preço", "comissao", "comissão", "vales", "saldo", "pendentes", "recebido", "total"].some(
+    (term) => key.includes(term) || label.includes(term)
+  );
+}
+
+function badgeClassName(value: string) {
+  const normalized = value.toLowerCase();
+  const tone = normalized.includes("pago") || normalized.includes("sim") || normalized.includes("ativo") || normalized.includes("finalizado")
+    ? "bg-emerald-100 text-emerald-900 border-emerald-200"
+    : normalized.includes("aberto") || normalized.includes("pendente") || normalized.includes("fiado") || normalized.includes("parcial")
+      ? "bg-amber-100 text-amber-900 border-amber-200"
+      : normalized.includes("não") || normalized.includes("nao") || normalized.includes("cancel") || normalized.includes("inativo")
+        ? "bg-red-100 text-red-900 border-red-200"
+        : "bg-slate-100 text-slate-700 border-slate-200";
+
+  return `shrink-0 rounded-full border px-3 py-1 text-xs font-black ${tone}`;
 }
 
 export function EmptyState({ title, description }: { title: string; description: string }) {
