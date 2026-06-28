@@ -34,10 +34,10 @@ export const internalApps: InternalAppDefinition[] = [
     slug: "lavagestor",
     name: "LavaGestor",
     description: "Sistema para lava-jatos controlarem lavagens, clientes, funcionários, pagamentos e comissões.",
-    urlPath: "/apps/lavagestor",
+    urlPath: "/lavagestor",
     alternatePaths: [
-      { label: "Entrada do portal - /apps/lavagestor", value: "/apps/lavagestor" },
-      { label: "App direto - /lavagestor", value: "/lavagestor" }
+      { label: "App direto - /lavagestor", value: "/lavagestor" },
+      { label: "Entrada compatível - /apps/lavagestor", value: "/apps/lavagestor" }
     ],
     profileOptions: [
       { label: "Admin da empresa", value: "admin_empresa" },
@@ -52,11 +52,11 @@ export const internalApps: InternalAppDefinition[] = [
     slug: "bikecomanda",
     name: "BikeComanda",
     description: "Sistema de comandas para bicicletarias, serviços, pagamentos e comissões.",
-    urlPath: "/apps/bikecomanda",
+    urlPath: "/bikecomanda",
     alternatePaths: [
-      { label: "Entrada do portal - /apps/bikecomanda", value: "/apps/bikecomanda" },
-      { label: "Entrada do portal - /apps/bike-comanda", value: "/apps/bike-comanda" },
-      { label: "App direto - /bikecomanda", value: "/bikecomanda" }
+      { label: "App direto - /bikecomanda", value: "/bikecomanda" },
+      { label: "Entrada compatível - /apps/bikecomanda", value: "/apps/bikecomanda" },
+      { label: "Entrada compatível - /apps/bike-comanda", value: "/apps/bike-comanda" }
     ],
     profileOptions: [
       { label: "Admin da empresa", value: "admin_empresa" },
