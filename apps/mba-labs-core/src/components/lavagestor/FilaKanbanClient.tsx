@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { formatDateTime, formatMoney } from "@/components/ui-kit";
 import { registrarPagamentoLavagem, updateLavagemStatus } from "@/lib/actions/lavagestor-actions";
 import { moveLavagemKanban } from "@/lib/actions/lavagestor-kanban-actions";
@@ -36,7 +36,7 @@ const statusLabels: Record<string, string> = {
 
 export function FilaKanbanClient({ rows, config }: { rows: FilaRow[]; config: LavaConfig }) {
   const [items, setItems] = useState(rows);
-  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
   const [activeTarget, setActiveTarget] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ type: "ok" | "error"; text: string } | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -76,12 +76,36 @@ export function FilaKanbanClient({ rows, config }: { rows: FilaRow[]; config: La
     });
   }
 
-  function handleDrop(targetStatus: string, event: React.DragEvent<HTMLElement>) {
+  function targetFromPoint(x: number, y: number) {
+    const element = document.elementFromPoint(x, y);
+    const column = element?.closest<HTMLElement>("[data-kanban-target]");
+    return column?.dataset.kanbanTarget ?? null;
+  }
+
+  function startPointerDrag(id: string, event: React.PointerEvent<HTMLButtonElement>) {
     event.preventDefault();
-    const id = event.dataTransfer.getData("text/plain") || draggedId;
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDraggingId(id);
+    setActiveTarget(targetFromPoint(event.clientX, event.clientY));
+  }
+
+  function movePointerDrag(event: React.PointerEvent<HTMLButtonElement>) {
+    if (!draggingId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setActiveTarget(targetFromPoint(event.clientX, event.clientY));
+  }
+
+  function endPointerDrag(event: React.PointerEvent<HTMLButtonElement>) {
+    if (!draggingId) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const target = targetFromPoint(event.clientX, event.clientY);
+    const id = draggingId;
+    setDraggingId(null);
     setActiveTarget(null);
-    setDraggedId(null);
-    if (id) moveCard(id, targetStatus);
+    if (target) moveCard(id, target);
   }
 
   return (
@@ -100,7 +124,7 @@ export function FilaKanbanClient({ rows, config }: { rows: FilaRow[]; config: La
       </div>
 
       <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-black text-emerald-950">
-        Arraste pelo botão <strong>ARRASTAR</strong> para trocar de etapa. No celular, também pode abrir o card e usar <strong>Mover para</strong>.
+        No celular: segure o botão <strong>SEGURAR E ARRASTAR</strong>, leve até a coluna desejada e solte. Também existe a opção <strong>Mover para</strong> dentro do card.
       </p>
 
       <div className="-mx-3 overflow-x-auto px-3 pb-3 xl:mx-0 xl:overflow-visible xl:px-0">
@@ -114,10 +138,6 @@ export function FilaKanbanClient({ rows, config }: { rows: FilaRow[]; config: La
                 className={`grid min-w-0 content-start gap-3 rounded-2xl border border-border bg-white p-3 shadow-sm transition ${isActive ? `ring-4 ${group.dropTone}` : ""}`}
                 data-kanban-target={group.targetStatus}
                 key={group.title}
-                onDragEnter={() => setActiveTarget(group.targetStatus)}
-                onDragLeave={() => setActiveTarget(null)}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => handleDrop(group.targetStatus, event)}
               >
                 <div className={`sticky top-0 z-[1] rounded-xl border p-3 ${group.tone}`}>
                   <div className="flex items-start justify-between gap-3">
@@ -136,17 +156,11 @@ export function FilaKanbanClient({ rows, config }: { rows: FilaRow[]; config: La
                     <FilaCard
                       config={config}
                       disabled={isPending && pendingId === String(row.id)}
+                      dragging={draggingId === String(row.id)}
                       key={String(row.id)}
-                      onDragEnd={() => {
-                        setDraggedId(null);
-                        setActiveTarget(null);
-                      }}
-                      onDragStart={(event) => {
-                        const id = String(row.id);
-                        event.dataTransfer.effectAllowed = "move";
-                        event.dataTransfer.setData("text/plain", id);
-                        setDraggedId(id);
-                      }}
+                      onDragEnd={endPointerDrag}
+                      onDragMove={movePointerDrag}
+                      onDragStart={startPointerDrag}
                       onMove={moveCard}
                       priority={index + 1}
                       row={row}
@@ -167,17 +181,21 @@ function FilaCard({
   config,
   priority,
   onDragStart,
+  onDragMove,
   onDragEnd,
   onMove,
-  disabled
+  disabled,
+  dragging
 }: {
   row: FilaRow;
   config: LavaConfig;
   priority: number;
-  onDragStart: (event: React.DragEvent<HTMLElement>) => void;
-  onDragEnd: () => void;
+  onDragStart: (id: string, event: React.PointerEvent<HTMLButtonElement>) => void;
+  onDragMove: (event: React.PointerEvent<HTMLButtonElement>) => void;
+  onDragEnd: (event: React.PointerEvent<HTMLButtonElement>) => void;
   onMove: (id: string, targetStatus: string) => void;
   disabled: boolean;
+  dragging: boolean;
 }) {
   const status = String(row.status);
   const id = String(row.id);
@@ -186,7 +204,7 @@ function FilaCard({
   const pendingPayment = moneyNumber(row.valor_pendente) > 0 || row.status_pagamento !== "pago";
 
   return (
-    <details className={`group min-w-0 max-w-full overflow-hidden rounded-2xl border border-border bg-[#fbfdfc] shadow-sm transition hover:shadow-md ${disabled ? "opacity-60" : ""}`} draggable={!disabled} onDragEnd={onDragEnd} onDragStart={onDragStart}>
+    <details className={`group min-w-0 max-w-full overflow-hidden rounded-2xl border border-border bg-[#fbfdfc] shadow-sm transition hover:shadow-md ${disabled ? "opacity-60" : ""} ${dragging ? "scale-[0.98] ring-4 ring-emerald-300" : ""}`}>
       <summary className="grid min-w-0 cursor-pointer list-none gap-3 p-3 [&::-webkit-details-marker]:hidden">
         <div className="grid min-w-0 grid-cols-[auto_1fr_auto] items-start gap-2">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-sm font-black text-white" title={`Prioridade ${priority}`}>#{priority}</div>
@@ -204,11 +222,27 @@ function FilaCard({
           <MiniInfo label="Entrega" value={String(row.entrega_label || "Cliente retira")} />
         </div>
 
-        <div className="flex items-center justify-between gap-2 text-xs font-black uppercase tracking-[0.1em] text-primary">
-          <span>{priorityLabel(row)}</span>
-          <span className="rounded-full border border-emerald-200 bg-white px-2 py-1 text-[10px]">Arrastar</span>
-          <span className="group-open:hidden">Expandir</span>
-          <span className="hidden group-open:inline">Recolher</span>
+        <div className="grid gap-2 text-xs font-black uppercase tracking-[0.1em] text-primary">
+          <div className="flex items-center justify-between gap-2">
+            <span>{priorityLabel(row)}</span>
+            <span className="group-open:hidden">Expandir</span>
+            <span className="hidden group-open:inline">Recolher</span>
+          </div>
+          <button
+            className="touch-none rounded-xl border border-emerald-200 bg-white px-3 py-3 text-xs font-black uppercase tracking-[0.12em] text-emerald-800 shadow-sm active:scale-[0.98]"
+            disabled={disabled}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onPointerCancel={onDragEnd}
+            onPointerDown={(event) => onDragStart(id, event)}
+            onPointerMove={onDragMove}
+            onPointerUp={onDragEnd}
+            type="button"
+          >
+            {dragging ? "Solte em uma coluna" : "Segurar e arrastar"}
+          </button>
         </div>
       </summary>
 
