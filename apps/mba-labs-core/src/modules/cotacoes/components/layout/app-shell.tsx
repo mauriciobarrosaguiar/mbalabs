@@ -167,13 +167,13 @@ export function AppShell({
 
 function Brand({ mode }: { mode: "admin" | "app" }) {
   return (
-    <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-4">
+    <div className="flex h-16 items-center gap-3 border-b border-slate-200 bg-white px-4 dark:bg-white">
       <div className="flex h-10 w-10 items-center justify-center rounded-md bg-teal-700 text-xs font-bold text-white">
         MBA
       </div>
       <div>
-        <p className="font-semibold text-slate-950">MBA Cotações</p>
-        <p className="text-xs text-muted-foreground">
+        <p className="font-semibold text-slate-950 dark:text-slate-950">MBA Cotações</p>
+        <p className="text-xs text-slate-500 dark:text-slate-500">
           {mode === "admin" ? "Painel Administrativo MBA Cotações" : "Painel da empresa"}
         </p>
       </div>
@@ -197,13 +197,16 @@ function MobileNav({
           <Menu className="h-4 w-4" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-80 p-0">
+      <SheetContent
+        side="left"
+        className="w-80 max-w-[86vw] gap-0 overflow-y-auto border-slate-200 bg-white p-0 text-slate-950 dark:bg-white dark:text-slate-950 [&>button]:text-slate-700 [&>button:hover]:bg-slate-100"
+      >
         <SheetHeader className="sr-only">
           <SheetTitle>Menu</SheetTitle>
         </SheetHeader>
         <Brand mode={mode} />
-        <Separator />
-        <nav className="space-y-4 p-3">
+        <Separator className="bg-slate-200" />
+        <nav className="space-y-4 p-3 pb-8">
           <GroupedNav nav={nav} currentPath={currentPath} />
         </nav>
       </SheetContent>
@@ -219,8 +222,8 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
       aria-current={active ? "page" : undefined}
       href={item.href}
       className={cn(
-        "flex min-h-10 items-center justify-between rounded-md px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-950",
-        active && "bg-teal-50 text-teal-800",
+        "flex min-h-10 items-center justify-between rounded-md px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-700 dark:hover:bg-slate-100 dark:hover:text-slate-950",
+        active && "bg-teal-50 text-teal-800 hover:bg-teal-50 hover:text-teal-900 dark:bg-teal-50 dark:text-teal-800 dark:hover:bg-teal-50 dark:hover:text-teal-900",
       )}
     >
       <span className="flex items-center gap-3">
@@ -249,7 +252,7 @@ function GroupedNav({
       {Array.from(groups.entries()).map(([group, items]) => (
         <div key={group} className="space-y-1">
           {group !== "principal" ? (
-            <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-500">
               {group}
             </p>
           ) : null}
@@ -287,7 +290,7 @@ function withReturnToMbaLabs(nav: NavItem[], role?: UserRole) {
       href: "/dashboard",
       label: "Voltar ao MBA Labs",
       icon: LayoutDashboard,
-      group: role === "SUPER_ADMIN" ? "Admin Master" : "Gestao"
+      group: role === "SUPER_ADMIN" ? "Admin Master" : "Gestão"
     }
   ];
 }
