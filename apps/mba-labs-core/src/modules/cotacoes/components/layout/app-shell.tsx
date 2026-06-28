@@ -167,13 +167,13 @@ export function AppShell({
 
 function Brand({ mode }: { mode: "admin" | "app" }) {
   return (
-    <div className="flex h-16 items-center gap-3 border-b border-slate-200 bg-white px-4 dark:bg-white">
-      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-teal-700 text-xs font-bold text-white">
+    <div className="flex h-16 shrink-0 items-center gap-3 border-b border-slate-200 !bg-white px-4">
+      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-teal-700 text-xs font-bold !text-white">
         MBA
       </div>
-      <div>
-        <p className="font-semibold text-slate-950 dark:text-slate-950">MBA Cotações</p>
-        <p className="text-xs text-slate-500 dark:text-slate-500">
+      <div className="min-w-0">
+        <p className="truncate font-semibold !text-slate-950">MBA Cotações</p>
+        <p className="truncate text-xs !text-slate-600">
           {mode === "admin" ? "Painel Administrativo MBA Cotações" : "Painel da empresa"}
         </p>
       </div>
@@ -199,14 +199,14 @@ function MobileNav({
       </SheetTrigger>
       <SheetContent
         side="left"
-        className="w-80 max-w-[86vw] gap-0 overflow-y-auto border-slate-200 bg-white p-0 text-slate-950 dark:bg-white dark:text-slate-950 [&>button]:text-slate-700 [&>button:hover]:bg-slate-100"
+        className="!h-[100dvh] !max-h-[100dvh] w-[86vw] max-w-[360px] gap-0 overflow-hidden border-r border-slate-200 !bg-white p-0 !text-slate-950 shadow-xl [&_[data-slot=sheet-close]]:!text-slate-700 [&_[data-slot=sheet-close]:hover]:!bg-slate-100"
       >
         <SheetHeader className="sr-only">
           <SheetTitle>Menu</SheetTitle>
         </SheetHeader>
         <Brand mode={mode} />
-        <Separator className="bg-slate-200" />
-        <nav className="space-y-4 p-3 pb-8">
+        <Separator className="shrink-0 bg-slate-200" />
+        <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 py-4 pb-28 [-webkit-overflow-scrolling:touch]">
           <GroupedNav nav={nav} currentPath={currentPath} />
         </nav>
       </SheetContent>
@@ -222,13 +222,13 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
       aria-current={active ? "page" : undefined}
       href={item.href}
       className={cn(
-        "flex min-h-10 items-center justify-between rounded-md px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-700 dark:hover:bg-slate-100 dark:hover:text-slate-950",
-        active && "bg-teal-50 text-teal-800 hover:bg-teal-50 hover:text-teal-900 dark:bg-teal-50 dark:text-teal-800 dark:hover:bg-teal-50 dark:hover:text-teal-900",
+        "flex min-h-11 items-center justify-between rounded-md px-3 text-sm font-medium !text-slate-700 transition hover:bg-slate-100 hover:!text-slate-950",
+        active && "!bg-teal-100 !text-teal-900 shadow-sm hover:!bg-teal-100 hover:!text-teal-900",
       )}
     >
-      <span className="flex items-center gap-3">
-        <Icon className="h-4 w-4" />
-        <span>{item.label}</span>
+      <span className="flex min-w-0 items-center gap-3">
+        <Icon className="h-4 w-4 shrink-0" />
+        <span className="truncate">{item.label}</span>
       </span>
     </Link>
   );
@@ -252,7 +252,7 @@ function GroupedNav({
       {Array.from(groups.entries()).map(([group, items]) => (
         <div key={group} className="space-y-1">
           {group !== "principal" ? (
-            <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-500">
+            <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide !text-slate-500">
               {group}
             </p>
           ) : null}
@@ -290,8 +290,8 @@ function withReturnToMbaLabs(nav: NavItem[], role?: UserRole) {
       href: "/dashboard",
       label: "Voltar ao MBA Labs",
       icon: LayoutDashboard,
-      group: role === "SUPER_ADMIN" ? "Admin Master" : "Gestão"
-    }
+      group: role === "SUPER_ADMIN" ? "Admin Master" : "Gestão",
+    },
   ];
 }
 
