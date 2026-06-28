@@ -18,7 +18,6 @@ export default async function FilaLavagemPage({ searchParams }: { searchParams: 
         <PageHeader
           eyebrow="LavaGestor"
           title="Fila de lavagem"
-          description="Kanban por etapa, com prioridade automática. Arraste os cards para avançar a lavagem."
           actions={
             <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:flex-wrap">
               <Link className="button-secondary min-h-11 px-4 text-sm" href="/lavagestor">Voltar</Link>
