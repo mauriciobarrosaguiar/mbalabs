@@ -27,6 +27,7 @@ export default async function LavaGestorPortalPage() {
 
   return (
     <LavaGestorShell activePath="/lavagestor" companyName={companyName} userName={user.nome} roleLabel={roleLabel}>
+      <Link className="fixed right-4 top-[4.25rem] z-20 rounded-full border border-emerald-200 bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.08em] text-primary shadow-md lg:hidden" href="/lavagestor/fila">Fila</Link>
       <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
