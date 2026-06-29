@@ -111,6 +111,12 @@ export function DemoCrudTable({
       return;
     }
 
+    const duplicateMessage = findDuplicateMessage(entity, row, rows);
+    if (duplicateMessage) {
+      toast.error(duplicateMessage);
+      return;
+    }
+
     if (remoteCrudEnabled(entity)) {
       try {
         const exists = rows.some((item) => item.id === row.id);
@@ -459,6 +465,65 @@ function remoteCrudEnabled(entity?: string) {
       process.env.NEXT_PUBLIC_SUPABASE_URL &&
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   );
+}
+
+function findDuplicateMessage(entity: string | undefined, row: DemoCrudRow, rows: DemoCrudRow[]) {
+  if (!entity) return null;
+  const activeRows = rows.filter((item) => item.id !== row.id && String(item.status ?? "ativo") !== "inativo");
+  const tenantId = normalizeText(row.tenantId);
+
+  if (entity === "suppliers") {
+    const whatsapp = onlyDigits(row.whatsapp);
+    if (
+      whatsapp &&
+      activeRows.some((item) =>
+        onlyDigits(item.whatsapp) === whatsapp &&
+        (!tenantId || !normalizeText(item.tenantId) || normalizeText(item.tenantId) === tenantId),
+      )
+    ) {
+      return "Já existe vendedor/fornecedor cadastrado com este WhatsApp.";
+    }
+
+    const document = onlyDigits(row.cpf ?? row.documento ?? row.cpfCnpj);
+    if (
+      document &&
+      activeRows.some((item) =>
+        onlyDigits(item.cpf ?? item.documento ?? item.cpfCnpj) === document &&
+        (!tenantId || !normalizeText(item.tenantId) || normalizeText(item.tenantId) === tenantId),
+      )
+    ) {
+      return "Já existe vendedor/fornecedor cadastrado com este CPF.";
+    }
+  }
+
+  if (entity === "products") {
+    const productKey = normalizeText(row.nome);
+    const ean = onlyDigits(row.ean);
+    const laboratory = normalizeText(row.laboratorio);
+    const duplicated = activeRows.some((item) => {
+      const sameTenant = !tenantId || !normalizeText(item.tenantId) || normalizeText(item.tenantId) === tenantId;
+      if (!sameTenant) return false;
+      const sameProduct = productKey && normalizeText(item.nome) === productKey;
+      const sameEan = ean && onlyDigits(item.ean) === ean;
+      const sameLaboratory = laboratory && normalizeText(item.laboratorio) === laboratory;
+      return Boolean((sameEan && sameLaboratory) || (sameProduct && sameEan && sameLaboratory));
+    });
+    if (duplicated) return "Produto duplicado: use outro EAN ou outro laboratório para cadastrar uma exceção.";
+  }
+
+  return null;
+}
+
+function normalizeText(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function onlyDigits(value: unknown) {
+  return String(value ?? "").replace(/\D/g, "");
 }
 
 function formatCell(field: DemoCrudField, value: string | number | undefined) {

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createSupabaseAdminClient, hasSupabaseAdminConfig, hasSupabaseConfig } from "@/modules/cotacoes/lib/supabase/server";
 import type { PurchaseOrder } from "@/modules/cotacoes/lib/types";
 
@@ -17,6 +16,8 @@ type Config = {
   numero_oficial?: string | null;
   nome_exibicao?: string | null;
   status_conexao?: string | null;
+  last_health_check?: string | null;
+  last_error?: string | null;
   ativo: boolean;
 };
 
@@ -25,6 +26,7 @@ export type WhatsappEnvio = { id: string; empresaId: string; cotacaoId: string; 
 export type SendWhatsAppResult = { vendedorId: string; telefone: string; status: WhatsappStatus; erro?: string; skipped?: boolean };
 export type WhatsappBatchResult = { total: number; enviado: number; falhou: number; pendente: number; ignorado: number; results: SendWhatsAppResult[] };
 export type SaveWhatsappConfigInput = { provider: WhatsappProvider; api_url?: string | null; api_token?: string | null; phone_number_id?: string | null; numero_oficial?: string | null; nome_exibicao?: string | null; status_conexao?: string | null; ativo: boolean };
+export type WhatsappHealthResult = { ok: boolean; configured: boolean; provider?: WhatsappProvider; statusConexao: string; instance?: string; checkedAt: string; connectionState?: string | null; error?: string };
 
 type SendInput = { empresaId: string; cotacaoId: string; vendedorId: string; telefone?: string | null; mensagem: string; tipoEnvio: WhatsappTipoEnvio; linkEnviado: string; forceResend?: boolean };
 
@@ -87,6 +89,57 @@ export async function sendWhatsappGlobalTestMessage(telefone: string, mensagem: 
   return true;
 }
 
+export async function checkWhatsappGlobalHealth(): Promise<WhatsappHealthResult> {
+  const checkedAt = new Date().toISOString();
+  if (!ready()) {
+    return { ok: false, configured: false, statusConexao: "supabase_nao_configurado", checkedAt, error: "Supabase nao configurado." };
+  }
+
+  const supabase = db();
+  const config = await getActiveConfig();
+  if (!config) {
+    return { ok: false, configured: false, statusConexao: "nao_configurado", checkedAt, error: "WhatsApp MBA Cotacoes nao configurado." };
+  }
+
+  try {
+    validateConfig(config);
+    const state = await callProviderHealth(config);
+    const connected = isConnectedState(state);
+    const statusConexao = connected ? "conectado" : "desconectado";
+    await updateConfigHealth(supabase, config.id, {
+      status_conexao: statusConexao,
+      last_health_check: checkedAt,
+      last_error: connected ? null : `Estado da instancia: ${state ?? "desconhecido"}`,
+    });
+    return {
+      ok: connected,
+      configured: true,
+      provider: config.provider,
+      statusConexao,
+      instance: getProviderInstance(config),
+      checkedAt,
+      connectionState: state,
+      error: connected ? undefined : `Instancia ${state ?? "sem estado conectado"}.`,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Falha no health check do WhatsApp.";
+    await updateConfigHealth(supabase, config.id, {
+      status_conexao: "erro",
+      last_health_check: checkedAt,
+      last_error: message,
+    });
+    return {
+      ok: false,
+      configured: true,
+      provider: config.provider,
+      statusConexao: "erro",
+      instance: getProviderInstance(config),
+      checkedAt,
+      error: message,
+    };
+  }
+}
+
 export async function listWhatsappEnvios(input: { quotationId: string; tipoEnvio: WhatsappTipoEnvio; vendedorId?: string }) {
   if (!ready() || !input.quotationId) return [] as WhatsappEnvio[];
   let query = db().from("cot_whatsapp_envios").select("*").eq("cotacao_id", input.quotationId).eq("tipo_envio", input.tipoEnvio).order("created_at", { ascending: false });
@@ -117,7 +170,7 @@ export async function sendWhatsAppMbaCotacoes(input: SendInput): Promise<SendWha
     const config = await getActiveConfig();
     validateConfig(config);
     if (!config?.ativo) throw new Error("Envio automático desativado.");
-    await callProvider(config, telefone, input.mensagem);
+    await callProviderWithRetry(config, telefone, input.mensagem);
     await updateEnvio(supabase, input, envioId, "enviado", null);
     return { vendedorId: input.vendedorId, telefone, status: "enviado" };
   } catch (error) {
@@ -163,7 +216,7 @@ export async function sendWinnerOrderLinksByQuotation(input: { quotationId: stri
 async function callProvider(config: Config, phone: string, message: string) {
   const base = String(config.api_url ?? "").replace(/\/$/, "");
   if (!base) throw new Error("API URL do WhatsApp não configurada.");
-  const instance = config.phone_number_id || config.numero_oficial || "mba-cotacoes";
+  const instance = getProviderInstance(config);
   const url = config.provider === "evolution_api" && !base.includes("/message/sendText") ? `${base}/message/sendText/${instance}` : base;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (config.api_token) {
@@ -175,12 +228,102 @@ async function callProvider(config: Config, phone: string, message: string) {
   if (!response.ok) throw new Error(`Provider retornou ${response.status}: ${text.slice(0, 200)}`);
 }
 
+async function callProviderWithRetry(config: Config, phone: string, message: string) {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      await callProvider(config, phone, message);
+      return;
+    } catch (error) {
+      lastError = error;
+      if (!isTransientProviderError(error) || attempt === 1) break;
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    }
+  }
+  throw lastError;
+}
+
+function isTransientProviderError(error: unknown) {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return ["408", "429", "500", "502", "503", "504", "timeout", "timed out", "fetch failed", "network", "econnreset"].some((part) => message.includes(part));
+}
+
+async function callProviderHealth(config: Config) {
+  if (config.provider !== "evolution_api") {
+    return config.ativo ? "configurado" : "inativo";
+  }
+
+  const base = getEvolutionApiBase(config);
+  if (!base) throw new Error("API URL do WhatsApp nao configurada.");
+
+  const instance = getProviderInstance(config);
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (config.api_token) headers.apikey = config.api_token;
+
+  const response = await fetch(`${base}/instance/connectionState/${encodeURIComponent(instance)}`, {
+    method: "GET",
+    headers,
+    cache: "no-store",
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(`Provider retornou ${response.status}: ${text.slice(0, 200)}`);
+
+  return extractConnectionState(parseJsonSafe(text)) ?? "desconhecido";
+}
+
+function getEvolutionApiBase(config: Config) {
+  const base = String(config.api_url ?? "").trim().replace(/\/+$/, "");
+  const sendTextIndex = base.indexOf("/message/sendText");
+  return sendTextIndex >= 0 ? base.slice(0, sendTextIndex) : base;
+}
+
+function getProviderInstance(config: Config) {
+  return config.phone_number_id || config.numero_oficial || "mba-cotacoes";
+}
+
+function parseJsonSafe(text: string): any {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function extractConnectionState(payload: any): string | null {
+  const candidates = [
+    payload?.state,
+    payload?.status,
+    payload?.connectionState,
+    payload?.instance?.state,
+    payload?.instance?.status,
+    payload?.instance?.connectionStatus,
+    payload?.instance?.connectionState,
+  ];
+  const value = candidates.find((item) => typeof item === "string" && item.trim().length > 0);
+  return value ? String(value).trim().toLowerCase() : null;
+}
+
+function isConnectedState(state: string | null) {
+  return ["open", "connected", "online", "conectado", "configurado"].includes(String(state ?? "").toLowerCase());
+}
+
+async function updateConfigHealth(supabase: Db, configId: string | undefined, payload: Record<string, unknown>) {
+  if (!configId) return;
+  const { error } = await supabase.from("cot_whatsapp_global_config").update(payload).eq("id", configId);
+  if (!error) return;
+
+  await supabase
+    .from("cot_whatsapp_global_config")
+    .update({ status_conexao: payload.status_conexao })
+    .eq("id", configId);
+}
+
 async function getActiveConfig() { const { data, error } = await db().from("cot_whatsapp_global_config").select("*").eq("ativo", true).order("updated_at", { ascending: false }).limit(1).maybeSingle(); if (error) throw error; return data ? mapConfig(data) : null; }
 async function getLatestConfig() { const { data, error } = await db().from("cot_whatsapp_global_config").select("*").order("ativo", { ascending: false }).order("updated_at", { ascending: false }).limit(1).maybeSingle(); if (error) throw error; return data ? mapConfig(data) : null; }
 async function safeGetLatestConfig() { try { return await getLatestConfig(); } catch { return null; } }
 function validateConfig(config: Config | null) { if (!config) throw new Error("WhatsApp MBA Cotações não configurado pelo Admin Master."); if (!config.provider) throw new Error("Provider não configurado."); if (!config.api_url) throw new Error("API URL não configurada."); }
 function validPhone(phone: string) { return /^\d{12,15}$/.test(phone); }
-function mapConfig(row: any): Config { return { id: row.id, provider: row.provider, api_url: row.api_url, api_token: row.api_token, phone_number_id: row.phone_number_id, numero_oficial: row.numero_oficial, nome_exibicao: row.nome_exibicao, status_conexao: row.status_conexao, ativo: Boolean(row.ativo) }; }
+function mapConfig(row: any): Config { return { id: row.id, provider: row.provider, api_url: row.api_url, api_token: row.api_token, phone_number_id: row.phone_number_id, numero_oficial: row.numero_oficial, nome_exibicao: row.nome_exibicao, status_conexao: row.status_conexao, last_health_check: row.last_health_check, last_error: row.last_error, ativo: Boolean(row.ativo) }; }
 function mapEnvio(row: any): WhatsappEnvio { return { id: row.id, empresaId: row.empresa_id, cotacaoId: row.cotacao_id, vendedorId: row.vendedor_id, telefone: row.telefone ?? "", tipoEnvio: row.tipo_envio, mensagem: row.mensagem ?? "", linkEnviado: row.link_enviado ?? "", status: row.status, erro: row.erro ?? undefined, enviadoPor: row.enviado_por ?? "mba_cotacoes", enviadoEm: row.enviado_em ?? undefined, createdAt: row.created_at }; }
 async function existingEnvio(supabase: Db, input: SendInput) { const { data } = await supabase.from("cot_whatsapp_envios").select("*").eq("empresa_id", input.empresaId).eq("cotacao_id", input.cotacaoId).eq("vendedor_id", input.vendedorId).eq("tipo_envio", input.tipoEnvio).maybeSingle(); return data ? mapEnvio(data) : null; }
 async function upsertEnvio(supabase: Db, input: SendInput, telefone: string, status: WhatsappStatus) { const existing = await existingEnvio(supabase, input); const payload = { empresa_id: input.empresaId, cotacao_id: input.cotacaoId, vendedor_id: input.vendedorId, telefone, tipo_envio: input.tipoEnvio, mensagem: input.mensagem, link_enviado: input.linkEnviado, status, erro: null, enviado_por: "mba_cotacoes" }; if (existing?.id) { await supabase.from("cot_whatsapp_envios").update(payload).eq("id", existing.id); return existing.id; } const { data } = await supabase.from("cot_whatsapp_envios").insert(payload).select("id").single(); return data?.id as string | undefined; }

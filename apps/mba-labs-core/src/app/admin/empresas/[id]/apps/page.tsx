@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppNav } from "@/components/AppNav";
+import { CotacoesAppAccessField } from "@/components/CotacoesAppAccessField";
 import {
   DataTable,
   DeleteButton,
@@ -32,7 +33,8 @@ export default async function EmpresaAppsPage({
   const rows = data.vinculos.map((row) => ({
     ...row,
     data_inicio: formatDate(row.data_inicio),
-    data_vencimento: formatDate(row.data_vencimento)
+    data_vencimento: formatDate(row.data_vencimento),
+    cotacoes_tipo_acesso_label: formatCotacoesAccess(row.cotacoes_tipo_acesso)
   }));
 
   return (
@@ -68,12 +70,10 @@ export default async function EmpresaAppsPage({
               </>
             }
           >
-            <FormSelect
-              label="App"
-              name="app_id"
-              defaultValue={String(editing?.app_id ?? "")}
-              options={data.apps}
-              required
+            <CotacoesAppAccessField
+              apps={data.apps}
+              defaultAppId={String(editing?.app_id ?? "")}
+              defaultAccess={String(editing?.cotacoes_tipo_acesso ?? "both")}
             />
             <FormSelect
               label="Plano"
@@ -113,6 +113,7 @@ export default async function EmpresaAppsPage({
           columns={[
             { key: "app", label: "App" },
             { key: "plano", label: "Plano" },
+            { key: "cotacoes_tipo_acesso_label", label: "Acesso MBA Cotacoes" },
             { key: "status", label: "Status" },
             { key: "data_inicio", label: "Início" },
             { key: "data_vencimento", label: "Vencimento" }
@@ -134,4 +135,11 @@ export default async function EmpresaAppsPage({
       </section>
     </main>
   );
+}
+
+function formatCotacoesAccess(value: unknown) {
+  if (value === "pharmacy") return "Farmacia";
+  if (value === "distributor_bidding") return "Licitacao";
+  if (value === "both") return "Farmacia + Licitacao";
+  return "-";
 }

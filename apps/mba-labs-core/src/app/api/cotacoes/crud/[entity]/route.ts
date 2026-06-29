@@ -17,6 +17,8 @@ import {
   deleteSupplier,
   deleteTenant,
   getLaboratories,
+  getProducts,
+  getSuppliers,
   updateDistributor,
   updateLaboratory,
   updateMonthlySubscription,
@@ -82,6 +84,8 @@ async function mutate(
     const { id, data } = await request.json() as { id?: string; data?: Row };
     if (!data) return NextResponse.json({ error: "Dados obrigatorios." }, { status: 400 });
     if (operation === "update" && !id) return NextResponse.json({ error: "ID obrigatorio." }, { status: 400 });
+
+    await assertNoDuplicateEntity(entity, data, operation === "update" ? id : undefined);
 
     const saved = operation === "create"
       ? await createByEntity(entity, data)
@@ -153,6 +157,54 @@ async function deleteByEntity(entity: Entity, id: string) {
   if (entity === "plans") return deleteSubscriptionPlan(id);
   if (entity === "monthly_subscriptions") return deleteMonthlySubscription(id);
   throw new Error("Entidade nao suportada.");
+}
+
+async function assertNoDuplicateEntity(entity: Entity, row: Row, editingId?: string) {
+  if (entity === "suppliers") {
+    const whatsapp = onlyDigits(text(row.whatsapp));
+    const document = onlyDigits(text(row.cpf ?? row.documento ?? row.cpfCnpj));
+    if (!whatsapp && !document) return;
+
+    const tenantId = text(row.tenantId);
+    const suppliers = await getSuppliers();
+    const duplicated = suppliers.find((supplier) => {
+      if (supplier.id === editingId || supplier.status === "inativo") return false;
+      if (tenantId && supplier.tenantId !== tenantId) return false;
+      if (whatsapp && onlyDigits(supplier.whatsapp) === whatsapp) return true;
+      const supplierDocument = onlyDigits(text((supplier as Supplier & { cpf?: string; documento?: string; cpfCnpj?: string }).cpf ??
+        (supplier as Supplier & { documento?: string }).documento ??
+        (supplier as Supplier & { cpfCnpj?: string }).cpfCnpj));
+      return Boolean(document && supplierDocument === document);
+    });
+
+    if (duplicated) {
+      throw new Error(whatsapp && onlyDigits(duplicated.whatsapp) === whatsapp
+        ? "Ja existe vendedor/fornecedor cadastrado com este WhatsApp."
+        : "Ja existe vendedor/fornecedor cadastrado com este CPF.");
+    }
+  }
+
+  if (entity === "products") {
+    const nome = normalizeKey(text(row.nome));
+    const ean = onlyDigits(text(row.ean));
+    const laboratorioId = await resolveProductLaboratoryId(row);
+    const tenantId = text(row.tenantId);
+    if (!nome && !ean && !laboratorioId) return;
+
+    const products = await getProducts();
+    const duplicated = products.find((product) => {
+      if (product.id === editingId || product.status === "inativo") return false;
+      if (tenantId && product.tenantId !== tenantId) return false;
+      const sameEan = ean && onlyDigits(text(product.ean)) === ean;
+      const sameLaboratory = laboratorioId && product.laboratorioId === laboratorioId;
+      const sameName = nome && normalizeKey(product.nome) === nome;
+      return Boolean((sameEan && sameLaboratory) || (sameName && sameEan && sameLaboratory));
+    });
+
+    if (duplicated) {
+      throw new Error("Produto duplicado: use outro EAN ou outro laboratorio para cadastrar uma excecao.");
+    }
+  }
 }
 
 async function productPayload(row: Row): Promise<Partial<Product>> {

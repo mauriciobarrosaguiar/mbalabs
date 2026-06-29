@@ -863,17 +863,23 @@ export async function getEmpresaAppsAdminData(empresaId: string) {
       .maybeSingle(),
     client
       .from("core_empresa_apps")
-      .select("id,empresa_id,app_id,plano_id,status,data_inicio,data_vencimento,observacoes,created_at,core_apps(nome,slug),core_planos(nome)")
+      .select("id,empresa_id,app_id,plano_id,status,data_inicio,data_vencimento,observacoes,cotacoes_tipo_acesso,created_at,core_apps(nome,slug),core_planos(nome)")
       .eq("empresa_id", empresaId)
       .order("created_at", { ascending: false }),
-    client.from("core_apps").select("id,nome,status,ordem").order("ordem"),
+    client.from("core_apps").select("id,nome,slug,status,ordem").order("ordem"),
     client.from("core_planos").select("id,nome,app_id,core_apps(nome)").order("nome")
   ]);
 
   return {
     empresa: normalizeAdminRow(empresa.data ?? {}),
     vinculos: ((vinculos.data ?? []) as Array<Record<string, unknown>>).map(normalizeAdminRow),
-    apps: toOptions((apps.data ?? []).filter((row: any) => String(row.status ?? "ativo") === "ativo")),
+    apps: ((apps.data ?? []) as Array<Record<string, unknown>>)
+      .filter((row) => String(row.status ?? "ativo") === "ativo")
+      .map((row) => ({
+        value: String(row.id),
+        label: String(row.nome ?? ""),
+        slug: String(row.slug ?? ""),
+      })),
     planos: (planos.data ?? []).map((row: any) => ({
       value: row.id,
       appId: row.app_id,

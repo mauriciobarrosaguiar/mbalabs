@@ -6,7 +6,11 @@ import {
 import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/server";
 import { canFinishQuotation, isQuotationClosed } from "@/modules/cotacoes/lib/quotation-status";
 import { getCurrentAuthContext } from "@/modules/cotacoes/lib/auth/session";
-import { sendQuotationLinksByQuotation } from "@/modules/cotacoes/lib/whatsapp/mba-cotacoes";
+import {
+  ensureCreateQuotationAccess,
+  ensureQuotationAccess,
+  normalizeModuleType,
+} from "@/modules/cotacoes/lib/auth/quotation-access";
 
 export async function POST(request: NextRequest) {
   if (!canUseSupabaseOperational()) {
@@ -19,45 +23,27 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const auth = await getCurrentAuthContext();
-    const tenantId = auth.isSuperAdmin ? body.tenantId : auth.tenantAccess?.tenantId ?? body.tenantId;
+    const moduleType = normalizeModuleType(body.moduleType);
+    if (!moduleType) return NextResponse.json({ error: "Modulo invalido." }, { status: 400 });
+
+    const access = ensureCreateQuotationAccess(auth, moduleType, body.tenantId);
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+
+    const tenantId = access.tenantId;
     console.info("[API] POST /api/quotations", {
-      moduleType: body.moduleType,
+      moduleType,
       tenantId,
       tenantName: auth.tenantAccess?.tenantName,
       isSuperAdmin: auth.isSuperAdmin,
     });
-    const result = await createSupabaseQuotation({ ...body, tenantId });
-    const responsePrefix = body.moduleType === "bidding" ? "licitacao" : "cotacao";
-    const links = result.sessions.map((session: { supplierId?: string; publicToken: string }) => ({
-      supplierId: session.supplierId,
-      token: session.publicToken,
-      url: `${request.nextUrl.origin}/${responsePrefix}/responder/${session.publicToken}`,
-    }));
-
-    let whatsapp: unknown = null;
-    if (body.status === "waiting_responses") {
-      try {
-        whatsapp = await sendQuotationLinksByQuotation({
-          quotationId: result.quotation.id,
-          origin: request.nextUrl.origin,
-        });
-      } catch (whatsappError) {
-        console.warn("[WhatsApp MBA Cotações] Cotação criada, mas o envio automático falhou.", whatsappError);
-        whatsapp = {
-          total: links.length,
-          enviado: 0,
-          falhou: links.length,
-          pendente: 0,
-          ignorado: 0,
-          error: whatsappError instanceof Error ? whatsappError.message : "Falha no envio automático de WhatsApp.",
-        };
-      }
-    }
-
+    const result = await createSupabaseQuotation({ ...body, moduleType, tenantId });
     return NextResponse.json({
       ...result,
-      links,
-      whatsapp,
+      links: result.sessions.map((session: { supplierId?: string; publicToken: string }) => ({
+        supplierId: session.supplierId,
+        token: session.publicToken,
+        url: `${request.nextUrl.origin}/cotacoes/responder/${session.publicToken}`,
+      })),
     });
   } catch (error) {
     console.error("Erro ao criar cotação", error);
@@ -92,14 +78,10 @@ export async function PATCH(request: NextRequest) {
     if (!body.id) return NextResponse.json({ error: "ID obrigatório." }, { status: 400 });
 
     const supabase = createSupabaseAdminClient();
-    const { data: quotation, error: quotationError } = await supabase
-      .from("quotations")
-      .select("*")
-      .eq("id", body.id)
-      .maybeSingle();
-
-    if (quotationError) throw quotationError;
-    if (!quotation) return NextResponse.json({ error: "Cotação não encontrada." }, { status: 404 });
+    const auth = await getCurrentAuthContext();
+    const access = await ensureQuotationAccess(auth, body.id, "*");
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+    const quotation = access.quotation as Record<string, any>;
 
     if (body.action === "finish") {
       if (!canFinishQuotation(quotation.status)) {
@@ -257,14 +239,9 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = createSupabaseAdminClient();
     const now = new Date().toISOString();
-    const { data: quotation, error: quotationError } = await supabase
-      .from("quotations")
-      .select("id,status")
-      .eq("id", body.id)
-      .maybeSingle();
-
-    if (quotationError) throw quotationError;
-    if (!quotation) return NextResponse.json({ error: "Cotação não encontrada." }, { status: 404 });
+    const auth = await getCurrentAuthContext();
+    const access = await ensureQuotationAccess(auth, body.id, "id,status,tenant_id,module_type,deleted_at");
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
     await softDeleteQuotation(supabase, body.id, now);
     await cleanupDeletedQuotationRelations(supabase, body.id, now);

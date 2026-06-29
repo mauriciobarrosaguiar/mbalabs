@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Copy, Download, FileSpreadsheet, MessageCircle, Plus, Search, Send, Trash2, Upload } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Copy, Download, ExternalLink, FileSpreadsheet, MessageCircle, Plus, Search, Send, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { JudgmentTypeSelect } from "@/modules/cotacoes/components/forms/judgment-type-select";
 import { ProductTypeSelect } from "@/modules/cotacoes/components/forms/product-type-select";
@@ -160,7 +160,7 @@ export function NewQuotationForm({
 
     return hasSupabaseBrowserConfig() ? [] : demoSuppliers;
   }, [suppliers]);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(() => getInitialWizardStep());
   const [draft, setDraft] = useState<QuotationDraft>({
     name: isBidding ? "Pregão medicamentos" : "Falteiro loja matriz",
     buyerDocument: "12.345.678/0001-90",
@@ -189,6 +189,36 @@ export function NewQuotationForm({
   function updateDraft<K extends keyof QuotationDraft>(key: K, value: QuotationDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
   }
+
+  const goToStep = useCallback((nextStep: number, historyMode: "push" | "replace" = "push") => {
+    const normalizedStep = normalizeWizardStep(nextStep);
+    setStep(normalizedStep);
+    if (typeof window === "undefined") return;
+    const state = {
+      ...(typeof window.history.state === "object" && window.history.state ? window.history.state : {}),
+      mbaQuotationStep: normalizedStep,
+    };
+    if (historyMode === "replace") {
+      window.history.replaceState(state, "", window.location.href);
+      return;
+    }
+    window.history.pushState(state, "", window.location.href);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const currentState = typeof window.history.state === "object" && window.history.state ? window.history.state : {};
+    const initialStep = normalizeWizardStep(Number((currentState as { mbaQuotationStep?: number }).mbaQuotationStep ?? step));
+    window.history.replaceState({ ...currentState, mbaQuotationStep: initialStep }, "", window.location.href);
+
+    function handlePopState(event: PopStateEvent) {
+      const nextStep = normalizeWizardStep(Number((event.state as { mbaQuotationStep?: number } | null)?.mbaQuotationStep ?? 1));
+      setStep(nextStep);
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [step]);
 
   function addItem(item?: DraftItem) {
     if (item) {
@@ -226,7 +256,7 @@ export function NewQuotationForm({
       toast.error("Selecione pelo menos 1 fornecedor.");
       return;
     }
-    setStep((current) => Math.min(4, current + 1));
+    goToStep(step + 1);
   }
 
   async function saveDraft() {
@@ -386,7 +416,7 @@ export function NewQuotationForm({
         </Button>
         <div className="flex flex-col gap-3 sm:flex-row">
           {step > 1 ? (
-            <Button type="button" variant="outline" onClick={() => setStep((current) => current - 1)}>
+            <Button type="button" variant="outline" onClick={() => goToStep(step - 1, "replace")}>
               Voltar
             </Button>
           ) : null}
@@ -396,9 +426,14 @@ export function NewQuotationForm({
             </Button>
           ) : (
             <>
-            <Button type="button" variant="outline" onClick={generateLinks} disabled={saving}>
-              {isBidding ? "Gerar links dos fornecedores" : "Gerar links dos vendedores"}
-            </Button>
+              {links.length > 0 ? (
+                <Button asChild type="button" variant="outline">
+                  <a href={links[0]?.url} target="_blank" rel="noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                    Abrir cotação
+                  </a>
+                </Button>
+              ) : null}
               <Button type="button" onClick={generateLinks} disabled={saving}>
                 <Send className="h-4 w-4" />
                 {saving ? "Salvando..." : "Enviar cotação"}
@@ -434,6 +469,17 @@ function isPastDeadline(value: string) {
   today.setHours(0, 0, 0, 0);
   const deadline = new Date(`${value}T23:59:59`);
   return deadline.getTime() < today.getTime();
+}
+
+function getInitialWizardStep() {
+  if (typeof window === "undefined") return 1;
+  const currentState = typeof window.history.state === "object" && window.history.state ? window.history.state : {};
+  return normalizeWizardStep(Number((currentState as { mbaQuotationStep?: number }).mbaQuotationStep ?? 1));
+}
+
+function normalizeWizardStep(value: number) {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(1, Math.min(4, Math.trunc(value)));
 }
 
 function StepHeader({ step, isBidding }: { step: number; isBidding: boolean }) {
@@ -709,7 +755,20 @@ function StepItems({
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.productName}</TableCell>
                 <TableCell>{item.requestedLaboratory || "Qualquer"}</TableCell>
-                <TableCell>{formatInteger(item.requestedQuantity)} {labelFrom(unitLabels, item.requestedUnit)}</TableCell>
+                <TableCell>
+                  <div className="flex min-w-32 items-center gap-2">
+                    <Input
+                      type="number"
+                      min="0.01"
+                      step="any"
+                      value={String(item.requestedQuantity)}
+                      onChange={(event) => updateItem(item.id, { requestedQuantity: parsePositiveQuantity(event.target.value, item.requestedQuantity) })}
+                      className="h-9 w-24"
+                      aria-label={`Quantidade de ${item.productName}`}
+                    />
+                    <span className="text-sm text-muted-foreground">{labelFrom(unitLabels, item.requestedUnit)}</span>
+                  </div>
+                </TableCell>
                 <TableCell>{labelFrom(productTypeLabels, item.productType)}</TableCell>
                 <TableCell>{item.buyerObservation || "-"}</TableCell>
                 <TableCell>
@@ -1027,6 +1086,11 @@ function StepReview({
                       <Copy className="h-4 w-4" />Copiar link
                     </Button>
                     <Button asChild type="button" variant="outline" size="sm">
+                      <a href={link.url} target="_blank" rel="noreferrer">
+                        <ExternalLink className="h-4 w-4" />Abrir cotação
+                      </a>
+                    </Button>
+                    <Button asChild type="button" variant="outline" size="sm">
                       <a href={whatsapp} target="_blank" rel="noreferrer">
                         <MessageCircle className="h-4 w-4" />WhatsApp
                       </a>
@@ -1074,6 +1138,12 @@ function Summary({ label, value }: { label: string; value: string }) {
       <p className="mt-1 font-semibold text-slate-950">{value}</p>
     </div>
   );
+}
+
+function parsePositiveQuantity(value: string, fallback: number) {
+  const parsed = Number(value.replace(",", "."));
+  if (!Number.isFinite(parsed)) return fallback;
+  return parsed > 0 ? parsed : fallback;
 }
 
 function productToDraftItem(

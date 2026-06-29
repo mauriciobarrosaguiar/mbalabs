@@ -42,7 +42,6 @@ export function generatePharmacyAwards(
   if (!winner) return [];
 
   const awardedQuantity = quotationItem.requestedQuantity;
-  const winnerResponse = responses.find((response) => response.id === winner.responseId);
 
   return [
     {
@@ -52,7 +51,12 @@ export function generatePharmacyAwards(
       quotationItemId: quotationItem.id,
       supplierResponseItemId: winner.id,
       supplierId: winner.supplierId,
-      supplierName: getSellerDisplayName(winnerResponse, winner.supplierId),
+      supplierName:
+        responses.find((response) => response.id === winner.responseId)
+          ?.sellerName ??
+        responses.find((response) => response.id === winner.responseId)
+          ?.sellerCompany ??
+        "Fornecedor",
       moduleType: "pharmacy",
       rankingPosition: 1,
       awardedQuantity,
@@ -71,7 +75,6 @@ export function buildPharmacyAnalysis(
   responses: SupplierQuoteResponse[],
   distributors: Distributor[],
 ): PharmacyAnalysisResult {
-  const responseById = new Map(responses.map((response) => [response.id, response]));
   const submittedResponseIds = new Set(
     responses
       .filter((response) => response.status === "submitted")
@@ -88,7 +91,6 @@ export function buildPharmacyAnalysis(
       .sort((a, b) => comparePharmacyResponseItems(a, b, responses))
       .map((responseItem, index) => ({
         ...responseItem,
-        supplierId: getSellerDisplayName(responseById.get(responseItem.responseId), responseItem.supplierId),
         rankingPosition: responseItem.unitPrice ? index + 1 : undefined,
       })),
   );
@@ -105,14 +107,14 @@ export function buildPharmacyAnalysis(
         distributorResponseIds.includes(award.supplierResponseItemId),
       )
       .reduce((total, award) => total + award.totalPrice, 0);
-    const sellerResponse = responses.find((response) =>
-      validResponseItems.some(
-        (item) =>
-          item.distributorId === distributor.id &&
-          item.responseId === response.id,
-      ),
-    );
-    const sellerName = getSellerDisplayName(sellerResponse, "-");
+    const sellerName =
+      responses.find((response) =>
+        validResponseItems.some(
+          (item) =>
+            item.distributorId === distributor.id &&
+            item.responseId === response.id,
+        ),
+      )?.sellerName ?? "-";
 
     const status: "atingiu" | "não atingiu" | "atenção" =
       totalWon >= distributor.pedidoMinimo
@@ -173,10 +175,6 @@ function comparePharmacyResponseItems(
   const supplierA = a.supplierId ?? responseById.get(a.responseId)?.supplierId ?? a.responseId;
   const supplierB = b.supplierId ?? responseById.get(b.responseId)?.supplierId ?? b.responseId;
   return supplierA.localeCompare(supplierB);
-}
-
-function getSellerDisplayName(response?: SupplierQuoteResponse, fallback = "Fornecedor") {
-  return response?.sellerCompany || response?.sellerName || fallback || "Fornecedor";
 }
 
 function roundMoney(value: number) {

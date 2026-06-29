@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   BarChart3,
@@ -89,10 +91,6 @@ const supplierNav: NavItem[] = [
   { href: "/cotacoes/perfil", label: "Perfil", icon: Settings, group: "principal" },
 ];
 
-const whatsappAdminNav: NavItem[] = [
-  { href: "/admin/configuracoes/whatsapp", label: "WhatsApp MBA", icon: MessageCircle, group: "Admin Master" },
-];
-
 export function AppShell({
   children,
   mode,
@@ -112,7 +110,7 @@ export function AppShell({
   tenantType?: CustomerType;
   tenantName?: string;
 }) {
-  const nav = mode === "admin" ? adminNav : withReturnToMbaLabs(getAppNav(profileRole, tenantType), profileRole);
+  const nav = mode === "admin" ? adminNav : withReturnToMbaLabs(getAppNav(profileRole, tenantType));
 
   return (
     <div className="cotacoes-module min-h-screen bg-slate-50">
@@ -165,15 +163,33 @@ export function AppShell({
   );
 }
 
-function Brand({ mode }: { mode: "admin" | "app" }) {
+function Brand({
+  mode,
+  variant = "default",
+}: {
+  mode: "admin" | "app";
+  variant?: "default" | "mobile";
+}) {
   return (
-    <div className="flex h-16 shrink-0 items-center gap-3 border-b border-slate-200 !bg-white px-4">
-      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-teal-700 text-xs font-bold !text-white">
+    <div
+      className={cn(
+        "flex h-16 items-center gap-3 border-b px-4",
+        "border-slate-200",
+      )}
+    >
+      <div className="flex h-10 w-10 items-center justify-center rounded-md bg-teal-700 text-xs font-bold text-white">
         MBA
       </div>
-      <div className="min-w-0">
-        <p className="truncate font-semibold !text-slate-950">MBA Cotações</p>
-        <p className="truncate text-xs !text-slate-600">
+      <div>
+        <p className={cn("font-semibold", variant === "mobile" ? "text-slate-950" : "text-slate-950")}>
+          MBA Cotações
+        </p>
+        <p
+          className={cn(
+            "text-xs",
+            variant === "mobile" ? "text-slate-600" : "text-muted-foreground",
+          )}
+        >
           {mode === "admin" ? "Painel Administrativo MBA Cotações" : "Painel da empresa"}
         </p>
       </div>
@@ -199,36 +215,49 @@ function MobileNav({
       </SheetTrigger>
       <SheetContent
         side="left"
-        className="!h-[100dvh] !max-h-[100dvh] w-[86vw] max-w-[360px] gap-0 overflow-hidden border-r border-slate-200 !bg-white p-0 !text-slate-950 shadow-xl [&_[data-slot=sheet-close]]:!text-slate-700 [&_[data-slot=sheet-close]:hover]:!bg-slate-100"
+        aria-describedby={undefined}
+        className="cotacoes-mobile-menu flex h-full max-h-dvh w-[min(86vw,20rem)] max-w-[86vw] flex-col gap-0 overflow-hidden border-slate-200 !bg-white p-0 !text-slate-950"
       >
         <SheetHeader className="sr-only">
           <SheetTitle>Menu</SheetTitle>
         </SheetHeader>
-        <Brand mode={mode} />
-        <Separator className="shrink-0 bg-slate-200" />
-        <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 py-4 pb-28 [-webkit-overflow-scrolling:touch]">
-          <GroupedNav nav={nav} currentPath={currentPath} />
+        <Brand mode={mode} variant="mobile" />
+        <Separator className="bg-slate-200" />
+        <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 pt-4 pb-8 [-webkit-overflow-scrolling:touch]">
+          <GroupedNav nav={nav} currentPath={currentPath} variant="mobile" />
         </nav>
       </SheetContent>
     </Sheet>
   );
 }
 
-function NavLink({ item, active }: { item: NavItem; active: boolean }) {
+function NavLink({
+  item,
+  active,
+  variant = "default",
+}: {
+  item: NavItem;
+  active: boolean;
+  variant?: "default" | "mobile";
+}) {
   const Icon = item.icon;
+  const mobile = variant === "mobile";
 
   return (
     <Link
       aria-current={active ? "page" : undefined}
       href={item.href}
       className={cn(
-        "flex min-h-11 items-center justify-between rounded-md px-3 text-sm font-medium !text-slate-700 transition hover:bg-slate-100 hover:!text-slate-950",
-        active && "!bg-teal-100 !text-teal-900 shadow-sm hover:!bg-teal-100 hover:!text-teal-900",
+        "flex min-h-10 items-center justify-between rounded-md px-3 text-sm font-medium transition",
+        mobile && active && "bg-teal-50 text-teal-800 hover:bg-teal-50 hover:text-teal-800",
+        mobile && !active && "text-slate-900 hover:bg-slate-100 hover:text-slate-950",
+        !mobile && active && "bg-teal-50 text-teal-800 hover:bg-teal-50 hover:text-teal-800",
+        !mobile && !active && "text-slate-700 hover:bg-slate-100 hover:text-slate-950",
       )}
     >
-      <span className="flex min-w-0 items-center gap-3">
-        <Icon className="h-4 w-4 shrink-0" />
-        <span className="truncate">{item.label}</span>
+      <span className="flex items-center gap-3">
+        <Icon className="h-4 w-4" />
+        <span>{item.label}</span>
       </span>
     </Link>
   );
@@ -237,9 +266,11 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
 function GroupedNav({
   nav,
   currentPath,
+  variant = "default",
 }: {
   nav: NavItem[];
   currentPath: string;
+  variant?: "default" | "mobile";
 }) {
   const groups = new Map<string, NavItem[]>();
   for (const item of nav) {
@@ -252,7 +283,12 @@ function GroupedNav({
       {Array.from(groups.entries()).map(([group, items]) => (
         <div key={group} className="space-y-1">
           {group !== "principal" ? (
-            <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide !text-slate-500">
+            <p
+              className={cn(
+                "px-3 pb-1 text-xs font-semibold uppercase tracking-wide",
+                variant === "mobile" ? "text-slate-500" : "text-muted-foreground",
+              )}
+            >
               {group}
             </p>
           ) : null}
@@ -261,6 +297,7 @@ function GroupedNav({
               key={item.href}
               item={item}
               active={isActive(currentPath, item.href)}
+              variant={variant}
             />
           ))}
         </div>
@@ -275,7 +312,12 @@ function isActive(currentPath: string, href: string) {
 }
 
 function getAppNav(role?: UserRole, tenantType?: CustomerType) {
-  if (role === "SUPER_ADMIN") return mergeNav(pharmacyNav, biddingNav, whatsappAdminNav);
+  if (role === "SUPER_ADMIN") {
+    return [
+      ...mergeNav(pharmacyNav, biddingNav),
+      { href: "/cotacoes/configuracoes/whatsapp", label: "WhatsApp MBA", icon: MessageCircle, group: "GestÃ£o" },
+    ];
+  }
   if (role === "VENDEDOR_EXTERNO") return supplierNav;
   if (tenantType === "pharmacy") return pharmacyNav;
   if (tenantType === "distributor_bidding") return biddingNav;
@@ -283,15 +325,15 @@ function getAppNav(role?: UserRole, tenantType?: CustomerType) {
   return pharmacyNav;
 }
 
-function withReturnToMbaLabs(nav: NavItem[], role?: UserRole) {
+function withReturnToMbaLabs(nav: NavItem[]) {
   return [
     ...nav,
     {
       href: "/dashboard",
       label: "Voltar ao MBA Labs",
       icon: LayoutDashboard,
-      group: role === "SUPER_ADMIN" ? "Admin Master" : "Gestão",
-    },
+      group: "Gestao"
+    }
   ];
 }
 

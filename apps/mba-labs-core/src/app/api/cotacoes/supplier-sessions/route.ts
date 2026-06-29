@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentAuthContext } from "@/modules/cotacoes/lib/auth/session";
+import { ensureQuotationAccess } from "@/modules/cotacoes/lib/auth/quotation-access";
 import { canUseSupabaseOperational } from "@/modules/cotacoes/lib/data/supabase-operational";
 import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/server";
 
@@ -22,6 +24,10 @@ export async function PATCH(request: NextRequest) {
       .maybeSingle();
     if (sessionError) throw sessionError;
     if (!session) return NextResponse.json({ error: "Link não encontrado." }, { status: 404 });
+
+    const auth = await getCurrentAuthContext();
+    const access = await ensureQuotationAccess(auth, session.quotation_id);
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
     const { data: quotation, error: quotationError } = await supabase
       .from("quotations")

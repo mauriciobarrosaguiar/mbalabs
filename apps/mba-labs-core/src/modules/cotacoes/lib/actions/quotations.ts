@@ -17,7 +17,7 @@ export async function createSupplierSessionsAction() {
 
 export async function generateQuotationLinksAction(payload: Parameters<typeof createSupabaseQuotation>[0] & { moduleType: ModuleType }) {
   const result = await createSupabaseQuotation(payload);
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = resolvePublicAppUrl();
 
   return {
     ...result,
@@ -27,4 +27,20 @@ export async function generateQuotationLinksAction(payload: Parameters<typeof cr
       url: `${appUrl}/cotacoes/responder/${session.publicToken}`,
     })),
   };
+}
+
+function resolvePublicAppUrl() {
+  const explicitUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_CORE_URL;
+  if (explicitUrl) return normalizeOrigin(explicitUrl);
+
+  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  if (vercelUrl) return normalizeOrigin(vercelUrl);
+
+  return "http://localhost:3000";
+}
+
+function normalizeOrigin(value: string) {
+  const trimmed = value.trim().replace(/\/+$/, "");
+  if (!trimmed) return "http://localhost:3000";
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }

@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentAuthContext } from "@/modules/cotacoes/lib/auth/session";
+import { ensureQuotationAccess } from "@/modules/cotacoes/lib/auth/quotation-access";
 import { generatePurchaseOrders } from "@/modules/cotacoes/lib/data/repository";
-import { createSupabaseAdminClient, hasSupabaseAdminConfig, hasSupabaseConfig } from "@/modules/cotacoes/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/server";
 import {
   listWhatsappEnvios,
   sendQuotationLinksByQuotation,
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.action === "send_winner_orders") {
-      const orders = await generatePurchaseOrders(body.quotationId);
+      const orders = await generatePurchaseOrders(body.quotationId, access.tenantId);
       const whatsapp = await sendWinnerOrderLinksByQuotation({ quotationId: body.quotationId, origin, orders });
       return NextResponse.json({ ok: true, orders, whatsapp });
     }
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
         const result = await resendQuotationLink({ quotationId: body.quotationId, vendedorId: body.vendedorId, origin });
         return NextResponse.json({ ok: true, whatsapp: summarizeSingle(result) });
       }
-      const orders = await generatePurchaseOrders(body.quotationId);
+      const orders = await generatePurchaseOrders(body.quotationId, access.tenantId);
       const whatsapp = await sendWinnerOrderLinksByQuotation({ quotationId: body.quotationId, origin, orders, vendedorId: body.vendedorId, forceResend: true });
       return NextResponse.json({ ok: true, orders, whatsapp });
     }
@@ -71,19 +71,6 @@ export async function POST(request: NextRequest) {
     console.error("Erro no envio automático de WhatsApp", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Erro no envio automático de WhatsApp." }, { status: 500 });
   }
-}
-
-async function ensureQuotationAccess(auth: Awaited<ReturnType<typeof getCurrentAuthContext>>, quotationId: string) {
-  if (!auth.isAuthenticated || !auth.isActive) return { ok: false as const, status: 401, error: "Sessão expirada." };
-  if (!hasSupabaseConfig() || !hasSupabaseAdminConfig()) return { ok: false as const, status: 409, error: "Supabase não configurado." };
-  if (auth.isSuperAdmin) return { ok: true as const };
-
-  const supabase = createSupabaseAdminClient();
-  const { data, error } = await supabase.from("quotations").select("tenant_id").eq("id", quotationId).maybeSingle();
-  if (error) throw error;
-  if (!data) return { ok: false as const, status: 404, error: "Cotação não encontrada." };
-  if (data.tenant_id !== auth.tenantAccess?.tenantId) return { ok: false as const, status: 403, error: "Sem permissão para esta cotação." };
-  return { ok: true as const };
 }
 
 async function resendQuotationLink(input: { quotationId: string; vendedorId: string; origin: string }) {
