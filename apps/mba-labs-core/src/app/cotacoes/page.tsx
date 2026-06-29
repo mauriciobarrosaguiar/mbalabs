@@ -22,6 +22,8 @@ export default async function CotacoesPage() {
       <CompanyRoutePage
         slug={slug}
         tenantType={auth.tenantAccess?.tenantType}
+        tenantId={auth.isSuperAdmin ? undefined : auth.tenantAccess?.tenantId}
+        isSuperAdmin={auth.isSuperAdmin}
       />
     </AppShell>
   );

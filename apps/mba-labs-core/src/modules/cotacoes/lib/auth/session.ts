@@ -193,6 +193,9 @@ async function ensureCotacoesAuthContext(current: CurrentUserProfile): Promise<A
 }
 
 async function ensureTenantBridge(admin: any, current: CurrentUserProfile) {
+  if (!current.empresaId) return null;
+
+  const cotacoesAccessType = await resolveCoreCotacoesAccessType(admin, current.empresaId);
   const { data: empresa } = await admin
     .from("core_empresas")
     .select("id,nome,nome_fantasia,cnpj,telefone,email,cidade,estado,status")
@@ -216,7 +219,12 @@ async function ensureTenantBridge(admin: any, current: CurrentUserProfile) {
     .select("*")
     .eq("core_empresa_id", current.empresaId)
     .maybeSingle();
-  if (existingByCore) return existingByCore;
+  if (existingByCore) {
+    return syncTenantBridge(admin, existingByCore, {
+      tipo_cliente: cotacoesAccessType,
+      status: mapCompanyStatus(company.status),
+    });
+  }
 
   const cnpj = company.cnpj || `CORE-${current.empresaId}`;
   const { data: existingByCnpj } = await admin
@@ -227,7 +235,7 @@ async function ensureTenantBridge(admin: any, current: CurrentUserProfile) {
   if (existingByCnpj) {
     const { data } = await admin
       .from("tenants")
-      .update({ core_empresa_id: current.empresaId })
+      .update({ core_empresa_id: current.empresaId, tipo_cliente: cotacoesAccessType, status: mapCompanyStatus(company.status) })
       .eq("id", existingByCnpj.id)
       .select("*")
       .single();
@@ -241,7 +249,7 @@ async function ensureTenantBridge(admin: any, current: CurrentUserProfile) {
       nome_fantasia: company.nome_fantasia || company.nome || "Empresa",
       razao_social: company.nome || company.nome_fantasia || "Empresa",
       cnpj,
-      tipo_cliente: "both",
+      tipo_cliente: cotacoesAccessType,
       responsavel_nome: current.usuario.nome,
       responsavel_email: company.email || current.usuario.email,
       responsavel_whatsapp: company.telefone || "",
@@ -254,6 +262,49 @@ async function ensureTenantBridge(admin: any, current: CurrentUserProfile) {
 
   await ensureDefaultPharmacy(admin, tenant, company);
   return tenant;
+}
+
+async function syncTenantBridge(admin: any, tenant: any, patch: { tipo_cliente: CustomerType; status: TenantStatus }) {
+  if (tenant.tipo_cliente === patch.tipo_cliente && tenant.status === patch.status) {
+    return tenant;
+  }
+
+  const { data, error } = await admin
+    .from("tenants")
+    .update(patch)
+    .eq("id", tenant.id)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data ?? { ...tenant, ...patch };
+}
+
+async function resolveCoreCotacoesAccessType(admin: any, empresaId: string): Promise<CustomerType> {
+  try {
+    const { data: app } = await admin
+      .from("core_apps")
+      .select("id,slug")
+      .in("slug", ["mba-cotacoes", "mbacotacoes"])
+      .limit(1)
+      .maybeSingle();
+
+    if (!app?.id) return "both";
+
+    const { data } = await admin
+      .from("core_empresa_apps")
+      .select("cotacoes_tipo_acesso,status")
+      .eq("empresa_id", empresaId)
+      .eq("app_id", app.id)
+      .neq("status", "cancelado")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return normalizeCotacoesAccessType(data?.cotacoes_tipo_acesso);
+  } catch {
+    return "both";
+  }
 }
 
 async function ensureDefaultPharmacy(admin: any, tenant: any, company: any) {
@@ -407,6 +458,13 @@ function mapCompanyStatus(status?: string | null): TenantStatus {
   if (status === "bloqueada") return "suspenso";
   if (status === "inativa" || status === "cancelada") return "cancelado";
   return "ativo";
+}
+
+function normalizeCotacoesAccessType(value: unknown): CustomerType {
+  if (value === "pharmacy" || value === "distributor_bidding" || value === "both") {
+    return value;
+  }
+  return "both";
 }
 
 function isSuperAdminType(tipo: string) {

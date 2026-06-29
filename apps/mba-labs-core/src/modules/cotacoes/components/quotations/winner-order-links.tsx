@@ -55,7 +55,11 @@ export function WinnerOrderLinks({ order }: { order?: PurchaseOrder }) {
       if (!response.ok) throw new Error(payload.error ?? "Não foi possível reenviar.");
       const result = payload.whatsapp?.results?.[0] as WhatsappEnvio | undefined;
       if (result) setEnvio(result);
-      payload.whatsapp?.falhou ? toast.warning("Reenvio falhou.") : toast.success("WhatsApp reenviado.");
+      if (payload.whatsapp?.falhou) {
+        toast.warning("Reenvio falhou.");
+      } else {
+        toast.success("WhatsApp reenviado.");
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível reenviar WhatsApp.");
     }

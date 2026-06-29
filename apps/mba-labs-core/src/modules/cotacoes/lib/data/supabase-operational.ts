@@ -55,6 +55,31 @@ function logSupabaseReadError(context: string, error: unknown) {
   console.error(`[Supabase] Falha ao buscar ${context}:`, error);
 }
 
+async function recordOperationalAudit(
+  supabase: SupabaseClient,
+  input: {
+    tenantId?: string | null;
+    action: string;
+    entity?: string;
+    severity?: "info" | "warning" | "error";
+    metadata?: Record<string, unknown>;
+  },
+) {
+  try {
+    const { error } = await supabase.from("audit_logs").insert({
+      tenant_id: input.tenantId ?? null,
+      actor: "Sistema",
+      action: input.action,
+      entity: input.entity ?? null,
+      severity: input.severity ?? "info",
+      metadata: input.metadata ?? {},
+    });
+    if (error) logSupabaseReadError("audit_logs", error);
+  } catch (error) {
+    logSupabaseReadError("audit_logs", error);
+  }
+}
+
 function readDb(context: string): SupabaseClient | null {
   if (!canUseSupabaseOperational()) return null;
   try {
@@ -474,6 +499,23 @@ export async function createSupabaseQuotation(input: {
     .select("*");
 
   if (sessionError) throw sessionError;
+
+  if (input.status === "waiting_responses" && (sessionRows ?? []).length > 0) {
+    await recordOperationalAudit(supabase, {
+      tenantId: tenant.id,
+      action: "WhatsApp: cotacao enviada aos vendedores",
+      entity: "supplier_quote_sessions",
+      metadata: {
+        quotationId: quotationRow.id,
+        moduleType,
+        suppliers: (sessionRows ?? []).map((session) => ({
+          supplierId: session.supplier_id,
+          name: session.seller_name,
+          whatsapp: session.seller_whatsapp,
+        })),
+      },
+    });
+  }
 
   return {
     quotation: mapQuotation(quotationRow),
@@ -936,6 +978,21 @@ export async function generateAndPersistSupabasePurchaseOrders(quotationId: stri
   }
 
   if (persisted.length > 0) {
+    await recordOperationalAudit(supabase, {
+      tenantId: bundle.quotation.tenantId,
+      action: "WhatsApp: pedido vencedor enviado ao vendedor",
+      entity: "purchase_orders",
+      metadata: {
+        quotationId,
+        orders: persisted.map((order) => ({
+          orderId: order.id,
+          supplierId: order.supplierId,
+          supplierName: order.supplierContactName ?? order.supplierName,
+          supplierWhatsapp: order.supplierWhatsapp,
+          publicToken: order.publicToken,
+        })),
+      },
+    });
     await markSupabaseQuotationAsGenerated(supabase, quotationId, tenantId);
   }
 
@@ -1005,7 +1062,7 @@ async function insertPurchaseOrderRow(
     supplier_whatsapp: supplierRow?.whatsapp ?? supplierResponse?.sellerWhatsapp ?? order.supplierWhatsapp ?? null,
     total_amount: order.totalAmount,
     confirmed_amount: 0,
-    status: "gerado",
+    status: "enviado_ao_vendedor",
   };
 
   const { data, error } = await supabase

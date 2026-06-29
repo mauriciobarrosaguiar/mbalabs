@@ -44,7 +44,11 @@ export function SupplierLinksTable({ moduleType, sessions }: { moduleType: Modul
       if (!response.ok) throw new Error(payload.error ?? "Não foi possível reenviar.");
       const result = payload.whatsapp?.results?.[0] as WhatsappEnvio | undefined;
       if (result) setSendStatus((current) => ({ ...current, [vendedorId]: result }));
-      payload.whatsapp?.falhou ? toast.warning("Reenvio falhou.") : toast.success("WhatsApp reenviado.");
+      if (payload.whatsapp?.falhou) {
+        toast.warning("Reenvio falhou.");
+      } else {
+        toast.success("WhatsApp reenviado.");
+      }
     } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível reenviar WhatsApp."); }
   }
   async function revoke(session: SupplierQuoteSession) {
@@ -70,10 +74,10 @@ export function SupplierLinksTable({ moduleType, sessions }: { moduleType: Modul
       <div className="grid gap-3 md:hidden">
         {rows.map((session) => {
           const status = statusFor(session, sendStatus);
-          return <div key={session.id} className="rounded-md border border-slate-200 bg-white p-3"><div className="flex items-start justify-between gap-3"><div><p className="font-medium text-slate-950">{session.sellerCompany || session.sellerName || "-"}</p><p className="mt-1 text-sm text-muted-foreground">{session.sellerWhatsapp || "WhatsApp não cadastrado"}</p><p className="mt-1 text-xs text-muted-foreground">Resposta: {sessionStatusLabels[session.status] ?? session.status}</p></div><StatusBadge status={status} label={whatsappLabels[status] ?? status} /></div><SupplierLinkActions session={session} status={status} onCopy={copyLink} onRegenerate={regenerate} onResend={resend} onRevoke={revoke} /></div>;
+          return <div key={session.id} className="rounded-md border border-slate-200 bg-white p-3"><div className="flex items-start justify-between gap-3"><div><p className="font-medium text-slate-950">{session.sellerName || session.sellerCompany || "-"}</p><p className="mt-1 text-sm text-muted-foreground">{session.sellerWhatsapp || "WhatsApp não cadastrado"}</p><p className="mt-1 text-xs text-muted-foreground">Resposta: {sessionStatusLabels[session.status] ?? session.status}</p></div><StatusBadge status={status} label={whatsappLabels[status] ?? status} /></div><SupplierLinkActions session={session} status={status} onCopy={copyLink} onRegenerate={regenerate} onResend={resend} onRevoke={revoke} /></div>;
         })}
       </div>
-      <div className="hidden md:block"><Table><TableHeader><TableRow><TableHead>Vendedor</TableHead><TableHead>WhatsApp</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader><TableBody>{rows.map((session) => { const status = statusFor(session, sendStatus); return <TableRow key={session.id}><TableCell><p className="font-medium">{session.sellerCompany || "-"}</p><p className="text-xs text-muted-foreground">{session.sellerName || "Fornecedor"}</p></TableCell><TableCell>{session.sellerWhatsapp || "WhatsApp não cadastrado"}</TableCell><TableCell><StatusBadge status={status} label={whatsappLabels[status] ?? status} /></TableCell><TableCell><SupplierLinkActions session={session} status={status} onCopy={copyLink} onRegenerate={regenerate} onResend={resend} onRevoke={revoke} align="end" /></TableCell></TableRow>; })}</TableBody></Table></div>
+      <div className="hidden md:block"><Table><TableHeader><TableRow><TableHead>Vendedor</TableHead><TableHead>WhatsApp</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader><TableBody>{rows.map((session) => { const status = statusFor(session, sendStatus); return <TableRow key={session.id}><TableCell><p className="font-medium">{session.sellerName || session.sellerCompany || "-"}</p><p className="text-xs text-muted-foreground">{session.sellerCompany || "Fornecedor"}</p></TableCell><TableCell>{session.sellerWhatsapp || "WhatsApp não cadastrado"}</TableCell><TableCell><StatusBadge status={status} label={whatsappLabels[status] ?? status} /></TableCell><TableCell><SupplierLinkActions session={session} status={status} onCopy={copyLink} onRegenerate={regenerate} onResend={resend} onRevoke={revoke} align="end" /></TableCell></TableRow>; })}</TableBody></Table></div>
     </div>
   );
 }
