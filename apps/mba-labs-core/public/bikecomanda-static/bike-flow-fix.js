@@ -84,6 +84,86 @@
         line-height: 1.35;
       }
 
+      .bike-accordion-list {
+        display: grid;
+        gap: 10px;
+      }
+      .bike-accordion {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: #fff;
+        overflow: hidden;
+        box-shadow: 0 8px 20px rgba(14, 35, 28, 0.04);
+      }
+      .bike-accordion summary {
+        list-style: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 16px;
+        cursor: pointer;
+        user-select: none;
+      }
+      .bike-accordion summary::-webkit-details-marker {
+        display: none;
+      }
+      .bike-accordion-title {
+        min-width: 0;
+      }
+      .bike-accordion-title strong {
+        display: block;
+        color: #10201a;
+        font-size: 18px;
+        line-height: 1.15;
+      }
+      .bike-accordion-title span {
+        display: block;
+        margin-top: 4px;
+        color: #66756f;
+        font-size: 12.5px;
+        line-height: 1.3;
+      }
+      .bike-accordion-icon {
+        display: inline-grid;
+        place-items: center;
+        width: 34px;
+        height: 34px;
+        flex: 0 0 34px;
+        border-radius: 12px;
+        background: #f2f7f5;
+        color: var(--primary-strong);
+        font-size: 20px;
+        font-weight: 900;
+        transition: transform .18s ease;
+      }
+      .bike-accordion[open] .bike-accordion-icon {
+        transform: rotate(45deg);
+      }
+      .bike-accordion-body {
+        padding: 0 16px 16px;
+        border-top: 1px dashed var(--line);
+      }
+      .bike-accordion-body > :first-child {
+        margin-top: 14px;
+      }
+      .bike-accordion-body .card {
+        border: 0 !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        background: transparent !important;
+      }
+      .bike-accordion-body h2,
+      .bike-accordion-body h3 {
+        margin-top: 0;
+      }
+      .bike-collapsed-section.card {
+        padding: 0 !important;
+        border: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+      }
+
       @media (max-width: 900px) {
         .bike-flow-head {
           align-items: flex-start;
@@ -102,6 +182,15 @@
         }
         .bike-flow-button span {
           font-size: 10.8px;
+        }
+        .bike-accordion summary {
+          padding: 14px;
+        }
+        .bike-accordion-title strong {
+          font-size: 17px;
+        }
+        .bike-accordion-body {
+          padding: 0 14px 14px;
         }
       }
     `;
@@ -159,6 +248,37 @@
     `;
   }
 
+  function accordion(title, subtitle, body, startOpen = false) {
+    return `
+      <details class="bike-accordion" ${startOpen ? "open" : ""}>
+        <summary>
+          <span class="bike-accordion-title">
+            <strong>${esc(title)}</strong>
+            <span>${esc(subtitle || "Clique para ver detalhes")}</span>
+          </span>
+          <span class="bike-accordion-icon">+</span>
+        </summary>
+        <div class="bike-accordion-body">
+          ${body}
+        </div>
+      </details>
+    `;
+  }
+
+  function renderTechnicalNote(order) {
+    return `
+      <form data-form="technical-note" data-id="${order.id}">
+        <div class="field">
+          <label>Adicionar observação</label>
+          <textarea name="observacao" required placeholder="Ex.: pastilha traseira com desgaste irregular"></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn primary" type="submit">Salvar observação</button>
+        </div>
+      </form>
+    `;
+  }
+
   function renderDetalheSimplificado() {
     const order = db.comandas.find((item) => item.id === ui.selectedOrderId);
     if (!order || !canSeeOrder(order)) {
@@ -171,6 +291,9 @@
     const products = orderProducts(order.id);
     const canManage = canManageOrder();
     const canExecute = canExecuteOrder(order);
+    const servicesTotal = services.reduce((sum, item) => sum + Number(item.valor || 0), 0);
+    const productsTotal = products.reduce((sum, item) => sum + Number(item.valor_total || item.valor_unitario * item.quantidade || 0), 0);
+    const discountValue = Number(order.valor_desconto || 0);
 
     return `
       <section class="page-header">
@@ -204,29 +327,10 @@
             ${order.fotos?.length ? `<div class="photos" style="margin-top:14px">${order.fotos.map((src) => `<img src="${esc(src)}" alt="Foto da bicicleta" />`).join("")}</div>` : ""}
           </div>
 
-          <div class="card">
-            <div class="split-title"><h2>Serviços</h2></div>
-            ${renderServiceItems(order, services)}
-            ${canManage ? renderAddServiceForm(order) : ""}
-          </div>
-
-          <div class="card">
-            <div class="split-title"><h2>Produtos/peças</h2></div>
-            ${renderProductItems(order, products)}
-            ${canManage ? renderAddProductForm(order) : ""}
-          </div>
-
-          <div class="card">
-            <h2>Observações técnicas</h2>
-            <form data-form="technical-note" data-id="${order.id}">
-              <div class="field">
-                <label>Adicionar observação</label>
-                <textarea name="observacao" required placeholder="Ex.: pastilha traseira com desgaste irregular"></textarea>
-              </div>
-              <div class="form-actions">
-                <button class="btn primary" type="submit">Salvar observação</button>
-              </div>
-            </form>
+          <div class="bike-accordion-list">
+            ${accordion("Serviços", `${services.length} item(ns) · ${money(servicesTotal)}`, `${renderServiceItems(order, services)}${canManage ? renderAddServiceForm(order) : ""}`)}
+            ${accordion("Produtos/peças", `${products.length} item(ns) · ${money(productsTotal)}`, `${renderProductItems(order, products)}${canManage ? renderAddProductForm(order) : ""}`)}
+            ${accordion("Observação técnica", "Adicionar anotação da oficina", renderTechnicalNote(order))}
           </div>
         </div>
 
@@ -235,7 +339,7 @@
             <h2>Financeiro</h2>
             ${renderTotals(order)}
           </div>
-          ${canDiscount() ? `<div class="card">${renderDiscountForm(order)}</div>` : ""}
+          ${canDiscount() ? `<div class="bike-accordion-list">${accordion("Aplicar desconto", discountValue > 0 ? `Desconto atual: ${money(discountValue)}` : "Sem desconto aplicado", renderDiscountForm(order))}</div>` : ""}
           ${canManage ? `<div class="card">${renderPaymentForm(order)}</div>` : ""}
           <div class="card">
             <h2>Histórico da comanda</h2>
