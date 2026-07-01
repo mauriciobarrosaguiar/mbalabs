@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
-import { formatDate, formatMoney } from "@/components/ui-kit";
+import { MessageBanner, formatDate, formatMoney } from "@/components/ui-kit";
+import { firstParam } from "@/lib/form-utils";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
 import { getLavaDashboard } from "@/lib/lavagestor-data";
 
@@ -14,23 +15,24 @@ type Metric = {
   tone?: MetricTone;
 };
 
-export default async function LavaGestorPortalPage() {
+export default async function LavaGestorPortalPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = await searchParams;
   const [dashboard, { config }] = await Promise.all([getLavaDashboard(), getLavaConfiguracoesEmpresa()]);
   const user = dashboard.current.usuario;
   const roleLabel = labelRole(dashboard.current.tipo);
   const companyName = config.nome_exibicao || dashboard.companyName;
 
   const metrics: Metric[] = [
-    { label: "Hoje", value: dashboard.lavagensHoje },
+    { label: "Lavagens hoje", value: dashboard.lavagensHoje },
     { label: "Entrada hoje", value: formatMoney(dashboard.entradaHoje), tone: "success" },
-    { label: "Mês", value: dashboard.lavagensMes },
-    { label: "Entrada mês", value: formatMoney(dashboard.entradaMes), tone: "success" },
-    { label: "Na fila", value: dashboard.veiculosNaFila },
-    { label: "Lavando", value: dashboard.veiculosEmLavagem },
-    { label: "Finalizados", value: dashboard.finalizadosAguardandoRetirada },
-    { label: "Aberto", value: dashboard.pagamentosEmAberto, tone: "warning" },
-    { label: "Comissões", value: formatMoney(dashboard.totalComissoesPendentes), tone: "warning" },
-    { label: "Vales", value: formatMoney(dashboard.totalValesAbertos), tone: "warning" }
+    { label: "Em lavagem", value: dashboard.veiculosEmLavagem },
+    { label: "Aguardando retirada", value: dashboard.finalizadosAguardandoRetirada },
+    { label: "A receber", value: formatMoney(dashboard.aReceber), tone: "warning" },
+    { label: "Fiado", value: formatMoney(dashboard.fiado), tone: "warning" },
+    { label: "Ticket medio", value: formatMoney(dashboard.ticketMedio), tone: "success" },
+    { label: "Clientes no mes", value: dashboard.clientesAtendidosMes },
+    { label: "Retorno de clientes", value: dashboard.retornoClientes },
+    { label: "Comissoes pendentes", value: formatMoney(dashboard.totalComissoesPendentes), tone: "warning" }
   ];
 
   return (
@@ -42,16 +44,46 @@ export default async function LavaGestorPortalPage() {
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">{dashboard.isGlobalView ? "Consolidado" : "Painel"}</p>
             <h1 className="mt-1 pr-20 text-[2rem] font-black leading-none tracking-tight sm:pr-0 sm:text-3xl">Dashboard LavaGestor</h1>
           </div>
-          <Link className="button-primary min-h-11 w-full justify-center rounded-xl text-base font-black" href="/lavagestor/nova-lavagem">Nova lavagem</Link>
+          <div className="grid gap-2 lg:grid-cols-[1fr_auto]">
+            <form className="grid gap-2 sm:grid-cols-[1fr_auto]" action="/lavagestor/busca">
+              <input className="input min-h-11 text-base" name="q" placeholder="Buscar placa, cliente ou telefone" />
+              <button className="button-secondary" type="submit">Buscar</button>
+            </form>
+            <Link className="button-primary min-h-11 justify-center rounded-xl text-base font-black" href="/lavagestor/nova-lavagem">Nova lavagem</Link>
+          </div>
         </div>
 
+        <MessageBanner error={firstParam(params.error)} />
         {dashboard.error ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{dashboard.error}</div> : null}
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {metrics.map((metric) => <MetricCard key={metric.label} label={metric.label} tone={metric.tone} value={metric.value} />)}
         </div>
 
-        <Panel title="Últimas lavagens">
+        <Panel title="Acoes rapidas">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+            <QuickAction href="/lavagestor/nova-lavagem" label="Nova lavagem" />
+            <QuickAction href="/lavagestor/busca" label="Buscar placa" />
+            <QuickAction href="/lavagestor/fila" label="Ver fila" />
+            <QuickAction href="/lavagestor/financeiro" label="Fechar caixa" />
+            <QuickAction href="/lavagestor/pos-venda" label="Pos-venda" />
+            <QuickAction href="/lavagestor/servicos" label="Servicos" />
+          </div>
+        </Panel>
+
+        {dashboard.alertas.length ? (
+          <Panel title="Alertas">
+            <div className="grid gap-2 md:grid-cols-2">
+              {dashboard.alertas.map((alerta: any) => (
+                <Link className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-black text-amber-950 shadow-sm" href={alerta.href} key={alerta.label}>
+                  {alerta.label}
+                </Link>
+              ))}
+            </div>
+          </Panel>
+        ) : null}
+
+        <Panel title="Ultimas lavagens">
           {dashboard.ultimasLavagens.length === 0 ? (
             <p className="rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">Nenhuma lavagem registrada ainda.</p>
           ) : (
@@ -69,8 +101,12 @@ export default async function LavaGestorPortalPage() {
                     <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                       <MobileInfo label="Data" value={formatDate(wash.data_lavagem)} />
                       <MobileInfo label="Valor" value={formatMoney(wash.valor)} strong />
-                      <MobileInfo label="Serviço" value={String(wash.servico ?? "-")} />
-                      <MobileInfo label="Funcionário" value={String(wash.funcionario ?? "-")} />
+                      <MobileInfo label="Servico" value={String(wash.servico ?? "-")} />
+                      <MobileInfo label="Funcionario" value={String(wash.funcionario ?? "-")} />
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <Link className="button-secondary justify-center" href={`/lavagestor/tickets/${wash.id}`}>Ticket</Link>
+                      <Link className="button-secondary justify-center" href={`/lavagestor/checklists/${wash.id}`}>Checklist</Link>
                     </div>
                   </article>
                 ))}
@@ -81,11 +117,12 @@ export default async function LavaGestorPortalPage() {
                     <tr>
                       <th className="py-2 pr-3">Data</th>
                       <th className="py-2 pr-3">Cliente</th>
-                      <th className="py-2 pr-3">Veículo</th>
-                      <th className="py-2 pr-3">Serviço</th>
-                      <th className="py-2 pr-3">Funcionário</th>
+                      <th className="py-2 pr-3">Veiculo</th>
+                      <th className="py-2 pr-3">Servico</th>
+                      <th className="py-2 pr-3">Funcionario</th>
                       <th className="py-2 pr-3">Status</th>
                       <th className="py-2 pr-3">Valor</th>
+                      <th className="py-2 pr-3">Acoes</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -98,6 +135,7 @@ export default async function LavaGestorPortalPage() {
                         <td className="py-3 pr-3">{wash.funcionario}</td>
                         <td className="py-3 pr-3">{wash.status_label}</td>
                         <td className="py-3 pr-3 font-semibold">{formatMoney(wash.valor)}</td>
+                        <td className="py-3 pr-3"><Link className="button-secondary" href={`/lavagestor/tickets/${wash.id}`}>Ticket</Link></td>
                       </tr>
                     ))}
                   </tbody>
@@ -115,7 +153,7 @@ function MetricCard({ label, value, tone = "default" }: { label: string; value: 
   const toneClass = tone === "success" ? "border-emerald-200 bg-emerald-50" : tone === "warning" ? "border-amber-200 bg-amber-50" : "border-border bg-card";
   return (
     <div className={`min-h-[86px] rounded-xl border p-3 shadow-sm sm:min-h-[110px] sm:p-4 ${toneClass}`}>
-      <p className="truncate text-xs font-bold text-muted-foreground sm:text-sm">{label}</p>
+      <p className="text-xs font-bold text-muted-foreground sm:text-sm">{label}</p>
       <p className="mt-2 break-words text-[1.45rem] font-black leading-tight tracking-tight sm:text-2xl">{value}</p>
     </div>
   );
@@ -130,11 +168,15 @@ function MobileInfo({ label, value, strong = false }: { label: string; value: st
   );
 }
 
+function QuickAction({ href, label }: { href: string; label: string }) {
+  return <Link className="rounded-lg border border-border bg-white px-3 py-3 text-center text-sm font-black shadow-sm hover:bg-emerald-50" href={href}>{label}</Link>;
+}
+
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return <section className="rounded-xl border border-border bg-card p-3 shadow-sm sm:p-4"><h2 className="text-base font-black sm:text-lg">{title}</h2><div className="mt-3">{children}</div></section>;
 }
 
 function labelRole(role: string) {
-  const labels: Record<string, string> = { admin_master: "Admin Master", super_admin: "Admin Master", admin_empresa: "Admin da empresa", operador: "Operador", usuario: "Usuário" };
+  const labels: Record<string, string> = { admin_master: "Admin Master", super_admin: "Admin Master", admin_empresa: "Admin da empresa", operador: "Operador", usuario: "Usuario" };
   return labels[role] ?? role;
 }

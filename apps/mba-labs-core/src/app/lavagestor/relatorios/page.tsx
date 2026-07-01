@@ -3,6 +3,7 @@ import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, MessageBanner, PageHeader, formatDate, formatDateTime, formatMoney } from "@/components/ui-kit";
 import { PrintButton } from "@/components/lavagestor/PrintButton";
 import { firstParam } from "@/lib/form-utils";
+import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
 import { getLavaRelatorio } from "@/lib/lavagestor-relatorios-data";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ type GroupRow = Record<string, unknown>;
 type AnyRow = Record<string, unknown>;
 
 export default async function RelatoriosPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requireLavaGestorFinanceAccess("/lavagestor/relatorios");
   const params = await searchParams;
   const relatorio = await getLavaRelatorio({ inicio: firstParam(params.inicio), fim: firstParam(params.fim) });
   const lavagens = relatorio.lavagens as AnyRow[];

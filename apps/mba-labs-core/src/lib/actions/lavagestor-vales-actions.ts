@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logAction, requireAppAccess } from "@/lib/core-data";
 import { messageParam, textValue } from "@/lib/form-utils";
+import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
 import { getSupabaseServer } from "@/lib/supabase";
 
 export async function descontarValeIntegral(formData: FormData) {
+  await requireLavaGestorFinanceAccess("/lavagestor/vales");
   const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const client = supabase as any;

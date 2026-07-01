@@ -18,7 +18,7 @@ import {
   formatMoney
 } from "@/components/ui-kit";
 import { inactivateServico } from "@/lib/actions/lavagestor-actions";
-import { saveServicoAvancado } from "@/lib/actions/lavagestor-servicos-actions";
+import { criarServicosPadraoLavaGestor, saveServicoAvancado } from "@/lib/actions/lavagestor-servicos-actions";
 import {
   LAVA_SERVICE_APPLICATION_OPTIONS,
   LAVA_SERVICE_CATEGORY_OPTIONS,
@@ -51,7 +51,7 @@ export default async function ServicosPage({
           eyebrow="LavaGestor"
           title="Serviços"
           description="Cadastre serviços principais e adicionais com tipo, aplicação, preço e comissão. Isso alimenta automaticamente a Nova Lavagem."
-          actions={<BackButton href="/lavagestor" />}
+          actions={<><BackButton href="/lavagestor" /><form action={criarServicosPadraoLavaGestor}><button className="button-primary" type="submit">Criar servicos padrao</button></form></>}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? undefined} />
         <SearchBox defaultValue={search} placeholder="Buscar por nome, tipo, aplicação ou descrição" />

@@ -5,10 +5,12 @@ import { BackButton, MessageBanner, PageHeader } from "@/components/ui-kit";
 import { saveLavaConfiguracoesEmpresa } from "@/lib/actions/lavagestor-configuracoes-actions";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
+import { requireLavaGestorSettingsAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
 export default async function LavaConfiguracoesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requireLavaGestorSettingsAccess("/lavagestor/configuracoes");
   const params = await searchParams;
   const { config, error } = await getLavaConfiguracoesEmpresa();
   const color = config.cor_principal || "#059669";
@@ -66,15 +68,25 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
             <Toggle label="Permitir fiado" description="Mostra a opção fiado nos pagamentos." name="permitir_fiado" defaultChecked={config.permitir_fiado} />
             <Toggle label="Permitir desconto" description="Se desligar, o sistema zera desconto ao salvar." name="permitir_desconto" defaultChecked={config.permitir_desconto} />
             <Toggle label="Bloquear entrega sem pagamento" description="Recibo e entrega ficam protegidos até pagar." name="bloquear_entrega_sem_pagamento" defaultChecked={config.bloquear_entrega_sem_pagamento} />
+            <Toggle label="Exigir checklist antes de finalizar" description="Impede finalizar lavagem sem checklist concluido." name="exigir_checklist_antes_finalizar" defaultChecked={config.exigir_checklist_antes_finalizar} />
+            <Toggle label="Exigir checklist antes de entregar" description="Impede entrega sem checklist concluido." name="exigir_checklist_antes_entregar" defaultChecked={config.exigir_checklist_antes_entregar} />
+            <Toggle label="Permitir recibo sem checklist" description="Se desligar, recibo pago tambem exige checklist concluido." name="permitir_recibo_sem_checklist" defaultChecked={config.permitir_recibo_sem_checklist} />
           </ConfigBlock>
 
           <ConfigBlock badge="03" title="Operação" description="Listas usadas dentro da fila e da nova lavagem.">
             <TextArea label="Motivos de cancelamento" name="motivos_cancelamento" defaultValue={config.motivos_cancelamento.join("\n")} helper="Um motivo por linha. Ex.: Cliente desistiu." />
             <TextArea label="Tipos de entrega" name="tipos_entrega" defaultValue={config.tipos_entrega.join("\n")} helper="Um tipo por linha. Ex.: Cliente retira / Levar ao cliente." />
+            <TextArea label="Itens padrao do checklist" name="checklist_itens_padrao" defaultValue={config.checklist_itens_padrao.join("\n")} helper="Um item por linha para orientar a conferencia." />
+            <TextArea label="Tipos de foto do checklist" name="checklist_tipos_foto" defaultValue={config.checklist_tipos_foto.join("\n")} helper="Use codigos como frente, traseira, avaria, antes, depois." />
           </ConfigBlock>
 
           <ConfigBlock badge="04" title="WhatsApp" description="Textos enviados ao cliente. Toque numa mensagem e depois numa variável para inserir.">
             <MessageTemplateEditor readyDefault={config.mensagem_veiculo_pronto} receiptDefault={config.mensagem_recibo} />
+            <TextArea compact label="Pos-venda: agradecimento" name="mensagem_pos_venda_agradecimento" defaultValue={config.mensagem_pos_venda_agradecimento} />
+            <TextArea compact label="Pos-venda: pesquisa de satisfacao" name="mensagem_pesquisa_satisfacao" defaultValue={config.mensagem_pesquisa_satisfacao} />
+            <TextArea compact label="Pos-venda: lembrete de retorno" name="mensagem_retorno" defaultValue={config.mensagem_retorno} />
+            <TextArea compact label="Pos-venda: cobranca de fiado" name="mensagem_cobranca_fiado" defaultValue={config.mensagem_cobranca_fiado} />
+            <TextArea compact label="Pos-venda: promocao" name="mensagem_promocao" defaultValue={config.mensagem_promocao} />
           </ConfigBlock>
 
           <ConfigBlock badge="05" title="Identidade visual" description="Cor e aparência do LavaGestor para esta empresa.">

@@ -1,4 +1,5 @@
 import { requireAppAccess } from "./core-data";
+import { withSignedPhotoUrls } from "./lavagestor-checklists-data";
 import { getSupabaseServer } from "./supabase";
 
 type Row = Record<string, unknown>;
@@ -8,7 +9,7 @@ export async function getLavaRecibo(lavagemId: string) {
   const supabase = await getSupabaseServer();
   const client = supabase as any;
 
-  const [lavagemResult, empresaResult, configResult, servicosResult, pagamentosResult] = await Promise.all([
+  const [lavagemResult, empresaResult, configResult, servicosResult, pagamentosResult, checklistResult, fotosResult] = await Promise.all([
     client
       .from("lava_lavagens")
       .select("id,empresa_id,cliente_id,veiculo_id,funcionario_id,servico_id,descricao_extra,observacoes,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,comissao,status,status_pagamento,forma_pagamento,data_entrada,data_inicio,data_finalizacao,data_cliente_avisado,data_pagamento,data_entrega,entrega_tipo,endereco_entrega,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor,tipo),lava_funcionarios(nome),lava_servicos(nome)")
@@ -25,7 +26,7 @@ export async function getLavaRecibo(lavagemId: string) {
     current.empresaId
       ? client
           .from("lava_configuracoes")
-          .select("nome_exibicao,nome_fantasia,documento,whatsapp,telefone,endereco,cidade,estado,chave_pix,logo_url,cor_principal,mensagem_recibo")
+          .select("nome_exibicao,nome_fantasia,documento,whatsapp,telefone,endereco,cidade,estado,chave_pix,logo_url,cor_principal,mensagem_recibo,permitir_recibo_sem_checklist")
           .eq("empresa_id", current.empresaId)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -40,7 +41,20 @@ export async function getLavaRecibo(lavagemId: string) {
       .select("id,valor,forma_pagamento,data_pagamento,observacoes")
       .eq("lavagem_id", lavagemId)
       .eq("empresa_id", current.empresaId)
-      .order("data_pagamento", { ascending: true })
+      .order("data_pagamento", { ascending: true }),
+    client
+      .from("lava_checklists")
+      .select("*")
+      .eq("lavagem_id", lavagemId)
+      .eq("empresa_id", current.empresaId)
+      .maybeSingle(),
+    client
+      .from("lava_checklist_fotos")
+      .select("id,tipo,storage_path,legenda,created_at")
+      .eq("lavagem_id", lavagemId)
+      .eq("empresa_id", current.empresaId)
+      .order("created_at", { ascending: false })
+      .limit(6)
   ]);
 
   if (lavagemResult.error || !lavagemResult.data) {
@@ -71,6 +85,8 @@ export async function getLavaRecibo(lavagemId: string) {
   const empresaDocumento = String(config.documento ?? empresa.cnpj ?? "");
   const empresaTelefone = String(config.whatsapp ?? config.telefone ?? empresa.whatsapp ?? empresa.telefone ?? "");
   const empresaCidadeUf = [config.cidade ?? empresa.cidade, config.estado ?? empresa.estado].filter(Boolean).join(" - ");
+  const checklist = (checklistResult.data ?? null) as Row | null;
+  const checklistFotos = await withSignedPhotoUrls(client, fotosResult.data ?? []);
 
   return {
     recibo: {
@@ -86,7 +102,8 @@ export async function getLavaRecibo(lavagemId: string) {
         endereco: String(config.endereco ?? ""),
         logo_url: String(config.logo_url ?? ""),
         cor_principal: String(config.cor_principal ?? "#059669"),
-        mensagem_recibo: String(config.mensagem_recibo ?? defaultReceiptMessage())
+        mensagem_recibo: String(config.mensagem_recibo ?? defaultReceiptMessage()),
+        permitir_recibo_sem_checklist: config.permitir_recibo_sem_checklist !== false
       },
       cliente: relationName(lavagem.lava_clientes) || "Cliente",
       whatsapp: relationPhone(lavagem.lava_clientes),
@@ -108,10 +125,25 @@ export async function getLavaRecibo(lavagemId: string) {
       data_entrega: lavagem.data_entrega,
       entrega_tipo: String(lavagem.entrega_tipo ?? "retirar"),
       endereco_entrega: String(lavagem.endereco_entrega ?? ""),
-      observacoes: String(lavagem.observacoes ?? "")
+      observacoes: String(lavagem.observacoes ?? ""),
+      checklist,
+      checklist_fotos: checklistFotos,
+      checklist_avarias: summarizeAvarias(checklist)
     },
-    error: empresaResult.error?.message ?? configResult.error?.message ?? servicosResult.error?.message ?? pagamentosResult.error?.message ?? null
+    error: empresaResult.error?.message ?? configResult.error?.message ?? servicosResult.error?.message ?? pagamentosResult.error?.message ?? checklistResult.error?.message ?? fotosResult.error?.message ?? null
   };
+}
+
+function summarizeAvarias(checklist: Row | null) {
+  if (!checklist) return [];
+  const avarias = [
+    checklist.riscos ? "Riscos" : "",
+    checklist.amassados ? "Amassados" : "",
+    checklist.vidro_trincado ? "Vidro trincado" : "",
+    checklist.objetos_cliente ? "Objetos do cliente" : ""
+  ].filter(Boolean);
+  if (checklist.observacao_avarias) avarias.push(String(checklist.observacao_avarias));
+  return avarias;
 }
 
 function defaultReceiptMessage() {

@@ -94,6 +94,9 @@ export default async function VeiculosPage({
               <Link className="button-secondary" href={`/lavagestor/veiculos?edit=${row.id}`}>
                 Editar
               </Link>
+              <Link className="button-secondary" href={`/lavagestor/veiculos/${row.id}`}>
+                Historico
+              </Link>
               <form action={deleteVeiculo}>
                 <input name="id" type="hidden" value={String(row.id)} />
                 <DeleteButton>Excluir</DeleteButton>

@@ -21,10 +21,20 @@ export type LavaConfiguracoesEmpresa = {
   permitir_fiado: boolean;
   permitir_desconto: boolean;
   bloquear_entrega_sem_pagamento: boolean;
+  exigir_checklist_antes_finalizar: boolean;
+  exigir_checklist_antes_entregar: boolean;
+  permitir_recibo_sem_checklist: boolean;
   mensagem_veiculo_pronto: string;
   mensagem_recibo: string;
+  mensagem_pos_venda_agradecimento: string;
+  mensagem_pesquisa_satisfacao: string;
+  mensagem_retorno: string;
+  mensagem_cobranca_fiado: string;
+  mensagem_promocao: string;
   motivos_cancelamento: string[];
   tipos_entrega: string[];
+  checklist_itens_padrao: string[];
+  checklist_tipos_foto: string[];
 };
 
 export async function getLavaConfiguracoesEmpresa() {
@@ -65,10 +75,20 @@ export async function getLavaConfiguracoesEmpresa() {
       permitir_fiado: boolValue(config.permitir_fiado, true),
       permitir_desconto: boolValue(config.permitir_desconto, true),
       bloquear_entrega_sem_pagamento: boolValue(config.bloquear_entrega_sem_pagamento, true),
+      exigir_checklist_antes_finalizar: boolValue(config.exigir_checklist_antes_finalizar, false),
+      exigir_checklist_antes_entregar: boolValue(config.exigir_checklist_antes_entregar, false),
+      permitir_recibo_sem_checklist: boolValue(config.permitir_recibo_sem_checklist, true),
       mensagem_veiculo_pronto: String(config.mensagem_veiculo_pronto ?? defaultReadyMessage()),
       mensagem_recibo: String(config.mensagem_recibo ?? defaultReceiptMessage()),
+      mensagem_pos_venda_agradecimento: String(config.mensagem_pos_venda_agradecimento ?? defaultAfterSaleThanks()),
+      mensagem_pesquisa_satisfacao: String(config.mensagem_pesquisa_satisfacao ?? defaultSatisfactionMessage()),
+      mensagem_retorno: String(config.mensagem_retorno ?? defaultReturnMessage()),
+      mensagem_cobranca_fiado: String(config.mensagem_cobranca_fiado ?? defaultDebtMessage()),
+      mensagem_promocao: String(config.mensagem_promocao ?? defaultPromoMessage()),
       motivos_cancelamento: arrayValue(config.motivos_cancelamento, defaultCancelReasons()),
-      tipos_entrega: arrayValue(config.tipos_entrega, ["Cliente retira", "Levar ao cliente"])
+      tipos_entrega: arrayValue(config.tipos_entrega, ["Cliente retira", "Levar ao cliente"]),
+      checklist_itens_padrao: arrayValue(config.checklist_itens_padrao, defaultChecklistItems()),
+      checklist_tipos_foto: arrayValue(config.checklist_tipos_foto, defaultChecklistPhotoTypes())
     },
     error: empresaResult.error?.message ?? configResult.error?.message ?? null
   };
@@ -93,10 +113,20 @@ function defaultConfig(empresaId: string | null, nome: string): LavaConfiguracoe
     permitir_fiado: true,
     permitir_desconto: true,
     bloquear_entrega_sem_pagamento: true,
+    exigir_checklist_antes_finalizar: false,
+    exigir_checklist_antes_entregar: false,
+    permitir_recibo_sem_checklist: true,
     mensagem_veiculo_pronto: defaultReadyMessage(),
     mensagem_recibo: defaultReceiptMessage(),
+    mensagem_pos_venda_agradecimento: defaultAfterSaleThanks(),
+    mensagem_pesquisa_satisfacao: defaultSatisfactionMessage(),
+    mensagem_retorno: defaultReturnMessage(),
+    mensagem_cobranca_fiado: defaultDebtMessage(),
+    mensagem_promocao: defaultPromoMessage(),
     motivos_cancelamento: defaultCancelReasons(),
-    tipos_entrega: ["Cliente retira", "Levar ao cliente"]
+    tipos_entrega: ["Cliente retira", "Levar ao cliente"],
+    checklist_itens_padrao: defaultChecklistItems(),
+    checklist_tipos_foto: defaultChecklistPhotoTypes()
   };
 }
 
@@ -108,8 +138,36 @@ function defaultReceiptMessage() {
   return "Olá, {cliente}! Segue o recibo da lavagem {recibo}. Veículo/item: {veiculo}. Total pago: {total}. Obrigado pela preferência!";
 }
 
+function defaultAfterSaleThanks() {
+  return "Olá, {cliente}! Obrigado por escolher a {empresa}. Seu veículo {veiculo} foi entregue. Se puder, avalie nosso serviço.";
+}
+
+function defaultSatisfactionMessage() {
+  return "Olá, {cliente}! De 0 a 10, qual nota você dá para o serviço realizado no seu veículo {veiculo}?";
+}
+
+function defaultReturnMessage() {
+  return "Olá, {cliente}! Já faz um tempo desde a última lavagem do seu veículo {veiculo}. Podemos agendar uma nova lavagem?";
+}
+
+function defaultDebtMessage() {
+  return "Olá, {cliente}! Consta um valor em aberto de {valor}. Podemos combinar o pagamento?";
+}
+
+function defaultPromoMessage() {
+  return "Olá, {cliente}! Temos uma condição especial para uma nova lavagem do seu veículo {veiculo}.";
+}
+
 function defaultCancelReasons() {
   return ["Cliente desistiu", "Serviço lançado errado", "Veículo não deixou no lava-jato", "Pagamento não aprovado", "Outro motivo"];
+}
+
+function defaultChecklistItems() {
+  return ["Pintura", "Riscos", "Amassados", "Vidros", "Retrovisores", "Pneus", "Faróis", "Interior", "Objetos do cliente", "KM"];
+}
+
+function defaultChecklistPhotoTypes() {
+  return ["frente", "traseira", "lateral_esquerda", "lateral_direita", "interior", "painel_km", "avaria", "antes", "depois", "outras"];
 }
 
 function numberValue(value: unknown, fallback: number) {
