@@ -24,14 +24,68 @@ export function lavaStorageProviderLabel(provider: LavaStorageProvider) {
   return provider === "google_drive" ? "Google Drive" : "Dropbox";
 }
 
+function getProviderOAuthConfig(provider: LavaStorageProvider, origin: string) {
+  if (provider === "google_drive") {
+    const redirect = firstEnv([
+      ["LAVAGESTOR_GOOGLE_REDIRECT_URI", process.env.LAVAGESTOR_GOOGLE_REDIRECT_URI],
+      ["GOOGLE_REDIRECT_URI", process.env.GOOGLE_REDIRECT_URI]
+    ]);
+    return {
+      clientId: process.env.LAVAGESTOR_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.LAVAGESTOR_GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || "",
+      redirectUri: redirect.value || defaultOAuthRedirectUri(provider, origin),
+      redirectSource: redirect.key || "request_origin"
+    };
+  }
+
+  const redirect = firstEnv([
+    ["LAVAGESTOR_DROPBOX_REDIRECT_URI", process.env.LAVAGESTOR_DROPBOX_REDIRECT_URI],
+    ["DROPBOX_REDIRECT_URI", process.env.DROPBOX_REDIRECT_URI]
+  ]);
+  return {
+    clientId: process.env.LAVAGESTOR_DROPBOX_APP_KEY || process.env.LAVAGESTOR_DROPBOX_CLIENT_ID || process.env.DROPBOX_APP_KEY || "",
+    clientSecret: process.env.LAVAGESTOR_DROPBOX_APP_SECRET || process.env.LAVAGESTOR_DROPBOX_CLIENT_SECRET || process.env.DROPBOX_APP_SECRET || "",
+    redirectUri: redirect.value || defaultOAuthRedirectUri(provider, origin),
+    redirectSource: redirect.key || "request_origin"
+  };
+}
+
+function defaultOAuthRedirectUri(provider: LavaStorageProvider, origin: string) {
+  const safeOrigin = origin.replace(/\/+$/, "");
+  return `${safeOrigin}/api/lavagestor/storage/callback/${provider}`;
+}
+
+function firstEnv(entries: Array<[string, string | undefined]>) {
+  const entry = entries.find(([, value]) => Boolean(value?.trim()));
+  return { key: entry?.[0] ?? "", value: entry?.[1]?.trim() ?? "" };
+}
+
+export function getLavaOAuthRedirectUri(provider: LavaStorageProvider, origin: string) {
+  const config = getProviderOAuthConfig(provider, origin);
+  return config.redirectUri;
+}
+
+export function getLavaOAuthDisplayConfigs(origin: string) {
+  return STORAGE_PROVIDERS.map((provider) => {
+    const config = getProviderOAuthConfig(provider, origin);
+    return {
+      provider,
+      label: lavaStorageProviderLabel(provider),
+      redirectUri: config.redirectUri,
+      redirectSource: config.redirectSource,
+      clientIdConfigured: Boolean(config.clientId)
+    };
+  });
+}
+
 export function getLavaOAuthUrl(provider: LavaStorageProvider, state: string, origin: string) {
-  const redirectUri = `${origin}/api/lavagestor/storage/callback/${provider}`;
+  const config = getProviderOAuthConfig(provider, origin);
+  const redirectUri = config.redirectUri;
 
   if (provider === "google_drive") {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    if (!clientId) throw new Error("Configure GOOGLE_CLIENT_ID na Vercel.");
+    if (!config.clientId) throw new Error("Configure LAVAGESTOR_GOOGLE_CLIENT_ID ou GOOGLE_CLIENT_ID na Vercel.");
     const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
-    url.searchParams.set("client_id", clientId);
+    url.searchParams.set("client_id", config.clientId);
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("response_type", "code");
     url.searchParams.set("access_type", "offline");
@@ -41,10 +95,9 @@ export function getLavaOAuthUrl(provider: LavaStorageProvider, state: string, or
     return url.toString();
   }
 
-  const clientId = process.env.DROPBOX_APP_KEY;
-  if (!clientId) throw new Error("Configure DROPBOX_APP_KEY na Vercel.");
+  if (!config.clientId) throw new Error("Configure LAVAGESTOR_DROPBOX_APP_KEY ou DROPBOX_APP_KEY na Vercel.");
   const url = new URL("https://www.dropbox.com/oauth2/authorize");
-  url.searchParams.set("client_id", clientId);
+  url.searchParams.set("client_id", config.clientId);
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("token_access_type", "offline");
@@ -53,20 +106,19 @@ export function getLavaOAuthUrl(provider: LavaStorageProvider, state: string, or
 }
 
 export async function exchangeLavaOAuthCode(provider: LavaStorageProvider, code: string, origin: string) {
-  const redirectUri = `${origin}/api/lavagestor/storage/callback/${provider}`;
+  const config = getProviderOAuthConfig(provider, origin);
+  const redirectUri = config.redirectUri;
 
   if (provider === "google_drive") {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    if (!clientId || !clientSecret) throw new Error("Configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET.");
+    if (!config.clientId || !config.clientSecret) throw new Error("Configure LAVAGESTOR_GOOGLE_CLIENT_ID/SECRET ou GOOGLE_CLIENT_ID/SECRET.");
 
     const response = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         code,
-        client_id: clientId,
-        client_secret: clientSecret,
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
         redirect_uri: redirectUri,
         grant_type: "authorization_code"
       })
@@ -88,15 +140,13 @@ export async function exchangeLavaOAuthCode(provider: LavaStorageProvider, code:
     };
   }
 
-  const appKey = process.env.DROPBOX_APP_KEY;
-  const appSecret = process.env.DROPBOX_APP_SECRET;
-  if (!appKey || !appSecret) throw new Error("Configure DROPBOX_APP_KEY e DROPBOX_APP_SECRET.");
+  if (!config.clientId || !config.clientSecret) throw new Error("Configure LAVAGESTOR_DROPBOX_APP_KEY/SECRET ou DROPBOX_APP_KEY/SECRET.");
 
   const response = await fetch("https://api.dropboxapi.com/oauth2/token", {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
-      authorization: `Basic ${Buffer.from(`${appKey}:${appSecret}`).toString("base64")}`
+      authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64")}`
     },
     body: new URLSearchParams({
       code,
@@ -162,9 +212,9 @@ export async function getLavaStorageConnections(current: CurrentUserProfile) {
   return (data ?? []) as Row[];
 }
 
-export async function getLavaStorageOverview(current: CurrentUserProfile) {
+export async function getLavaStorageOverview(current: CurrentUserProfile, origin = "") {
   if (!current.empresaId) {
-    return { connections: [], pendingCount: 0, errorCount: 0 };
+    return { connections: [], pendingCount: 0, errorCount: 0, oauth: getLavaOAuthDisplayConfigs(origin) };
   }
 
   const client = await getLavaClient();
@@ -190,7 +240,8 @@ export async function getLavaStorageOverview(current: CurrentUserProfile) {
   return {
     connections: (connectionsResult.data ?? []) as Row[],
     pendingCount: pendingResult.count ?? 0,
-    errorCount: errorResult.count ?? 0
+    errorCount: errorResult.count ?? 0,
+    oauth: getLavaOAuthDisplayConfigs(origin)
   };
 }
 
@@ -526,15 +577,14 @@ async function getFreshAccessToken(provider: LavaStorageProvider, connection: Ro
   }
 
   if (provider === "google_drive") {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    if (!clientId || !clientSecret) throw new Error("Configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET.");
+    const config = getProviderOAuthConfig(provider, "");
+    if (!config.clientId || !config.clientSecret) throw new Error("Configure LAVAGESTOR_GOOGLE_CLIENT_ID/SECRET ou GOOGLE_CLIENT_ID/SECRET.");
     const response = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
         refresh_token: refreshToken,
         grant_type: "refresh_token"
       })
@@ -545,14 +595,13 @@ async function getFreshAccessToken(provider: LavaStorageProvider, connection: Ro
     return String(payload.access_token);
   }
 
-  const appKey = process.env.DROPBOX_APP_KEY;
-  const appSecret = process.env.DROPBOX_APP_SECRET;
-  if (!appKey || !appSecret) throw new Error("Configure DROPBOX_APP_KEY e DROPBOX_APP_SECRET.");
+  const config = getProviderOAuthConfig(provider, "");
+  if (!config.clientId || !config.clientSecret) throw new Error("Configure LAVAGESTOR_DROPBOX_APP_KEY/SECRET ou DROPBOX_APP_KEY/SECRET.");
   const response = await fetch("https://api.dropboxapi.com/oauth2/token", {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
-      authorization: `Basic ${Buffer.from(`${appKey}:${appSecret}`).toString("base64")}`
+      authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64")}`
     },
     body: new URLSearchParams({
       refresh_token: refreshToken,
@@ -742,7 +791,7 @@ function decrypt(value: string) {
 }
 
 function tokenKey() {
-  const secret = process.env.LAVAGESTOR_TOKEN_SECRET || process.env.LEXGESTOR_TOKEN_SECRET || process.env.NEXTAUTH_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const secret = process.env.LAVAGESTOR_TOKEN_SECRET || process.env.NEXTAUTH_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!secret) throw new Error("Configure LAVAGESTOR_TOKEN_SECRET para criptografar tokens.");
   return crypto.createHash("sha256").update(secret).digest();
 }
