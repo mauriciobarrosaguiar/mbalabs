@@ -126,28 +126,43 @@ function BlockedReceipt({ recibo, reason }: { recibo: Recibo; reason: "pagamento
 }
 
 function ChecklistSection({ recibo }: { recibo: Recibo }) {
+  const entradaFotos = recibo.checklist_fotos_entrada ?? [];
+  const checkoutFotos = recibo.checklist_fotos_checkout ?? [];
+
   return (
     <section className="grid gap-2">
-      <h3 className="text-sm font-black uppercase tracking-[0.12em] text-slate-500">Checklist</h3>
+      <h3 className="text-sm font-black uppercase tracking-[0.12em] text-slate-500">Checklist e fotos</h3>
       {recibo.checklist ? (
         <div className="grid gap-2">
           <p className="rounded-lg bg-emerald-50 p-2 text-sm font-black text-emerald-950">Status: {String(recibo.checklist.status)}</p>
           {recibo.checklist_avarias.length ? <p className="rounded-lg bg-amber-50 p-2 text-sm font-bold text-amber-950">{recibo.checklist_avarias.join(" - ")}</p> : <p className="rounded-lg bg-slate-50 p-2 text-sm font-semibold text-slate-600">Sem avarias marcadas.</p>}
-          {recibo.checklist_fotos.length ? (
-            <div className="grid gap-2 sm:grid-cols-3">
-              {recibo.checklist_fotos.slice(0, 3).map((foto) => (
-                <figure className="overflow-hidden rounded-lg border border-border" key={String(foto.id)}>
-                  {foto.signed_url ? <img className="aspect-[4/3] w-full object-cover" src={String(foto.signed_url)} alt={String(foto.legenda || foto.tipo)} /> : null}
-                  <figcaption className="p-2 text-xs font-bold text-slate-600">{String(foto.legenda || foto.tipo)}</figcaption>
-                </figure>
-              ))}
-            </div>
-          ) : null}
+          <PhotoGroup title="Antes" fotos={entradaFotos} />
+          <PhotoGroup title="Depois" fotos={checkoutFotos} />
         </div>
       ) : (
         <p className="rounded-lg bg-amber-50 p-2 text-sm font-bold text-amber-950">Lavagem sem checklist registrado.</p>
       )}
     </section>
+  );
+}
+
+function PhotoGroup({ title, fotos }: { title: string; fotos: Record<string, unknown>[] }) {
+  if (!fotos.length) {
+    return <p className="rounded-lg bg-slate-50 p-2 text-xs font-bold text-slate-600">{title}: sem fotos.</p>;
+  }
+
+  return (
+    <div className="grid gap-2">
+      <p className="text-xs font-black uppercase tracking-[0.1em] text-slate-500">{title}</p>
+      <div className="grid gap-2 sm:grid-cols-3">
+        {fotos.slice(0, 3).map((foto) => (
+          <figure className="overflow-hidden rounded-lg border border-border" key={String(foto.id)}>
+            {foto.signed_url ? <img className="aspect-[4/3] w-full object-cover" src={String(foto.signed_url)} alt={String(foto.legenda || foto.tipo)} /> : null}
+            <figcaption className="p-2 text-xs font-bold text-slate-600">{String(foto.legenda || foto.tipo)}</figcaption>
+          </figure>
+        ))}
+      </div>
+    </div>
   );
 }
 

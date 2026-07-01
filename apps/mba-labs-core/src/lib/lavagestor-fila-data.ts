@@ -63,15 +63,23 @@ export async function listLavaFila() {
   const [checklistsResult, fotosResult] = lavagemIds.length
     ? await Promise.all([
         (supabase as any).from("lava_checklists").select("id,lavagem_id,status,riscos,amassados,vidro_trincado,objetos_cliente").eq("empresa_id", current.empresaId).in("lavagem_id", lavagemIds),
-        (supabase as any).from("lava_checklist_fotos").select("id,lavagem_id,tipo,storage_path,legenda,created_at").eq("empresa_id", current.empresaId).in("lavagem_id", lavagemIds).order("created_at", { ascending: false })
+        (supabase as any).from("lava_checklist_fotos").select("id,lavagem_id,tipo,momento,storage_path,legenda,created_at").eq("empresa_id", current.empresaId).in("lavagem_id", lavagemIds).order("created_at", { ascending: false })
       ])
     : [{ data: [], error: null }, { data: [], error: null }];
   const fotos = await withSignedPhotoUrls(supabase as any, fotosResult.data ?? []);
   const checklistByLavagem = new Map(((checklistsResult.data ?? []) as Array<Record<string, unknown>>).map((row) => [String(row.lavagem_id), row]));
-  const fotosByLavagem = new Map<string, Record<string, unknown>>();
+  const fotosByLavagem = new Map<string, { entrada?: Record<string, unknown>; checkout?: Record<string, unknown>; entradaCount: number; checkoutCount: number }>();
   for (const foto of fotos) {
     const lavagemId = String(foto.lavagem_id ?? "");
-    if (!fotosByLavagem.has(lavagemId)) fotosByLavagem.set(lavagemId, foto);
+    const bucket = fotosByLavagem.get(lavagemId) ?? { entradaCount: 0, checkoutCount: 0 };
+    if (String(foto.momento ?? "entrada") === "checkout") {
+      bucket.checkoutCount += 1;
+      if (!bucket.checkout) bucket.checkout = foto;
+    } else {
+      bucket.entradaCount += 1;
+      if (!bucket.entrada) bucket.entrada = foto;
+    }
+    fotosByLavagem.set(lavagemId, bucket);
   }
 
   return {
@@ -83,7 +91,12 @@ export async function listLavaFila() {
         checklist_id: checklist?.id ?? null,
         checklist_status: checklist ? String(checklist.status ?? "rascunho") : "pendente",
         checklist_label: checklist ? (checklist.status === "concluido" ? "Checklist ok" : "Checklist rascunho") : "Checklist pendente",
-        checklist_foto_url: foto?.signed_url ?? ""
+        checklist_foto_url: foto?.entrada?.signed_url ?? foto?.checkout?.signed_url ?? "",
+        foto_entrada_url: foto?.entrada?.signed_url ?? "",
+        foto_checkout_url: foto?.checkout?.signed_url ?? "",
+        fotos_entrada_count: foto?.entradaCount ?? 0,
+        fotos_checkout_count: foto?.checkoutCount ?? 0,
+        checkout_label: (foto?.checkoutCount ?? 0) > 0 ? "Checkout ok" : "Checkout pendente"
       };
     }),
     error: error?.message ?? checklistsResult.error?.message ?? fotosResult.error?.message ?? null

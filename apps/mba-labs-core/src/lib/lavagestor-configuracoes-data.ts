@@ -23,6 +23,10 @@ export type LavaConfiguracoesEmpresa = {
   bloquear_entrega_sem_pagamento: boolean;
   exigir_checklist_antes_finalizar: boolean;
   exigir_checklist_antes_entregar: boolean;
+  exigir_foto_entrada: boolean;
+  fotos_entrada_obrigatorias: string[];
+  permitir_concluir_checklist_sem_foto: boolean;
+  exigir_foto_checkout_antes_entrega: boolean;
   permitir_recibo_sem_checklist: boolean;
   mensagem_veiculo_pronto: string;
   mensagem_recibo: string;
@@ -77,6 +81,10 @@ export async function getLavaConfiguracoesEmpresa() {
       bloquear_entrega_sem_pagamento: boolValue(config.bloquear_entrega_sem_pagamento, true),
       exigir_checklist_antes_finalizar: boolValue(config.exigir_checklist_antes_finalizar, false),
       exigir_checklist_antes_entregar: boolValue(config.exigir_checklist_antes_entregar, false),
+      exigir_foto_entrada: boolValue(config.exigir_foto_entrada, true),
+      fotos_entrada_obrigatorias: arrayValue(config.fotos_entrada_obrigatorias, []),
+      permitir_concluir_checklist_sem_foto: boolValue(config.permitir_concluir_checklist_sem_foto, false),
+      exigir_foto_checkout_antes_entrega: boolValue(config.exigir_foto_checkout_antes_entrega, false),
       permitir_recibo_sem_checklist: boolValue(config.permitir_recibo_sem_checklist, true),
       mensagem_veiculo_pronto: String(config.mensagem_veiculo_pronto ?? defaultReadyMessage()),
       mensagem_recibo: String(config.mensagem_recibo ?? defaultReceiptMessage()),
@@ -115,6 +123,10 @@ function defaultConfig(empresaId: string | null, nome: string): LavaConfiguracoe
     bloquear_entrega_sem_pagamento: true,
     exigir_checklist_antes_finalizar: false,
     exigir_checklist_antes_entregar: false,
+    exigir_foto_entrada: true,
+    fotos_entrada_obrigatorias: [],
+    permitir_concluir_checklist_sem_foto: false,
+    exigir_foto_checkout_antes_entrega: false,
     permitir_recibo_sem_checklist: true,
     mensagem_veiculo_pronto: defaultReadyMessage(),
     mensagem_recibo: defaultReceiptMessage(),
@@ -131,7 +143,7 @@ function defaultConfig(empresaId: string | null, nome: string): LavaConfiguracoe
 }
 
 function defaultReadyMessage() {
-  return "Olá, {cliente}! Seu veículo/item {veiculo} está pronto. Total: {total}. {entrega}";
+  return "Olá, {cliente}! Seu veículo/item {veiculo} está pronto. Total: {total}. {entrega} {fotos}";
 }
 
 function defaultReceiptMessage() {

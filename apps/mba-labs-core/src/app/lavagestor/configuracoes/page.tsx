@@ -2,17 +2,28 @@ import type { ReactNode } from "react";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { MessageTemplateEditor } from "@/components/lavagestor/MessageTemplateEditor";
 import { BackButton, MessageBanner, PageHeader } from "@/components/ui-kit";
+import { requireAppAccess } from "@/lib/core-data";
 import { saveLavaConfiguracoesEmpresa } from "@/lib/actions/lavagestor-configuracoes-actions";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
 import { requireLavaGestorSettingsAccess } from "@/lib/lavagestor-permissions";
+import { getLavaStorageOverview, lavaStorageProviderLabel, type LavaStorageProvider } from "@/lib/lavagestor-storage";
 
 export const dynamic = "force-dynamic";
 
 export default async function LavaConfiguracoesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireLavaGestorSettingsAccess("/lavagestor/configuracoes");
   const params = await searchParams;
-  const { config, error } = await getLavaConfiguracoesEmpresa();
+  const current = await requireAppAccess("lavagestor", "/lavagestor/configuracoes");
+  const [{ config, error }, storageOverview] = await Promise.all([
+    getLavaConfiguracoesEmpresa(),
+    getLavaStorageOverview(current).catch((storageError) => ({
+      connections: [],
+      pendingCount: 0,
+      errorCount: 0,
+      error: storageError instanceof Error ? storageError.message : "Nao foi possivel carregar armazenamento."
+    }))
+  ]);
   const color = config.cor_principal || "#059669";
 
   return (
@@ -24,7 +35,7 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
           description="Deixe o LavaGestor com a cara da empresa: recibo, WhatsApp, relatório, comissão e regras de pagamento."
           actions={<BackButton href="/lavagestor" />}
         />
-        <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? undefined} />
+        <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? ("error" in storageOverview ? storageOverview.error : undefined) ?? undefined} />
 
         <div className="grid gap-3 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm md:grid-cols-[1fr_auto] md:items-center">
           <div>
@@ -37,6 +48,8 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
             <span className="text-muted-foreground">{[config.cidade, config.estado].filter(Boolean).join(" - ") || "Cidade / UF"}</span>
           </div>
         </div>
+
+        <StorageSection overview={storageOverview} />
 
         <form action={saveLavaConfiguracoesEmpresa} className="grid gap-4">
           <ConfigBlock badge="01" title="Empresa" description="Dados que aparecem no cabeçalho, recibo e relatório." defaultOpen>
@@ -70,6 +83,9 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
             <Toggle label="Bloquear entrega sem pagamento" description="Recibo e entrega ficam protegidos até pagar." name="bloquear_entrega_sem_pagamento" defaultChecked={config.bloquear_entrega_sem_pagamento} />
             <Toggle label="Exigir checklist antes de finalizar" description="Impede finalizar lavagem sem checklist concluido." name="exigir_checklist_antes_finalizar" defaultChecked={config.exigir_checklist_antes_finalizar} />
             <Toggle label="Exigir checklist antes de entregar" description="Impede entrega sem checklist concluido." name="exigir_checklist_antes_entregar" defaultChecked={config.exigir_checklist_antes_entregar} />
+            <Toggle label="Exigir foto de entrada" description="Impede concluir checklist sem pelo menos uma foto antes." name="exigir_foto_entrada" defaultChecked={config.exigir_foto_entrada} />
+            <Toggle label="Permitir checklist sem foto" description="Libera excecao manual para concluir entrada sem foto." name="permitir_concluir_checklist_sem_foto" defaultChecked={config.permitir_concluir_checklist_sem_foto} />
+            <Toggle label="Exigir checkout antes da entrega" description="Impede entregar sem foto final do veiculo/item." name="exigir_foto_checkout_antes_entrega" defaultChecked={config.exigir_foto_checkout_antes_entrega} />
             <Toggle label="Permitir recibo sem checklist" description="Se desligar, recibo pago tambem exige checklist concluido." name="permitir_recibo_sem_checklist" defaultChecked={config.permitir_recibo_sem_checklist} />
           </ConfigBlock>
 
@@ -78,6 +94,7 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
             <TextArea label="Tipos de entrega" name="tipos_entrega" defaultValue={config.tipos_entrega.join("\n")} helper="Um tipo por linha. Ex.: Cliente retira / Levar ao cliente." />
             <TextArea label="Itens padrao do checklist" name="checklist_itens_padrao" defaultValue={config.checklist_itens_padrao.join("\n")} helper="Um item por linha para orientar a conferencia." />
             <TextArea label="Tipos de foto do checklist" name="checklist_tipos_foto" defaultValue={config.checklist_tipos_foto.join("\n")} helper="Use codigos como frente, traseira, avaria, antes, depois." />
+            <TextArea label="Fotos de entrada obrigatorias" name="fotos_entrada_obrigatorias" defaultValue={config.fotos_entrada_obrigatorias.join("\n")} helper="Opcional. Um codigo por linha, como frente, traseira ou painel_km." />
           </ConfigBlock>
 
           <ConfigBlock badge="04" title="WhatsApp" description="Textos enviados ao cliente. Toque numa mensagem e depois numa variável para inserir.">
@@ -113,6 +130,70 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
         </form>
       </section>
     </LavaGestorShell>
+  );
+}
+
+type StorageOverview = Awaited<ReturnType<typeof getLavaStorageOverview>> | { connections: Record<string, unknown>[]; pendingCount: number; errorCount: number; error: string };
+
+function StorageSection({ overview }: { overview: StorageOverview }) {
+  const providers: LavaStorageProvider[] = ["google_drive", "dropbox"];
+  const connections = new Map((overview.connections ?? []).map((connection) => [String(connection.provider), connection]));
+
+  return (
+    <section className="grid gap-4 rounded-2xl border border-border bg-white p-4 shadow-sm">
+      <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-start">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Backup externo</p>
+          <h2 className="mt-1 text-xl font-black">Google Drive ou Dropbox</h2>
+          <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">As fotos continuam salvas no Supabase. O backup externo e opcional por empresa.</p>
+        </div>
+        <form action="/api/lavagestor/storage/sync" method="post">
+          <button className="button-secondary" type="submit">Sincronizar pendentes</button>
+        </form>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="rounded-xl bg-muted p-3">
+          <p className="text-xs font-black uppercase tracking-[0.08em] text-muted-foreground">Pendentes</p>
+          <strong className="mt-1 block text-2xl font-black">{overview.pendingCount}</strong>
+        </div>
+        <div className="rounded-xl bg-muted p-3">
+          <p className="text-xs font-black uppercase tracking-[0.08em] text-muted-foreground">Com erro</p>
+          <strong className="mt-1 block text-2xl font-black">{overview.errorCount}</strong>
+        </div>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {providers.map((provider) => {
+          const connection = connections.get(provider);
+          const connected = connection?.status === "conectado";
+          return (
+            <div className="grid gap-3 rounded-xl border border-border bg-muted/40 p-3" key={provider}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="font-black">{lavaStorageProviderLabel(provider)}</h3>
+                  <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">{connected ? String(connection?.account_email || "Conta conectada") : "Nao conectado"}</p>
+                  {connection?.root_folder_path ? <p className="mt-1 break-words text-xs font-semibold text-muted-foreground">{String(connection.root_folder_path)}</p> : null}
+                </div>
+                <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${connected ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900"}`}>{connected ? "Conectado" : "Pendente"}</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <a className={connected ? "button-secondary" : "button-primary"} href={`/api/lavagestor/storage/connect/${provider}`}>{connected ? "Reconectar" : "Conectar"}</a>
+                <form action="/api/lavagestor/storage/test" method="post">
+                  <button className="button-secondary" disabled={!connected} type="submit">Testar</button>
+                </form>
+                {connected ? (
+                  <form action="/api/lavagestor/storage/disconnect" method="post">
+                    <input name="provider" type="hidden" value={provider} />
+                    <button className="button-danger" type="submit">Desconectar</button>
+                  </form>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

@@ -146,7 +146,7 @@ export async function getLavaTicket(lavagemId: string) {
       .maybeSingle(),
     client.from("lava_lavagem_servicos").select("id,descricao,valor").eq("empresa_id", empresaId).eq("lavagem_id", lavagemId).order("created_at", { ascending: true }),
     client.from("lava_checklists").select("*").eq("empresa_id", empresaId).eq("lavagem_id", lavagemId).maybeSingle(),
-    client.from("lava_checklist_fotos").select("id,tipo,storage_path,legenda,created_at").eq("empresa_id", empresaId).eq("lavagem_id", lavagemId).order("created_at", { ascending: false }).limit(8),
+    client.from("lava_checklist_fotos").select("id,tipo,momento,storage_path,legenda,created_at").eq("empresa_id", empresaId).eq("lavagem_id", lavagemId).eq("momento", "entrada").order("created_at", { ascending: false }).limit(8),
     client.from("lava_pagamentos").select("id,valor,forma_pagamento,data_pagamento").eq("empresa_id", empresaId).eq("lavagem_id", lavagemId).order("data_pagamento", { ascending: true })
   ]);
 
@@ -280,7 +280,7 @@ async function photosForLavagens(client: any, empresaId: string | null, lavagemI
   if (lavagemIds.length === 0) return [];
   const { data } = await client
     .from("lava_checklist_fotos")
-    .select("id,lavagem_id,tipo,storage_path,legenda,created_at")
+    .select("id,lavagem_id,tipo,momento,storage_path,legenda,created_at")
     .eq("empresa_id", empresaId)
     .in("lavagem_id", lavagemIds)
     .order("created_at", { ascending: false })
