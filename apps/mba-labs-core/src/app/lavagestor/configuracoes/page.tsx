@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { headers } from "next/headers";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { MessageTemplateEditor } from "@/components/lavagestor/MessageTemplateEditor";
 import { BackButton, MessageBanner, PageHeader } from "@/components/ui-kit";
@@ -15,9 +16,10 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
   await requireLavaGestorSettingsAccess("/lavagestor/configuracoes");
   const params = await searchParams;
   const current = await requireAppAccess("lavagestor", "/lavagestor/configuracoes");
+  const requestOrigin = await getRequestOrigin();
   const [{ config, error }, storageOverview] = await Promise.all([
     getLavaConfiguracoesEmpresa(),
-    getLavaStorageOverview(current).catch((storageError) => ({
+    getLavaStorageOverview(current, requestOrigin).catch((storageError) => ({
       connections: [],
       pendingCount: 0,
       errorCount: 0,
@@ -133,11 +135,12 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
   );
 }
 
-type StorageOverview = Awaited<ReturnType<typeof getLavaStorageOverview>> | { connections: Record<string, unknown>[]; pendingCount: number; errorCount: number; error: string };
+type StorageOverview = Awaited<ReturnType<typeof getLavaStorageOverview>> | { connections: Record<string, unknown>[]; pendingCount: number; errorCount: number; error: string; oauth?: Record<string, unknown>[] };
 
 function StorageSection({ overview }: { overview: StorageOverview }) {
   const providers: LavaStorageProvider[] = ["google_drive", "dropbox"];
   const connections = new Map((overview.connections ?? []).map((connection) => [String(connection.provider), connection]));
+  const oauth = new Map((overview.oauth ?? []).map((config) => [String(config.provider), config]));
 
   return (
     <section className="grid gap-4 rounded-2xl border border-border bg-white p-4 shadow-sm">
@@ -166,6 +169,7 @@ function StorageSection({ overview }: { overview: StorageOverview }) {
       <div className="grid gap-3 md:grid-cols-2">
         {providers.map((provider) => {
           const connection = connections.get(provider);
+          const oauthConfig = oauth.get(provider);
           const connected = connection?.status === "conectado";
           return (
             <div className="grid gap-3 rounded-xl border border-border bg-muted/40 p-3" key={provider}>
@@ -177,6 +181,13 @@ function StorageSection({ overview }: { overview: StorageOverview }) {
                 </div>
                 <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${connected ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900"}`}>{connected ? "Conectado" : "Pendente"}</span>
               </div>
+              {oauthConfig?.redirectUri ? (
+                <div className="grid gap-1 rounded-lg border border-border bg-white p-2 text-xs font-semibold text-muted-foreground">
+                  <span className="font-black uppercase tracking-[0.08em]">Redirect URI usada</span>
+                  <code className="break-all rounded bg-muted px-2 py-1 font-mono text-[11px] text-foreground">{String(oauthConfig.redirectUri)}</code>
+                  <span>Client ID: {oauthConfig.clientIdConfigured ? "configurado" : "pendente"} - origem: {redirectSourceLabel(String(oauthConfig.redirectSource ?? ""))}</span>
+                </div>
+              ) : null}
               <div className="flex flex-wrap gap-2">
                 <a className={connected ? "button-secondary" : "button-primary"} href={`/api/lavagestor/storage/connect/${provider}`}>{connected ? "Reconectar" : "Conectar"}</a>
                 <form action="/api/lavagestor/storage/test" method="post">
@@ -195,6 +206,18 @@ function StorageSection({ overview }: { overview: StorageOverview }) {
       </div>
     </section>
   );
+}
+
+async function getRequestOrigin() {
+  const headerList = await headers();
+  const host = headerList.get("x-forwarded-host") || headerList.get("host") || "mbalabs.vercel.app";
+  const proto = headerList.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
+function redirectSourceLabel(value: string) {
+  if (value === "request_origin") return "dominio atual";
+  return value || "dominio atual";
 }
 
 function ConfigBlock({ badge, title, description, children, defaultOpen = false }: { badge: string; title: string; description: string; children: ReactNode; defaultOpen?: boolean }) {
