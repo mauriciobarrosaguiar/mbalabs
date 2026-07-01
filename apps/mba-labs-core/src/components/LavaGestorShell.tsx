@@ -10,6 +10,8 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  MessageCircle,
+  Search,
   Settings,
   Sparkles,
   Users,
@@ -24,6 +26,7 @@ type LavaNavItem = {
 
 const lavaNavItems: LavaNavItem[] = [
   { href: "/lavagestor", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/lavagestor/busca", label: "Busca rapida", icon: Search },
   { href: "/lavagestor/nova-lavagem", label: "Nova lavagem", icon: Car },
   { href: "/lavagestor/fila", label: "Fila", icon: ClipboardList },
   { href: "/lavagestor/lavagens", label: "Lavagens", icon: ClipboardList },
@@ -34,6 +37,8 @@ const lavaNavItems: LavaNavItem[] = [
   { href: "/lavagestor/comissoes", label: "Comissões", icon: HandCoins },
   { href: "/lavagestor/vales", label: "Vales", icon: Banknote },
   { href: "/lavagestor/pagamentos", label: "Pagamentos", icon: CreditCard },
+  { href: "/lavagestor/financeiro", label: "Financeiro", icon: Banknote },
+  { href: "/lavagestor/pos-venda", label: "Pos-venda", icon: MessageCircle },
   { href: "/lavagestor/relatorios", label: "Relatórios", icon: FileText },
   { href: "/lavagestor/configuracoes", label: "Configurações", icon: Settings }
 ];

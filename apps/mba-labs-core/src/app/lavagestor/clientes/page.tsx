@@ -75,6 +75,9 @@ export default async function ClientesPage({
               <Link className="button-secondary" href={`/lavagestor/clientes?edit=${row.id}`}>
                 Editar
               </Link>
+              <Link className="button-secondary" href={`/lavagestor/clientes/${row.id}`}>
+                Historico
+              </Link>
               <Link className="button-secondary" href={`/lavagestor/veiculos?q=${encodeURIComponent(String(row.nome ?? ""))}`}>
                 Ver veículos
               </Link>

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { logAction, requireAppAccess } from "@/lib/core-data";
 import { booleanValue, dateValue, messageParam, nullableTextValue, numberValue, textValue } from "@/lib/form-utils";
 import { normalizeLavaStatus } from "@/lib/lavagestor-data";
+import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
 import { getSupabaseServer } from "@/lib/supabase";
 
 export async function saveCliente(formData: FormData) {
@@ -105,6 +106,7 @@ export async function deleteVeiculo(formData: FormData) {
 }
 
 export async function saveFuncionario(formData: FormData) {
+  await requireLavaGestorFinanceAccess("/lavagestor/funcionarios");
   const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
@@ -136,6 +138,7 @@ export async function saveFuncionario(formData: FormData) {
 }
 
 export async function inactivateFuncionario(formData: FormData) {
+  await requireLavaGestorFinanceAccess("/lavagestor/funcionarios");
   const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
@@ -361,7 +364,7 @@ export async function createLavagem(formData: FormData) {
   });
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/fila");
-  redirect(`/lavagestor/fila?ok=${messageParam("Lavagem registrada na fila.")}`);
+  redirect(`/lavagestor/checklists/${lavagem.id}?ok=${messageParam("Lavagem registrada na fila. Complete o checklist de entrada.")}`);
 }
 
 export async function updateLavagemStatus(formData: FormData) {
@@ -383,6 +386,24 @@ export async function updateLavagemStatus(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam(error?.message ?? "Lavagem não encontrada.")}`);
   }
 
+  const [configResult, checklistResult] = await Promise.all([
+    current.empresaId
+      ? client
+          .from("lava_configuracoes")
+          .select("exigir_checklist_antes_finalizar,exigir_checklist_antes_entregar")
+          .eq("empresa_id", current.empresaId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    client
+      .from("lava_checklists")
+      .select("id,status")
+      .eq("lavagem_id", id)
+      .eq("empresa_id", current.empresaId)
+      .maybeSingle()
+  ]);
+  const config = (configResult.data ?? {}) as Record<string, unknown>;
+  const checklistConcluido = checklistResult.data?.status === "concluido";
+
   const statusAnterior = normalizeLavaStatus(lavagem.status);
   const now = new Date().toISOString();
   const payload: Record<string, unknown> = {};
@@ -395,6 +416,9 @@ export async function updateLavagemStatus(formData: FormData) {
     payload.data_inicio = now;
   } else if (action === "finalizar") {
     ensureTransition(returnTo, statusAnterior, ["em_lavagem", "aguardando_finalizacao"], "Só é possível finalizar uma lavagem em andamento.");
+    if (config.exigir_checklist_antes_finalizar === true && !checklistConcluido) {
+      redirect(`${returnTo}?error=${messageParam("Conclua o checklist antes de finalizar a lavagem.")}`);
+    }
     statusNovo = "finalizado";
     payload.data_finalizacao = now;
   } else if (action === "avisar_cliente") {
@@ -403,6 +427,9 @@ export async function updateLavagemStatus(formData: FormData) {
     payload.data_cliente_avisado = now;
   } else if (action === "entregar") {
     ensureTransition(returnTo, statusAnterior, ["finalizado", "cliente_avisado", "pago"], "A lavagem precisa estar finalizada para entrega.");
+    if (config.exigir_checklist_antes_entregar === true && !checklistConcluido) {
+      redirect(`${returnTo}?error=${messageParam("Conclua o checklist antes de entregar.")}`);
+    }
     const paymentStatus = String(lavagem.status_pagamento ?? "aberto");
     const manualRelease = current.isAdminMaster && textValue(formData, "liberacao_manual") === "true";
     if (!["pago", "fiado"].includes(paymentStatus) && !manualRelease) {
@@ -544,6 +571,7 @@ export async function registrarPagamentoLavagem(formData: FormData) {
 }
 
 export async function markComissaoPaga(formData: FormData) {
+  await requireLavaGestorFinanceAccess("/lavagestor/comissoes");
   const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");
@@ -563,6 +591,7 @@ export async function markComissaoPaga(formData: FormData) {
 }
 
 export async function saveVale(formData: FormData) {
+  await requireLavaGestorFinanceAccess("/lavagestor/vales");
   const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const funcionarioId = textValue(formData, "funcionario_id");
@@ -591,6 +620,7 @@ export async function saveVale(formData: FormData) {
 }
 
 export async function updateValeStatus(formData: FormData) {
+  await requireLavaGestorFinanceAccess("/lavagestor/vales");
   const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
   const id = textValue(formData, "id");

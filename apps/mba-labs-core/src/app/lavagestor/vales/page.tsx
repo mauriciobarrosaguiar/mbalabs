@@ -19,6 +19,7 @@ import { saveVale, updateValeStatus } from "@/lib/actions/lavagestor-actions";
 import { descontarValeIntegral } from "@/lib/actions/lavagestor-vales-actions";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaLookups, listLavaVales } from "@/lib/lavagestor-data";
+import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export default async function ValesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireLavaGestorFinanceAccess("/lavagestor/vales");
   const params = await searchParams;
   const search = firstParam(params.q) ?? "";
   const [{ rows, error }, lookups] = await Promise.all([listLavaVales(search), getLavaLookups()]);

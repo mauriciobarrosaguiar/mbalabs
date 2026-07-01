@@ -17,6 +17,7 @@ import {
 import { inactivateFuncionario, saveFuncionario } from "@/lib/actions/lavagestor-actions";
 import { listLavaComissoes, listLavaFuncionarios, listLavaVales } from "@/lib/lavagestor-data";
 import { firstParam } from "@/lib/form-utils";
+import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export default async function FuncionariosPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireLavaGestorFinanceAccess("/lavagestor/funcionarios");
   const params = await searchParams;
   const search = firstParam(params.q) ?? "";
   const editId = firstParam(params.edit);

@@ -58,3 +58,71 @@ export async function saveServicoAvancado(formData: FormData) {
   revalidatePath("/lavagestor/nova-lavagem");
   redirect(`/lavagestor/servicos?ok=${messageParam("Serviço salvo com sucesso.")}`);
 }
+
+export async function criarServicosPadraoLavaGestor() {
+  const current = await requireAppAccess("lavagestor");
+  const supabase = await getSupabaseServer();
+  const client = supabase as any;
+
+  const { data: existing, error: existingError } = await client
+    .from("lava_servicos")
+    .select("nome")
+    .eq("empresa_id", current.empresaId);
+
+  if (existingError) {
+    redirect(`/lavagestor/servicos?error=${messageParam(existingError.message)}`);
+  }
+
+  const existingNames = new Set(((existing ?? []) as Array<Record<string, unknown>>).map((row) => normalizeName(row.nome)));
+  const rows = SERVICOS_PADRAO.filter((servico) => !existingNames.has(normalizeName(servico.nome))).map((servico, index) => ({
+    empresa_id: current.empresaId,
+    nome: servico.nome,
+    descricao: servico.descricao,
+    preco: servico.preco,
+    percentual_comissao: null,
+    tipo: servico.tipo,
+    aplicacao: servico.aplicacao,
+    categoria: servico.categoria,
+    adicional: servico.adicional,
+    tempo_estimado_min: null,
+    ordem: index + 1,
+    ativo: true
+  }));
+
+  if (rows.length > 0) {
+    const { error } = await client.from("lava_servicos").insert(rows);
+    if (error) {
+      redirect(`/lavagestor/servicos?error=${messageParam(error.message)}`);
+    }
+  }
+
+  await logAction({ appSlug: "lavagestor", acao: "criar servicos padrao", detalhes: { criados: rows.length } });
+  revalidatePath("/lavagestor/servicos");
+  revalidatePath("/lavagestor/nova-lavagem");
+  redirect(`/lavagestor/servicos?ok=${messageParam(rows.length ? "Serviços padrão criados com sucesso. Você pode ajustar os preços." : "Serviços padrão já estavam cadastrados.")}`);
+}
+
+const SERVICOS_PADRAO = [
+  { nome: "Lavagem simples carro", descricao: "Servico principal para carro.", tipo: "lavagem", aplicacao: "carro", categoria: "principal", adicional: false, preco: 40 },
+  { nome: "Lavagem completa carro", descricao: "Lavagem completa externa e interna.", tipo: "lavagem", aplicacao: "carro", categoria: "principal", adicional: false, preco: 60 },
+  { nome: "Lavagem moto", descricao: "Servico principal para moto.", tipo: "lavagem", aplicacao: "moto", categoria: "principal", adicional: false, preco: 25 },
+  { nome: "Lavagem caminhonete", descricao: "Servico principal para caminhonete.", tipo: "lavagem", aplicacao: "caminhonete", categoria: "principal", adicional: false, preco: 80 },
+  { nome: "Higienizacao interna", descricao: "Higienizacao interna do veiculo.", tipo: "higienizacao", aplicacao: "carro", categoria: "principal", adicional: false, preco: 150 },
+  { nome: "Lavagem de motor", descricao: "Adicional para motor.", tipo: "lavagem", aplicacao: "carro", categoria: "adicional", adicional: true, preco: 40 },
+  { nome: "Polimento simples", descricao: "Polimento simples do veiculo.", tipo: "polimento", aplicacao: "carro", categoria: "principal", adicional: false, preco: 200 },
+  { nome: "Sofa", descricao: "Higienizacao de sofa.", tipo: "higienizacao", aplicacao: "sofa", categoria: "principal", adicional: false, preco: 120 },
+  { nome: "Tapete", descricao: "Higienizacao de tapete.", tipo: "higienizacao", aplicacao: "tapete", categoria: "principal", adicional: false, preco: 25 },
+  { nome: "Adicional: cera", descricao: "Aplicacao de cera.", tipo: "adicional", aplicacao: "todos", categoria: "adicional", adicional: true, preco: 20 },
+  { nome: "Adicional: aspiracao", descricao: "Aspiracao interna.", tipo: "adicional", aplicacao: "todos", categoria: "adicional", adicional: true, preco: 15 },
+  { nome: "Adicional: pretinho", descricao: "Aplicacao de pretinho nos pneus.", tipo: "adicional", aplicacao: "todos", categoria: "adicional", adicional: true, preco: 10 }
+];
+
+function normalizeName(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ");
+}

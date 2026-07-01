@@ -44,6 +44,9 @@ type Props = {
   veiculos: Veiculo[];
   funcionarios: Funcionario[];
   servicos: Servico[];
+  initialClienteId?: string;
+  initialVeiculoId?: string;
+  initialTerm?: string;
   ok?: string;
   error?: string;
 };
@@ -75,20 +78,26 @@ const tipos = [
 
 const carLikeTypes = ["carro", "moto", "caminhonete", "caminhao"];
 
-export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, ok, error }: Props) {
-  const [clienteModo, setClienteModo] = useState<"existente" | "novo">("existente");
-  const [clienteId, setClienteId] = useState("");
-  const [clienteNome, setClienteNome] = useState("");
-  const [clienteWhatsapp, setClienteWhatsapp] = useState("");
-  const [clienteObservacao, setClienteObservacao] = useState("");
-  const [veiculoModo, setVeiculoModo] = useState<"existente" | "novo">("existente");
-  const [veiculoId, setVeiculoId] = useState("");
-  const [tipo, setTipo] = useState("carro");
-  const [placa, setPlaca] = useState("");
-  const [marca, setMarca] = useState("");
-  const [modelo, setModelo] = useState("");
-  const [cor, setCor] = useState("");
-  const [veiculoObservacao, setVeiculoObservacao] = useState("");
+export function NovaLavagemForm({ clientes, veiculos, funcionarios, servicos, initialClienteId = "", initialVeiculoId = "", initialTerm = "", ok, error }: Props) {
+  const initialVeiculo = veiculos.find((item) => item.id === initialVeiculoId);
+  const defaultClienteId = initialClienteId || initialVeiculo?.cliente_id || "";
+  const initialCliente = clientes.find((item) => item.id === defaultClienteId);
+  const placaInicial = initialVeiculo?.placa ?? (looksLikePlate(initialTerm) ? initialTerm.toUpperCase() : "");
+  const termIsPhone = onlyDigits(initialTerm).length >= 8;
+  const termIsNewCliente = Boolean(initialTerm && !defaultClienteId && !looksLikePlate(initialTerm));
+  const [clienteModo, setClienteModo] = useState<"existente" | "novo">(termIsNewCliente ? "novo" : "existente");
+  const [clienteId, setClienteId] = useState(defaultClienteId);
+  const [clienteNome, setClienteNome] = useState(initialCliente?.nome ?? (termIsNewCliente && !termIsPhone ? initialTerm : ""));
+  const [clienteWhatsapp, setClienteWhatsapp] = useState(initialCliente?.telefone ?? (termIsPhone ? initialTerm : ""));
+  const [clienteObservacao, setClienteObservacao] = useState(initialCliente?.observacao ?? "");
+  const [veiculoModo, setVeiculoModo] = useState<"existente" | "novo">(initialVeiculoId ? "existente" : initialTerm ? "novo" : "existente");
+  const [veiculoId, setVeiculoId] = useState(initialVeiculoId);
+  const [tipo, setTipo] = useState(normalizeTipo(initialVeiculo?.tipo || "carro"));
+  const [placa, setPlaca] = useState(placaInicial);
+  const [marca, setMarca] = useState(initialVeiculo?.marca ?? "");
+  const [modelo, setModelo] = useState(initialVeiculo?.modelo ?? "");
+  const [cor, setCor] = useState(initialVeiculo?.cor ?? "");
+  const [veiculoObservacao, setVeiculoObservacao] = useState(initialVeiculo?.observacao ?? "");
   const [entregaTipo, setEntregaTipo] = useState<"retirar" | "levar">("retirar");
   const [servicoId, setServicoId] = useState("");
   const [adicionais, setAdicionais] = useState<string[]>([]);
@@ -633,6 +642,11 @@ function normalizeSearch(value: unknown) {
 
 function onlyDigits(value: unknown) {
   return String(value ?? "").replace(/\D/g, "");
+}
+
+function looksLikePlate(value: unknown) {
+  const text = String(value ?? "").replace(/[^a-zA-Z0-9]/g, "");
+  return /^[a-zA-Z]{3}[0-9][a-zA-Z0-9][0-9]{2}$/.test(text) || /^[a-zA-Z]{3}[0-9]{4}$/.test(text);
 }
 
 function isCarLikeTipo(value: unknown) {

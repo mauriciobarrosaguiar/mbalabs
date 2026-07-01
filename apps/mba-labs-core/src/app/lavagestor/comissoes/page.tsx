@@ -4,12 +4,14 @@ import { AcertoValeFields } from "@/components/lavagestor/AcertoValeFields";
 import { pagarComissoesFuncionario as registrarAcertoFuncionario } from "@/lib/actions/lavagestor-comissoes-actions";
 import { firstParam } from "@/lib/form-utils";
 import { listLavaComissoesResumo } from "@/lib/lavagestor-comissoes-data";
+import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
 type Row = Record<string, unknown>;
 
 export default async function ComissoesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  await requireLavaGestorFinanceAccess("/lavagestor/comissoes");
   const params = await searchParams;
   const { rows, totals, error } = await listLavaComissoesResumo();
 

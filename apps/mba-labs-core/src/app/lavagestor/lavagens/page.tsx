@@ -47,7 +47,7 @@ export default async function LavagensPage({ searchParams }: { searchParams: Pro
             { key: "data_lavagem", label: "Data" }
           ]}
           rows={rows.map((row) => ({ ...row, valor: formatMoney(row.valor_final ?? row.valor), comissao: formatMoney(row.comissao), data_lavagem: formatDate(row.data_entrada ?? row.data_lavagem) }))}
-          actions={(row) => <Link className="button-secondary" href={`/lavagestor/recibos/${row.id}`}>Recibo</Link>}
+          actions={(row) => <div className="flex flex-wrap justify-end gap-2"><Link className="button-secondary" href={`/lavagestor/checklists/${row.id}`}>Checklist</Link><Link className="button-secondary" href={`/lavagestor/tickets/${row.id}`}>Ticket</Link><Link className="button-secondary" href={`/lavagestor/recibos/${row.id}`}>Recibo</Link></div>}
         />
       </section>
     </LavaGestorShell>

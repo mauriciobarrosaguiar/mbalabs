@@ -127,7 +127,7 @@ export async function createLavagemMelhorada(formData: FormData) {
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/fila");
   revalidatePath("/lavagestor/comissoes");
-  redirect(`/lavagestor/fila?ok=${messageParam("Lavagem registrada na fila.")}`);
+  redirect(`/lavagestor/checklists/${lavagem.id}?ok=${messageParam("Lavagem registrada na fila. Complete o checklist de entrada.")}`);
 }
 
 async function resolveCliente(client: any, empresaId: string | null, formData: FormData) {

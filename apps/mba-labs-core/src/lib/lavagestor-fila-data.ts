@@ -1,4 +1,5 @@
 import { requireAppAccess } from "./core-data";
+import { withSignedPhotoUrls } from "./lavagestor-checklists-data";
 import { getSupabaseServer } from "./supabase";
 
 const LAVA_STATUS_LABELS: Record<string, string> = {
@@ -58,7 +59,35 @@ export async function listLavaFila() {
     })
     .filter((row) => !["entregue", "cancelado"].includes(String(row.status)));
 
-  return { rows, error: error?.message ?? null };
+  const lavagemIds = rows.map((row) => String(row.id ?? "")).filter(Boolean);
+  const [checklistsResult, fotosResult] = lavagemIds.length
+    ? await Promise.all([
+        (supabase as any).from("lava_checklists").select("id,lavagem_id,status,riscos,amassados,vidro_trincado,objetos_cliente").eq("empresa_id", current.empresaId).in("lavagem_id", lavagemIds),
+        (supabase as any).from("lava_checklist_fotos").select("id,lavagem_id,tipo,storage_path,legenda,created_at").eq("empresa_id", current.empresaId).in("lavagem_id", lavagemIds).order("created_at", { ascending: false })
+      ])
+    : [{ data: [], error: null }, { data: [], error: null }];
+  const fotos = await withSignedPhotoUrls(supabase as any, fotosResult.data ?? []);
+  const checklistByLavagem = new Map(((checklistsResult.data ?? []) as Array<Record<string, unknown>>).map((row) => [String(row.lavagem_id), row]));
+  const fotosByLavagem = new Map<string, Record<string, unknown>>();
+  for (const foto of fotos) {
+    const lavagemId = String(foto.lavagem_id ?? "");
+    if (!fotosByLavagem.has(lavagemId)) fotosByLavagem.set(lavagemId, foto);
+  }
+
+  return {
+    rows: rows.map((row) => {
+      const checklist = checklistByLavagem.get(String(row.id));
+      const foto = fotosByLavagem.get(String(row.id));
+      return {
+        ...row,
+        checklist_id: checklist?.id ?? null,
+        checklist_status: checklist ? String(checklist.status ?? "rascunho") : "pendente",
+        checklist_label: checklist ? (checklist.status === "concluido" ? "Checklist ok" : "Checklist rascunho") : "Checklist pendente",
+        checklist_foto_url: foto?.signed_url ?? ""
+      };
+    }),
+    error: error?.message ?? checklistsResult.error?.message ?? fotosResult.error?.message ?? null
+  };
 }
 
 function normalizeLavaStatus(status: unknown) {

@@ -63,6 +63,9 @@ export default async function NovaLavagemPage({ searchParams }: { searchParams: 
             veiculos={veiculos}
             funcionarios={funcionarios}
             servicos={servicos}
+            initialClienteId={firstParam(params.cliente) ?? ""}
+            initialVeiculoId={firstParam(params.veiculo) ?? ""}
+            initialTerm={firstParam(params.placa) ?? firstParam(params.busca) ?? ""}
             ok={firstParam(params.ok)}
             error={firstParam(params.error) ?? servicosResult.error ?? configError ?? undefined}
           />

@@ -200,6 +200,7 @@ function FilaCard({
   const pendingPayment = moneyNumber(row.valor_pendente) > 0 || row.status_pagamento !== "pago";
   const isRetirada = status === "cliente_avisado" || status === "pago";
   const pendingAmount = paymentDisplayAmount(row);
+  const checklistOk = row.checklist_status === "concluido";
 
   return (
     <details className={`group min-w-0 max-w-full overflow-hidden rounded-2xl border border-border bg-[#fbfdfc] shadow-sm transition hover:shadow-md ${disabled ? "opacity-60" : ""} ${dragging ? "scale-[0.98] ring-4 ring-emerald-300" : ""}`}>
@@ -218,7 +219,11 @@ function FilaCard({
           <MiniInfo label="Valor" value={formatMoney(row.valor_final ?? row.valor)} strong />
           <MiniInfo label="Lavador" value={String(row.funcionario || "-")} />
           <MiniInfo label="Entrega" value={String(row.entrega_label || "Cliente retira")} />
+          <MiniInfo label="Checklist" value={String(row.checklist_label || "Pendente")} warning={!checklistOk} />
+          <MiniInfo label="Entrada" value={shortTime(row.data_entrada ?? row.data_lavagem)} />
         </div>
+
+        {row.checklist_foto_url ? <img className="aspect-[16/9] w-full rounded-xl border border-border object-cover" src={String(row.checklist_foto_url)} alt="Foto principal do checklist" /> : null}
 
         {isRetirada && pendingPayment ? (
           <Link
@@ -266,6 +271,12 @@ function FilaCard({
         <MoveSelect currentStatus={status} disabled={disabled} id={id} onMove={onMove} />
 
         <div className="grid min-w-0 gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            <Link className={checklistOk ? "button-secondary" : "button-primary"} href={`/lavagestor/checklists/${id}`}>Checklist</Link>
+            <Link className="button-secondary" href={`/lavagestor/tickets/${id}`}>Ticket</Link>
+            <Link className="button-secondary" href={`/lavagestor/pagamentos?lavagem=${id}`}>Pagamento</Link>
+            <Link className="button-secondary" href={`/lavagestor/recibos/${id}`}>Recibo</Link>
+          </div>
           {status === "na_fila" ? <><StatusButton id={id} action="iniciar" label="Iniciar lavagem" /><CancelForm id={id} reasons={configArray(config, "motivos_cancelamento")} /></> : null}
           {status === "em_lavagem" ? <StatusButton id={id} action="finalizar" label="Finalizar lavagem" /> : null}
           {status === "finalizado" || status === "aguardando_finalizacao" ? <>{phone ? <a className="button-secondary" href={whatsappLink(row, config)} target="_blank" rel="noreferrer">Avisar veículo finalizado</a> : <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">WhatsApp não informado para este cliente.</p>}<StatusButton id={id} action="avisar_cliente" label="Marcar cliente avisado" /><Link className="button-primary" href={`/lavagestor/pagamentos?lavagem=${id}`}>Registrar pagamento</Link><p className="rounded-lg bg-amber-50 p-3 text-sm font-bold text-amber-900">Recibo liberado somente após pagamento.</p></> : null}
@@ -313,6 +324,7 @@ function paymentInputValue(row: FilaRow) { const pending = moneyNumber(row.valor
 function paymentDisplayAmount(row: FilaRow) { const pending = moneyNumber(row.valor_pendente); const finalValue = moneyNumber(row.valor_final ?? row.valor); const received = moneyNumber(row.valor_recebido); return pending > 0 ? pending : Math.max(finalValue - received, 0); }
 function moneyNumber(value: unknown) { const number = Number(value ?? 0); return Number.isFinite(number) ? number : 0; }
 function timeValue(value: unknown) { const time = new Date(String(value ?? "")).getTime(); return Number.isFinite(time) ? time : 0; }
+function shortTime(value: unknown) { const time = new Date(String(value ?? "")); return Number.isFinite(time.getTime()) ? time.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "-"; }
 function sortByPriority(rows: FilaRow[], statuses: string[]) { return [...rows].sort((a, b) => priorityScore(a, statuses) - priorityScore(b, statuses) || timeValue(a.data_entrada ?? a.data_lavagem ?? a.created_at) - timeValue(b.data_entrada ?? b.data_lavagem ?? b.created_at)); }
 function priorityScore(row: FilaRow, statuses: string[]) { const status = String(row.status); const statusIndex = statuses.indexOf(status); const paymentPenalty = row.status_pagamento === "pago" ? 10 : 0; return (statusIndex < 0 ? 99 : statusIndex) * 10 + paymentPenalty; }
 function priorityLabel(row: FilaRow) { if (row.status_pagamento !== "pago") return "Prioridade: receber"; const status = String(row.status); if (status === "na_fila") return "Prioridade: iniciar"; if (status === "em_lavagem") return "Prioridade: finalizar"; if (status === "finalizado" || status === "aguardando_finalizacao") return "Prioridade: avisar"; return "Prioridade: entregar"; }
