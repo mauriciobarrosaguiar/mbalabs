@@ -102,6 +102,7 @@ export default async function LavaTicketPage({ params }: { params: Promise<{ lav
             )}
             {ticket.fotos.length ? (
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <h4 className="text-xs font-black uppercase tracking-[0.1em] text-slate-500 sm:col-span-2 lg:col-span-4">Fotos de entrada / Antes</h4>
                 {ticket.fotos.slice(0, 4).map((foto) => (
                   <figure className="overflow-hidden rounded-lg border border-border" key={String(foto.id)}>
                     {foto.signed_url ? <img alt={String(foto.legenda || foto.tipo)} className="aspect-[4/3] w-full object-cover" src={String(foto.signed_url)} /> : null}
@@ -144,8 +145,9 @@ function ticketMessage(ticket: Ticket) {
     `Segue o ticket de entrada ${ticket.numero}.`,
     `Veiculo/item: ${ticket.veiculo}.`,
     `Total previsto: ${formatMoney(ticket.valor_final)}.`,
+    ticket.fotos.length ? "Fotos de entrada anexadas ao ticket." : "",
     "Cliente declara ciencia das condicoes registradas no checklist de entrada."
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 const printCss = `

@@ -2,6 +2,7 @@ import { requireLavaGestorAccess } from "./lavagestor-permissions";
 import { getSupabaseServer } from "./supabase";
 
 export const LAVA_CHECKLIST_BUCKET = "lava-checklists";
+export const LAVA_CHECKOUT_ALLOWED_STATUSES = ["finalizado", "cliente_avisado", "pago"];
 
 export const LAVA_CHECKLIST_PHOTO_TYPES = [
   { value: "frente", label: "Frente" },
@@ -15,6 +16,13 @@ export const LAVA_CHECKLIST_PHOTO_TYPES = [
   { value: "depois", label: "Depois" },
   { value: "outras", label: "Outras" }
 ];
+
+export const LAVA_CHECKLIST_DEFAULT_CONFIG = {
+  exigir_foto_entrada: true,
+  fotos_entrada_obrigatorias: [] as string[],
+  permitir_concluir_checklist_sem_foto: false,
+  exigir_foto_checkout_antes_entrega: false
+};
 
 type Row = Record<string, unknown>;
 
@@ -32,11 +40,11 @@ export async function getLavaChecklistPageData(lavagemId: string) {
     .maybeSingle();
 
   if (lavagemResult.error || !lavagemResult.data) {
-    return { lavagem: null, checklist: null, servicos: [], fotos: [], error: lavagemResult.error?.message ?? "Lavagem nao encontrada." };
+    return { lavagem: null, checklist: null, servicos: [], fotos: [], config: normalizeChecklistConfig(null), error: lavagemResult.error?.message ?? "Lavagem nao encontrada." };
   }
 
   const checklist = await ensureChecklistForLavagem(client, current, lavagemResult.data as Row);
-  const [servicosResult, checklistServicosResult, fotosResult] = await Promise.all([
+  const [servicosResult, checklistServicosResult, fotosResult, configResult] = await Promise.all([
     client
       .from("lava_lavagem_servicos")
       .select("id,descricao,valor,created_at")
@@ -51,21 +59,28 @@ export async function getLavaChecklistPageData(lavagemId: string) {
       .order("created_at", { ascending: true }),
     client
       .from("lava_checklist_fotos")
-      .select("id,tipo,storage_path,public_url,legenda,created_at")
+      .select("id,tipo,momento,storage_path,public_url,legenda,created_at")
       .eq("empresa_id", empresaId)
       .eq("checklist_id", checklist.id)
-      .order("created_at", { ascending: false })
+      .order("created_at", { ascending: false }),
+    client
+      .from("lava_configuracoes")
+      .select("exigir_foto_entrada,fotos_entrada_obrigatorias,permitir_concluir_checklist_sem_foto,exigir_foto_checkout_antes_entrega,checklist_tipos_foto")
+      .eq("empresa_id", empresaId)
+      .maybeSingle()
   ]);
 
   const servicos = await syncChecklistServicos(client, empresaId, checklist, servicosResult.data ?? [], checklistServicosResult.data ?? []);
   const fotos = await withSignedPhotoUrls(client, fotosResult.data ?? []);
+  const syncByFoto = await getPhotoSyncMap(client, empresaId, fotos.map((foto) => String(foto.id ?? "")).filter(Boolean));
 
   return {
     lavagem: normalizeLavagem(lavagemResult.data as Row),
     checklist,
     servicos,
-    fotos,
-    error: servicosResult.error?.message ?? checklistServicosResult.error?.message ?? fotosResult.error?.message ?? null
+    fotos: fotos.map((foto) => ({ ...foto, sync_rows: syncByFoto.get(String(foto.id)) ?? [] })),
+    config: normalizeChecklistConfig(configResult.data),
+    error: servicosResult.error?.message ?? checklistServicosResult.error?.message ?? fotosResult.error?.message ?? configResult.error?.message ?? null
   };
 }
 
@@ -98,7 +113,7 @@ export async function getChecklistPhotosForLavagens(lavagemIds: string[]) {
   const client = supabase as any;
   const { data } = await client
     .from("lava_checklist_fotos")
-    .select("id,lavagem_id,tipo,storage_path,legenda,created_at")
+    .select("id,lavagem_id,tipo,momento,storage_path,legenda,created_at")
     .eq("empresa_id", current.empresaId)
     .in("lavagem_id", ids)
     .order("created_at", { ascending: false });
@@ -110,6 +125,10 @@ export async function getChecklistPhotosForLavagens(lavagemIds: string[]) {
     map.set(lavagemId, [...(map.get(lavagemId) ?? []), photo]);
   }
   return map;
+}
+
+export function canUploadCheckoutPhoto(status: unknown) {
+  return LAVA_CHECKOUT_ALLOWED_STATUSES.includes(String(status));
 }
 
 export async function ensureChecklistForLavagem(client: any, current: { empresaId: string | null; usuario: { id: string } }, lavagem: Row) {
@@ -196,6 +215,47 @@ function normalizeLavagem(row: Row): Row {
     funcionario: relationName(row.lava_funcionarios),
     servico: relationName(row.lava_servicos)
   };
+}
+
+async function getPhotoSyncMap(client: any, empresaId: string | null, fotoIds: string[]) {
+  const map = new Map<string, Row[]>();
+  if (fotoIds.length === 0) return map;
+
+  const { data } = await client
+    .from("lava_file_sync")
+    .select("foto_id,provider,status,remote_path,remote_url,erro,synced_at,updated_at")
+    .eq("empresa_id", empresaId)
+    .in("foto_id", fotoIds);
+
+  for (const row of (data ?? []) as Row[]) {
+    const fotoId = String(row.foto_id ?? "");
+    map.set(fotoId, [...(map.get(fotoId) ?? []), row]);
+  }
+  return map;
+}
+
+function normalizeChecklistConfig(row: unknown) {
+  const config = (row ?? {}) as Row;
+  return {
+    exigir_foto_entrada: boolValue(config.exigir_foto_entrada, LAVA_CHECKLIST_DEFAULT_CONFIG.exigir_foto_entrada),
+    fotos_entrada_obrigatorias: arrayValue(config.fotos_entrada_obrigatorias, LAVA_CHECKLIST_DEFAULT_CONFIG.fotos_entrada_obrigatorias),
+    permitir_concluir_checklist_sem_foto: boolValue(config.permitir_concluir_checklist_sem_foto, LAVA_CHECKLIST_DEFAULT_CONFIG.permitir_concluir_checklist_sem_foto),
+    exigir_foto_checkout_antes_entrega: boolValue(config.exigir_foto_checkout_antes_entrega, LAVA_CHECKLIST_DEFAULT_CONFIG.exigir_foto_checkout_antes_entrega),
+    checklist_tipos_foto: arrayValue(config.checklist_tipos_foto, LAVA_CHECKLIST_PHOTO_TYPES.map((item) => item.value))
+  };
+}
+
+function boolValue(value: unknown, fallback: boolean) {
+  if (typeof value === "boolean") return value;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return fallback;
+}
+
+function arrayValue(value: unknown, fallback: string[]) {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  if (typeof value === "string") return value.split("\n").map((item) => item.trim()).filter(Boolean);
+  return fallback;
 }
 
 function relationName(value: unknown) {

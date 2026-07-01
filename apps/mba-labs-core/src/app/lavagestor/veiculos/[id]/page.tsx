@@ -80,7 +80,7 @@ export default async function VeiculoHistoricoPage({ params }: { params: Promise
             {fotos.slice(0, 12).map((foto) => (
               <figure className="overflow-hidden rounded-lg border border-border bg-white" key={String(foto.id)}>
                 {foto.signed_url ? <img alt={String(foto.legenda || foto.tipo)} className="aspect-[4/3] w-full object-cover" src={String(foto.signed_url)} /> : null}
-                <figcaption className="p-2 text-xs font-bold text-muted-foreground">{String(foto.tipo || "foto")} - {formatDate(foto.created_at)}</figcaption>
+                <figcaption className="p-2 text-xs font-bold text-muted-foreground">{momentLabel(foto.momento)} - {String(foto.tipo || "foto")} - {formatDate(foto.created_at)}</figcaption>
               </figure>
             ))}
           </div>
@@ -92,4 +92,8 @@ export default async function VeiculoHistoricoPage({ params }: { params: Promise
 
 function Metric({ label, value, warning = false }: { label: string; value: string | number; warning?: boolean }) {
   return <div className={`rounded-xl border p-3 shadow-sm ${warning ? "border-amber-200 bg-amber-50" : "border-border bg-white"}`}><p className="text-xs font-black uppercase tracking-[0.08em] text-muted-foreground">{label}</p><strong className="mt-2 block break-words text-xl font-black">{value}</strong></div>;
+}
+
+function momentLabel(value: unknown) {
+  return String(value ?? "entrada") === "checkout" ? "Depois" : "Antes";
 }

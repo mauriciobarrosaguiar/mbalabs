@@ -50,11 +50,11 @@ export async function getLavaRecibo(lavagemId: string) {
       .maybeSingle(),
     client
       .from("lava_checklist_fotos")
-      .select("id,tipo,storage_path,legenda,created_at")
+      .select("id,tipo,momento,storage_path,legenda,created_at")
       .eq("lavagem_id", lavagemId)
       .eq("empresa_id", current.empresaId)
       .order("created_at", { ascending: false })
-      .limit(6)
+      .limit(12)
   ]);
 
   if (lavagemResult.error || !lavagemResult.data) {
@@ -87,6 +87,8 @@ export async function getLavaRecibo(lavagemId: string) {
   const empresaCidadeUf = [config.cidade ?? empresa.cidade, config.estado ?? empresa.estado].filter(Boolean).join(" - ");
   const checklist = (checklistResult.data ?? null) as Row | null;
   const checklistFotos = await withSignedPhotoUrls(client, fotosResult.data ?? []);
+  const fotosEntrada = checklistFotos.filter((foto) => String(foto.momento ?? "entrada") !== "checkout");
+  const fotosCheckout = checklistFotos.filter((foto) => String(foto.momento ?? "entrada") === "checkout");
 
   return {
     recibo: {
@@ -128,6 +130,8 @@ export async function getLavaRecibo(lavagemId: string) {
       observacoes: String(lavagem.observacoes ?? ""),
       checklist,
       checklist_fotos: checklistFotos,
+      checklist_fotos_entrada: fotosEntrada,
+      checklist_fotos_checkout: fotosCheckout,
       checklist_avarias: summarizeAvarias(checklist)
     },
     error: empresaResult.error?.message ?? configResult.error?.message ?? servicosResult.error?.message ?? pagamentosResult.error?.message ?? checklistResult.error?.message ?? fotosResult.error?.message ?? null

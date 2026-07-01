@@ -14,7 +14,8 @@ const variables = [
   { label: "Veículo", value: "{veiculo}" },
   { label: "Total", value: "{total}" },
   { label: "Recibo", value: "{recibo}" },
-  { label: "Entrega", value: "{entrega}" }
+  { label: "Entrega", value: "{entrega}" },
+  { label: "Fotos", value: "{fotos}" }
 ];
 
 export function MessageTemplateEditor({ readyDefault, receiptDefault }: Props) {
@@ -44,7 +45,7 @@ export function MessageTemplateEditor({ readyDefault, receiptDefault }: Props) {
   }
 
   function resetReady() {
-    setReady("Olá, {cliente}! Seu veículo/item {veiculo} está pronto. Total: {total}. {entrega}");
+    setReady("Olá, {cliente}! Seu veículo/item {veiculo} está pronto. Total: {total}. {entrega} {fotos}");
     setActiveField("ready");
     window.requestAnimationFrame(() => readyRef.current?.focus());
   }
@@ -120,7 +121,8 @@ function Preview({ text }: { text: string }) {
     .replaceAll("{veiculo}", "ABC1D23 - Fiat Palio")
     .replaceAll("{total}", "R$ 60,00")
     .replaceAll("{recibo}", "A1B2C3D4")
-    .replaceAll("{entrega}", "Cliente retira");
+    .replaceAll("{entrega}", "Cliente retira")
+    .replaceAll("{fotos}", "Fotos de entrada e checkout registradas.");
 
   return (
     <div className="rounded-xl border border-border bg-slate-50 p-3">

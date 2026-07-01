@@ -3,7 +3,7 @@ import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, MessageBanner, PageHeader, formatDateTime } from "@/components/ui-kit";
 import { deleteLavaChecklistFoto, saveLavaChecklist, uploadLavaChecklistFoto } from "@/lib/actions/lavagestor-checklists-actions";
 import { firstParam } from "@/lib/form-utils";
-import { getLavaChecklistPageData, LAVA_CHECKLIST_PHOTO_TYPES } from "@/lib/lavagestor-checklists-data";
+import { canUploadCheckoutPhoto, getLavaChecklistPageData, LAVA_CHECKLIST_PHOTO_TYPES } from "@/lib/lavagestor-checklists-data";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export default async function LavaChecklistPage({
 }) {
   const { lavagem_id: lavagemId } = await params;
   const query = await searchParams;
-  const { lavagem, checklist, servicos, fotos, error } = await getLavaChecklistPageData(lavagemId);
+  const { lavagem, checklist, servicos, fotos, config, error } = await getLavaChecklistPageData(lavagemId);
 
   if (!lavagem || !checklist) {
     return (
@@ -30,6 +30,15 @@ export default async function LavaChecklistPage({
   }
 
   const locked = String(checklist.status) === "concluido";
+  const status = String(lavagem.status ?? "na_fila");
+  const isDelivered = status === "entregue";
+  const canUploadCheckout = canUploadCheckoutPhoto(status);
+  const fotoRows = fotos as Record<string, unknown>[];
+  const showCheckout = canUploadCheckout || isDelivered || fotoRows.some((foto) => String(foto.momento ?? "entrada") === "checkout");
+  const entradaFotos = fotoRows.filter((foto) => String(foto.momento ?? "entrada") !== "checkout");
+  const checkoutFotos = fotoRows.filter((foto) => String(foto.momento ?? "entrada") === "checkout");
+  const photoTypes = photoTypeOptions(config.checklist_tipos_foto);
+  const entryPhotoRequired = config.exigir_foto_entrada && !config.permitir_concluir_checklist_sem_foto;
 
   return (
     <LavaGestorShell activePath="/lavagestor/fila">
@@ -50,6 +59,11 @@ export default async function LavaChecklistPage({
         {locked ? (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-950">
             Checklist concluido. As informacoes ficam protegidas contra alteracoes destrutivas.
+          </div>
+        ) : null}
+        {entryPhotoRequired && entradaFotos.length === 0 ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-black text-amber-950">
+            Adicione pelo menos uma foto de entrada antes de concluir o checklist.
           </div>
         ) : null}
 
@@ -109,57 +123,112 @@ export default async function LavaChecklistPage({
           </div>
         </form>
 
-        <section className="grid gap-4 rounded-xl border border-border bg-white p-4 shadow-sm">
-          <div>
-            <h2 className="text-xl font-black">Fotos</h2>
-            <p className="mt-1 text-sm font-semibold text-muted-foreground">Use a camera do celular ou anexe imagens da galeria.</p>
-          </div>
+        <PhotoSection
+          canDelete={!locked}
+          canUpload={!locked}
+          description="Use a camera do celular ou anexe imagens da galeria antes de concluir o checklist."
+          emptyText="Nenhuma foto de entrada anexada ainda."
+          fotos={entradaFotos}
+          lavagemId={String(lavagem.id)}
+          momento="entrada"
+          photoTypes={photoTypes}
+          title="Fotos de entrada / Antes"
+        />
 
-          {!locked ? (
-            <form action={uploadLavaChecklistFoto} className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-              <input name="lavagem_id" type="hidden" value={String(lavagem.id)} />
-              <label className="grid gap-2">
-                <span className="text-sm font-black">Tipo de foto</span>
-                <select className="input" name="tipo">
-                  {LAVA_CHECKLIST_PHOTO_TYPES.map((tipo) => <option key={tipo.value} value={tipo.value}>{tipo.label}</option>)}
-                </select>
-              </label>
-              <label className="grid gap-2">
-                <span className="text-sm font-black">Foto</span>
-                <input accept="image/*" capture="environment" className="input bg-white" name="foto" type="file" required />
-              </label>
-              <label className="grid gap-2 md:col-span-2">
-                <span className="text-sm font-black">Legenda</span>
-                <input className="input" name="legenda" placeholder="Opcional" />
-              </label>
-              <button className="button-primary self-end" type="submit">Anexar foto</button>
-            </form>
-          ) : null}
-
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {fotos.length === 0 ? <p className="rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground sm:col-span-2 lg:col-span-3">Nenhuma foto anexada ainda.</p> : null}
-            {fotos.map((foto) => (
-              <figure className="overflow-hidden rounded-xl border border-border bg-white shadow-sm" key={String(foto.id)}>
-                {foto.signed_url ? <img alt={String(foto.legenda || foto.tipo || "Foto do checklist")} className="aspect-[4/3] w-full object-cover" src={String(foto.signed_url)} /> : <div className="grid aspect-[4/3] place-items-center bg-muted text-sm font-bold text-muted-foreground">Foto indisponivel</div>}
-                <figcaption className="grid gap-2 p-3">
-                  <div>
-                    <strong className="text-sm">{photoTypeLabel(String(foto.tipo))}</strong>
-                    {foto.legenda ? <p className="mt-1 text-xs font-semibold text-muted-foreground">{String(foto.legenda)}</p> : null}
-                  </div>
-                  {!locked ? (
-                    <form action={deleteLavaChecklistFoto}>
-                      <input name="lavagem_id" type="hidden" value={String(lavagem.id)} />
-                      <input name="foto_id" type="hidden" value={String(foto.id)} />
-                      <button className="button-danger w-full" type="submit">Excluir foto</button>
-                    </form>
-                  ) : null}
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        </section>
+        {showCheckout ? (
+          <PhotoSection
+            canDelete={canUploadCheckout && !isDelivered}
+            canUpload={canUploadCheckout && !isDelivered}
+            description={isDelivered ? "Lavagem entregue: as fotos de checkout ficam apenas para consulta." : "Registre o estado final antes da retirada ou entrega ao cliente."}
+            emptyText="Nenhuma foto de checkout anexada ainda."
+            fotos={checkoutFotos}
+            lavagemId={String(lavagem.id)}
+            momento="checkout"
+            photoTypes={photoTypes}
+            title="Fotos de checkout / Depois"
+          />
+        ) : null}
       </section>
     </LavaGestorShell>
+  );
+}
+
+function PhotoSection({
+  title,
+  description,
+  emptyText,
+  fotos,
+  lavagemId,
+  momento,
+  canUpload,
+  canDelete,
+  photoTypes
+}: {
+  title: string;
+  description: string;
+  emptyText: string;
+  fotos: Record<string, unknown>[];
+  lavagemId: string;
+  momento: "entrada" | "checkout";
+  canUpload: boolean;
+  canDelete: boolean;
+  photoTypes: { value: string; label: string }[];
+}) {
+  return (
+    <section className="grid gap-4 rounded-xl border border-border bg-white p-4 shadow-sm">
+      <div className="grid gap-1 sm:grid-cols-[1fr_auto] sm:items-start">
+        <div>
+          <h2 className="text-xl font-black">{title}</h2>
+          <p className="mt-1 text-sm font-semibold text-muted-foreground">{description}</p>
+        </div>
+        <span className="rounded-full bg-muted px-3 py-1 text-sm font-black">{fotos.length} foto(s)</span>
+      </div>
+
+      {canUpload ? (
+        <form action={uploadLavaChecklistFoto} className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+          <input name="lavagem_id" type="hidden" value={lavagemId} />
+          <input name="momento" type="hidden" value={momento} />
+          <label className="grid gap-2">
+            <span className="text-sm font-black">Tipo de foto</span>
+            <select className="input" name="tipo">
+              {photoTypes.map((tipo) => <option key={tipo.value} value={tipo.value}>{tipo.label}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-2">
+            <span className="text-sm font-black">Foto</span>
+            <input accept="image/*" capture="environment" className="input min-h-12 bg-white" name="foto" type="file" required />
+          </label>
+          <label className="grid gap-2 md:col-span-2">
+            <span className="text-sm font-black">Legenda</span>
+            <input className="input" name="legenda" placeholder="Opcional" />
+          </label>
+          <button className="button-primary self-end" type="submit">{momento === "checkout" ? "Anexar depois" : "Anexar antes"}</button>
+        </form>
+      ) : null}
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {fotos.length === 0 ? <p className="rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground sm:col-span-2 lg:col-span-3">{emptyText}</p> : null}
+        {fotos.map((foto) => (
+          <figure className="overflow-hidden rounded-xl border border-border bg-white shadow-sm" key={String(foto.id)}>
+            {foto.signed_url ? <img alt={String(foto.legenda || foto.tipo || "Foto do checklist")} className="aspect-[4/3] w-full object-cover" src={String(foto.signed_url)} /> : <div className="grid aspect-[4/3] place-items-center bg-muted text-sm font-bold text-muted-foreground">Foto indisponivel</div>}
+            <figcaption className="grid gap-2 p-3">
+              <div>
+                <strong className="text-sm">{photoTypeLabel(String(foto.tipo))}</strong>
+                {foto.legenda ? <p className="mt-1 text-xs font-semibold text-muted-foreground">{String(foto.legenda)}</p> : null}
+                <p className="mt-2 text-xs font-black uppercase tracking-[0.08em] text-muted-foreground">{syncStatus(foto)}</p>
+              </div>
+              {canDelete ? (
+                <form action={deleteLavaChecklistFoto}>
+                  <input name="lavagem_id" type="hidden" value={lavagemId} />
+                  <input name="foto_id" type="hidden" value={String(foto.id)} />
+                  <button className="button-danger w-full" type="submit">Excluir foto</button>
+                </form>
+              ) : null}
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -181,4 +250,19 @@ function bool(value: unknown, fallback = false) {
 
 function photoTypeLabel(value: string) {
   return LAVA_CHECKLIST_PHOTO_TYPES.find((item) => item.value === value)?.label ?? value;
+}
+
+function photoTypeOptions(values: unknown) {
+  const configured = Array.isArray(values) ? values.map(String).filter(Boolean) : [];
+  const known = new Map(LAVA_CHECKLIST_PHOTO_TYPES.map((item) => [item.value, item.label]));
+  const items = configured.length ? configured : LAVA_CHECKLIST_PHOTO_TYPES.map((item) => item.value);
+  return items.map((value) => ({ value, label: known.get(value) ?? value.replaceAll("_", " ") }));
+}
+
+function syncStatus(foto: Record<string, unknown>) {
+  const rows = Array.isArray(foto.sync_rows) ? foto.sync_rows as Record<string, unknown>[] : [];
+  if (rows.length === 0) return "Backup local";
+  if (rows.some((row) => row.status === "erro")) return "Backup com erro";
+  if (rows.every((row) => row.status === "sincronizado")) return "Backup sincronizado";
+  return "Backup pendente";
 }

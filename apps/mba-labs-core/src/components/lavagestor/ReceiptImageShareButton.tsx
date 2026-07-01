@@ -258,7 +258,7 @@ function receiptMessage(receipt: ReceiptImageData) {
     `Segue o recibo da lavagem ${receipt.numero}.`,
     `Veículo/item: ${receipt.veiculo}.`,
     `Total pago: ${receipt.totalFinal}.`,
-    "A imagem do recibo já foi gerada."
+    "A imagem do recibo já foi gerada com as fotos registradas."
   ].join("\n");
 }
 
