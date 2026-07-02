@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
+import { LavaPhotoCard, LavaSyncPendingButton } from "@/components/lavagestor/LavaPhotoCard";
 import { PrintButton } from "@/components/lavagestor/PrintButton";
 import { BackButton, MessageBanner, PageHeader, formatDateTime, formatMoney } from "@/components/ui-kit";
 import { getLavaTicket, whatsappUrl } from "@/lib/lavagestor-phase2-data";
@@ -102,12 +103,19 @@ export default async function LavaTicketPage({ params }: { params: Promise<{ lav
             )}
             {ticket.fotos.length ? (
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                <h4 className="text-xs font-black uppercase tracking-[0.1em] text-slate-500 sm:col-span-2 lg:col-span-4">Fotos de entrada / Antes</h4>
+                <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-2 lg:col-span-4">
+                  <h4 className="text-xs font-black uppercase tracking-[0.1em] text-slate-500">Fotos de entrada / Antes</h4>
+                  <LavaSyncPendingButton compact lavagemId={ticket.id} returnTo={`/lavagestor/tickets/${ticket.id}`} />
+                </div>
                 {ticket.fotos.slice(0, 4).map((foto) => (
-                  <figure className="overflow-hidden rounded-lg border border-border" key={String(foto.id)}>
-                    {foto.signed_url ? <img alt={String(foto.legenda || foto.tipo)} className="aspect-[4/3] w-full object-cover" src={String(foto.signed_url)} /> : null}
-                    <figcaption className="p-2 text-xs font-bold text-slate-600">{String(foto.legenda || foto.tipo)}</figcaption>
-                  </figure>
+                  <LavaPhotoCard
+                    compact
+                    foto={foto}
+                    key={String(foto.id)}
+                    returnTo={`/lavagestor/tickets/${ticket.id}`}
+                    subtitle="Antes"
+                    title={String(foto.legenda || foto.tipo)}
+                  />
                 ))}
               </div>
             ) : null}

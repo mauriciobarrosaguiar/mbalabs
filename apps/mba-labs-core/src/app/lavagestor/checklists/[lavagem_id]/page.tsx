@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
+import { LavaPhotoCard, LavaSyncPendingButton } from "@/components/lavagestor/LavaPhotoCard";
+import { PhotoUploadSubmitButton } from "@/components/lavagestor/PhotoUploadSubmitButton";
 import { BackButton, MessageBanner, PageHeader, formatDateTime } from "@/components/ui-kit";
 import { deleteLavaChecklistFoto, saveLavaChecklist, uploadLavaChecklistFoto } from "@/lib/actions/lavagestor-checklists-actions";
 import { firstParam } from "@/lib/form-utils";
@@ -175,13 +177,16 @@ function PhotoSection({
   photoTypes: { value: string; label: string }[];
 }) {
   return (
-    <section className="grid gap-4 rounded-xl border border-border bg-white p-4 shadow-sm">
+    <section className="grid gap-4 rounded-xl border border-border bg-white p-4 shadow-sm" id={`fotos-${momento}`}>
       <div className="grid gap-1 sm:grid-cols-[1fr_auto] sm:items-start">
         <div>
           <h2 className="text-xl font-black">{title}</h2>
           <p className="mt-1 text-sm font-semibold text-muted-foreground">{description}</p>
         </div>
-        <span className="rounded-full bg-muted px-3 py-1 text-sm font-black">{fotos.length} foto(s)</span>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <span className="rounded-full bg-muted px-3 py-1 text-sm font-black">{fotos.length} foto(s)</span>
+          <LavaSyncPendingButton compact lavagemId={lavagemId} returnTo={`/lavagestor/checklists/${lavagemId}#fotos-${momento}`} />
+        </div>
       </div>
 
       {canUpload ? (
@@ -202,21 +207,20 @@ function PhotoSection({
             <span className="text-sm font-black">Legenda</span>
             <input className="input" name="legenda" placeholder="Opcional" />
           </label>
-          <button className="button-primary self-end" type="submit">{momento === "checkout" ? "Anexar depois" : "Anexar antes"}</button>
+          <PhotoUploadSubmitButton idleLabel={momento === "checkout" ? "Tirar foto depois" : "Tirar foto antes"} />
         </form>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {fotos.length === 0 ? <p className="rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground sm:col-span-2 lg:col-span-3">{emptyText}</p> : null}
         {fotos.map((foto) => (
-          <figure className="overflow-hidden rounded-xl border border-border bg-white shadow-sm" key={String(foto.id)}>
-            {foto.signed_url ? <img alt={String(foto.legenda || foto.tipo || "Foto do checklist")} className="aspect-[4/3] w-full object-cover" src={String(foto.signed_url)} /> : <div className="grid aspect-[4/3] place-items-center bg-muted text-sm font-bold text-muted-foreground">Foto indisponivel</div>}
-            <figcaption className="grid gap-2 p-3">
-              <div>
-                <strong className="text-sm">{photoTypeLabel(String(foto.tipo))}</strong>
-                {foto.legenda ? <p className="mt-1 text-xs font-semibold text-muted-foreground">{String(foto.legenda)}</p> : null}
-                <p className="mt-2 text-xs font-black uppercase tracking-[0.08em] text-muted-foreground">{syncStatus(foto)}</p>
-              </div>
+          <LavaPhotoCard
+            foto={foto}
+            key={String(foto.id)}
+            returnTo={`/lavagestor/checklists/${lavagemId}#fotos-${momento}`}
+            subtitle={foto.legenda ? String(foto.legenda) : undefined}
+            title={photoTypeLabel(String(foto.tipo))}
+          >
               {canDelete ? (
                 <form action={deleteLavaChecklistFoto}>
                   <input name="lavagem_id" type="hidden" value={lavagemId} />
@@ -224,8 +228,7 @@ function PhotoSection({
                   <button className="button-danger w-full" type="submit">Excluir foto</button>
                 </form>
               ) : null}
-            </figcaption>
-          </figure>
+          </LavaPhotoCard>
         ))}
       </div>
     </section>
@@ -257,12 +260,4 @@ function photoTypeOptions(values: unknown) {
   const known = new Map(LAVA_CHECKLIST_PHOTO_TYPES.map((item) => [item.value, item.label]));
   const items = configured.length ? configured : LAVA_CHECKLIST_PHOTO_TYPES.map((item) => item.value);
   return items.map((value) => ({ value, label: known.get(value) ?? value.replaceAll("_", " ") }));
-}
-
-function syncStatus(foto: Record<string, unknown>) {
-  const rows = Array.isArray(foto.sync_rows) ? foto.sync_rows as Record<string, unknown>[] : [];
-  if (rows.length === 0) return "Backup local";
-  if (rows.some((row) => row.status === "erro")) return "Backup com erro";
-  if (rows.every((row) => row.status === "sincronizado")) return "Backup sincronizado";
-  return "Backup pendente";
 }

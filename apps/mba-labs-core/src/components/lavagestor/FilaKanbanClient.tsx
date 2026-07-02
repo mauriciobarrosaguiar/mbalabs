@@ -317,13 +317,13 @@ function PhotoStrip({ row, checkoutAvailable }: { row: FilaRow; checkoutAvailabl
   const checkoutCount = Number(row.fotos_checkout_count ?? 0);
   return (
     <div className="grid grid-cols-2 gap-2">
-      <PhotoThumb label="Antes" url={String(row.foto_entrada_url ?? "")} count={entradaCount} />
-      <PhotoThumb label="Depois" url={String(row.foto_checkout_url ?? "")} count={checkoutCount} muted={!checkoutAvailable && checkoutCount === 0} />
+      <PhotoThumb fotoId={String(row.foto_entrada_id ?? "")} label="Antes" url={String(row.foto_entrada_url ?? "")} count={entradaCount} syncRows={arrayRows(row.foto_entrada_sync_rows)} />
+      <PhotoThumb fotoId={String(row.foto_checkout_id ?? "")} label="Depois" url={String(row.foto_checkout_url ?? "")} count={checkoutCount} syncRows={arrayRows(row.foto_checkout_sync_rows)} muted={!checkoutAvailable && checkoutCount === 0} />
     </div>
   );
 }
 
-function PhotoThumb({ label, url, count, muted = false }: { label: string; url: string; count: number; muted?: boolean }) {
+function PhotoThumb({ label, url, count, syncRows, fotoId, muted = false }: { label: string; url: string; count: number; syncRows: FilaRow[]; fotoId: string; muted?: boolean }) {
   return (
     <div className={`min-w-0 overflow-hidden rounded-xl border border-border bg-white ${muted ? "opacity-60" : ""}`}>
       {url ? <img className="aspect-[4/3] w-full object-cover" src={url} alt={`Foto ${label.toLowerCase()}`} /> : <div className="grid aspect-[4/3] place-items-center bg-muted text-xs font-black text-muted-foreground">{label}</div>}
@@ -331,6 +331,23 @@ function PhotoThumb({ label, url, count, muted = false }: { label: string; url: 
         <span>{label}</span>
         <span>{count}</span>
       </div>
+      {syncRows.length ? (
+        <div className="grid gap-1 border-t border-border px-2 py-1.5 text-[10px] font-bold leading-4 text-muted-foreground">
+          {syncRows.map((row) => (
+            <span className={String(row.status) === "erro" ? "grid gap-1 break-words text-red-700" : "break-words"} key={`${label}-${String(row.provider)}`}>
+              <span>{providerLabel(String(row.provider))}: {String(row.status || "pendente")}{row.erro ? ` - ${String(row.erro)}` : ""}</span>
+              {String(row.status) === "erro" && fotoId ? (
+                <form action="/api/lavagestor/storage/sync" method="post">
+                  <input name="foto_id" type="hidden" value={fotoId} />
+                  <input name="provider" type="hidden" value={String(row.provider)} />
+                  <input name="return_to" type="hidden" value="/lavagestor/fila" />
+                  <button className="rounded border border-current px-1 py-0.5 text-[10px] font-black" onClick={(event) => event.stopPropagation()} type="submit">Tentar novamente</button>
+                </form>
+              ) : null}
+            </span>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -358,3 +375,5 @@ function priorityLabel(row: FilaRow) { if (row.status_pagamento !== "pago") retu
 function configText(config: LavaConfig, key: string) { const value = config[key]; return typeof value === "string" ? value : ""; }
 function configBoolean(config: LavaConfig, key: string) { return config[key] === true; }
 function configArray(config: LavaConfig, key: string) { const value = config[key]; return Array.isArray(value) ? value.map(String).filter(Boolean) : []; }
+function arrayRows(value: unknown) { return Array.isArray(value) ? value as FilaRow[] : []; }
+function providerLabel(provider: string) { if (provider === "google_drive") return "Google Drive"; if (provider === "dropbox") return "Dropbox"; return provider || "Backup"; }

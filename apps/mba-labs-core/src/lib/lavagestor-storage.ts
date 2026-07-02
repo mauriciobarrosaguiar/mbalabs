@@ -15,6 +15,7 @@ export type LavaStorageUploadResult = {
 };
 
 const STORAGE_PROVIDERS = ["google_drive", "dropbox"] as const;
+const SYNCABLE_CONNECTION_STATUSES = ["conectado", "erro"] as const;
 
 export function isLavaStorageProvider(value: string): value is LavaStorageProvider {
   return value === "google_drive" || value === "dropbox";
@@ -123,8 +124,7 @@ export async function exchangeLavaOAuthCode(provider: LavaStorageProvider, code:
         grant_type: "authorization_code"
       })
     });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error_description || "Falha ao conectar Google Drive.");
+    const payload = await readJsonResponse(response, "Google Drive");
 
     const profile = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
       headers: { authorization: `Bearer ${payload.access_token}` }
@@ -154,8 +154,7 @@ export async function exchangeLavaOAuthCode(provider: LavaStorageProvider, code:
       grant_type: "authorization_code"
     })
   });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error_description || "Falha ao conectar Dropbox.");
+  const payload = await readJsonResponse(response, "Dropbox");
 
   const account = await fetch("https://api.dropboxapi.com/2/users/get_current_account", {
     method: "POST",
@@ -192,6 +191,8 @@ export async function saveLavaStorageConnection(
     refresh_token_encrypted: tokens.refreshToken ? encrypt(tokens.refreshToken) : null,
     token_expires_at: tokens.expiresAt,
     scopes: tokens.scopes,
+    last_error: null,
+    last_test_at: null,
     updated_at: new Date().toISOString()
   };
 
@@ -204,7 +205,7 @@ export async function getLavaStorageConnections(current: CurrentUserProfile) {
   const client = await getLavaClient();
   const { data, error } = await client
     .from("lava_storage_connections")
-    .select("id,provider,status,account_email,root_folder_path,created_at,updated_at")
+    .select("id,provider,status,account_email,root_folder_path,last_error,last_test_at,created_at,updated_at")
     .eq("empresa_id", current.empresaId)
     .order("provider", { ascending: true });
 
@@ -218,10 +219,10 @@ export async function getLavaStorageOverview(current: CurrentUserProfile, origin
   }
 
   const client = await getLavaClient();
-  const [connectionsResult, pendingResult, errorResult] = await Promise.all([
+  const [connectionsResult, pendingResult, errorResult, lastErrorsResult] = await Promise.all([
     client
       .from("lava_storage_connections")
-      .select("id,provider,status,account_email,root_folder_path,created_at,updated_at")
+      .select("id,provider,status,account_email,root_folder_path,last_error,last_test_at,created_at,updated_at")
       .eq("empresa_id", current.empresaId)
       .order("provider", { ascending: true }),
     client
@@ -233,7 +234,14 @@ export async function getLavaStorageOverview(current: CurrentUserProfile, origin
       .from("lava_file_sync")
       .select("id", { count: "exact", head: true })
       .eq("empresa_id", current.empresaId)
+      .eq("status", "erro"),
+    client
+      .from("lava_file_sync")
+      .select("provider,erro,last_attempt_at,updated_at")
+      .eq("empresa_id", current.empresaId)
       .eq("status", "erro")
+      .order("last_attempt_at", { ascending: false, nullsFirst: false })
+      .limit(20)
   ]);
 
   if (connectionsResult.error) throw connectionsResult.error;
@@ -241,6 +249,7 @@ export async function getLavaStorageOverview(current: CurrentUserProfile, origin
     connections: (connectionsResult.data ?? []) as Row[],
     pendingCount: pendingResult.count ?? 0,
     errorCount: errorResult.count ?? 0,
+    lastSyncErrors: latestErrorByProvider((lastErrorsResult.data ?? []) as Row[]),
     oauth: getLavaOAuthDisplayConfigs(origin)
   };
 }
@@ -255,6 +264,8 @@ export async function disconnectLavaStorage(current: CurrentUserProfile, provide
       access_token_encrypted: null,
       refresh_token_encrypted: null,
       token_expires_at: null,
+      last_error: null,
+      last_test_at: null,
       updated_at: new Date().toISOString()
     })
     .eq("empresa_id", current.empresaId);
@@ -269,25 +280,73 @@ export async function testLavaStorageConnection(current: CurrentUserProfile, req
   for (const provider of providers) {
     const connection = await getConnectedLavaStorage(current, provider);
     if (!connection) continue;
-    const accessToken = await getFreshAccessToken(provider, connection);
+    try {
+      const accessToken = await getFreshAccessToken(provider, connection);
 
-    if (provider === "google_drive") {
-      const response = await fetch("https://www.googleapis.com/drive/v3/about?fields=user", {
+      if (provider === "google_drive") {
+        const response = await fetch("https://www.googleapis.com/drive/v3/about?fields=user", {
+          headers: { authorization: `Bearer ${accessToken}` }
+        });
+        if (!response.ok) throw new Error(await responseErrorMessage(response, "Google Drive"));
+        await markStorageConnectionOk(connection);
+        return provider;
+      }
+
+      const response = await fetch("https://api.dropboxapi.com/2/users/get_current_account", {
+        method: "POST",
         headers: { authorization: `Bearer ${accessToken}` }
       });
-      if (!response.ok) throw new Error("Google Drive nao respondeu ao teste.");
+      if (!response.ok) throw new Error(await responseErrorMessage(response, "Dropbox"));
+      await markStorageConnectionOk(connection);
       return provider;
+    } catch (error) {
+      const message = providerGuidance(provider, errorMessage(error));
+      await markStorageConnectionError(connection, provider, message);
+      throw new Error(message);
     }
-
-    const response = await fetch("https://api.dropboxapi.com/2/users/get_current_account", {
-      method: "POST",
-      headers: { authorization: `Bearer ${accessToken}` }
-    });
-    if (!response.ok) throw new Error("Dropbox nao respondeu ao teste.");
-    return provider;
   }
 
   throw new Error("Nenhum armazenamento conectado.");
+}
+
+export async function ensurePendingSyncRowsForPhoto(current: CurrentUserProfile, foto: Row) {
+  if (!current.empresaId) return { created: 0, skipped: 0, connected: 0 };
+  const client = await getLavaClient();
+  const connections = await getConnectedLavaStorages(current);
+  if (connections.length === 0) return { created: 0, skipped: 0, connected: 0 };
+
+  const fotoId = String(foto.id ?? "");
+  const storagePath = String(foto.storage_path ?? "");
+  if (!fotoId || !storagePath) return { created: 0, skipped: connections.length, connected: connections.length };
+
+  let created = 0;
+  let skipped = 0;
+  for (const connection of connections) {
+    const provider = String(connection.provider) as LavaStorageProvider;
+    const existing = await getSyncRow(client, fotoId, provider, current.empresaId);
+    if (existing?.status === "sincronizado") {
+      skipped += 1;
+      continue;
+    }
+
+    const result = await client.from("lava_file_sync").upsert({
+      empresa_id: current.empresaId,
+      lavagem_id: text(foto.lavagem_id) || null,
+      checklist_id: text(foto.checklist_id) || null,
+      foto_id: fotoId,
+      provider,
+      status: "pendente",
+      local_storage_path: storagePath,
+      erro: null,
+      last_attempt_at: null,
+      synced_at: null,
+      updated_at: new Date().toISOString()
+    }, { onConflict: "foto_id,provider" });
+
+    if (!result.error) created += 1;
+  }
+
+  return { created, skipped, connected: connections.length };
 }
 
 export async function syncLavaPhotoToExternalStorage(params: {
@@ -297,10 +356,14 @@ export async function syncLavaPhotoToExternalStorage(params: {
   bytes?: Buffer;
   mimeType?: string;
   fileName?: string;
+  provider?: LavaStorageProvider;
 }) {
   if (!params.current.empresaId) return { connected: 0, synced: 0, failed: 0, skipped: 0 };
   const client = await getLavaClient();
-  const connections = await getConnectedLavaStorages(params.current);
+  const allConnections = await getConnectedLavaStorages(params.current);
+  const connections = params.provider
+    ? allConnections.filter((connection) => connection.provider === params.provider)
+    : allConnections;
   if (connections.length === 0) return { connected: 0, synced: 0, failed: 0, skipped: 0 };
 
   const fotoId = String(params.foto.id ?? "");
@@ -338,8 +401,12 @@ export async function syncLavaPhotoToExternalStorage(params: {
         checklistId,
         fotoId,
         provider,
-        storagePath
+        storagePath,
+        attempt: Number(existing?.tentativas ?? 0) + 1
       });
+      if (existing?.status === "erro") {
+        await insertStorageHistory(client, params.current, lavagemId, "backup_retentativa", lavaStorageProviderLabel(provider));
+      }
       const accessToken = await getFreshAccessToken(provider, connection);
       const result = provider === "google_drive"
         ? await uploadGoogleDrive({ accessToken, fileName, mimeType, bytes, folderPath })
@@ -359,11 +426,13 @@ export async function syncLavaPhotoToExternalStorage(params: {
         remoteUrl: result.url,
         erro: null
       });
-      await insertStorageHistory(client, params.current, lavagemId, provider === "google_drive" ? "arquivo_sincronizado_drive" : "arquivo_sincronizado_dropbox", result.path);
+      await markStorageConnectionOk(connection);
+      await insertStorageHistory(client, params.current, lavagemId, provider === "google_drive" ? "backup_sincronizado_drive" : "backup_sincronizado_dropbox", result.path);
       synced += 1;
     } catch (error) {
       failed += 1;
-      const message = errorMessage(error);
+      const message = providerGuidance(provider, errorMessage(error));
+      await markStorageConnectionError(connection, provider, message);
       await upsertSyncResult(client, {
         empresaId: params.current.empresaId,
         lavagemId,
@@ -378,34 +447,60 @@ export async function syncLavaPhotoToExternalStorage(params: {
         remoteUrl: null,
         erro: message
       });
-      await insertStorageHistory(client, params.current, lavagemId, "erro_sincronizacao_storage", `${lavaStorageProviderLabel(provider)}: ${message}`);
+      await insertStorageHistory(client, params.current, lavagemId, provider === "google_drive" ? "backup_erro_drive" : "backup_erro_dropbox", message);
     }
   }
 
   return { connected: connections.length, synced, failed, skipped };
 }
 
-export async function syncPendingLavaPhotos(current: CurrentUserProfile, lavagemId?: string) {
+export async function syncPendingLavaPhotos(current: CurrentUserProfile, options: string | {
+  lavagemId?: string;
+  fotoId?: string;
+  provider?: LavaStorageProvider;
+} = {}) {
   if (!current.empresaId) return { connected: 0, synced: 0, failed: 0, skipped: 0, photos: 0 };
   const client = await getLavaClient();
   const connections = await getConnectedLavaStorages(current);
   if (connections.length === 0) return { connected: 0, synced: 0, failed: 0, skipped: 0, photos: 0 };
+  const normalized = typeof options === "string" ? { lavagemId: options } : options;
+  await ensurePendingRowsForRecentPhotos(client, current, normalized);
 
-  let query = client
-    .from("lava_checklist_fotos")
-    .select("id,empresa_id,checklist_id,lavagem_id,tipo,momento,storage_path,legenda,created_at")
+  let syncQuery = client
+    .from("lava_file_sync")
+    .select("id,foto_id,provider,status")
     .eq("empresa_id", current.empresaId)
-    .order("created_at", { ascending: false })
+    .in("status", ["pendente", "erro"])
+    .order("last_attempt_at", { ascending: true, nullsFirst: true })
     .limit(80);
 
-  if (lavagemId) query = query.eq("lavagem_id", lavagemId);
+  if (normalized.lavagemId) syncQuery = syncQuery.eq("lavagem_id", normalized.lavagemId);
+  if (normalized.fotoId) syncQuery = syncQuery.eq("foto_id", normalized.fotoId);
+  if (normalized.provider) syncQuery = syncQuery.eq("provider", normalized.provider);
 
-  const { data, error } = await query;
+  const { data: syncRows, error } = await syncQuery;
   if (error) throw error;
+  const rows = (syncRows ?? []) as Row[];
+  const fotoIds = Array.from(new Set(rows.map((row) => String(row.foto_id ?? "")).filter(Boolean)));
+  const { data: fotosData, error: fotosError } = fotoIds.length
+    ? await client
+        .from("lava_checklist_fotos")
+        .select("id,empresa_id,checklist_id,lavagem_id,tipo,momento,storage_path,legenda,created_at")
+        .eq("empresa_id", current.empresaId)
+        .in("id", fotoIds)
+    : { data: [], error: null };
+  if (fotosError) throw fotosError;
 
-  const totals = { connected: connections.length, synced: 0, failed: 0, skipped: 0, photos: (data ?? []).length };
-  for (const foto of (data ?? []) as Row[]) {
-    const result = await syncLavaPhotoToExternalStorage({ current, foto });
+  const fotosById = new Map(((fotosData ?? []) as Row[]).map((foto) => [String(foto.id), foto]));
+  const totals = { connected: connections.length, synced: 0, failed: 0, skipped: 0, photos: fotoIds.length };
+  for (const row of rows) {
+    const foto = fotosById.get(String(row.foto_id ?? ""));
+    const provider = String(row.provider ?? "") as LavaStorageProvider;
+    if (!foto || !isLavaStorageProvider(provider)) {
+      totals.skipped += 1;
+      continue;
+    }
+    const result = await syncLavaPhotoToExternalStorage({ current, foto, provider });
     totals.synced += result.synced;
     totals.failed += result.failed;
     totals.skipped += result.skipped;
@@ -415,6 +510,28 @@ export async function syncPendingLavaPhotos(current: CurrentUserProfile, lavagem
 
 export function montarPastaRaizEmpresa(nomeEmpresa: string) {
   return `/MBA Labs/LavaGestor/${safeFolderName(nomeEmpresa || "Empresa")}`;
+}
+
+async function ensurePendingRowsForRecentPhotos(client: any, current: CurrentUserProfile, options: {
+  lavagemId?: string;
+  fotoId?: string;
+  provider?: LavaStorageProvider;
+}) {
+  if (!current.empresaId) return;
+  let query = client
+    .from("lava_checklist_fotos")
+    .select("id,empresa_id,checklist_id,lavagem_id,tipo,momento,storage_path,legenda,created_at")
+    .eq("empresa_id", current.empresaId)
+    .order("created_at", { ascending: false })
+    .limit(options.fotoId ? 1 : 80);
+
+  if (options.lavagemId) query = query.eq("lavagem_id", options.lavagemId);
+  if (options.fotoId) query = query.eq("id", options.fotoId);
+
+  const { data } = await query;
+  for (const foto of (data ?? []) as Row[]) {
+    await ensurePendingSyncRowsForPhoto(current, foto);
+  }
 }
 
 function montarPastaFoto({ empresaNome, lavagem, foto }: { empresaNome: string; lavagem: Row | null; foto: Row }) {
@@ -436,7 +553,7 @@ async function getConnectedLavaStorages(current: CurrentUserProfile) {
     .from("lava_storage_connections")
     .select("*")
     .eq("empresa_id", current.empresaId)
-    .eq("status", "conectado")
+    .in("status", SYNCABLE_CONNECTION_STATUSES as unknown as string[])
     .in("provider", STORAGE_PROVIDERS as unknown as string[]);
   return (data ?? []) as Row[];
 }
@@ -449,7 +566,7 @@ async function getConnectedLavaStorage(current: CurrentUserProfile, provider: La
     .select("*")
     .eq("empresa_id", current.empresaId)
     .eq("provider", provider)
-    .eq("status", "conectado")
+    .in("status", SYNCABLE_CONNECTION_STATUSES as unknown as string[])
     .maybeSingle();
   if (error || !data) return null;
   return data as Row;
@@ -503,6 +620,7 @@ async function markSyncAttempt(client: any, params: {
   fotoId: string;
   provider: LavaStorageProvider;
   storagePath: string;
+  attempt: number;
 }) {
   await client.from("lava_file_sync").upsert({
     empresa_id: params.empresaId,
@@ -512,6 +630,8 @@ async function markSyncAttempt(client: any, params: {
     provider: params.provider,
     status: "pendente",
     local_storage_path: params.storagePath,
+    erro: null,
+    tentativas: params.attempt,
     last_attempt_at: new Date().toISOString()
   }, { onConflict: "foto_id,provider" });
 }
@@ -572,8 +692,9 @@ async function getFreshAccessToken(provider: LavaStorageProvider, connection: Ro
   }
 
   if (!refreshToken) {
-    if (!encrypted) throw new Error("Conexao sem token de acesso.");
-    return decrypt(encrypted);
+    const message = `${lavaStorageProviderLabel(provider)} precisa ser reconectado. Token expirado ou sem refresh token.`;
+    await markStorageConnectionError(connection, provider, message);
+    throw new Error(message);
   }
 
   if (provider === "google_drive") {
@@ -589,9 +710,8 @@ async function getFreshAccessToken(provider: LavaStorageProvider, connection: Ro
         grant_type: "refresh_token"
       })
     });
-    const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error_description || "Falha ao atualizar Google Drive.");
-    await updateToken(connection, payload.access_token, payload.expires_in);
+    const payload = await readJsonResponse(response, "Google Drive");
+    await updateToken(connection, String(payload.access_token ?? ""), payload.expires_in);
     return String(payload.access_token);
   }
 
@@ -608,9 +728,8 @@ async function getFreshAccessToken(provider: LavaStorageProvider, connection: Ro
       grant_type: "refresh_token"
     })
   });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error_description || "Falha ao atualizar Dropbox.");
-  await updateToken(connection, payload.access_token, payload.expires_in);
+  const payload = await readJsonResponse(response, "Dropbox");
+  await updateToken(connection, String(payload.access_token ?? ""), payload.expires_in);
   return String(payload.access_token);
 }
 
@@ -654,8 +773,7 @@ async function uploadGoogleDrive(params: {
     },
     body: toArrayBuffer(body)
   });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error?.message || "Falha ao enviar para Google Drive.");
+  const payload = await readJsonResponse(response, "Google Drive");
   return {
     fileId: String(payload.id ?? ""),
     folderId,
@@ -688,8 +806,7 @@ async function uploadDropbox(params: {
     },
     body: toArrayBuffer(params.bytes)
   });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error_summary || "Falha ao enviar para Dropbox.");
+  const payload = await readJsonResponse(response, "Dropbox");
   return {
     fileId: String(payload.id ?? ""),
     path: String(payload.path_display ?? path)
@@ -718,8 +835,9 @@ async function findGoogleFolder(accessToken: string, name: string, parentId: str
   url.searchParams.set("fields", "files(id,name)");
   url.searchParams.set("pageSize", "1");
   const response = await fetch(url, { headers: { authorization: `Bearer ${accessToken}` } });
-  const payload = await response.json();
-  return String(payload.files?.[0]?.id ?? "");
+  const payload = await readJsonResponse(response, "Google Drive");
+  const files = Array.isArray(payload.files) ? payload.files as Row[] : [];
+  return String(files[0]?.id ?? "");
 }
 
 async function createGoogleFolder(accessToken: string, name: string, parentId: string) {
@@ -735,8 +853,7 @@ async function createGoogleFolder(accessToken: string, name: string, parentId: s
       parents: parentId ? [parentId] : undefined
     })
   });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error?.message || "Falha ao criar pasta no Google Drive.");
+  const payload = await readJsonResponse(response, "Google Drive");
   return String(payload.id ?? "");
 }
 
@@ -763,12 +880,120 @@ async function createDropboxFolderIfMissing(accessToken: string, path: string) {
   const summary = String(payload.error_summary ?? "");
   const tag = String(payload.error?.path?.[".tag"] ?? "");
   if (response.status === 409 && (summary.includes("conflict/folder") || tag === "conflict")) return;
-  throw new Error(summary || `Falha ao criar pasta no Dropbox: ${path}`);
+  throw new Error(responseErrorMessageFromPayload(response, "Dropbox", payload));
 }
 
 function normalizeDropboxPath(path: string) {
   const clean = path.split("/").map((part) => part.trim()).filter(Boolean).join("/");
   return `/${clean}`;
+}
+
+async function readJsonResponse(response: Response, providerLabel: string) {
+  const text = await response.text().catch(() => "");
+  const payload = parseJson(text);
+  if (!response.ok) {
+    throw new Error(responseErrorMessageFromPayload(response, providerLabel, payload, text));
+  }
+  return payload;
+}
+
+export async function responseErrorMessage(response: Response, providerLabel: string) {
+  const text = await response.text().catch(() => "");
+  return responseErrorMessageFromPayload(response, providerLabel, parseJson(text), text);
+}
+
+function responseErrorMessageFromPayload(response: Response, providerLabel: string, payload: Row, rawText = "") {
+  const detail = providerDetailMessage(providerLabel, payload, rawText || JSON.stringify(payload));
+  return `${providerLabel} erro ${response.status}: ${sanitizeProviderError(detail || response.statusText)}`;
+}
+
+function providerDetailMessage(providerLabel: string, payload: Row, rawText: string) {
+  const nestedError = payload.error;
+  if (providerLabel === "Dropbox") {
+    const summary = text(payload.error_summary);
+    const requiredScope = nestedError && typeof nestedError === "object" ? text((nestedError as Row).required_scope) : "";
+    if (summary.includes("missing_scope") || requiredScope) {
+      return `missing_scope ${requiredScope || summary.replace(/^missing_scope\/?/, "").replace(/\/.*$/, "")}. Reconecte o Dropbox para atualizar permissoes.`;
+    }
+    if (summary) return summary;
+  }
+
+  if (text(payload.error_description)) return text(payload.error_description);
+  if (nestedError && typeof nestedError === "object" && text((nestedError as Row).message)) return text((nestedError as Row).message);
+  if (text(nestedError)) return text(nestedError);
+  if (text(payload.message)) return text(payload.message);
+  return rawText;
+}
+
+function sanitizeProviderError(value: string) {
+  return value
+    .replace(/(access_token|refresh_token|client_secret|authorization)["']?\s*[:=]\s*["']?[^"',\s}]+/gi, "$1: [removido]")
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [removido]")
+    .slice(0, 700)
+    .trim();
+}
+
+function parseJson(textValue: string): Row {
+  if (!textValue) return {};
+  try {
+    const parsed = JSON.parse(textValue);
+    return parsed && typeof parsed === "object" ? parsed as Row : { message: String(parsed) };
+  } catch {
+    return { message: textValue };
+  }
+}
+
+async function markStorageConnectionOk(connection: Row) {
+  const client = await getLavaClient();
+  await client
+    .from("lava_storage_connections")
+    .update({
+      status: "conectado",
+      last_error: null,
+      last_test_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", connection.id);
+}
+
+async function markStorageConnectionError(connection: Row, provider: LavaStorageProvider, message: string) {
+  const client = await getLavaClient();
+  await client
+    .from("lava_storage_connections")
+    .update({
+      status: "erro",
+      last_error: providerGuidance(provider, message),
+      last_test_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", connection.id);
+}
+
+function providerGuidance(provider: LavaStorageProvider, message: string) {
+  const lower = message.toLowerCase();
+  if (provider === "google_drive" && (lower.includes("has not been used") || lower.includes("disabled") || lower.includes("drive api"))) {
+    return `${message} Ative a Google Drive API no projeto Google Cloud usado por este Client ID.`;
+  }
+  if (provider === "dropbox" && lower.includes("missing_scope")) {
+    return `${message} Ative as permissoes no Dropbox App Console e reconecte o Dropbox.`;
+  }
+  if (lower.includes("invalid_grant") || lower.includes("invalid credentials") || lower.includes("refresh token")) {
+    return `${lavaStorageProviderLabel(provider)} precisa ser reconectado. Token expirado ou sem refresh token.`;
+  }
+  return message;
+}
+
+function latestErrorByProvider(rows: Row[]) {
+  const map = new Map<string, Row>();
+  for (const row of rows) {
+    const provider = text(row.provider);
+    if (provider && !map.has(provider)) map.set(provider, row);
+  }
+  return Array.from(map.entries()).map(([provider, row]) => ({
+    provider,
+    erro: row.erro,
+    last_attempt_at: row.last_attempt_at ?? row.updated_at
+  }));
 }
 
 function encrypt(value: string) {

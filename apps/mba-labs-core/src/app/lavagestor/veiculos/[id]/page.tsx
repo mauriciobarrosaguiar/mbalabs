@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
+import { LavaPhotoCard, LavaSyncPendingButton } from "@/components/lavagestor/LavaPhotoCard";
 import { BackButton, MessageBanner, PageHeader, formatDate, formatMoney } from "@/components/ui-kit";
 import { getLavaVeiculoHistorico, whatsappUrl } from "@/lib/lavagestor-phase2-data";
 
@@ -74,14 +75,21 @@ export default async function VeiculoHistoricoPage({ params }: { params: Promise
         </section>
 
         <section className="grid gap-3 rounded-xl border border-border bg-white p-4 shadow-sm">
-          <h2 className="text-xl font-black">Fotos e avarias recorrentes</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-xl font-black">Fotos e avarias recorrentes</h2>
+            <LavaSyncPendingButton compact returnTo={`/lavagestor/veiculos/${String(veiculo.id)}`} />
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {fotos.length === 0 ? <p className="rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground sm:col-span-2 lg:col-span-4">Sem fotos salvas.</p> : null}
             {fotos.slice(0, 12).map((foto) => (
-              <figure className="overflow-hidden rounded-lg border border-border bg-white" key={String(foto.id)}>
-                {foto.signed_url ? <img alt={String(foto.legenda || foto.tipo)} className="aspect-[4/3] w-full object-cover" src={String(foto.signed_url)} /> : null}
-                <figcaption className="p-2 text-xs font-bold text-muted-foreground">{momentLabel(foto.momento)} - {String(foto.tipo || "foto")} - {formatDate(foto.created_at)}</figcaption>
-              </figure>
+              <LavaPhotoCard
+                compact
+                foto={foto}
+                key={String(foto.id)}
+                returnTo={`/lavagestor/veiculos/${String(veiculo.id)}`}
+                subtitle={`${momentLabel(foto.momento)} - ${formatDate(foto.created_at)}`}
+                title={String(foto.legenda || foto.tipo || "foto")}
+              />
             ))}
           </div>
         </section>

@@ -135,12 +135,13 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
   );
 }
 
-type StorageOverview = Awaited<ReturnType<typeof getLavaStorageOverview>> | { connections: Record<string, unknown>[]; pendingCount: number; errorCount: number; error: string; oauth?: Record<string, unknown>[] };
+type StorageOverview = Awaited<ReturnType<typeof getLavaStorageOverview>> | { connections: Record<string, unknown>[]; pendingCount: number; errorCount: number; error: string; oauth?: Record<string, unknown>[]; lastSyncErrors?: Record<string, unknown>[] };
 
 function StorageSection({ overview }: { overview: StorageOverview }) {
   const providers: LavaStorageProvider[] = ["google_drive", "dropbox"];
   const connections = new Map((overview.connections ?? []).map((connection) => [String(connection.provider), connection]));
   const oauth = new Map((overview.oauth ?? []).map((config) => [String(config.provider), config]));
+  const lastSyncErrors = new Map(((overview.lastSyncErrors ?? []) as Record<string, unknown>[]).map((row) => [String(row.provider), row]));
 
   return (
     <section className="grid gap-4 rounded-2xl border border-border bg-white p-4 shadow-sm">
@@ -171,15 +172,18 @@ function StorageSection({ overview }: { overview: StorageOverview }) {
           const connection = connections.get(provider);
           const oauthConfig = oauth.get(provider);
           const connected = connection?.status === "conectado";
+          const hasError = connection?.status === "erro";
+          const lastError = String(connection?.last_error || lastSyncErrors.get(provider)?.erro || "").trim();
           return (
             <div className="grid gap-3 rounded-xl border border-border bg-muted/40 p-3" key={provider}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="font-black">{lavaStorageProviderLabel(provider)}</h3>
-                  <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">{connected ? String(connection?.account_email || "Conta conectada") : "Nao conectado"}</p>
+                  <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">{connected || hasError ? String(connection?.account_email || "Conta conectada") : "Nao conectado"}</p>
                   {connection?.root_folder_path ? <p className="mt-1 break-words text-xs font-semibold text-muted-foreground">{String(connection.root_folder_path)}</p> : null}
+                  {connection?.last_test_at ? <p className="mt-1 text-xs font-semibold text-muted-foreground">Ultimo teste: {formatDateTimeShort(connection.last_test_at)}</p> : null}
                 </div>
-                <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${connected ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900"}`}>{connected ? "Conectado" : "Pendente"}</span>
+                <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${connected ? "bg-emerald-50 text-emerald-900" : hasError ? "bg-red-50 text-red-900" : "bg-amber-50 text-amber-900"}`}>{connected ? "Conectado" : hasError ? "Erro" : "Nao conectado"}</span>
               </div>
               {oauthConfig?.redirectUri ? (
                 <div className="grid gap-1 rounded-lg border border-border bg-white p-2 text-xs font-semibold text-muted-foreground">
@@ -188,12 +192,20 @@ function StorageSection({ overview }: { overview: StorageOverview }) {
                   <span>Client ID: {oauthConfig.clientIdConfigured ? "configurado" : "pendente"} - origem: {redirectSourceLabel(String(oauthConfig.redirectSource ?? ""))}</span>
                 </div>
               ) : null}
+              {lastError ? (
+                <div className="grid gap-2 rounded-lg border border-red-200 bg-red-50 p-2 text-xs font-semibold text-red-950">
+                  <span className="font-black uppercase tracking-[0.08em]">Ultimo erro</span>
+                  <span className="break-words">{lastError}</span>
+                  <ProviderFixInstructions provider={provider} error={lastError} />
+                </div>
+              ) : null}
               <div className="flex flex-wrap gap-2">
-                <a className={connected ? "button-secondary" : "button-primary"} href={`/api/lavagestor/storage/connect/${provider}`}>{connected ? "Reconectar" : "Conectar"}</a>
+                <a className={connected || hasError ? "button-secondary" : "button-primary"} href={`/api/lavagestor/storage/connect/${provider}`}>{connected || hasError ? "Reconectar" : "Conectar"}</a>
                 <form action="/api/lavagestor/storage/test" method="post">
-                  <button className="button-secondary" disabled={!connected} type="submit">Testar</button>
+                  <input name="provider" type="hidden" value={provider} />
+                  <button className="button-secondary" disabled={!connected && !hasError} type="submit">Testar</button>
                 </form>
-                {connected ? (
+                {connected || hasError ? (
                   <form action="/api/lavagestor/storage/disconnect" method="post">
                     <input name="provider" type="hidden" value={provider} />
                     <button className="button-danger" type="submit">Desconectar</button>
@@ -218,6 +230,39 @@ async function getRequestOrigin() {
 function redirectSourceLabel(value: string) {
   if (value === "request_origin") return "dominio atual";
   return value || "dominio atual";
+}
+
+function formatDateTimeShort(value: unknown) {
+  if (!value) return "";
+  const date = new Date(String(value));
+  return Number.isFinite(date.getTime()) ? date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "";
+}
+
+function ProviderFixInstructions({ provider, error }: { provider: LavaStorageProvider; error: string }) {
+  const lower = error.toLowerCase();
+  if (provider === "google_drive" && (lower.includes("drive api") || lower.includes("has not been used") || lower.includes("disabled"))) {
+    return (
+      <div className="grid gap-1 rounded-md bg-white/70 p-2 text-red-950">
+        <span>Para corrigir: ative a Google Drive API no projeto Google Cloud usado pelo Client ID do LavaGestor.</span>
+        <a className="break-all font-black underline" href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" rel="noreferrer">https://console.cloud.google.com/apis/library/drive.googleapis.com</a>
+      </div>
+    );
+  }
+
+  if (provider === "dropbox" && lower.includes("missing_scope")) {
+    return (
+      <div className="grid gap-1 rounded-md bg-white/70 p-2 text-red-950">
+        <span>Para corrigir: abra o Dropbox App Console, va em Permissions, marque as permissoes necessarias, salve e reconecte o Dropbox no LavaGestor.</span>
+        <span className="font-black">Permissoes: account_info.read, files.content.write, files.content.read, files.metadata.read, files.metadata.write.</span>
+      </div>
+    );
+  }
+
+  if (lower.includes("refresh token") || lower.includes("invalid_grant") || lower.includes("invalid credentials")) {
+    return <span className="rounded-md bg-white/70 p-2 text-red-950">Reconecte este provedor para gerar um novo token.</span>;
+  }
+
+  return null;
 }
 
 function ConfigBlock({ badge, title, description, children, defaultOpen = false }: { badge: string; title: string; description: string; children: ReactNode; defaultOpen?: boolean }) {

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, MessageBanner, PageHeader, formatDateTime, formatMoney } from "@/components/ui-kit";
+import { LavaPhotoCard, LavaSyncPendingButton } from "@/components/lavagestor/LavaPhotoCard";
 import { PrintButton } from "@/components/lavagestor/PrintButton";
 import { ReceiptImageShareButton, type ReceiptImageData } from "@/components/lavagestor/ReceiptImageShareButton";
 import { updateLavagemStatus } from "@/lib/actions/lavagestor-actions";
@@ -134,10 +135,13 @@ function ChecklistSection({ recibo }: { recibo: Recibo }) {
       <h3 className="text-sm font-black uppercase tracking-[0.12em] text-slate-500">Checklist e fotos</h3>
       {recibo.checklist ? (
         <div className="grid gap-2">
-          <p className="rounded-lg bg-emerald-50 p-2 text-sm font-black text-emerald-950">Status: {String(recibo.checklist.status)}</p>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-emerald-50 p-2">
+            <p className="text-sm font-black text-emerald-950">Status: {String(recibo.checklist.status)}</p>
+            <LavaSyncPendingButton compact lavagemId={recibo.id} returnTo={`/lavagestor/recibos/${recibo.id}`} />
+          </div>
           {recibo.checklist_avarias.length ? <p className="rounded-lg bg-amber-50 p-2 text-sm font-bold text-amber-950">{recibo.checklist_avarias.join(" - ")}</p> : <p className="rounded-lg bg-slate-50 p-2 text-sm font-semibold text-slate-600">Sem avarias marcadas.</p>}
-          <PhotoGroup title="Antes" fotos={entradaFotos} />
-          <PhotoGroup title="Depois" fotos={checkoutFotos} />
+          <PhotoGroup returnTo={`/lavagestor/recibos/${recibo.id}`} title="Antes" fotos={entradaFotos} />
+          <PhotoGroup returnTo={`/lavagestor/recibos/${recibo.id}`} title="Depois" fotos={checkoutFotos} />
         </div>
       ) : (
         <p className="rounded-lg bg-amber-50 p-2 text-sm font-bold text-amber-950">Lavagem sem checklist registrado.</p>
@@ -146,7 +150,7 @@ function ChecklistSection({ recibo }: { recibo: Recibo }) {
   );
 }
 
-function PhotoGroup({ title, fotos }: { title: string; fotos: Record<string, unknown>[] }) {
+function PhotoGroup({ title, fotos, returnTo }: { title: string; fotos: Record<string, unknown>[]; returnTo: string }) {
   if (!fotos.length) {
     return <p className="rounded-lg bg-slate-50 p-2 text-xs font-bold text-slate-600">{title}: sem fotos.</p>;
   }
@@ -156,10 +160,14 @@ function PhotoGroup({ title, fotos }: { title: string; fotos: Record<string, unk
       <p className="text-xs font-black uppercase tracking-[0.1em] text-slate-500">{title}</p>
       <div className="grid gap-2 sm:grid-cols-3">
         {fotos.slice(0, 3).map((foto) => (
-          <figure className="overflow-hidden rounded-lg border border-border" key={String(foto.id)}>
-            {foto.signed_url ? <img className="aspect-[4/3] w-full object-cover" src={String(foto.signed_url)} alt={String(foto.legenda || foto.tipo)} /> : null}
-            <figcaption className="p-2 text-xs font-bold text-slate-600">{String(foto.legenda || foto.tipo)}</figcaption>
-          </figure>
+          <LavaPhotoCard
+            compact
+            foto={foto}
+            key={String(foto.id)}
+            returnTo={returnTo}
+            subtitle={title}
+            title={String(foto.legenda || foto.tipo)}
+          />
         ))}
       </div>
     </div>
