@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { LavaPhotoCard, LavaSyncPendingButton } from "@/components/lavagestor/LavaPhotoCard";
@@ -17,8 +18,8 @@ export default async function LavaTicketPage({ params }: { params: Promise<{ lav
     return (
       <LavaGestorShell activePath="/lavagestor/fila">
         <section className="grid gap-5">
-          <PageHeader eyebrow="LavaGestor" title="Ticket nao encontrado" actions={<BackButton href="/lavagestor/fila" />} />
-          <MessageBanner error={error ?? "Nao foi possivel abrir o ticket."} />
+          <PageHeader eyebrow="LavaGestor" title="Ticket não encontrado" actions={<BackButton href="/lavagestor/fila" />} />
+          <MessageBanner error={error ?? "Não foi possível abrir o ticket."} />
         </section>
       </LavaGestorShell>
     );
@@ -66,8 +67,8 @@ export default async function LavaTicketPage({ params }: { params: Promise<{ lav
 
           <section className="grid gap-2 sm:grid-cols-2">
             <Info label="Cliente" value={ticket.cliente} />
-            <Info label="Telefone" value={ticket.whatsapp || "Nao informado"} />
-            <Info label="Veiculo / item" value={ticket.veiculo} />
+            <Info label="Telefone" value={ticket.whatsapp || "Não informado"} />
+            <Info label="Veículo / item" value={ticket.veiculo} />
             <Info label="Placa" value={ticket.placa || "Sem placa"} />
             <Info label="Marca / modelo / cor" value={[ticket.marca, ticket.modelo, ticket.cor].filter(Boolean).join(" - ") || "-"} />
             <Info label="Forma de entrega" value={deliveryLabel(ticket)} />
@@ -76,7 +77,7 @@ export default async function LavaTicketPage({ params }: { params: Promise<{ lav
           </section>
 
           <section className="grid gap-2">
-            <h3 className="text-sm font-black uppercase tracking-[0.12em] text-slate-500">Servicos</h3>
+            <h3 className="text-sm font-black uppercase tracking-[0.12em] text-slate-500">Serviços</h3>
             {ticket.servicos.map((servico, index) => (
               <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-2" key={`${servico.descricao}-${index}`}>
                 <span className="font-semibold">{servico.descricao}</span>
@@ -102,26 +103,31 @@ export default async function LavaTicketPage({ params }: { params: Promise<{ lav
               </div>
             )}
             {ticket.fotos.length ? (
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-2 lg:col-span-4">
+              <div className="grid gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <h4 className="text-xs font-black uppercase tracking-[0.1em] text-slate-500">Fotos de entrada / Antes</h4>
                   <LavaSyncPendingButton compact lavagemId={ticket.id} returnTo={`/lavagestor/tickets/${ticket.id}`} />
                 </div>
-                {ticket.fotos.slice(0, 4).map((foto) => (
-                  <LavaPhotoCard
-                    compact
-                    foto={foto}
-                    key={String(foto.id)}
-                    returnTo={`/lavagestor/tickets/${ticket.id}`}
-                    subtitle="Antes"
-                    title={String(foto.legenda || foto.tipo)}
-                  />
-                ))}
+                <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-2">
+                  {ticket.fotos.slice(0, 4).map((foto, index) => (
+                    <LavaPhotoCard
+                      className="w-[min(76vw,18rem)] shrink-0 snap-start sm:w-64"
+                      compact
+                      foto={foto}
+                      gallery={ticket.fotos.slice(0, 4)}
+                      galleryIndex={index}
+                      key={String(foto.id)}
+                      returnTo={`/lavagestor/tickets/${ticket.id}`}
+                      subtitle="Antes"
+                      title={String(foto.legenda || foto.tipo)}
+                    />
+                  ))}
+                </div>
               </div>
             ) : null}
           </section>
 
-          {ticket.observacoes ? <Info label="Observacoes" value={ticket.observacoes} /> : null}
+          {ticket.observacoes ? <Info label="Observações" value={ticket.observacoes} /> : null}
 
           <footer className="grid gap-2 border-t border-border pt-3 text-center text-xs font-semibold text-slate-500">
             <p>Cliente declara ciencia das condicoes registradas no checklist de entrada.</p>
@@ -151,7 +157,7 @@ function ticketMessage(ticket: Ticket) {
   return [
     `Ola, ${ticket.cliente}!`,
     `Segue o ticket de entrada ${ticket.numero}.`,
-    `Veiculo/item: ${ticket.veiculo}.`,
+    `Veículo/item: ${ticket.veiculo}.`,
     `Total previsto: ${formatMoney(ticket.valor_final)}.`,
     ticket.fotos.length ? "Fotos de entrada anexadas ao ticket." : "",
     "Cliente declara ciencia das condicoes registradas no checklist de entrada."

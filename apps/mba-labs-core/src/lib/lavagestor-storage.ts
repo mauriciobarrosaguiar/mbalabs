@@ -27,25 +27,45 @@ export function lavaStorageProviderLabel(provider: LavaStorageProvider) {
 
 function getProviderOAuthConfig(provider: LavaStorageProvider, origin: string) {
   if (provider === "google_drive") {
+    const clientId = firstEnv([
+      ["LAVAGESTOR_GOOGLE_CLIENT_ID", process.env.LAVAGESTOR_GOOGLE_CLIENT_ID],
+      ["GOOGLE_CLIENT_ID", process.env.GOOGLE_CLIENT_ID]
+    ]);
+    const clientSecret = firstEnv([
+      ["LAVAGESTOR_GOOGLE_CLIENT_SECRET", process.env.LAVAGESTOR_GOOGLE_CLIENT_SECRET],
+      ["GOOGLE_CLIENT_SECRET", process.env.GOOGLE_CLIENT_SECRET]
+    ]);
     const redirect = firstEnv([
       ["LAVAGESTOR_GOOGLE_REDIRECT_URI", process.env.LAVAGESTOR_GOOGLE_REDIRECT_URI],
       ["GOOGLE_REDIRECT_URI", process.env.GOOGLE_REDIRECT_URI]
     ]);
     return {
-      clientId: process.env.LAVAGESTOR_GOOGLE_CLIENT_ID || process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.LAVAGESTOR_GOOGLE_CLIENT_SECRET || process.env.GOOGLE_CLIENT_SECRET || "",
+      clientId: clientId.value,
+      clientIdSource: clientId.key,
+      clientSecret: clientSecret.value,
       redirectUri: redirect.value || defaultOAuthRedirectUri(provider, origin),
       redirectSource: redirect.key || "request_origin"
     };
   }
 
+  const clientId = firstEnv([
+    ["LAVAGESTOR_DROPBOX_CLIENT_ID", process.env.LAVAGESTOR_DROPBOX_CLIENT_ID],
+    ["LAVAGESTOR_DROPBOX_APP_KEY", process.env.LAVAGESTOR_DROPBOX_APP_KEY],
+    ["DROPBOX_APP_KEY", process.env.DROPBOX_APP_KEY]
+  ]);
+  const clientSecret = firstEnv([
+    ["LAVAGESTOR_DROPBOX_CLIENT_SECRET", process.env.LAVAGESTOR_DROPBOX_CLIENT_SECRET],
+    ["LAVAGESTOR_DROPBOX_APP_SECRET", process.env.LAVAGESTOR_DROPBOX_APP_SECRET],
+    ["DROPBOX_APP_SECRET", process.env.DROPBOX_APP_SECRET]
+  ]);
   const redirect = firstEnv([
     ["LAVAGESTOR_DROPBOX_REDIRECT_URI", process.env.LAVAGESTOR_DROPBOX_REDIRECT_URI],
     ["DROPBOX_REDIRECT_URI", process.env.DROPBOX_REDIRECT_URI]
   ]);
   return {
-    clientId: process.env.LAVAGESTOR_DROPBOX_APP_KEY || process.env.LAVAGESTOR_DROPBOX_CLIENT_ID || process.env.DROPBOX_APP_KEY || "",
-    clientSecret: process.env.LAVAGESTOR_DROPBOX_APP_SECRET || process.env.LAVAGESTOR_DROPBOX_CLIENT_SECRET || process.env.DROPBOX_APP_SECRET || "",
+    clientId: clientId.value,
+    clientIdSource: clientId.key,
+    clientSecret: clientSecret.value,
     redirectUri: redirect.value || defaultOAuthRedirectUri(provider, origin),
     redirectSource: redirect.key || "request_origin"
   };
@@ -74,6 +94,7 @@ export function getLavaOAuthDisplayConfigs(origin: string) {
       label: lavaStorageProviderLabel(provider),
       redirectUri: config.redirectUri,
       redirectSource: config.redirectSource,
+      clientIdSource: config.clientIdSource,
       clientIdConfigured: Boolean(config.clientId)
     };
   });
@@ -176,7 +197,7 @@ export async function saveLavaStorageConnection(
   provider: LavaStorageProvider,
   tokens: Awaited<ReturnType<typeof exchangeLavaOAuthCode>>
 ) {
-  if (!current.empresaId) throw new Error("Empresa nao identificada.");
+  if (!current.empresaId) throw new Error("Empresa não identificada.");
   const client = await getLavaClient();
   const empresa = await getEmpresa(client, current.empresaId);
   const rootFolderPath = montarPastaRaizEmpresa(empresaName(empresa));
@@ -540,7 +561,7 @@ function montarPastaFoto({ empresaNome, lavagem, foto }: { empresaNome: string; 
     ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
     : "sem-data";
   const cliente = safeFolderName(relationName(lavagem?.lava_clientes) || "Cliente");
-  const veiculo = safeFolderName(vehicleLabel(lavagem?.lava_veiculos) || "Veiculo");
+  const veiculo = safeFolderName(vehicleLabel(lavagem?.lava_veiculos) || "Veículo");
   const lavagemId = String(lavagem?.id ?? foto.lavagem_id ?? "").slice(0, 8).toUpperCase() || "Lavagem";
   const momento = String(foto.momento ?? "entrada") === "checkout" ? "Checkout - Depois" : "Entrada - Antes";
   return `${montarPastaRaizEmpresa(empresaNome)}/Lavagens/${yearMonth}/${cliente}/${veiculo}/${lavagemId}/${momento}`;
@@ -598,7 +619,7 @@ async function getLavagemForPhoto(client: any, empresaId: string, lavagemId: str
 
 async function downloadLocalPhoto(client: any, storagePath: string) {
   const { data, error } = await client.storage.from(LAVA_CHECKLIST_BUCKET).download(storagePath);
-  if (error || !data) throw new Error(error?.message ?? "Nao foi possivel baixar a foto local.");
+  if (error || !data) throw new Error(error?.message ?? "Não foi possível baixar a foto local.");
   return Buffer.from(await data.arrayBuffer());
 }
 
@@ -876,11 +897,14 @@ async function createDropboxFolderIfMissing(accessToken: string, path: string) {
     body: JSON.stringify({ path, autorename: false })
   });
   if (response.ok) return;
-  const payload = await response.json().catch(() => ({}));
+  const rawText = await response.text().catch(() => "");
+  const payload = parseJson(rawText);
   const summary = String(payload.error_summary ?? "");
-  const tag = String(payload.error?.path?.[".tag"] ?? "");
+  const error = payload.error && typeof payload.error === "object" ? payload.error as Row : {};
+  const pathError = error.path && typeof error.path === "object" ? error.path as Row : {};
+  const tag = String(pathError[".tag"] ?? "");
   if (response.status === 409 && (summary.includes("conflict/folder") || tag === "conflict")) return;
-  throw new Error(responseErrorMessageFromPayload(response, "Dropbox", payload));
+  throw new Error(`${responseErrorMessageFromPayload(response, "Dropbox", payload, rawText)} (pasta: ${path})`);
 }
 
 function normalizeDropboxPath(path: string) {
@@ -913,7 +937,7 @@ function providerDetailMessage(providerLabel: string, payload: Row, rawText: str
     const summary = text(payload.error_summary);
     const requiredScope = nestedError && typeof nestedError === "object" ? text((nestedError as Row).required_scope) : "";
     if (summary.includes("missing_scope") || requiredScope) {
-      return `missing_scope ${requiredScope || summary.replace(/^missing_scope\/?/, "").replace(/\/.*$/, "")}. Reconecte o Dropbox para atualizar permissoes.`;
+      return `missing_scope ${requiredScope || summary.replace(/^missing_scope\/?/, "").replace(/\/.*$/, "")}. Reconecte o Dropbox para atualizar permissões.`;
     }
     if (summary) return summary;
   }
@@ -975,7 +999,7 @@ function providerGuidance(provider: LavaStorageProvider, message: string) {
     return `${message} Ative a Google Drive API no projeto Google Cloud usado por este Client ID.`;
   }
   if (provider === "dropbox" && lower.includes("missing_scope")) {
-    return `${message} Ative as permissoes no Dropbox App Console e reconecte o Dropbox.`;
+    return `${message} Ative as permissões no Dropbox App Console e reconecte o Dropbox.`;
   }
   if (lower.includes("invalid_grant") || lower.includes("invalid credentials") || lower.includes("refresh token")) {
     return `${lavaStorageProviderLabel(provider)} precisa ser reconectado. Token expirado ou sem refresh token.`;
@@ -1077,7 +1101,7 @@ function vehicleLabel(value: unknown) {
   if (!relation || typeof relation !== "object") return "";
   const row = relation as { placa?: unknown; marca?: unknown; modelo?: unknown; cor?: unknown; tipo?: unknown };
   const model = [row.marca, row.modelo].filter(Boolean).join(" ");
-  return [row.placa, model, row.cor].filter(Boolean).join(" - ") || String(row.tipo ?? "Veiculo");
+  return [row.placa, model, row.cor].filter(Boolean).join(" - ") || String(row.tipo ?? "Veículo");
 }
 
 function toArrayBuffer(buffer: Buffer): ArrayBuffer {

@@ -16,8 +16,8 @@ export default async function ClienteHistoricoPage({ params }: { params: Promise
     return (
       <LavaGestorShell activePath="/lavagestor/clientes">
         <section className="grid gap-5">
-          <PageHeader eyebrow="LavaGestor" title="Cliente nao encontrado" actions={<BackButton href="/lavagestor/clientes" />} />
-          <MessageBanner error={error ?? "Nao foi possivel abrir o cliente."} />
+          <PageHeader eyebrow="LavaGestor" title="Cliente não encontrado" actions={<BackButton href="/lavagestor/clientes" />} />
+          <MessageBanner error={error ?? "Não foi possível abrir o cliente."} />
         </section>
       </LavaGestorShell>
     );
@@ -31,7 +31,7 @@ export default async function ClienteHistoricoPage({ params }: { params: Promise
         <PageHeader
           eyebrow="LavaGestor"
           title={String(cliente.nome)}
-          description={[cliente.telefone, cliente.email, cliente.documento].filter(Boolean).join(" - ") || "Historico do cliente"}
+          description={[cliente.telefone, cliente.email, cliente.documento].filter(Boolean).join(" - ") || "Histórico do cliente"}
           actions={
             <>
               <BackButton href="/lavagestor/clientes" />
@@ -44,14 +44,14 @@ export default async function ClienteHistoricoPage({ params }: { params: Promise
 
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
           <Metric label="Total de lavagens" value={stats.total_lavagens} />
-          <Metric label="Ultima lavagem" value={formatDate(stats.ultima_lavagem)} />
-          <Metric label="Ticket medio" value={formatMoney(stats.ticket_medio)} />
+          <Metric label="Última lavagem" value={formatDate(stats.ultima_lavagem)} />
+          <Metric label="Ticket médio" value={formatMoney(stats.ticket_medio)} />
           <Metric label="Total gasto" value={formatMoney(stats.total_gasto)} />
           <Metric label="Pendencias" value={formatMoney(stats.pendente)} warning={Number(stats.pendente) > 0} />
         </div>
 
         <section className="grid gap-3 rounded-xl border border-border bg-white p-4 shadow-sm">
-          <h2 className="text-xl font-black">Veiculos / itens</h2>
+          <h2 className="text-xl font-black">Veículos / itens</h2>
           <div className="grid gap-2 md:grid-cols-2">
             {veiculos.length === 0 ? <p className="rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground">Nenhum veiculo cadastrado.</p> : null}
             {veiculos.map((veiculo) => (
@@ -102,12 +102,15 @@ function PhotoGrid({ clienteId, fotos }: { clienteId: string; fotos: Row[] }) {
         <h2 className="text-xl font-black">Fotos e checklists anteriores</h2>
         <LavaSyncPendingButton compact returnTo={`/lavagestor/clientes/${clienteId}`} />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {fotos.length === 0 ? <p className="rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground sm:col-span-2 lg:col-span-4">Sem fotos salvas.</p> : null}
-        {fotos.slice(0, 12).map((foto) => (
+      <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
+        {fotos.length === 0 ? <p className="w-full rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground">Sem fotos salvas.</p> : null}
+        {fotos.slice(0, 12).map((foto, index) => (
           <LavaPhotoCard
+            className="w-[min(82vw,20rem)] shrink-0 snap-start sm:w-72"
             compact
             foto={foto}
+            gallery={fotos.slice(0, 12)}
+            galleryIndex={index}
             key={String(foto.id)}
             returnTo={`/lavagestor/clientes/${clienteId}`}
             subtitle={`${momentLabel(foto.momento)} - ${formatDate(foto.created_at)}`}
