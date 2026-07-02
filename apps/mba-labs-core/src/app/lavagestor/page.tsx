@@ -32,7 +32,22 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
     { label: "Ticket médio", value: formatMoney(dashboard.ticketMedio), tone: "success" },
     { label: "Clientes no mês", value: dashboard.clientesAtendidosMes },
     { label: "Retorno de clientes", value: dashboard.retornoClientes },
+    { label: "Agendamentos hoje", value: dashboard.agendamentosHoje },
+    { label: "Estoque baixo", value: dashboard.estoqueBaixo, tone: "warning" },
+    { label: "Cobranças pendentes", value: dashboard.cobrancasPendentes, tone: "warning" },
+    { label: "Automação pendente", value: dashboard.automacaoPendente, tone: "warning" },
     { label: "Comissões pendentes", value: formatMoney(dashboard.totalComissoesPendentes), tone: "warning" }
+  ];
+
+  const quickActions = [
+    { href: "/lavagestor/nova-lavagem", label: "Nova lavagem" },
+    { href: "/lavagestor/placa", label: "Ler placa" },
+    { href: "/lavagestor/agendamentos", label: "Novo agendamento" },
+    { href: "/lavagestor/estoque", label: "Estoque" },
+    { href: "/lavagestor/pos-venda", label: "Pós-venda" },
+    { href: "/lavagestor/iamob", label: "IAMob" },
+    { href: "/lavagestor/financeiro", label: "Fechar caixa" },
+    { href: "/lavagestor/configuracoes", label: "Backup" }
   ];
 
   return (
@@ -59,6 +74,28 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {metrics.map((metric) => <MetricCard key={metric.label} label={metric.label} tone={metric.tone} value={metric.value} />)}
         </div>
+
+        <Panel title="IAMob recomenda">
+          {dashboard.recomendacoesPremium.length === 0 ? (
+            <p className="rounded-lg bg-muted p-4 text-sm font-semibold text-muted-foreground">Sem recomendações críticas agora.</p>
+          ) : (
+            <div className="grid gap-2 md:grid-cols-2">
+              {dashboard.recomendacoesPremium.map((item: any) => (
+                <Link className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm font-black text-emerald-950 shadow-sm" href={item.href} key={item.label}>
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="Ações rápidas">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            {quickActions.map((item) => (
+              <Link className="button-secondary min-h-11 justify-center text-center" href={item.href} key={item.href}>{item.label}</Link>
+            ))}
+          </div>
+        </Panel>
 
         {dashboard.alertas.length ? (
           <Panel title="Alertas">

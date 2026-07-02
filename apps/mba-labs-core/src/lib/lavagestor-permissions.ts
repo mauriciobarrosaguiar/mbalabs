@@ -50,7 +50,7 @@ export function getLavaGestorPerfil(current: CurrentUserProfile): LavaPerfil {
 }
 
 export function canViewFinance(perfil: LavaPerfil) {
-  return ["admin_master", "admin_empresa", "dono", "gerente"].includes(perfil);
+  return ["admin_master", "admin_empresa", "dono", "gerente", "caixa"].includes(perfil);
 }
 
 export function canManageSettings(perfil: LavaPerfil) {

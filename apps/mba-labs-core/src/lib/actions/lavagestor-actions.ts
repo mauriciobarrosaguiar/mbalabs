@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { logAction, requireAppAccess } from "@/lib/core-data";
 import { booleanValue, dateValue, messageParam, nullableTextValue, numberValue, textValue } from "@/lib/form-utils";
 import { normalizeLavaStatus } from "@/lib/lavagestor-data";
+import { baixarEstoqueDaLavagem } from "@/lib/lavagestor-estoque-sync";
 import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
 import { getSupabaseServer } from "@/lib/supabase";
 
@@ -480,6 +481,33 @@ export async function updateLavagemStatus(formData: FormData) {
     await client.from("lava_comissoes").update({ status: "cancelado" }).eq("lavagem_id", id).eq("empresa_id", current.empresaId);
   }
 
+  if (action === "finalizar") {
+    try {
+      const estoque = await baixarEstoqueDaLavagem(client, current, id);
+      if (estoque.baixados > 0 || estoque.avisos.length > 0) {
+        await insertLavaHistory(client, {
+          empresaId: current.empresaId,
+          lavagemId: id,
+          usuarioId: current.usuario.id,
+          acao: "estoque_baixa_servico",
+          statusAnterior,
+          statusNovo,
+          observacao: [`${estoque.baixados} baixa(s) de estoque.`, ...estoque.avisos].join(" ")
+        });
+      }
+    } catch (error) {
+      await insertLavaHistory(client, {
+        empresaId: current.empresaId,
+        lavagemId: id,
+        usuarioId: current.usuario.id,
+        acao: "estoque_alerta",
+        statusAnterior,
+        statusNovo,
+        observacao: error instanceof Error ? error.message : "Nao foi possivel baixar estoque automaticamente."
+      });
+    }
+  }
+
   await insertLavaHistory(client, {
     empresaId: current.empresaId,
     lavagemId: id,
@@ -497,6 +525,7 @@ export async function updateLavagemStatus(formData: FormData) {
   revalidatePath("/lavagestor/pagamentos");
   revalidatePath("/lavagestor/comissoes");
   revalidatePath("/lavagestor/relatorios");
+  revalidatePath("/lavagestor/estoque");
   redirect(`${returnTo}?ok=${messageParam(action === "cancelar" ? "Lavagem cancelada. Pagamento e comissão foram zerados." : "Status atualizado.")}`);
 }
 
