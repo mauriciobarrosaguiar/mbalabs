@@ -1,6 +1,8 @@
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, MessageBanner, PageHeader, formatDateTime, formatMoney } from "@/components/ui-kit";
+import { LavaPhotoCard, LavaSyncPendingButton } from "@/components/lavagestor/LavaPhotoCard";
 import { PrintButton } from "@/components/lavagestor/PrintButton";
 import { ReceiptImageShareButton, type ReceiptImageData } from "@/components/lavagestor/ReceiptImageShareButton";
 import { updateLavagemStatus } from "@/lib/actions/lavagestor-actions";
@@ -18,8 +20,8 @@ export default async function ReciboLavagemPage({ params }: { params: Promise<{ 
     return (
       <LavaGestorShell activePath="/lavagestor/fila">
         <section className="grid gap-6">
-          <PageHeader eyebrow="LavaGestor" title="Recibo nao encontrado" actions={<BackButton href="/lavagestor/fila" />} />
-          <MessageBanner error={error ?? "Nao foi possivel abrir o recibo."} />
+          <PageHeader eyebrow="LavaGestor" title="Recibo não encontrado" actions={<BackButton href="/lavagestor/fila" />} />
+          <MessageBanner error={error ?? "Não foi possível abrir o recibo."} />
         </section>
       </LavaGestorShell>
     );
@@ -66,8 +68,8 @@ export default async function ReciboLavagemPage({ params }: { params: Promise<{ 
 
           <section className="grid gap-2 sm:grid-cols-2">
             <Info label="Cliente" value={recibo.cliente} />
-            <Info label="WhatsApp" value={recibo.whatsapp || "Nao informado"} />
-            <Info label="Veiculo / item" value={recibo.veiculo} />
+            <Info label="WhatsApp" value={recibo.whatsapp || "Não informado"} />
+            <Info label="Veículo / item" value={recibo.veiculo} />
             <Info label="Lavador" value={recibo.funcionario} />
             <Info label="Entrada" value={formatDateTime(recibo.data_entrada)} />
             <Info label="Finalizacao" value={formatDateTime(recibo.data_finalizacao)} />
@@ -76,7 +78,7 @@ export default async function ReciboLavagemPage({ params }: { params: Promise<{ 
           </section>
 
           <section className="grid gap-2">
-            <h3 className="text-sm font-black uppercase tracking-[0.12em] text-slate-500">Servicos</h3>
+            <h3 className="text-sm font-black uppercase tracking-[0.12em] text-slate-500">Serviços</h3>
             <div className="grid gap-2">
               {recibo.servicos.length === 0 ? <p className="rounded-lg bg-slate-50 p-2 text-sm font-semibold text-slate-600">Nenhum servico detalhado.</p> : null}
               {recibo.servicos.map((servico) => <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-2" key={servico.id}><span className="font-semibold">{servico.descricao}</span><strong>{formatMoney(servico.valor)}</strong></div>)}
@@ -94,7 +96,7 @@ export default async function ReciboLavagemPage({ params }: { params: Promise<{ 
           </section>
 
           {recibo.pagamentos.length > 0 ? <section className="grid gap-2"><h3 className="text-sm font-black uppercase tracking-[0.12em] text-slate-500">Pagamentos</h3>{recibo.pagamentos.map((pagamento) => <div className="rounded-lg border border-border p-2 text-sm" key={pagamento.id}><strong>{formatMoney(pagamento.valor)}</strong><span className="ml-2 text-slate-600">{pagamento.forma_pagamento} - {formatDateTime(pagamento.data_pagamento)}</span></div>)}</section> : null}
-          {recibo.observacoes ? <Info label="Observacoes" value={recibo.observacoes} /> : null}
+          {recibo.observacoes ? <Info label="Observações" value={recibo.observacoes} /> : null}
           <footer className="grid gap-1 border-t border-border pt-3 text-center text-xs font-semibold text-slate-500"><p>Obrigado pela preferencia.</p><p>Recibo gerado pelo LavaGestor - MBA Labs</p></footer>
         </article>
 
@@ -111,9 +113,9 @@ function BlockedReceipt({ recibo, reason }: { recibo: Recibo; reason: "pagamento
   return (
     <LavaGestorShell activePath="/lavagestor/fila" companyName={recibo.empresa.nome}>
       <section className="grid gap-6">
-        <PageHeader eyebrow="LavaGestor" title="Recibo bloqueado" description={isPayment ? "O recibo so e liberado depois que o pagamento for registrado." : "A empresa exige checklist concluido antes de emitir recibo."} actions={<BackButton href="/lavagestor/fila" />} />
+        <PageHeader eyebrow="LavaGestor" title="Recibo bloqueado" description={isPayment ? "O recibo só é liberado depois que o pagamento for registrado." : "A empresa exige checklist concluído antes de emitir recibo."} actions={<BackButton href="/lavagestor/fila" />} />
         <div className="mx-auto grid w-full max-w-2xl gap-4 rounded-xl border border-amber-200 bg-amber-50 p-5 text-amber-950 shadow-sm">
-          <h2 className="text-2xl font-black">{isPayment ? "Pagamento ainda nao foi feito" : "Checklist pendente"}</h2>
+          <h2 className="text-2xl font-black">{isPayment ? "Pagamento ainda não foi feito" : "Checklist pendente"}</h2>
           <p className="text-sm font-semibold leading-6">{isPayment ? "Registre o pagamento primeiro. Depois o sistema libera imprimir, salvar em PDF e enviar o recibo como imagem pelo WhatsApp." : "Conclua o checklist de entrada para liberar o recibo desta lavagem."}</p>
           <div className="flex flex-wrap gap-2">
             {isPayment ? <Link className="button-primary" href={`/lavagestor/pagamentos?lavagem=${recibo.id}`}>Registrar pagamento</Link> : <Link className="button-primary" href={`/lavagestor/checklists/${recibo.id}`}>Abrir checklist</Link>}
@@ -134,10 +136,13 @@ function ChecklistSection({ recibo }: { recibo: Recibo }) {
       <h3 className="text-sm font-black uppercase tracking-[0.12em] text-slate-500">Checklist e fotos</h3>
       {recibo.checklist ? (
         <div className="grid gap-2">
-          <p className="rounded-lg bg-emerald-50 p-2 text-sm font-black text-emerald-950">Status: {String(recibo.checklist.status)}</p>
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-emerald-50 p-2">
+            <p className="text-sm font-black text-emerald-950">Status: {String(recibo.checklist.status)}</p>
+            <LavaSyncPendingButton compact lavagemId={recibo.id} returnTo={`/lavagestor/recibos/${recibo.id}`} />
+          </div>
           {recibo.checklist_avarias.length ? <p className="rounded-lg bg-amber-50 p-2 text-sm font-bold text-amber-950">{recibo.checklist_avarias.join(" - ")}</p> : <p className="rounded-lg bg-slate-50 p-2 text-sm font-semibold text-slate-600">Sem avarias marcadas.</p>}
-          <PhotoGroup title="Antes" fotos={entradaFotos} />
-          <PhotoGroup title="Depois" fotos={checkoutFotos} />
+          <PhotoGroup returnTo={`/lavagestor/recibos/${recibo.id}`} title="Antes" fotos={entradaFotos} />
+          <PhotoGroup returnTo={`/lavagestor/recibos/${recibo.id}`} title="Depois" fotos={checkoutFotos} />
         </div>
       ) : (
         <p className="rounded-lg bg-amber-50 p-2 text-sm font-bold text-amber-950">Lavagem sem checklist registrado.</p>
@@ -146,7 +151,7 @@ function ChecklistSection({ recibo }: { recibo: Recibo }) {
   );
 }
 
-function PhotoGroup({ title, fotos }: { title: string; fotos: Record<string, unknown>[] }) {
+function PhotoGroup({ title, fotos, returnTo }: { title: string; fotos: Record<string, unknown>[]; returnTo: string }) {
   if (!fotos.length) {
     return <p className="rounded-lg bg-slate-50 p-2 text-xs font-bold text-slate-600">{title}: sem fotos.</p>;
   }
@@ -154,12 +159,19 @@ function PhotoGroup({ title, fotos }: { title: string; fotos: Record<string, unk
   return (
     <div className="grid gap-2">
       <p className="text-xs font-black uppercase tracking-[0.1em] text-slate-500">{title}</p>
-      <div className="grid gap-2 sm:grid-cols-3">
-        {fotos.slice(0, 3).map((foto) => (
-          <figure className="overflow-hidden rounded-lg border border-border" key={String(foto.id)}>
-            {foto.signed_url ? <img className="aspect-[4/3] w-full object-cover" src={String(foto.signed_url)} alt={String(foto.legenda || foto.tipo)} /> : null}
-            <figcaption className="p-2 text-xs font-bold text-slate-600">{String(foto.legenda || foto.tipo)}</figcaption>
-          </figure>
+      <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-2">
+        {fotos.slice(0, 6).map((foto, index) => (
+          <LavaPhotoCard
+            className="w-[min(76vw,18rem)] shrink-0 snap-start sm:w-64"
+            compact
+            foto={foto}
+            gallery={fotos.slice(0, 6)}
+            galleryIndex={index}
+            key={String(foto.id)}
+            returnTo={returnTo}
+            subtitle={title}
+            title={String(foto.legenda || foto.tipo)}
+          />
         ))}
       </div>
     </div>
@@ -170,7 +182,7 @@ function Info({ label, value }: { label: string; value: string }) { return <div 
 function MoneyLine({ label, value, strong = false }: { label: string; value: number; strong?: boolean }) { return <div className="flex items-center justify-between gap-3"><span className="text-sm font-semibold text-slate-600">{label}</span><strong className={strong ? "text-lg" : "text-sm"}>{formatMoney(value)}</strong></div>; }
 function paymentLabel(recibo: Recibo) { return ["Pago", recibo.forma_pagamento].filter(Boolean).join(" - "); }
 function deliveryLabel(recibo: Recibo) { if (recibo.entrega_tipo === "levar") return recibo.endereco_entrega ? `Levar ao cliente: ${recibo.endereco_entrega}` : "Levar ao cliente"; return "Cliente retira"; }
-function receiptImageData(recibo: Recibo): ReceiptImageData { return { numero: recibo.numero, empresaNome: recibo.empresa.nome, empresaRazao: recibo.empresa.razao_social ?? undefined, empresaInfo: [recibo.empresa.cnpj, recibo.empresa.telefone, recibo.empresa.cidade_uf, recibo.empresa.endereco].filter(Boolean).join(" - "), corPrincipal: recibo.empresa.cor_principal ?? undefined, cliente: recibo.cliente, whatsapp: recibo.whatsapp || "Nao informado", veiculo: recibo.veiculo, lavador: recibo.funcionario, entrada: formatDateTime(recibo.data_entrada), finalizacao: formatDateTime(recibo.data_finalizacao), pagamento: paymentLabel(recibo), entrega: deliveryLabel(recibo), servicos: recibo.servicos.map((servico) => ({ descricao: servico.descricao, valor: formatMoney(servico.valor) })), totalBruto: formatMoney(recibo.valor_total), desconto: formatMoney(recibo.valor_desconto), totalFinal: formatMoney(recibo.valor_final), valorRecebido: formatMoney(recibo.valor_recebido), valorPendente: formatMoney(recibo.valor_pendente), pagamentos: recibo.pagamentos.map((pagamento) => `${formatMoney(pagamento.valor)} ${pagamento.forma_pagamento} - ${formatDateTime(pagamento.data_pagamento)}`) }; }
+function receiptImageData(recibo: Recibo): ReceiptImageData { return { numero: recibo.numero, empresaNome: recibo.empresa.nome, empresaRazao: recibo.empresa.razao_social ?? undefined, empresaInfo: [recibo.empresa.cnpj, recibo.empresa.telefone, recibo.empresa.cidade_uf, recibo.empresa.endereco].filter(Boolean).join(" - "), corPrincipal: recibo.empresa.cor_principal ?? undefined, cliente: recibo.cliente, whatsapp: recibo.whatsapp || "Não informado", veiculo: recibo.veiculo, lavador: recibo.funcionario, entrada: formatDateTime(recibo.data_entrada), finalizacao: formatDateTime(recibo.data_finalizacao), pagamento: paymentLabel(recibo), entrega: deliveryLabel(recibo), servicos: recibo.servicos.map((servico) => ({ descricao: servico.descricao, valor: formatMoney(servico.valor) })), totalBruto: formatMoney(recibo.valor_total), desconto: formatMoney(recibo.valor_desconto), totalFinal: formatMoney(recibo.valor_final), valorRecebido: formatMoney(recibo.valor_recebido), valorPendente: formatMoney(recibo.valor_pendente), pagamentos: recibo.pagamentos.map((pagamento) => `${formatMoney(pagamento.valor)} ${pagamento.forma_pagamento} - ${formatDateTime(pagamento.data_pagamento)}`) }; }
 
 const printCss = `
 @media print {

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
+import { LavaPhotoCard, LavaSyncPendingButton } from "@/components/lavagestor/LavaPhotoCard";
 import { BackButton, MessageBanner, PageHeader, formatDate, formatMoney } from "@/components/ui-kit";
 import { getLavaVeiculoHistorico, whatsappUrl } from "@/lib/lavagestor-phase2-data";
 
@@ -13,8 +14,8 @@ export default async function VeiculoHistoricoPage({ params }: { params: Promise
     return (
       <LavaGestorShell activePath="/lavagestor/veiculos">
         <section className="grid gap-5">
-          <PageHeader eyebrow="LavaGestor" title="Veiculo nao encontrado" actions={<BackButton href="/lavagestor/veiculos" />} />
-          <MessageBanner error={error ?? "Nao foi possivel abrir o veiculo."} />
+          <PageHeader eyebrow="LavaGestor" title="Veículo não encontrado" actions={<BackButton href="/lavagestor/veiculos" />} />
+          <MessageBanner error={error ?? "Não foi possível abrir o veículo."} />
         </section>
       </LavaGestorShell>
     );
@@ -28,7 +29,7 @@ export default async function VeiculoHistoricoPage({ params }: { params: Promise
         <PageHeader
           eyebrow="LavaGestor"
           title={String(veiculo.veiculo)}
-          description={`Cliente: ${String(veiculo.cliente || "-")} - ${String(veiculo.observacao || "sem observacoes importantes")}`}
+          description={`Cliente: ${String(veiculo.cliente || "-")} - ${String(veiculo.observacao || "sem observações importantes")}`}
           actions={
             <>
               <BackButton href="/lavagestor/veiculos" />
@@ -42,19 +43,19 @@ export default async function VeiculoHistoricoPage({ params }: { params: Promise
 
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
           <Metric label="Total de lavagens" value={stats.total_lavagens} />
-          <Metric label="Ultima lavagem" value={formatDate(stats.ultima_lavagem)} />
-          <Metric label="Ticket medio" value={formatMoney(stats.ticket_medio)} />
+          <Metric label="Última lavagem" value={formatDate(stats.ultima_lavagem)} />
+          <Metric label="Ticket médio" value={formatMoney(stats.ticket_medio)} />
           <Metric label="Total gasto" value={formatMoney(stats.total_gasto)} />
           <Metric label="Pendencias" value={formatMoney(stats.pendente)} warning={Number(stats.pendente) > 0} />
         </div>
 
         <section className="grid gap-3 rounded-xl border border-border bg-white p-4 shadow-sm">
-          <h2 className="text-xl font-black">Observacoes importantes</h2>
+          <h2 className="text-xl font-black">Observações importantes</h2>
           <p className="rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground">{String(veiculo.observacao || "Nenhuma observacao cadastrada.")}</p>
         </section>
 
         <section className="grid gap-3 rounded-xl border border-border bg-white p-4 shadow-sm">
-          <h2 className="text-xl font-black">Historico de lavagens</h2>
+          <h2 className="text-xl font-black">Histórico de lavagens</h2>
           {lavagens.length === 0 ? <p className="rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground">Sem lavagens registradas.</p> : null}
           {lavagens.map((lavagem) => (
             <article className="grid gap-3 rounded-lg border border-border p-3 md:grid-cols-[1fr_auto]" key={String(lavagem.id)}>
@@ -74,14 +75,24 @@ export default async function VeiculoHistoricoPage({ params }: { params: Promise
         </section>
 
         <section className="grid gap-3 rounded-xl border border-border bg-white p-4 shadow-sm">
-          <h2 className="text-xl font-black">Fotos e avarias recorrentes</h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {fotos.length === 0 ? <p className="rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground sm:col-span-2 lg:col-span-4">Sem fotos salvas.</p> : null}
-            {fotos.slice(0, 12).map((foto) => (
-              <figure className="overflow-hidden rounded-lg border border-border bg-white" key={String(foto.id)}>
-                {foto.signed_url ? <img alt={String(foto.legenda || foto.tipo)} className="aspect-[4/3] w-full object-cover" src={String(foto.signed_url)} /> : null}
-                <figcaption className="p-2 text-xs font-bold text-muted-foreground">{momentLabel(foto.momento)} - {String(foto.tipo || "foto")} - {formatDate(foto.created_at)}</figcaption>
-              </figure>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-xl font-black">Fotos e avarias recorrentes</h2>
+            <LavaSyncPendingButton compact returnTo={`/lavagestor/veiculos/${String(veiculo.id)}`} />
+          </div>
+          <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
+            {fotos.length === 0 ? <p className="w-full rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground">Sem fotos salvas.</p> : null}
+            {fotos.slice(0, 12).map((foto, index) => (
+              <LavaPhotoCard
+                className="w-[min(82vw,20rem)] shrink-0 snap-start sm:w-72"
+                compact
+                foto={foto}
+                gallery={fotos.slice(0, 12)}
+                galleryIndex={index}
+                key={String(foto.id)}
+                returnTo={`/lavagestor/veiculos/${String(veiculo.id)}`}
+                subtitle={`${momentLabel(foto.momento)} - ${formatDate(foto.created_at)}`}
+                title={String(foto.legenda || foto.tipo || "foto")}
+              />
             ))}
           </div>
         </section>

@@ -68,15 +68,24 @@ export async function listLavaFila() {
     : [{ data: [], error: null }, { data: [], error: null }];
   const fotos = await withSignedPhotoUrls(supabase as any, fotosResult.data ?? []);
   const checklistByLavagem = new Map(((checklistsResult.data ?? []) as Array<Record<string, unknown>>).map((row) => [String(row.lavagem_id), row]));
-  const fotosByLavagem = new Map<string, { entrada?: Record<string, unknown>; checkout?: Record<string, unknown>; entradaCount: number; checkoutCount: number }>();
+  const fotosByLavagem = new Map<string, {
+    entrada?: Record<string, unknown>;
+    checkout?: Record<string, unknown>;
+    entradaFotos: Record<string, unknown>[];
+    checkoutFotos: Record<string, unknown>[];
+    entradaCount: number;
+    checkoutCount: number;
+  }>();
   for (const foto of fotos) {
     const lavagemId = String(foto.lavagem_id ?? "");
-    const bucket = fotosByLavagem.get(lavagemId) ?? { entradaCount: 0, checkoutCount: 0 };
+    const bucket = fotosByLavagem.get(lavagemId) ?? { entradaFotos: [], checkoutFotos: [], entradaCount: 0, checkoutCount: 0 };
     if (String(foto.momento ?? "entrada") === "checkout") {
       bucket.checkoutCount += 1;
+      bucket.checkoutFotos.push(foto);
       if (!bucket.checkout) bucket.checkout = foto;
     } else {
       bucket.entradaCount += 1;
+      bucket.entradaFotos.push(foto);
       if (!bucket.entrada) bucket.entrada = foto;
     }
     fotosByLavagem.set(lavagemId, bucket);
@@ -92,8 +101,16 @@ export async function listLavaFila() {
         checklist_status: checklist ? String(checklist.status ?? "rascunho") : "pendente",
         checklist_label: checklist ? (checklist.status === "concluido" ? "Checklist ok" : "Checklist rascunho") : "Checklist pendente",
         checklist_foto_url: foto?.entrada?.signed_url ?? foto?.checkout?.signed_url ?? "",
+        foto_entrada_id: foto?.entrada?.id ?? "",
+        foto_checkout_id: foto?.checkout?.id ?? "",
         foto_entrada_url: foto?.entrada?.signed_url ?? "",
         foto_checkout_url: foto?.checkout?.signed_url ?? "",
+        foto_entrada_preview_url: foto?.entrada?.preview_url ?? "",
+        foto_checkout_preview_url: foto?.checkout?.preview_url ?? "",
+        foto_entrada_sync_rows: foto?.entrada?.sync_rows ?? [],
+        foto_checkout_sync_rows: foto?.checkout?.sync_rows ?? [],
+        fotos_entrada: foto?.entradaFotos ?? [],
+        fotos_checkout: foto?.checkoutFotos ?? [],
         fotos_entrada_count: foto?.entradaCount ?? 0,
         fotos_checkout_count: foto?.checkoutCount ?? 0,
         checkout_label: (foto?.checkoutCount ?? 0) > 0 ? "Checkout ok" : "Checkout pendente"

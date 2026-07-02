@@ -23,7 +23,7 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
       connections: [],
       pendingCount: 0,
       errorCount: 0,
-      error: storageError instanceof Error ? storageError.message : "Nao foi possivel carregar armazenamento."
+      error: storageError instanceof Error ? storageError.message : "Não foi possível carregar armazenamento."
     }))
   ]);
   const color = config.cor_principal || "#059669";
@@ -83,29 +83,29 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
             <Toggle label="Permitir fiado" description="Mostra a opção fiado nos pagamentos." name="permitir_fiado" defaultChecked={config.permitir_fiado} />
             <Toggle label="Permitir desconto" description="Se desligar, o sistema zera desconto ao salvar." name="permitir_desconto" defaultChecked={config.permitir_desconto} />
             <Toggle label="Bloquear entrega sem pagamento" description="Recibo e entrega ficam protegidos até pagar." name="bloquear_entrega_sem_pagamento" defaultChecked={config.bloquear_entrega_sem_pagamento} />
-            <Toggle label="Exigir checklist antes de finalizar" description="Impede finalizar lavagem sem checklist concluido." name="exigir_checklist_antes_finalizar" defaultChecked={config.exigir_checklist_antes_finalizar} />
-            <Toggle label="Exigir checklist antes de entregar" description="Impede entrega sem checklist concluido." name="exigir_checklist_antes_entregar" defaultChecked={config.exigir_checklist_antes_entregar} />
+            <Toggle label="Exigir checklist antes de finalizar" description="Impede finalizar lavagem sem checklist concluído." name="exigir_checklist_antes_finalizar" defaultChecked={config.exigir_checklist_antes_finalizar} />
+            <Toggle label="Exigir checklist antes de entregar" description="Impede entrega sem checklist concluído." name="exigir_checklist_antes_entregar" defaultChecked={config.exigir_checklist_antes_entregar} />
             <Toggle label="Exigir foto de entrada" description="Impede concluir checklist sem pelo menos uma foto antes." name="exigir_foto_entrada" defaultChecked={config.exigir_foto_entrada} />
-            <Toggle label="Permitir checklist sem foto" description="Libera excecao manual para concluir entrada sem foto." name="permitir_concluir_checklist_sem_foto" defaultChecked={config.permitir_concluir_checklist_sem_foto} />
-            <Toggle label="Exigir checkout antes da entrega" description="Impede entregar sem foto final do veiculo/item." name="exigir_foto_checkout_antes_entrega" defaultChecked={config.exigir_foto_checkout_antes_entrega} />
-            <Toggle label="Permitir recibo sem checklist" description="Se desligar, recibo pago tambem exige checklist concluido." name="permitir_recibo_sem_checklist" defaultChecked={config.permitir_recibo_sem_checklist} />
+            <Toggle label="Permitir checklist sem foto" description="Libera exceção manual para concluir entrada sem foto." name="permitir_concluir_checklist_sem_foto" defaultChecked={config.permitir_concluir_checklist_sem_foto} />
+            <Toggle label="Exigir checkout antes da entrega" description="Impede entregar sem foto final do veículo/item." name="exigir_foto_checkout_antes_entrega" defaultChecked={config.exigir_foto_checkout_antes_entrega} />
+            <Toggle label="Permitir recibo sem checklist" description="Se desligar, recibo pago também exige checklist concluído." name="permitir_recibo_sem_checklist" defaultChecked={config.permitir_recibo_sem_checklist} />
           </ConfigBlock>
 
           <ConfigBlock badge="03" title="Operação" description="Listas usadas dentro da fila e da nova lavagem.">
             <TextArea label="Motivos de cancelamento" name="motivos_cancelamento" defaultValue={config.motivos_cancelamento.join("\n")} helper="Um motivo por linha. Ex.: Cliente desistiu." />
             <TextArea label="Tipos de entrega" name="tipos_entrega" defaultValue={config.tipos_entrega.join("\n")} helper="Um tipo por linha. Ex.: Cliente retira / Levar ao cliente." />
-            <TextArea label="Itens padrao do checklist" name="checklist_itens_padrao" defaultValue={config.checklist_itens_padrao.join("\n")} helper="Um item por linha para orientar a conferencia." />
-            <TextArea label="Tipos de foto do checklist" name="checklist_tipos_foto" defaultValue={config.checklist_tipos_foto.join("\n")} helper="Use codigos como frente, traseira, avaria, antes, depois." />
-            <TextArea label="Fotos de entrada obrigatorias" name="fotos_entrada_obrigatorias" defaultValue={config.fotos_entrada_obrigatorias.join("\n")} helper="Opcional. Um codigo por linha, como frente, traseira ou painel_km." />
+            <TextArea label="Itens padrão do checklist" name="checklist_itens_padrao" defaultValue={config.checklist_itens_padrao.join("\n")} helper="Um item por linha para orientar a conferência." />
+            <TextArea label="Tipos de foto do checklist" name="checklist_tipos_foto" defaultValue={config.checklist_tipos_foto.join("\n")} helper="Use códigos como frente, traseira, avaria, antes, depois." />
+            <TextArea label="Fotos de entrada obrigatórias" name="fotos_entrada_obrigatorias" defaultValue={config.fotos_entrada_obrigatorias.join("\n")} helper="Opcional. Um código por linha, como frente, traseira ou painel_km." />
           </ConfigBlock>
 
           <ConfigBlock badge="04" title="WhatsApp" description="Textos enviados ao cliente. Toque numa mensagem e depois numa variável para inserir.">
             <MessageTemplateEditor readyDefault={config.mensagem_veiculo_pronto} receiptDefault={config.mensagem_recibo} />
             <TextArea compact label="Pos-venda: agradecimento" name="mensagem_pos_venda_agradecimento" defaultValue={config.mensagem_pos_venda_agradecimento} />
-            <TextArea compact label="Pos-venda: pesquisa de satisfacao" name="mensagem_pesquisa_satisfacao" defaultValue={config.mensagem_pesquisa_satisfacao} />
+            <TextArea compact label="Pos-venda: pesquisa de satisfação" name="mensagem_pesquisa_satisfacao" defaultValue={config.mensagem_pesquisa_satisfacao} />
             <TextArea compact label="Pos-venda: lembrete de retorno" name="mensagem_retorno" defaultValue={config.mensagem_retorno} />
-            <TextArea compact label="Pos-venda: cobranca de fiado" name="mensagem_cobranca_fiado" defaultValue={config.mensagem_cobranca_fiado} />
-            <TextArea compact label="Pos-venda: promocao" name="mensagem_promocao" defaultValue={config.mensagem_promocao} />
+            <TextArea compact label="Pos-venda: cobrança de fiado" name="mensagem_cobranca_fiado" defaultValue={config.mensagem_cobranca_fiado} />
+            <TextArea compact label="Pos-venda: promoção" name="mensagem_promocao" defaultValue={config.mensagem_promocao} />
           </ConfigBlock>
 
           <ConfigBlock badge="05" title="Identidade visual" description="Cor e aparência do LavaGestor para esta empresa.">
@@ -135,12 +135,13 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
   );
 }
 
-type StorageOverview = Awaited<ReturnType<typeof getLavaStorageOverview>> | { connections: Record<string, unknown>[]; pendingCount: number; errorCount: number; error: string; oauth?: Record<string, unknown>[] };
+type StorageOverview = Awaited<ReturnType<typeof getLavaStorageOverview>> | { connections: Record<string, unknown>[]; pendingCount: number; errorCount: number; error: string; oauth?: Record<string, unknown>[]; lastSyncErrors?: Record<string, unknown>[] };
 
 function StorageSection({ overview }: { overview: StorageOverview }) {
   const providers: LavaStorageProvider[] = ["google_drive", "dropbox"];
   const connections = new Map((overview.connections ?? []).map((connection) => [String(connection.provider), connection]));
   const oauth = new Map((overview.oauth ?? []).map((config) => [String(config.provider), config]));
+  const lastSyncErrors = new Map(((overview.lastSyncErrors ?? []) as Record<string, unknown>[]).map((row) => [String(row.provider), row]));
 
   return (
     <section className="grid gap-4 rounded-2xl border border-border bg-white p-4 shadow-sm">
@@ -148,7 +149,7 @@ function StorageSection({ overview }: { overview: StorageOverview }) {
         <div>
           <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Backup externo</p>
           <h2 className="mt-1 text-xl font-black">Google Drive ou Dropbox</h2>
-          <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">As fotos continuam salvas no Supabase. O backup externo e opcional por empresa.</p>
+          <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">As fotos continuam salvas no Supabase. O backup externo é opcional por empresa.</p>
         </div>
         <form action="/api/lavagestor/storage/sync" method="post">
           <button className="button-secondary" type="submit">Sincronizar pendentes</button>
@@ -171,29 +172,41 @@ function StorageSection({ overview }: { overview: StorageOverview }) {
           const connection = connections.get(provider);
           const oauthConfig = oauth.get(provider);
           const connected = connection?.status === "conectado";
+          const hasError = connection?.status === "erro";
+          const lastError = String(connection?.last_error || (connected || hasError ? lastSyncErrors.get(provider)?.erro : "") || "").trim();
           return (
-            <div className="grid gap-3 rounded-xl border border-border bg-muted/40 p-3" key={provider}>
+            <div className="grid min-w-0 gap-3 overflow-hidden rounded-xl border border-border bg-muted/40 p-3" key={provider}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="font-black">{lavaStorageProviderLabel(provider)}</h3>
-                  <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">{connected ? String(connection?.account_email || "Conta conectada") : "Nao conectado"}</p>
+                  <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">{connected || hasError ? String(connection?.account_email || "Conta conectada") : "Não conectado"}</p>
                   {connection?.root_folder_path ? <p className="mt-1 break-words text-xs font-semibold text-muted-foreground">{String(connection.root_folder_path)}</p> : null}
+                  {connection?.last_test_at ? <p className="mt-1 text-xs font-semibold text-muted-foreground">Último teste: {formatDateTimeShort(connection.last_test_at)}</p> : null}
                 </div>
-                <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${connected ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-900"}`}>{connected ? "Conectado" : "Pendente"}</span>
+                <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${connected ? "bg-emerald-50 text-emerald-900" : hasError ? "bg-red-50 text-red-900" : "bg-amber-50 text-amber-900"}`}>{connected ? "Conectado" : hasError ? "Erro" : "Não conectado"}</span>
               </div>
               {oauthConfig?.redirectUri ? (
-                <div className="grid gap-1 rounded-lg border border-border bg-white p-2 text-xs font-semibold text-muted-foreground">
+                <div className="grid min-w-0 gap-1 rounded-lg border border-border bg-white p-2 text-xs font-semibold text-muted-foreground">
                   <span className="font-black uppercase tracking-[0.08em]">Redirect URI usada</span>
-                  <code className="break-all rounded bg-muted px-2 py-1 font-mono text-[11px] text-foreground">{String(oauthConfig.redirectUri)}</code>
-                  <span>Client ID: {oauthConfig.clientIdConfigured ? "configurado" : "pendente"} - origem: {redirectSourceLabel(String(oauthConfig.redirectSource ?? ""))}</span>
+                  <code className="max-w-full overflow-x-auto whitespace-pre-wrap break-all rounded bg-muted px-2 py-1 font-mono text-[11px] leading-5 text-foreground">{String(oauthConfig.redirectUri)}</code>
+                  <span>Client ID: {oauthConfig.clientIdConfigured ? "configurado" : "pendente"} - origem: {sourceLabel(String(oauthConfig.clientIdSource ?? ""))}</span>
+                  <span>Redirect: {sourceLabel(String(oauthConfig.redirectSource ?? ""))}</span>
+                </div>
+              ) : null}
+              {lastError ? (
+                <div className="grid max-h-56 min-w-0 gap-2 overflow-auto rounded-lg border border-red-200 bg-red-50 p-2 text-xs font-semibold text-red-950">
+                  <span className="font-black uppercase tracking-[0.08em]">Último erro</span>
+                  <span className="whitespace-pre-wrap break-words">{lastError}</span>
+                  <ProviderFixInstructions provider={provider} error={lastError} />
                 </div>
               ) : null}
               <div className="flex flex-wrap gap-2">
-                <a className={connected ? "button-secondary" : "button-primary"} href={`/api/lavagestor/storage/connect/${provider}`}>{connected ? "Reconectar" : "Conectar"}</a>
+                <a className={connected || hasError ? "button-secondary" : "button-primary"} href={`/api/lavagestor/storage/connect/${provider}`}>{connected || hasError ? "Reconectar" : "Conectar"}</a>
                 <form action="/api/lavagestor/storage/test" method="post">
-                  <button className="button-secondary" disabled={!connected} type="submit">Testar</button>
+                  <input name="provider" type="hidden" value={provider} />
+                  <button className="button-secondary" disabled={!connected && !hasError} type="submit">Testar</button>
                 </form>
-                {connected ? (
+                {connected || hasError ? (
                   <form action="/api/lavagestor/storage/disconnect" method="post">
                     <input name="provider" type="hidden" value={provider} />
                     <button className="button-danger" type="submit">Desconectar</button>
@@ -215,9 +228,42 @@ async function getRequestOrigin() {
   return `${proto}://${host}`;
 }
 
-function redirectSourceLabel(value: string) {
-  if (value === "request_origin") return "dominio atual";
-  return value || "dominio atual";
+function sourceLabel(value: string) {
+  if (value === "request_origin") return "domínio atual";
+  return value || "domínio atual";
+}
+
+function formatDateTimeShort(value: unknown) {
+  if (!value) return "";
+  const date = new Date(String(value));
+  return Number.isFinite(date.getTime()) ? date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "";
+}
+
+function ProviderFixInstructions({ provider, error }: { provider: LavaStorageProvider; error: string }) {
+  const lower = error.toLowerCase();
+  if (provider === "google_drive" && (lower.includes("drive api") || lower.includes("has not been used") || lower.includes("disabled"))) {
+    return (
+      <div className="grid gap-1 rounded-md bg-white/70 p-2 text-red-950">
+        <span>Para corrigir: ative a Google Drive API no projeto Google Cloud usado pelo Client ID do LavaGestor.</span>
+        <a className="break-all font-black underline" href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" rel="noreferrer">https://console.cloud.google.com/apis/library/drive.googleapis.com</a>
+      </div>
+    );
+  }
+
+  if (provider === "dropbox" && lower.includes("missing_scope")) {
+    return (
+      <div className="grid gap-1 rounded-md bg-white/70 p-2 text-red-950">
+        <span>Para corrigir: abra o Dropbox App Console, vá em Permissions, marque as permissões necessárias, salve e reconecte o Dropbox no LavaGestor.</span>
+        <span className="font-black">Permissões: account_info.read, files.content.write, files.content.read, files.metadata.read, files.metadata.write.</span>
+      </div>
+    );
+  }
+
+  if (lower.includes("refresh token") || lower.includes("invalid_grant") || lower.includes("invalid credentials")) {
+    return <span className="rounded-md bg-white/70 p-2 text-red-950">Reconecte este provedor para gerar um novo token.</span>;
+  }
+
+  return null;
 }
 
 function ConfigBlock({ badge, title, description, children, defaultOpen = false }: { badge: string; title: string; description: string; children: ReactNode; defaultOpen?: boolean }) {

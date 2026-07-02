@@ -6,10 +6,11 @@ import { logAction } from "@/lib/core-data";
 import { booleanValue, messageParam, nullableTextValue, textValue } from "@/lib/form-utils";
 import { canUploadCheckoutPhoto, ensureChecklistForLavagem, LAVA_CHECKLIST_BUCKET } from "@/lib/lavagestor-checklists-data";
 import { requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
-import { syncLavaPhotoToExternalStorage, syncPendingLavaPhotos } from "@/lib/lavagestor-storage";
+import { ensurePendingSyncRowsForPhoto } from "@/lib/lavagestor-storage";
 import { getSupabaseServer } from "@/lib/supabase";
 
 type Row = Record<string, unknown>;
+const MAX_LAVA_PHOTO_BYTES = 8 * 1024 * 1024;
 
 export async function saveLavaChecklist(formData: FormData) {
   const lavagemId = textValue(formData, "lavagem_id");
@@ -73,10 +74,6 @@ export async function saveLavaChecklist(formData: FormData) {
   }
 
   await updateChecklistServicos(client, current.empresaId, checklist.id, formData);
-  if (intent === "concluir") {
-    await syncPendingLavaPhotos(current, lavagemId).catch(() => null);
-  }
-
   await insertHistory(client, current, lavagemId, intent === "concluir" ? "checklist_entrada_concluido" : intent === "cancelar" ? "checklist_cancelado" : "checklist_salvo");
   await logAction({ appSlug: "lavagestor", acao: "salvar checklist", detalhes: { lavagem_id: lavagemId, status } });
   revalidateLavaChecklistPaths(lavagemId);
@@ -121,6 +118,10 @@ export async function uploadLavaChecklistFoto(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam("Envie apenas arquivos de imagem.")}`);
   }
 
+  if (file.size > MAX_LAVA_PHOTO_BYTES) {
+    redirect(`${returnTo}?error=${messageParam("Foto muito grande. Tire outra foto ou envie uma imagem menor.")}`);
+  }
+
   const tipo = sanitizePathPart(textValue(formData, "tipo") || "outras");
   const extension = extensionFromFile(file);
   const storagePath = `${current.empresaId}/${lavagemId}/${momento}/${tipo}/${Date.now()}-${crypto.randomUUID()}${extension}`;
@@ -152,24 +153,18 @@ export async function uploadLavaChecklistFoto(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam(error.message)}`);
   }
 
-  if (foto) {
-    await syncLavaPhotoToExternalStorage({
-      current,
-      foto,
-      lavagem,
-      bytes,
-      mimeType: file.type || "image/jpeg",
-      fileName: file.name || undefined
-    }).catch(() => null);
-  }
+  const pending = foto ? await ensurePendingSyncRowsForPhoto(current, foto).catch(() => ({ created: 0, skipped: 0, connected: 0 })) : { created: 0, skipped: 0, connected: 0 };
 
-  await insertHistory(client, current, lavagemId, momento === "checkout" ? "foto_checkout_adicionada" : "foto_entrada_adicionada");
+  await insertHistory(client, current, lavagemId, "foto_local_salva", momento === "checkout" ? "Foto de checkout salva no Supabase." : "Foto de entrada salva no Supabase.");
+  if (pending.created > 0) {
+    await insertHistory(client, current, lavagemId, "backup_pendente", `${pending.created} backup(s) externo(s) pendente(s).`);
+  }
   if (momento === "checkout" && checkoutCountBefore === 0) {
-    await insertHistory(client, current, lavagemId, "checkout_concluido");
+    await insertHistory(client, current, lavagemId, "checkout_concluido", "Primeira foto de checkout registrada.");
   }
   await logAction({ appSlug: "lavagestor", acao: "adicionar foto checklist", detalhes: { lavagem_id: lavagemId, tipo, momento } });
   revalidateLavaChecklistPaths(lavagemId);
-  redirect(`${returnTo}?ok=${messageParam(momento === "checkout" ? "Foto de checkout anexada." : "Foto de entrada anexada.")}`);
+  redirect(`${returnTo}?ok=${messageParam("Foto salva no LavaGestor. Backup externo sera sincronizado em seguida.")}#fotos-${momento}`);
 }
 
 export async function deleteLavaChecklistFoto(formData: FormData) {
@@ -300,7 +295,7 @@ async function updateChecklistServicos(client: any, empresaId: string | null, ch
   );
 }
 
-async function insertHistory(client: any, current: { empresaId: string | null; usuario: { id: string } }, lavagemId: string, acao: string) {
+async function insertHistory(client: any, current: { empresaId: string | null; usuario: { id: string } }, lavagemId: string, acao: string, observacao?: string | null) {
   await client.from("lava_historico").insert({
     empresa_id: current.empresaId,
     lavagem_id: lavagemId,
@@ -308,7 +303,7 @@ async function insertHistory(client: any, current: { empresaId: string | null; u
     acao,
     status_anterior: null,
     status_novo: null,
-    observacao: null
+    observacao: observacao ?? null
   });
 }
 

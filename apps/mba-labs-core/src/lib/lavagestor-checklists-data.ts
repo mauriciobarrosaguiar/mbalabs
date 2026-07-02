@@ -167,12 +167,20 @@ export async function ensureChecklistForLavagem(client: any, current: { empresaI
 
 export async function withSignedPhotoUrls(client: any, photos: unknown[]): Promise<Row[]> {
   const rows = photos as Row[];
+  const syncByFoto = await getPhotoSyncMap(client, null, rows.map((row) => String(row.id ?? "")).filter(Boolean));
   return Promise.all(
     rows.map(async (row) => {
       const path = String(row.storage_path ?? "");
-      if (!path) return { ...row, signed_url: "" } as Row;
-      const { data } = await client.storage.from(LAVA_CHECKLIST_BUCKET).createSignedUrl(path, 60 * 60);
-      return { ...row, signed_url: data?.signedUrl ?? row.public_url ?? "" } as Row;
+      const proxyUrl = row.id ? `/api/lavagestor/checklists/fotos/${row.id}` : "";
+      if (!path) return { ...row, signed_url: proxyUrl, preview_url: proxyUrl, sync_rows: syncByFoto.get(String(row.id)) ?? [] } as Row;
+      const { data, error } = await client.storage.from(LAVA_CHECKLIST_BUCKET).createSignedUrl(path, 60 * 60);
+      return {
+        ...row,
+        signed_url: data?.signedUrl ?? proxyUrl,
+        preview_url: proxyUrl,
+        preview_error: error?.message ?? null,
+        sync_rows: syncByFoto.get(String(row.id)) ?? []
+      } as Row;
     })
   );
 }
@@ -221,11 +229,12 @@ async function getPhotoSyncMap(client: any, empresaId: string | null, fotoIds: s
   const map = new Map<string, Row[]>();
   if (fotoIds.length === 0) return map;
 
-  const { data } = await client
+  let query = client
     .from("lava_file_sync")
-    .select("foto_id,provider,status,remote_path,remote_url,erro,synced_at,updated_at")
-    .eq("empresa_id", empresaId)
+    .select("foto_id,provider,status,remote_path,remote_url,erro,last_attempt_at,synced_at,updated_at")
     .in("foto_id", fotoIds);
+  if (empresaId) query = query.eq("empresa_id", empresaId);
+  const { data } = await query;
 
   for (const row of (data ?? []) as Row[]) {
     const fotoId = String(row.foto_id ?? "");

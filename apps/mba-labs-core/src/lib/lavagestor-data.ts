@@ -148,6 +148,15 @@ export async function getLavaDashboard() {
     openVales.length > 0 ? { label: "Existem vales abertos.", href: "/lavagestor/vales", tone: "warning" } : null
   ].filter(Boolean);
 
+  const phase3 = await getOptionalPremiumMetrics(client, empresaId, todayStart, tomorrowStart);
+  const recomendacoesPremium = [
+    phase3.agendamentosHoje > 0 ? { label: `${phase3.agendamentosHoje} agendamento(s) hoje.`, href: "/lavagestor/agendamentos", tone: "info" } : null,
+    phase3.estoqueBaixo > 0 ? { label: `${phase3.estoqueBaixo} produto(s) com estoque baixo.`, href: "/lavagestor/estoque", tone: "warning" } : null,
+    phase3.cobrancasPendentes > 0 ? { label: `${phase3.cobrancasPendentes} cobranca(s) simulada(s) pendente(s).`, href: "/lavagestor/pagamentos-integrados", tone: "warning" } : null,
+    phase3.automacaoPendente > 0 ? { label: `${phase3.automacaoPendente} contato(s) aguardando pos-venda.`, href: "/lavagestor/automacoes", tone: "info" } : null,
+    retornoClientes > 0 ? { label: "Clientes recorrentes: avalie pacotes e promocoes.", href: "/lavagestor/iamob", tone: "success" } : null
+  ].filter(Boolean);
+
   return {
     current,
     companyName:
@@ -179,10 +188,15 @@ export async function getLavaDashboard() {
     ticketMedio,
     clientesAtendidosMes,
     retornoClientes,
+    agendamentosHoje: phase3.agendamentosHoje,
+    estoqueBaixo: phase3.estoqueBaixo,
+    cobrancasPendentes: phase3.cobrancasPendentes,
+    automacaoPendente: phase3.automacaoPendente,
     comissoesPendentesQuantidade: pendingCommissions.length,
     lavagensSemChecklist,
     clientesParaPosVenda,
     alertas,
+    recomendacoesPremium,
     totalComissoesPendentes: sumMoney(pendingCommissions, "valor"),
     totalValesAbertos: sumMoney(openVales, "valor"),
     ultimasLavagens: ((ultimasLavagens.data ?? []) as Array<Record<string, unknown>>).map((row) => ({
@@ -429,6 +443,38 @@ export async function listLavaVales(search = "") {
     .filter((row) => includesSearch(row, ["funcionario", "descricao", "status"], search));
 
   return { rows, error: error?.message ?? movimentosResult.error?.message ?? null };
+}
+
+async function getOptionalPremiumMetrics(client: any, empresaId: string | null, todayStart: string, tomorrowStart: string) {
+  const [agendamentos, estoque, cobrancas, automacoes] = await Promise.all([
+    safeOptionalQuery(scopedByEmpresa(
+      client
+        .from("lava_agendamentos")
+        .select("id", { count: "exact", head: true })
+        .gte("data_inicio", todayStart)
+        .lt("data_inicio", tomorrowStart),
+      empresaId
+    ), { count: 0 }),
+    safeOptionalQuery(scopedByEmpresa(client.from("lava_estoque_produtos").select("id,estoque_atual,estoque_minimo").eq("ativo", true).limit(300), empresaId), { data: [] }),
+    safeOptionalQuery(scopedByEmpresa(client.from("lava_cobrancas").select("id", { count: "exact", head: true }).in("status", ["pendente", "erro"]), empresaId), { count: 0 }),
+    safeOptionalQuery(scopedByEmpresa(client.from("lava_automacao_fila").select("id", { count: "exact", head: true }).in("status", ["pendente", "pronto"]), empresaId), { count: 0 })
+  ]);
+  const estoqueRows = (estoque.data ?? []) as Array<Record<string, unknown>>;
+  return {
+    agendamentosHoje: agendamentos.count ?? 0,
+    estoqueBaixo: estoqueRows.filter((row) => Number(row.estoque_atual ?? 0) <= Number(row.estoque_minimo ?? 0)).length,
+    cobrancasPendentes: cobrancas.count ?? 0,
+    automacaoPendente: automacoes.count ?? 0
+  };
+}
+
+async function safeOptionalQuery(query: any, fallback: any) {
+  try {
+    const result = await query;
+    return result.error ? fallback : result;
+  } catch {
+    return fallback;
+  }
 }
 
 async function countByEmpresa(

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { FilaKanbanClient } from "@/components/lavagestor/FilaKanbanClient";
+import { LavaSyncPendingButton } from "@/components/lavagestor/LavaPhotoCard";
 import { MessageBanner, PageHeader } from "@/components/ui-kit";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
@@ -21,6 +22,7 @@ export default async function FilaLavagemPage({ searchParams }: { searchParams: 
           actions={
             <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:flex sm:flex-wrap">
               <Link className="button-secondary min-h-11 px-4 text-sm" href="/lavagestor">Voltar</Link>
+              <LavaSyncPendingButton compact returnTo="/lavagestor/fila" />
               <Link className="button-primary min-h-11 px-4 text-sm" href="/lavagestor/nova-lavagem">Nova lavagem</Link>
             </div>
           }

@@ -29,10 +29,25 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
     { label: "Aguardando retirada", value: dashboard.finalizadosAguardandoRetirada },
     { label: "A receber", value: formatMoney(dashboard.aReceber), tone: "warning" },
     { label: "Fiado", value: formatMoney(dashboard.fiado), tone: "warning" },
-    { label: "Ticket medio", value: formatMoney(dashboard.ticketMedio), tone: "success" },
-    { label: "Clientes no mes", value: dashboard.clientesAtendidosMes },
+    { label: "Ticket médio", value: formatMoney(dashboard.ticketMedio), tone: "success" },
+    { label: "Clientes no mês", value: dashboard.clientesAtendidosMes },
     { label: "Retorno de clientes", value: dashboard.retornoClientes },
-    { label: "Comissoes pendentes", value: formatMoney(dashboard.totalComissoesPendentes), tone: "warning" }
+    { label: "Agendamentos hoje", value: dashboard.agendamentosHoje },
+    { label: "Estoque baixo", value: dashboard.estoqueBaixo, tone: "warning" },
+    { label: "Cobranças pendentes", value: dashboard.cobrancasPendentes, tone: "warning" },
+    { label: "Automação pendente", value: dashboard.automacaoPendente, tone: "warning" },
+    { label: "Comissões pendentes", value: formatMoney(dashboard.totalComissoesPendentes), tone: "warning" }
+  ];
+
+  const quickActions = [
+    { href: "/lavagestor/nova-lavagem", label: "Nova lavagem" },
+    { href: "/lavagestor/placa", label: "Ler placa" },
+    { href: "/lavagestor/agendamentos", label: "Novo agendamento" },
+    { href: "/lavagestor/estoque", label: "Estoque" },
+    { href: "/lavagestor/pos-venda", label: "Pós-venda" },
+    { href: "/lavagestor/iamob", label: "IAMob" },
+    { href: "/lavagestor/financeiro", label: "Fechar caixa" },
+    { href: "/lavagestor/configuracoes", label: "Backup" }
   ];
 
   return (
@@ -60,14 +75,25 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
           {metrics.map((metric) => <MetricCard key={metric.label} label={metric.label} tone={metric.tone} value={metric.value} />)}
         </div>
 
-        <Panel title="Acoes rapidas">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
-            <QuickAction href="/lavagestor/nova-lavagem" label="Nova lavagem" />
-            <QuickAction href="/lavagestor/busca" label="Buscar placa" />
-            <QuickAction href="/lavagestor/fila" label="Ver fila" />
-            <QuickAction href="/lavagestor/financeiro" label="Fechar caixa" />
-            <QuickAction href="/lavagestor/pos-venda" label="Pos-venda" />
-            <QuickAction href="/lavagestor/servicos" label="Servicos" />
+        <Panel title="IAMob recomenda">
+          {dashboard.recomendacoesPremium.length === 0 ? (
+            <p className="rounded-lg bg-muted p-4 text-sm font-semibold text-muted-foreground">Sem recomendações críticas agora.</p>
+          ) : (
+            <div className="grid gap-2 md:grid-cols-2">
+              {dashboard.recomendacoesPremium.map((item: any) => (
+                <Link className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm font-black text-emerald-950 shadow-sm" href={item.href} key={item.label}>
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="Ações rápidas">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+            {quickActions.map((item) => (
+              <Link className="button-secondary min-h-11 justify-center text-center" href={item.href} key={item.href}>{item.label}</Link>
+            ))}
           </div>
         </Panel>
 
@@ -83,7 +109,7 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
           </Panel>
         ) : null}
 
-        <Panel title="Ultimas lavagens">
+        <Panel title="Últimas lavagens">
           {dashboard.ultimasLavagens.length === 0 ? (
             <p className="rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">Nenhuma lavagem registrada ainda.</p>
           ) : (
@@ -101,8 +127,8 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
                     <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                       <MobileInfo label="Data" value={formatDate(wash.data_lavagem)} />
                       <MobileInfo label="Valor" value={formatMoney(wash.valor)} strong />
-                      <MobileInfo label="Servico" value={String(wash.servico ?? "-")} />
-                      <MobileInfo label="Funcionario" value={String(wash.funcionario ?? "-")} />
+                      <MobileInfo label="Serviço" value={String(wash.servico ?? "-")} />
+                      <MobileInfo label="Funcionário" value={String(wash.funcionario ?? "-")} />
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <Link className="button-secondary justify-center" href={`/lavagestor/tickets/${wash.id}`}>Ticket</Link>
@@ -117,12 +143,12 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
                     <tr>
                       <th className="py-2 pr-3">Data</th>
                       <th className="py-2 pr-3">Cliente</th>
-                      <th className="py-2 pr-3">Veiculo</th>
-                      <th className="py-2 pr-3">Servico</th>
-                      <th className="py-2 pr-3">Funcionario</th>
+                      <th className="py-2 pr-3">Veículo</th>
+                      <th className="py-2 pr-3">Serviço</th>
+                      <th className="py-2 pr-3">Funcionário</th>
                       <th className="py-2 pr-3">Status</th>
                       <th className="py-2 pr-3">Valor</th>
-                      <th className="py-2 pr-3">Acoes</th>
+                      <th className="py-2 pr-3">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -168,15 +194,11 @@ function MobileInfo({ label, value, strong = false }: { label: string; value: st
   );
 }
 
-function QuickAction({ href, label }: { href: string; label: string }) {
-  return <Link className="rounded-lg border border-border bg-white px-3 py-3 text-center text-sm font-black shadow-sm hover:bg-emerald-50" href={href}>{label}</Link>;
-}
-
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return <section className="rounded-xl border border-border bg-card p-3 shadow-sm sm:p-4"><h2 className="text-base font-black sm:text-lg">{title}</h2><div className="mt-3">{children}</div></section>;
 }
 
 function labelRole(role: string) {
-  const labels: Record<string, string> = { admin_master: "Admin Master", super_admin: "Admin Master", admin_empresa: "Admin da empresa", operador: "Operador", usuario: "Usuario" };
+  const labels: Record<string, string> = { admin_master: "Admin Master", super_admin: "Admin Master", admin_empresa: "Admin da empresa", operador: "Operador", usuario: "Usuário" };
   return labels[role] ?? role;
 }
