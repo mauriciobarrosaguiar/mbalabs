@@ -37,7 +37,7 @@ const lavaNavItems: LavaNavItem[] = [
   { href: "/lavagestor/comissoes", label: "Comissões", icon: HandCoins },
   { href: "/lavagestor/vales", label: "Vales", icon: Banknote },
   { href: "/lavagestor/pagamentos", label: "Pagamentos", icon: CreditCard },
-  { href: "/lavagestor/financeiro", label: "Financeiro", icon: Banknote },
+  { href: "/lavagestor/financeiro", label: "Caixa", icon: Banknote },
   { href: "/lavagestor/pos-venda", label: "Pos-venda", icon: MessageCircle },
   { href: "/lavagestor/relatorios", label: "Relatórios", icon: FileText },
   { href: "/lavagestor/configuracoes", label: "Configurações", icon: Settings }
