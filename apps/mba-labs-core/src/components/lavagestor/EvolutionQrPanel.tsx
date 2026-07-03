@@ -42,6 +42,7 @@ type QrResult = {
 
 export function EvolutionQrPanel({ canEdit, manager, integration, showDiagnostics = false }: EvolutionQrPanelProps) {
   const [isPending, startTransition] = useTransition();
+  const [pendingAction, setPendingAction] = useState<"connect" | "qr" | "status" | "reconnect" | "disconnect" | "">("");
   const [result, setResult] = useState<QrResult | null>(null);
   const [status, setStatus] = useState(integration.status);
   const [error, setError] = useState(integration.ultimoErro || "");
@@ -49,8 +50,9 @@ export function EvolutionQrPanel({ canEdit, manager, integration, showDiagnostic
   const connected = status === "conectado" || result?.status === "conectado";
   const qrImage = useMemo(() => imageSource(result?.qrCode), [result?.qrCode]);
   const hasSavedEvolutionConfig = integration.provider === "evolution" && Boolean(integration.apiUrl) && integration.apiKeyConfigured === true;
-  const evolutionAvailable = manager.configured || hasSavedEvolutionConfig;
+  const evolutionAvailable = manager.configured || Boolean(manager.apiUrl) || hasSavedEvolutionConfig;
   const managerAlert = evolutionManagerMessage(manager, hasSavedEvolutionConfig, showDiagnostics);
+  const busy = isPending || Boolean(pendingAction);
 
   useEffect(() => {
     if (!result?.qrCode || connected) return;
@@ -70,6 +72,7 @@ export function EvolutionQrPanel({ canEdit, manager, integration, showDiagnostic
   }, [connected, result?.qrCode]);
 
   function loadQr() {
+    setPendingAction("qr");
     startTransition(async () => {
       setError("");
       const next = (await getEvolutionEasyQrAction()) as QrResult;
@@ -79,10 +82,12 @@ export function EvolutionQrPanel({ canEdit, manager, integration, showDiagnostic
       } else {
         setError(String(next.error || "Não foi possível gerar o QR Code."));
       }
+      setPendingAction("");
     });
   }
 
   function checkStatus() {
+    setPendingAction("status");
     startTransition(async () => {
       setError("");
       const next = (await checkEvolutionEasyStatusAction()) as QrResult;
@@ -92,6 +97,7 @@ export function EvolutionQrPanel({ canEdit, manager, integration, showDiagnostic
       } else {
         setError(String(next.error || "Não foi possível conferir o WhatsApp."));
       }
+      setPendingAction("");
     });
   }
 
@@ -121,27 +127,29 @@ export function EvolutionQrPanel({ canEdit, manager, integration, showDiagnostic
       )}
 
       <div className="flex flex-wrap gap-2">
-        <form action={createEvolutionEasyInstanceAction}>
-          <button className="button-primary" disabled={!canEdit || !evolutionAvailable || isPending} type="submit">
+        <form action={createEvolutionEasyInstanceAction} onSubmit={() => setPendingAction("connect")}>
+          <button className="button-primary" disabled={!canEdit || !evolutionAvailable || busy} type="submit">
             <PlugZap className="h-4 w-4" aria-hidden />
-            Conectar WhatsApp
+            {pendingAction === "connect" ? "Conectando..." : "Conectar WhatsApp"}
           </button>
         </form>
-        <button className="button-secondary" disabled={!canEdit || !evolutionAvailable || isPending} type="button" onClick={loadQr}>
+        <button className="button-secondary" disabled={!canEdit || !evolutionAvailable || busy} type="button" onClick={loadQr}>
           <QrCode className="h-4 w-4" aria-hidden />
-          Mostrar QR Code
+          {pendingAction === "qr" ? "Gerando QR..." : "Mostrar QR Code"}
         </button>
-        <button className="button-secondary" disabled={!canEdit || !evolutionAvailable || isPending} type="button" onClick={checkStatus}>
+        <button className="button-secondary" disabled={!canEdit || !evolutionAvailable || busy} type="button" onClick={checkStatus}>
           <RefreshCw className="h-4 w-4" aria-hidden />
-          Verificar status
+          {pendingAction === "status" ? "Verificando..." : "Verificar status"}
         </button>
-        <form action={reconnectEvolutionEasyAction}>
-          <button className="button-secondary" disabled={!canEdit || !evolutionAvailable || !hasInstance || isPending} type="submit">Reconectar</button>
+        <form action={reconnectEvolutionEasyAction} onSubmit={() => setPendingAction("reconnect")}>
+          <button className="button-secondary" disabled={!canEdit || !evolutionAvailable || !hasInstance || busy} type="submit">
+            {pendingAction === "reconnect" ? "Reconectando..." : "Reconectar"}
+          </button>
         </form>
-        <form action={disconnectEvolutionEasyAction}>
-          <button className="button-danger" disabled={!canEdit || !hasInstance || isPending} type="submit">
+        <form action={disconnectEvolutionEasyAction} onSubmit={() => setPendingAction("disconnect")}>
+          <button className="button-danger" disabled={!canEdit || !hasInstance || busy} type="submit">
             <PowerOff className="h-4 w-4" aria-hidden />
-            Desconectar
+            {pendingAction === "disconnect" ? "Desconectando..." : "Desconectar"}
           </button>
         </form>
       </div>
@@ -172,7 +180,7 @@ export function EvolutionQrPanel({ canEdit, manager, integration, showDiagnostic
         </details>
       ) : null}
 
-      {isPending ? <p className="rounded-xl bg-muted p-3 text-sm font-semibold text-muted-foreground">Conferindo WhatsApp...</p> : null}
+      {busy ? <p className="rounded-xl bg-muted p-3 text-sm font-semibold text-muted-foreground">Ação recebida. Aguarde alguns segundos...</p> : null}
 
       {qrImage ? (
         <div className="grid gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-3 md:grid-cols-[220px_1fr] md:items-center">
@@ -208,9 +216,9 @@ function DiagnosticItem({ label, value, ok }: { label: string; value: string; ok
 
 function evolutionManagerMessage(manager: EvolutionQrPanelProps["manager"], hasSavedEvolutionConfig: boolean, showDiagnostics: boolean) {
   if (hasSavedEvolutionConfig) return showDiagnostics ? "Configuração de suporte da Evolution salva para esta empresa." : "WhatsApp automático pronto para conexão. Clique em Conectar WhatsApp.";
-  if (!showDiagnostics) return "A conexão automática do WhatsApp ainda não está pronta. Fale com o suporte da MBA Labs para ativar.";
+  if (!showDiagnostics) return manager.apiUrl ? "WhatsApp automático pronto para ativação. Clique em Conectar WhatsApp." : "A conexão automática do WhatsApp ainda não está pronta. Fale com o suporte da MBA Labs para ativar.";
   if (manager.apiUrl && !manager.apiKeyConfigured) {
-    return "A URL da Evolution foi encontrada, mas a API Key central não foi lida pelo app. Cole a AUTHENTICATION_API_KEY no campo avançado Evolution API Key, salve o modo do WhatsApp e tente conectar novamente.";
+    return "A URL da Evolution foi encontrada, mas a API Key central não foi lida pelo app. O sistema tentará usar a chave central salva pelo suporte MBA Labs.";
   }
   if (!manager.apiUrl && manager.apiKeyConfigured) {
     return "A API Key da Evolution foi encontrada, mas a URL central não foi configurada. Configure LAVAGESTOR_EVOLUTION_MANAGER_URL na Vercel e faça redeploy.";
