@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import { decryptLavaSecret, encryptLavaSecret, redactSensitiveText } from "./lavagestor-secrets";
 import { getSupabaseServer } from "./supabase";
 
@@ -108,7 +109,7 @@ export async function createOrGetEvolutionInstance(current: Current) {
       api_key_encrypted: encryptLavaSecret(config.apiKey, "whatsapp"),
       instancia_id: config.instance,
       setup_facil: true,
-      central_manager: config.rowId ? false : true,
+      central_manager: true,
       qr_status: connected ? "conectado" : "aguardando_qr",
       ultimo_erro: null,
       ultimo_teste_em: new Date().toISOString()
@@ -237,6 +238,16 @@ async function resolveEvolutionCreateConfig(current: Current): Promise<Evolution
     };
   }
 
+  const reusable = await getReusableEvolutionManagerCredentials(current).catch(() => null);
+  if (reusable) {
+    return {
+      apiUrl: reusable.apiUrl,
+      apiKey: reusable.apiKey,
+      instance,
+      rowId: "central_fallback"
+    };
+  }
+
   throw new Error(evolutionMissingMessage(manager));
 }
 
@@ -265,6 +276,31 @@ async function evolutionRequestConfig(current: Current): Promise<EvolutionReques
   };
 }
 
+async function getReusableEvolutionManagerCredentials(current: Current) {
+  const manager = getEvolutionManagerConfig();
+  const admin = createSupabaseAdminClient() as DbClient;
+  const { data, error } = await admin
+    .from("lava_whatsapp_integracoes")
+    .select("empresa_id,api_url,api_key_encrypted,central_manager,setup_facil,status,updated_at")
+    .eq("provider", "evolution")
+    .not("api_url", "is", null)
+    .not("api_key_encrypted", "is", null)
+    .order("central_manager", { ascending: false })
+    .order("setup_facil", { ascending: false })
+    .order("updated_at", { ascending: false })
+    .limit(10);
+
+  if (error) throw new Error(error.message);
+  const rows = ((data ?? []) as Row[]).filter((row) => row.empresa_id !== current.empresaId);
+  const preferred = rows.find((row) => row.status === "conectado") ?? rows[0];
+  if (!preferred?.api_url || !preferred?.api_key_encrypted) return null;
+
+  return {
+    apiUrl: normalizeEvolutionBaseUrl(manager.apiUrl || preferred.api_url),
+    apiKey: decryptLavaSecret(String(preferred.api_key_encrypted), "whatsapp")
+  };
+}
+
 async function fetchEvolutionJson(
   config: Pick<EvolutionRequestConfig, "apiUrl" | "apiKey">,
   path: string,
@@ -277,7 +313,7 @@ async function fetchEvolutionJson(
       apikey: config.apiKey
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
-    signal: AbortSignal.timeout(20000)
+    signal: AbortSignal.timeout(30000)
   });
   if (!response.ok) throw new Error(await parseEvolutionError(response));
   return response.json().catch(() => ({}));
@@ -352,12 +388,12 @@ function extractExternalId(json: unknown) {
 
 function evolutionMissingMessage(manager: EvolutionManagerConfig) {
   if (manager.apiUrl && !manager.apiKeyConfigured) {
-    return "A URL da Evolution foi encontrada, mas a API Key central não foi lida pelo app. Você pode colar a AUTHENTICATION_API_KEY no campo avançado Evolution API Key e salvar o modo do WhatsApp, ou conferir LAVAGESTOR_EVOLUTION_MANAGER_API_KEY na Vercel.";
+    return "A URL da Evolution foi encontrada, mas a API Key central não foi lida pelo app. O suporte da MBA Labs precisa salvar a chave central ou revisar LAVAGESTOR_EVOLUTION_MANAGER_API_KEY na Vercel.";
   }
   if (!manager.apiUrl && manager.apiKeyConfigured) {
     return "A API Key da Evolution foi encontrada, mas a URL central não foi configurada. Configure LAVAGESTOR_EVOLUTION_MANAGER_URL na Vercel.";
   }
-  return "O WhatsApp automático ainda não está disponível. Configure a Evolution central na Vercel ou preencha URL/API Key em Configurações avançadas.";
+  return "O WhatsApp automático ainda não está disponível. Configure a Evolution central na Vercel ou solicite ativação ao suporte MBA Labs.";
 }
 
 function slugPart(value: string) {
