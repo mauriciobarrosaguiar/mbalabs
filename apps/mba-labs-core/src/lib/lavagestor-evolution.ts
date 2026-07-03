@@ -177,19 +177,22 @@ export async function checkEvolutionStatus(current: Current) {
 
 export async function disconnectEvolutionInstance(current: Current) {
   const config = await evolutionRequestConfig(current);
-  await fetchEvolutionJson(config, `/instance/logout/${encodeURIComponent(config.instance)}`, { method: "DELETE" }).catch(() => null);
+  const deleted = await deleteEvolutionInstance(config);
   await updateEvolutionRow(current, {
     status: "inativo",
     qr_status: "desconectado",
+    instancia_id: null,
     qr_code: null,
     pairing_code: null,
-    ultimo_erro: null
+    ultimo_erro: null,
+    ultimo_teste_em: new Date().toISOString()
   });
-  return { ok: true, instance: config.instance };
+  return { ok: true, instance: config.instance, deleted };
 }
 
 export async function reconnectEvolutionInstance(current: Current) {
   await disconnectEvolutionInstance(current).catch(() => null);
+  await createOrGetEvolutionInstance(current);
   return getEvolutionQrCode(current);
 }
 
@@ -317,6 +320,25 @@ async function fetchEvolutionJson(
   });
   if (!response.ok) throw new Error(await parseEvolutionError(response));
   return response.json().catch(() => ({}));
+}
+
+async function deleteEvolutionInstance(config: EvolutionRequestConfig) {
+  const encoded = encodeURIComponent(config.instance);
+  await fetchEvolutionJson(config, `/instance/logout/${encoded}`, { method: "DELETE" }).catch(() => null);
+
+  const deletePaths = [`/instance/delete/${encoded}`, `/instance/delete?instanceName=${encoded}`];
+  let deleted = false;
+  for (const path of deletePaths) {
+    try {
+      await fetchEvolutionJson(config, path, { method: "DELETE" });
+      deleted = true;
+      break;
+    } catch (err) {
+      const message = String(err instanceof Error ? err.message : err);
+      if (!/404|405|not found|cannot/i.test(message)) throw err;
+    }
+  }
+  return deleted;
 }
 
 async function tryReadConnectionState(config: EvolutionRequestConfig) {
