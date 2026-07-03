@@ -2,7 +2,6 @@ import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { AgendamentoForm } from "@/components/lavagestor/AgendamentoForm";
 import { BackButton, MessageBanner, PageHeader, formatDateTime } from "@/components/ui-kit";
-import { converterAgendamentoEmLavagem } from "@/lib/actions/lavagestor-agendamentos-actions";
 import { firstParam } from "@/lib/form-utils";
 import { LAVA_AGENDAMENTO_STATUS, getLavaAgendamentosData, whatsappUrl } from "@/lib/lavagestor-agendamentos-data";
 
@@ -104,15 +103,20 @@ function AgendamentoCard({ row }: { row: Record<string, unknown> }) {
         {!isCancelled && !isConverted ? <StatusButton id={String(row.id)} status="confirmado" label="Confirmar" /> : null}
         {!isCancelled && !isConverted ? <StatusButton id={String(row.id)} status="compareceu" label="Compareceu" /> : null}
         {!isCancelled && !isConverted ? <StatusButton id={String(row.id)} status="nao_compareceu" label="Não compareceu" /> : null}
-        {!isConverted ? (
-          <form action={converterAgendamentoEmLavagem}>
-            <input name="id" type="hidden" value={String(row.id)} />
-            <button className="button-primary w-full" type="submit">Converter em lavagem</button>
-          </form>
-        ) : null}
+        {!isCancelled && !isConverted ? <ConvertButton id={String(row.id)} /> : null}
         {!isCancelled && !isConverted ? <StatusButton id={String(row.id)} status="cancelado" label="Cancelar" danger /> : null}
       </div>
     </article>
+  );
+}
+
+function ConvertButton({ id }: { id: string }) {
+  return (
+    <form action="/api/lavagestor/agendamentos/converter" method="post">
+      <input name="id" type="hidden" value={id} />
+      <input name="return_to" type="hidden" value="/lavagestor/agendamentos" />
+      <button className="button-primary w-full" type="submit">Converter em lavagem</button>
+    </form>
   );
 }
 
