@@ -12,6 +12,7 @@ import {
 
 type EvolutionQrPanelProps = {
   canEdit: boolean;
+  showDiagnostics?: boolean;
   manager: {
     configured: boolean;
     apiUrl: string;
@@ -39,7 +40,7 @@ type QrResult = {
   instance?: string;
 };
 
-export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrPanelProps) {
+export function EvolutionQrPanel({ canEdit, manager, integration, showDiagnostics = false }: EvolutionQrPanelProps) {
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<QrResult | null>(null);
   const [status, setStatus] = useState(integration.status);
@@ -49,7 +50,7 @@ export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrP
   const qrImage = useMemo(() => imageSource(result?.qrCode), [result?.qrCode]);
   const hasSavedEvolutionConfig = integration.provider === "evolution" && Boolean(integration.apiUrl) && integration.apiKeyConfigured === true;
   const evolutionAvailable = manager.configured || hasSavedEvolutionConfig;
-  const managerAlert = evolutionManagerMessage(manager, hasSavedEvolutionConfig);
+  const managerAlert = evolutionManagerMessage(manager, hasSavedEvolutionConfig, showDiagnostics);
 
   useEffect(() => {
     if (!result?.qrCode || connected) return;
@@ -113,9 +114,9 @@ export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrP
         </div>
       ) : (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold leading-6 text-emerald-950">
-          {manager.configured
-            ? <>Evolution central configurada. Clique em <strong>Conectar WhatsApp</strong> para criar a instância e depois em <strong>Mostrar QR Code</strong>.</>
-            : <>Configuração avançada salva. Clique em <strong>Conectar WhatsApp</strong> para criar a instância usando a URL/API Key salvas para esta empresa.</>}
+          {showDiagnostics && !manager.configured
+            ? <>Configuração de suporte salva. Clique em <strong>Conectar WhatsApp</strong> para criar a instância e depois em <strong>Mostrar QR Code</strong>.</>
+            : <>Clique em <strong>Conectar WhatsApp</strong>, depois em <strong>Mostrar QR Code</strong> e leia o código no WhatsApp da empresa.</>}
         </div>
       )}
 
@@ -145,29 +146,31 @@ export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrP
         </form>
       </div>
 
-      <details className="rounded-xl border border-border bg-muted/30">
-        <summary className="cursor-pointer px-3 py-2 text-sm font-black">Diagnóstico da Evolution central</summary>
-        <div className="grid gap-2 border-t border-border p-3 text-sm font-semibold leading-6 text-muted-foreground md:grid-cols-2">
-          <DiagnosticItem label="URL central" value={manager.apiUrl ? "Configurada" : "Não configurada"} ok={Boolean(manager.apiUrl)} />
-          <DiagnosticItem label="API Key central" value={manager.apiKeyConfigured ? "Configurada" : "Não configurada"} ok={manager.apiKeyConfigured} />
-          <DiagnosticItem label="URL salva na empresa" value={integration.apiUrl ? "Configurada" : "Não configurada"} ok={Boolean(integration.apiUrl)} />
-          <DiagnosticItem label="API Key salva na empresa" value={integration.apiKeyConfigured ? "Configurada" : "Não configurada"} ok={integration.apiKeyConfigured === true} />
-          <DiagnosticItem label="Prefixo das instâncias" value={manager.prefix || "lavagestor"} ok />
-          <DiagnosticItem label="Instância atual" value={integration.instanciaId || result?.instance || "Ainda não criada"} ok={hasInstance} />
-          {manager.missing.length && !hasSavedEvolutionConfig ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-950 md:col-span-2">
-              <strong className="block text-xs uppercase tracking-[0.08em]">Variáveis faltando na Vercel</strong>
-              <span>{manager.missing.join(", ")}</span>
-            </div>
-          ) : null}
-          {integration.ultimoErro || error ? (
-            <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-red-950 md:col-span-2">
-              <strong className="block text-xs uppercase tracking-[0.08em]">Último erro</strong>
-              <span className="break-words">{error || integration.ultimoErro}</span>
-            </div>
-          ) : null}
-        </div>
-      </details>
+      {showDiagnostics ? (
+        <details className="rounded-xl border border-border bg-muted/30">
+          <summary className="cursor-pointer px-3 py-2 text-sm font-black">Diagnóstico da Evolution central</summary>
+          <div className="grid gap-2 border-t border-border p-3 text-sm font-semibold leading-6 text-muted-foreground md:grid-cols-2">
+            <DiagnosticItem label="URL central" value={manager.apiUrl ? "Configurada" : "Não configurada"} ok={Boolean(manager.apiUrl)} />
+            <DiagnosticItem label="API Key central" value={manager.apiKeyConfigured ? "Configurada" : "Não configurada"} ok={manager.apiKeyConfigured} />
+            <DiagnosticItem label="URL salva na empresa" value={integration.apiUrl ? "Configurada" : "Não configurada"} ok={Boolean(integration.apiUrl)} />
+            <DiagnosticItem label="API Key salva na empresa" value={integration.apiKeyConfigured ? "Configurada" : "Não configurada"} ok={integration.apiKeyConfigured === true} />
+            <DiagnosticItem label="Prefixo das instâncias" value={manager.prefix || "lavagestor"} ok />
+            <DiagnosticItem label="Instância atual" value={integration.instanciaId || result?.instance || "Ainda não criada"} ok={hasInstance} />
+            {manager.missing.length && !hasSavedEvolutionConfig ? (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-950 md:col-span-2">
+                <strong className="block text-xs uppercase tracking-[0.08em]">Variáveis faltando na Vercel</strong>
+                <span>{manager.missing.join(", ")}</span>
+              </div>
+            ) : null}
+            {integration.ultimoErro || error ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-red-950 md:col-span-2">
+                <strong className="block text-xs uppercase tracking-[0.08em]">Último erro</strong>
+                <span className="break-words">{error || integration.ultimoErro}</span>
+              </div>
+            ) : null}
+          </div>
+        </details>
+      ) : null}
 
       {isPending ? <p className="rounded-xl bg-muted p-3 text-sm font-semibold text-muted-foreground">Conferindo WhatsApp...</p> : null}
 
@@ -203,8 +206,9 @@ function DiagnosticItem({ label, value, ok }: { label: string; value: string; ok
   );
 }
 
-function evolutionManagerMessage(manager: EvolutionQrPanelProps["manager"], hasSavedEvolutionConfig: boolean) {
-  if (hasSavedEvolutionConfig) return "Configuração avançada da Evolution salva para esta empresa.";
+function evolutionManagerMessage(manager: EvolutionQrPanelProps["manager"], hasSavedEvolutionConfig: boolean, showDiagnostics: boolean) {
+  if (hasSavedEvolutionConfig) return showDiagnostics ? "Configuração de suporte da Evolution salva para esta empresa." : "WhatsApp automático pronto para conexão. Clique em Conectar WhatsApp.";
+  if (!showDiagnostics) return "A conexão automática do WhatsApp ainda não está pronta. Fale com o suporte da MBA Labs para ativar.";
   if (manager.apiUrl && !manager.apiKeyConfigured) {
     return "A URL da Evolution foi encontrada, mas a API Key central não foi lida pelo app. Cole a AUTHENTICATION_API_KEY no campo avançado Evolution API Key, salve o modo do WhatsApp e tente conectar novamente.";
   }
