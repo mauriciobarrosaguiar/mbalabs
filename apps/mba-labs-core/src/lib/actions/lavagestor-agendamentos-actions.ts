@@ -195,7 +195,8 @@ async function prepareAndMaybeSendAgendamentoConfirmation(client: any, current: 
   });
 
   const integration = await getWhatsappIntegration(current);
-  const automaticTotal = integration.provider !== "manual" && integration.status === "conectado" && integration.modoEnvio === "automatico_total";
+  const automaticTotal = integration.provider !== "manual" && integration.modoEnvio === "automatico_total";
+  const approvalMode = integration.provider !== "manual" && integration.modoEnvio === "automatico_com_aprovacao";
   const queue = automaticTotal
     ? { ok: true, skipped: true }
     : await enqueueAutomationQueue(client, {
@@ -271,7 +272,7 @@ async function prepareAndMaybeSendAgendamentoConfirmation(client: any, current: 
     return { status: "erro", message: erro };
   }
 
-  if (integration.provider !== "manual" && integration.status === "conectado" && integration.modoEnvio === "automatico_com_aprovacao") {
+  if (approvalMode) {
     await updateConfirmation(client, current.empresaId, agendamentoId, "aguardando_aprovacao", null);
     return { status: "aguardando_aprovacao", message: "Confirmação aguardando aprovação na fila de WhatsApp." };
   }
