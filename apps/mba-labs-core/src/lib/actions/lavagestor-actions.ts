@@ -638,18 +638,6 @@ export async function registrarPagamentoLavagem(formData: FormData) {
   let reciboWhatsappMessage = "";
 
   if (statusPagamento === "pago" && valorLancamento > 0) {
-    await enqueuePagamentoWhatsapp(client, current, id, valorLancamento, formaPagamento).catch(async (whatsappError) => {
-      await insertLavaHistory(client, {
-        empresaId: current.empresaId,
-        lavagemId: id,
-        usuarioId: current.usuario.id,
-        acao: "whatsapp_erro_pagamento_recebido",
-        statusAnterior: normalizedStatus,
-        statusNovo: nextLavagemStatus,
-        observacao: whatsappError instanceof Error ? whatsappError.message : "Falha ao enfileirar WhatsApp de pagamento recebido."
-      });
-    });
-
     const reciboResult = await sendLavagemReceiptWhatsapp(id, "pagamento_automatico").catch(async (reciboError) => {
       await insertLavaHistory(client, {
         empresaId: current.empresaId,
