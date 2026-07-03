@@ -24,15 +24,26 @@ const LAVA_PAYMENT_STATUS_LABELS: Record<string, string> = {
 export async function listLavaFila() {
   const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
-  const { data, error } = await (supabase as any)
-    .from("lava_lavagens")
-    .select(
-      "id,cliente_id,veiculo_id,funcionario_id,servico_id,descricao_extra,observacoes,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,comissao,status,status_pagamento,forma_pagamento,data_lavagem,data_entrada,entrega_tipo,endereco_entrega,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_funcionarios(nome),lava_servicos(nome)"
-    )
-    .eq("empresa_id", current.empresaId)
-    .order("data_lavagem", { ascending: false })
-    .limit(200);
+  const [lavagensResult, funcionariosResult] = await Promise.all([
+    (supabase as any)
+      .from("lava_lavagens")
+      .select(
+        "id,cliente_id,veiculo_id,funcionario_id,servico_id,descricao_extra,observacoes,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,comissao,status,status_pagamento,forma_pagamento,data_lavagem,data_entrada,entrega_tipo,endereco_entrega,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_funcionarios(nome),lava_servicos(nome)"
+      )
+      .eq("empresa_id", current.empresaId)
+      .order("data_lavagem", { ascending: false })
+      .limit(200),
+    (supabase as any)
+      .from("lava_funcionarios")
+      .select("id,nome,ativo,percentual_comissao")
+      .eq("empresa_id", current.empresaId)
+      .eq("ativo", true)
+      .order("nome", { ascending: true })
+      .limit(200)
+  ]);
 
+  const data = lavagensResult.data;
+  const error = lavagensResult.error;
   const rows = ((data ?? []) as Array<Record<string, unknown>>)
     .map<Record<string, unknown>>((row) => {
       const servico = relationName(row.lava_servicos);
@@ -116,7 +127,12 @@ export async function listLavaFila() {
         checkout_label: (foto?.checkoutCount ?? 0) > 0 ? "Checkout ok" : "Checkout pendente"
       };
     }),
-    error: error?.message ?? checklistsResult.error?.message ?? fotosResult.error?.message ?? null
+    funcionarios: ((funcionariosResult.data ?? []) as Array<Record<string, unknown>>).map((row) => ({
+      id: String(row.id ?? ""),
+      nome: String(row.nome ?? ""),
+      percentual_comissao: row.percentual_comissao ?? null
+    })).filter((row) => row.id && row.nome),
+    error: error?.message ?? funcionariosResult.error?.message ?? checklistsResult.error?.message ?? fotosResult.error?.message ?? null
   };
 }
 
