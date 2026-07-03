@@ -58,7 +58,7 @@ export async function getCompanyEvolutionIntegration(current: Current) {
 }
 
 export async function buildCompanyInstanceName(current: Current) {
-  if (!current.empresaId) throw new Error("Empresa nao identificada.");
+  if (!current.empresaId) throw new Error("Empresa não identificada.");
   const client = (await getSupabaseServer()) as DbClient;
   const { data } = await client
     .from("core_empresas")
@@ -72,22 +72,15 @@ export async function buildCompanyInstanceName(current: Current) {
 }
 
 export async function createOrGetEvolutionInstance(current: Current) {
-  if (!current.empresaId) throw new Error("Empresa nao identificada.");
-  const manager = getEvolutionManagerConfig();
-  if (!manager.configured) {
-    throw new Error("O WhatsApp automatico ainda nao esta disponivel. Fale com a MBA Labs para ativar.");
-  }
-
-  const apiKey = process.env.LAVAGESTOR_EVOLUTION_MANAGER_API_KEY?.trim() ?? "";
-  const instance = await buildCompanyInstanceName(current);
-  const config = { apiUrl: manager.apiUrl, apiKey, instance };
+  if (!current.empresaId) throw new Error("Empresa não identificada.");
+  const config = await resolveEvolutionCreateConfig(current);
   const status = await tryReadConnectionState(config);
 
   if (!status.ok) {
     await fetchEvolutionJson(config, `/instance/create`, {
       method: "POST",
       body: {
-        instanceName: instance,
+        instanceName: config.instance,
         qrcode: true,
         integration: "WHATSAPP-BAILEYS"
       }
@@ -111,18 +104,18 @@ export async function createOrGetEvolutionInstance(current: Current) {
       enviar_veiculo_pronto_auto: true,
       enviar_cobranca_auto: false,
       enviar_promocao_auto: false,
-      api_url: manager.apiUrl,
-      api_key_encrypted: encryptLavaSecret(apiKey, "whatsapp"),
-      instancia_id: instance,
+      api_url: config.apiUrl,
+      api_key_encrypted: encryptLavaSecret(config.apiKey, "whatsapp"),
+      instancia_id: config.instance,
       setup_facil: true,
-      central_manager: true,
+      central_manager: config.rowId ? false : true,
       qr_status: connected ? "conectado" : "aguardando_qr",
       ultimo_erro: null,
       ultimo_teste_em: new Date().toISOString()
     }, { onConflict: "empresa_id,provider" });
   if (error) throw new Error(error.message);
 
-  return { ok: true, instance, status: connected ? "conectado" : "aguardando_qr", state };
+  return { ok: true, instance: config.instance, status: connected ? "conectado" : "aguardando_qr", state };
 }
 
 export async function getEvolutionQrCode(current: Current) {
@@ -170,7 +163,7 @@ export async function checkEvolutionStatus(current: Current) {
     });
     return { ok: true, instance: config.instance, status: connected ? "conectado" : "aguardando_qr", state };
   } catch (err) {
-    const error = redactSensitiveText(err instanceof Error ? err.message : "Evolution API nao respondeu ao teste.");
+    const error = redactSensitiveText(err instanceof Error ? err.message : "Evolution API não respondeu ao teste.");
     await updateEvolutionRow(current, {
       status: "erro",
       qr_status: "erro",
@@ -217,11 +210,38 @@ export async function parseEvolutionError(response: Response) {
   } catch {
     // Keep raw response text.
   }
+  if (response.status === 401 || response.status === 403) {
+    detail = `${detail || response.statusText}. Evolution recusou a API Key. Confira se ela é igual à AUTHENTICATION_API_KEY do Render.`;
+  }
   return redactSensitiveText(`Evolution API erro ${response.status}: ${detail || response.statusText}`);
 }
 
+async function resolveEvolutionCreateConfig(current: Current): Promise<EvolutionRequestConfig> {
+  const manager = getEvolutionManagerConfig();
+  const instance = await buildCompanyInstanceName(current);
+  if (manager.configured) {
+    return {
+      apiUrl: manager.apiUrl,
+      apiKey: process.env.LAVAGESTOR_EVOLUTION_MANAGER_API_KEY?.trim() ?? "",
+      instance
+    };
+  }
+
+  const row = await getCompanyEvolutionIntegration(current);
+  if (row?.api_url && row?.api_key_encrypted) {
+    return {
+      apiUrl: normalizeEvolutionBaseUrl(row.api_url),
+      apiKey: decryptLavaSecret(String(row.api_key_encrypted), "whatsapp"),
+      instance: String(row.instancia_id || instance).trim(),
+      rowId: row.id ? String(row.id) : null
+    };
+  }
+
+  throw new Error(evolutionMissingMessage(manager));
+}
+
 async function evolutionRequestConfig(current: Current): Promise<EvolutionRequestConfig> {
-  if (!current.empresaId) throw new Error("Empresa nao identificada.");
+  if (!current.empresaId) throw new Error("Empresa não identificada.");
   const row = await getCompanyEvolutionIntegration(current);
   if (row?.api_url && row?.instancia_id && row?.api_key_encrypted) {
     return {
@@ -235,7 +255,7 @@ async function evolutionRequestConfig(current: Current): Promise<EvolutionReques
   await createOrGetEvolutionInstance(current);
   const created = await getCompanyEvolutionIntegration(current);
   if (!created?.api_url || !created?.instancia_id || !created?.api_key_encrypted) {
-    throw new Error("Nao foi possivel preparar a instancia do WhatsApp automatico.");
+    throw new Error("Não foi possível preparar a instância do WhatsApp automático.");
   }
   return {
     apiUrl: normalizeEvolutionBaseUrl(created.api_url),
@@ -268,7 +288,7 @@ async function tryReadConnectionState(config: EvolutionRequestConfig) {
     const json = await fetchEvolutionJson(config, `/instance/connectionState/${encodeURIComponent(config.instance)}`, { method: "GET" });
     return { ok: true as const, state: extractConnectionState(json), raw: json };
   } catch (err) {
-    return { ok: false as const, error: err instanceof Error ? err.message : "Evolution API nao respondeu." };
+    return { ok: false as const, error: err instanceof Error ? err.message : "Evolution API não respondeu." };
   }
 }
 
@@ -328,6 +348,16 @@ function extractExternalId(json: unknown) {
   const row = json as Row;
   const key = row.key as Row | undefined;
   return String(row.keyId ?? row.id ?? key?.id ?? row.messageId ?? "");
+}
+
+function evolutionMissingMessage(manager: EvolutionManagerConfig) {
+  if (manager.apiUrl && !manager.apiKeyConfigured) {
+    return "A URL da Evolution foi encontrada, mas a API Key central não foi lida pelo app. Você pode colar a AUTHENTICATION_API_KEY no campo avançado Evolution API Key e salvar o modo do WhatsApp, ou conferir LAVAGESTOR_EVOLUTION_MANAGER_API_KEY na Vercel.";
+  }
+  if (!manager.apiUrl && manager.apiKeyConfigured) {
+    return "A API Key da Evolution foi encontrada, mas a URL central não foi configurada. Configure LAVAGESTOR_EVOLUTION_MANAGER_URL na Vercel.";
+  }
+  return "O WhatsApp automático ainda não está disponível. Configure a Evolution central na Vercel ou preencha URL/API Key em Configurações avançadas.";
 }
 
 function slugPart(value: string) {
