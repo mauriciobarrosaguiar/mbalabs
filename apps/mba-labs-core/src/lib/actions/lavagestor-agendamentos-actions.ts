@@ -8,7 +8,6 @@ import { requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
 import { normalizePlate } from "@/lib/lavagestor-placa";
 import {
   buildAgendamentoConfirmacaoMessage,
-  canSendAutomaticMessage,
   enqueueAutomationQueue,
   enqueueWhatsappMessage,
   getWhatsappIntegration,
@@ -197,10 +196,6 @@ async function prepareAndMaybeSendAgendamentoConfirmation(client: any, current: 
 
   const integration = await getWhatsappIntegration(current);
   const automaticTotal = integration.provider !== "manual" && integration.status === "conectado" && integration.modoEnvio === "automatico_total";
-  const autoAllowed = automaticTotal
-    ? await canSendAutomaticMessage(current, "confirmacao_agendamento", String(agendamento.cliente_id ?? "") || null)
-    : { ok: false };
-
   const queue = automaticTotal
     ? { ok: true, skipped: true }
     : await enqueueAutomationQueue(client, {
@@ -239,12 +234,6 @@ async function prepareAndMaybeSendAgendamentoConfirmation(client: any, current: 
   }
 
   if (automaticTotal) {
-    if (!autoAllowed.ok) {
-      const erro = String((autoAllowed as Row).error ?? "Envio automático não permitido pela configuração atual.");
-      await updateConfirmation(client, current.empresaId, agendamentoId, "erro", erro);
-      return { status: "erro", message: erro };
-    }
-
     if (!envioId) {
       await updateConfirmation(client, current.empresaId, agendamentoId, "erro", "Mensagem automática não foi criada.");
       return { status: "erro", message: "Mensagem automática não foi criada." };
