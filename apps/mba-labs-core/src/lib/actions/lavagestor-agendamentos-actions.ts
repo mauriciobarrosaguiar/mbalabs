@@ -195,15 +195,23 @@ async function prepareAndMaybeSendAgendamentoConfirmation(client: any, current: 
     quando: `${formatDateShort(agendamento.data_inicio)} ${formatTimeShort(agendamento.data_inicio)}`.trim()
   });
 
-  const queue = await enqueueAutomationQueue(client, {
-    empresaId: current.empresaId,
-    clienteId: String(agendamento.cliente_id ?? "") || null,
-    agendamentoId,
-    telefone,
-    mensagem,
-    tipo: "confirmacao_agendamento",
-    agendadoPara: String(agendamento.data_inicio ?? "")
-  });
+  const integration = await getWhatsappIntegration(current);
+  const automaticTotal = integration.provider !== "manual" && integration.status === "conectado" && integration.modoEnvio === "automatico_total";
+  const autoAllowed = automaticTotal
+    ? await canSendAutomaticMessage(current, "confirmacao_agendamento", String(agendamento.cliente_id ?? "") || null)
+    : { ok: false };
+
+  const queue = automaticTotal
+    ? { ok: true, skipped: true }
+    : await enqueueAutomationQueue(client, {
+        empresaId: current.empresaId,
+        clienteId: String(agendamento.cliente_id ?? "") || null,
+        agendamentoId,
+        telefone,
+        mensagem,
+        tipo: "confirmacao_agendamento",
+        agendadoPara: String(agendamento.data_inicio ?? "")
+      });
 
   const envio = await enqueueWhatsappMessage(current, {
     evento: "confirmacao_agendamento",
@@ -221,8 +229,6 @@ async function prepareAndMaybeSendAgendamentoConfirmation(client: any, current: 
     }
   });
 
-  const integration = await getWhatsappIntegration(current);
-  const autoAllowed = await canSendAutomaticMessage(current, "confirmacao_agendamento", String(agendamento.cliente_id ?? "") || null);
   const envioId = String((envio as Row).id ?? "");
   const queueError = queue.ok ? "" : String((queue as Row).error ?? "");
 
@@ -232,21 +238,42 @@ async function prepareAndMaybeSendAgendamentoConfirmation(client: any, current: 
     return { status: "erro", message: erro || "Falha ao preparar WhatsApp." };
   }
 
-  if (integration.provider !== "manual" && integration.status === "conectado" && integration.modoEnvio === "automatico_total" && autoAllowed.ok && envioId) {
+  if (automaticTotal) {
+    if (!autoAllowed.ok) {
+      const erro = String((autoAllowed as Row).error ?? "Envio automático não permitido pela configuração atual.");
+      await updateConfirmation(client, current.empresaId, agendamentoId, "erro", erro);
+      return { status: "erro", message: erro };
+    }
+
+    if (!envioId) {
+      await updateConfirmation(client, current.empresaId, agendamentoId, "erro", "Mensagem automática não foi criada.");
+      return { status: "erro", message: "Mensagem automática não foi criada." };
+    }
+
+    const approvedAt = new Date().toISOString();
+    await client
+      .from("lava_whatsapp_envios")
+      .update({
+        status: "pendente",
+        precisa_aprovacao: false,
+        aprovado_por: current.usuario.id,
+        aprovado_em: approvedAt,
+        erro: null
+      })
+      .eq("id", envioId)
+      .eq("empresa_id", current.empresaId);
+
     const sent = await sendWhatsappMessage(current, envioId);
     if (sent.ok) {
       const now = new Date().toISOString();
-      await client
-        .from("lava_agendamentos")
-        .update({ confirmacao_status: "enviado_manual", confirmacao_enviada_em: now, confirmacao_erro: null })
-        .eq("id", agendamentoId)
-        .eq("empresa_id", current.empresaId);
+      await updateConfirmation(client, current.empresaId, agendamentoId, "enviado", null, now);
       await client
         .from("lava_automacao_fila")
-        .update({ status: "enviado_manual", enviado_em: now, erro: null })
+        .update({ status: "cancelado", erro: null, updated_at: now })
         .eq("empresa_id", current.empresaId)
         .eq("agendamento_id", agendamentoId)
-        .eq("tipo", "confirmacao_agendamento");
+        .eq("tipo", "confirmacao_agendamento")
+        .neq("status", "enviado_manual");
       return { status: "enviado", message: "Confirmação enviada automaticamente pelo WhatsApp." };
     }
 
@@ -292,10 +319,12 @@ async function getServiceName(client: any, empresaId: string, servicoId: string)
   return String(data?.nome ?? "");
 }
 
-async function updateConfirmation(client: any, empresaId: string, agendamentoId: string, status: string, erro: string | null) {
+async function updateConfirmation(client: any, empresaId: string, agendamentoId: string, status: string, erro: string | null, enviadoEm?: string | null) {
+  const payload: Row = { confirmacao_status: status, confirmacao_erro: erro };
+  if (enviadoEm !== undefined) payload.confirmacao_enviada_em = enviadoEm;
   await client
     .from("lava_agendamentos")
-    .update({ confirmacao_status: status, confirmacao_erro: erro })
+    .update(payload)
     .eq("id", agendamentoId)
     .eq("empresa_id", empresaId);
 }
