@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireLavaGestorAccess, canOperateCounter } from "./lavagestor-permissions";
+import { getWhatsappIntegration } from "./lavagestor-whatsapp";
 import { getSupabaseServer } from "./supabase";
 
 type Row = Record<string, unknown>;
@@ -35,8 +36,9 @@ export async function getLavaWhatsappPageData(filters: LavaWhatsappFilters = {})
 
   const client = (await getSupabaseServer()) as any;
   const empresaId = current.empresaId;
+  const integration = await getWhatsappIntegration(current);
   if (!empresaId) {
-    return { rows: [], stats: emptyStats(), filters, error: "Empresa nao identificada." };
+    return { rows: [], stats: emptyStats(), filters, integration, error: "Empresa nao identificada." };
   }
 
   let query = client
@@ -73,6 +75,7 @@ export async function getLavaWhatsappPageData(filters: LavaWhatsappFilters = {})
     rows,
     stats: buildStats((countsResult.data ?? []) as Row[]),
     filters,
+    integration,
     error: rowsResult.error?.message ?? countsResult.error?.message ?? null
   };
 }

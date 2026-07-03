@@ -52,6 +52,7 @@ const lavaNavItems: LavaNavItem[] = [
   { href: "/lavagestor/pagamentos-integrados", label: "Pagamentos integrados", icon: WalletCards },
   { href: "/lavagestor/notas-fiscais", label: "Notas fiscais", icon: ReceiptText },
   { href: "/lavagestor/whatsapp", label: "WhatsApp", icon: MessageCircle },
+  { href: "/lavagestor/setup-facil", label: "Configuracao Facil", icon: Sparkles },
   { href: "/lavagestor/pos-venda", label: "Pós-venda", icon: MessageCircle },
   { href: "/lavagestor/automacoes", label: "Automações", icon: Workflow },
   { href: "/lavagestor/iamob", label: "IAMob", icon: Bot },
@@ -65,7 +66,7 @@ const lavaNavGroups: Array<{ label: string; items: LavaNavItem[] }> = [
   { label: "Cadastros", items: lavaNavItems.filter((item) => ["/lavagestor/clientes", "/lavagestor/veiculos", "/lavagestor/funcionarios", "/lavagestor/servicos", "/lavagestor/estoque"].includes(item.href)) },
   { label: "Financeiro", items: lavaNavItems.filter((item) => ["/lavagestor/pagamentos", "/lavagestor/financeiro", "/lavagestor/comissoes", "/lavagestor/vales", "/lavagestor/pagamentos-integrados", "/lavagestor/notas-fiscais"].includes(item.href)) },
   { label: "Crescimento", items: lavaNavItems.filter((item) => ["/lavagestor/whatsapp", "/lavagestor/pos-venda", "/lavagestor/automacoes", "/lavagestor/iamob"].includes(item.href)) },
-  { label: "Sistema", items: lavaNavItems.filter((item) => ["/lavagestor/relatorios", "/lavagestor/usuarios", "/lavagestor/configuracoes"].includes(item.href)) }
+  { label: "Sistema", items: lavaNavItems.filter((item) => ["/lavagestor/relatorios", "/lavagestor/usuarios", "/lavagestor/setup-facil", "/lavagestor/configuracoes"].includes(item.href)) }
 ];
 
 export function LavaGestorShell({

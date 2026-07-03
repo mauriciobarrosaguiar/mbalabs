@@ -195,6 +195,110 @@ export async function testLavaGeminiConnection(current: Current) {
   return result;
 }
 
+export function isLavaGeminiDemoAvailable() {
+  return Boolean(process.env.LAVAGESTOR_GEMINI_DEMO_API_KEY?.trim());
+}
+
+export function lavaGeminiDemoDailyLimit() {
+  const parsed = Number(process.env.LAVAGESTOR_GEMINI_DEMO_DAILY_LIMIT ?? 10);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 10;
+}
+
+export async function getLavaGeminiDemoUsage(current: Current) {
+  const limit = lavaGeminiDemoDailyLimit();
+  if (!current.empresaId || !isLavaGeminiDemoAvailable()) {
+    return { available: false, used: 0, limit, remaining: 0 };
+  }
+
+  const client = (await getSupabaseServer()) as DbClient;
+  const usageDate = new Date().toISOString().slice(0, 10);
+  const { data } = await client
+    .from("lava_ai_demo_usage")
+    .select("total,last_used_at")
+    .eq("empresa_id", current.empresaId)
+    .eq("usage_date", usageDate)
+    .maybeSingle();
+  const used = Number((data as Row | null)?.total ?? 0);
+  return {
+    available: true,
+    used,
+    limit,
+    remaining: Math.max(0, limit - used),
+    lastUsedAt: data?.last_used_at ? String(data.last_used_at) : null
+  };
+}
+
+export async function testLavaGeminiDemo(current: Current) {
+  if (!current.empresaId) throw new Error("Empresa nao identificada.");
+  const apiKey = process.env.LAVAGESTOR_GEMINI_DEMO_API_KEY?.trim();
+  if (!apiKey) throw new Error("Demo Gemini nao configurada para este ambiente.");
+
+  const usage = await getLavaGeminiDemoUsage(current);
+  if (usage.used >= usage.limit) {
+    throw new Error(`Limite diario da demonstracao Gemini atingido (${usage.limit}). Configure a chave propria da empresa para continuar.`);
+  }
+
+  const client = (await getSupabaseServer()) as DbClient;
+  const model = defaultGeminiModel();
+  const payload: Row = {
+    model,
+    system_instruction: "Voce testa uma conexao de IA. Seja breve.",
+    input: "Responda apenas: IAMob conectado."
+  };
+
+  try {
+    const response = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey
+      },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(20000)
+    });
+
+    if (!response.ok) {
+      throw new Error(await responseErrorMessage(response, "Gemini demo"));
+    }
+
+    const json = await response.json();
+    const text = extractGeminiText(json);
+    if (!text) throw new Error("Gemini demo respondeu sem texto.");
+
+    const nextTotal = usage.used + 1;
+    const now = new Date().toISOString();
+    const { error } = await client
+      .from("lava_ai_demo_usage")
+      .upsert({
+        empresa_id: current.empresaId,
+        usage_date: new Date().toISOString().slice(0, 10),
+        total: nextTotal,
+        last_used_at: now
+      }, { onConflict: "empresa_id,usage_date" });
+    if (error) throw new Error(error.message);
+
+    await logIamob(client, current, {
+      tipo: "teste_gemini_demo",
+      entrada: { prompt: "Responda apenas: IAMob conectado.", model },
+      saida: text,
+      provider: "gemini_demo",
+      status: "concluido"
+    }).catch(() => null);
+
+    return { ok: true, text, used: nextTotal, limit: usage.limit, remaining: Math.max(0, usage.limit - nextTotal) };
+  } catch (err) {
+    const error = redactSensitiveText(err instanceof Error ? err.message : "Falha ao testar demo Gemini.");
+    await logIamob(client, current, {
+      tipo: "teste_gemini_demo",
+      entrada: { prompt: "Responda apenas: IAMob conectado.", model },
+      provider: "gemini_demo",
+      status: "erro",
+      erro: error
+    }).catch(() => null);
+    throw new Error(error);
+  }
+}
+
 export async function callGemini(current: Current, params: GeminiCallParams) {
   const client = (await getSupabaseServer()) as DbClient;
   const connection = await getConnectionWithEncryptedKey(client, current.empresaId);

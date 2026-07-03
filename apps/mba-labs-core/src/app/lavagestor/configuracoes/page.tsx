@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { headers } from "next/headers";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { MessageTemplateEditor } from "@/components/lavagestor/MessageTemplateEditor";
@@ -58,9 +59,18 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
           eyebrow="LavaGestor"
           title="Configurações"
           description="Deixe o LavaGestor com a cara da empresa: recibo, WhatsApp, relatório, comissão e regras de pagamento."
-          actions={<BackButton href="/lavagestor" />}
+          actions={<><BackButton href="/lavagestor" /><Link className="button-primary" href="/lavagestor/setup-facil">Configuracao Facil IA + WhatsApp</Link></>}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? ("error" in storageOverview ? storageOverview.error : undefined) ?? undefined} />
+
+        <div className="grid gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Setup guiado</p>
+            <h2 className="mt-1 text-xl font-black">IA + WhatsApp automatico em poucos passos</h2>
+            <p className="mt-1 text-sm font-semibold leading-6 text-emerald-950">Use o modo simples para ativar Gemini, conectar WhatsApp e fazer um teste sem mexer nas configuracoes avancadas.</p>
+          </div>
+          <Link className="button-primary justify-center" href="/lavagestor/setup-facil">Configurar agora</Link>
+        </div>
 
         <div className="grid gap-3 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-4 shadow-sm md:grid-cols-[1fr_auto] md:items-center">
           <div>

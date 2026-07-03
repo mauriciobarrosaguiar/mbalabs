@@ -41,6 +41,17 @@ export default async function LavaWhatsappPage({ searchParams }: { searchParams:
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
+        {data.integration.provider === "manual" || data.integration.status !== "conectado" ? (
+          <div className="grid gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm md:grid-cols-[1fr_auto] md:items-center">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">WhatsApp automatico</p>
+              <h2 className="text-xl font-black">Conecte o WhatsApp em poucos passos</h2>
+              <p className="mt-1 text-sm font-semibold leading-6 text-emerald-950">Use a configuracao facil para ler o QR Code, escolher o modo de envio e fazer um teste.</p>
+            </div>
+            <Link className="button-primary justify-center" href="/lavagestor/setup-facil?step=whatsapp">Configurar agora</Link>
+          </div>
+        ) : null}
+
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
           <Metric label="Pendentes" value={data.stats.pendentes} />
           <Metric label="Aguardando aprovacao" value={data.stats.aprovacao} warning />

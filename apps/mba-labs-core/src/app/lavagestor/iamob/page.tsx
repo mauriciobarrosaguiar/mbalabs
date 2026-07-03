@@ -25,6 +25,17 @@ export default async function IAmobPage({ searchParams }: { searchParams: Promis
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
+        {!aiMode.active ? (
+          <div className="grid gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm md:grid-cols-[1fr_auto] md:items-center">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">IA real</p>
+              <h2 className="text-xl font-black">Ative a IA real em poucos passos</h2>
+              <p className="mt-1 text-sm font-semibold leading-6 text-emerald-950">Configure Gemini no modo guiado e teste a resposta do IAMob.</p>
+            </div>
+            <Link className="button-primary justify-center" href="/lavagestor/setup-facil?step=ia">Configurar agora</Link>
+          </div>
+        ) : null}
+
         <div className={`rounded-xl border p-4 text-sm font-bold leading-6 ${aiMode.active ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-amber-200 bg-amber-50 text-amber-950"}`}>
           {aiMode.active
             ? "IAMob usando Gemini. Se a IA falhar, o LavaGestor usa regras internas e registra o erro."
