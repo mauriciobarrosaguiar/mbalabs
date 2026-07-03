@@ -363,14 +363,16 @@ export async function sendViaEvolution(params: { integration: Row; phone: string
   const instance = String(params.integration.instancia_id ?? "").trim();
   if (!apiUrl || !instance) throw new Error("Configure URL e instancia da Evolution API.");
   const apiKey = decryptLavaSecret(String(params.integration.api_key_encrypted ?? ""), "whatsapp");
-  const response = await fetch(`${apiUrl}/message/sendText/${encodeURIComponent(instance)}`, {
+  const response = await fetchWithTimeoutRetry(`${apiUrl}/message/sendText/${encodeURIComponent(instance)}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       apikey: apiKey
     },
     body: JSON.stringify({ number: params.phone, text: params.message }),
-    signal: AbortSignal.timeout(20000)
+    timeoutMs: 25000,
+    retryTimeoutMs: 30000,
+    retryOnTimeout: true
   });
   if (!response.ok) throw new Error(await responseErrorMessage(response, "Evolution API"));
   const json = await response.json().catch(() => ({}));
@@ -644,9 +646,11 @@ async function testEvolution(row: Row) {
   const instance = String(row.instancia_id ?? "").trim();
   if (!apiUrl || !instance) throw new Error("Configure URL e instancia da Evolution API.");
   const apiKey = decryptLavaSecret(String(row.api_key_encrypted ?? ""), "whatsapp");
-  const response = await fetch(`${apiUrl}/instance/connectionState/${encodeURIComponent(instance)}`, {
+  const response = await fetchWithTimeoutRetry(`${apiUrl}/instance/connectionState/${encodeURIComponent(instance)}`, {
     headers: { apikey: apiKey },
-    signal: AbortSignal.timeout(15000)
+    timeoutMs: 20000,
+    retryTimeoutMs: 25000,
+    retryOnTimeout: true
   });
   if (!response.ok) throw new Error(await responseErrorMessage(response, "Evolution API"));
   return { ok: true as const, detail: "Evolution API respondeu ao teste." };
@@ -679,6 +683,40 @@ async function responseErrorMessage(response: Response, providerLabel: string) {
     return `${message}. Mensagem exige template aprovado no WhatsApp Cloud API.`;
   }
   return redactSensitiveText(message);
+}
+
+async function fetchWithTimeoutRetry(
+  url: string,
+  options: RequestInit & { timeoutMs?: number; retryTimeoutMs?: number; retryOnTimeout?: boolean }
+) {
+  const { timeoutMs = 20000, retryTimeoutMs = 30000, retryOnTimeout = false, ...fetchOptions } = options;
+  try {
+    return await fetch(url, { ...fetchOptions, signal: AbortSignal.timeout(timeoutMs) });
+  } catch (err) {
+    if (!retryOnTimeout || !isAbortError(err)) throw friendlyFetchError(err);
+    await sleep(1200);
+    try {
+      return await fetch(url, { ...fetchOptions, signal: AbortSignal.timeout(retryTimeoutMs) });
+    } catch (retryErr) {
+      throw friendlyFetchError(retryErr);
+    }
+  }
+}
+
+function friendlyFetchError(err: unknown) {
+  if (isAbortError(err)) {
+    return new Error("A Evolution demorou para responder e a operação expirou. Se estiver usando Render gratuito, aguarde a instância acordar e tente enviar novamente.");
+  }
+  return err instanceof Error ? err : new Error("Falha ao chamar serviço externo.");
+}
+
+function isAbortError(err: unknown) {
+  const error = err as { name?: string; message?: string };
+  return error?.name === "AbortError" || /aborted|timeout|timed out/i.test(String(error?.message ?? ""));
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function setWhatsappError(client: DbClient, empresaId: string | null, envioId: string, error: string, tentativas: number) {
