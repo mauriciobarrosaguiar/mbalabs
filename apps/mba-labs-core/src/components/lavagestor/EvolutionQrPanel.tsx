@@ -23,6 +23,8 @@ type EvolutionQrPanelProps = {
     provider: string;
     status: string;
     instanciaId: string;
+    apiUrl?: string;
+    apiKeyConfigured?: boolean;
     ultimoErro?: string;
   };
 };
@@ -45,7 +47,9 @@ export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrP
   const hasInstance = Boolean(integration.instanciaId || result?.instance);
   const connected = status === "conectado" || result?.status === "conectado";
   const qrImage = useMemo(() => imageSource(result?.qrCode), [result?.qrCode]);
-  const managerAlert = evolutionManagerMessage(manager);
+  const hasSavedEvolutionConfig = integration.provider === "evolution" && Boolean(integration.apiUrl) && integration.apiKeyConfigured === true;
+  const evolutionAvailable = manager.configured || hasSavedEvolutionConfig;
+  const managerAlert = evolutionManagerMessage(manager, hasSavedEvolutionConfig);
 
   useEffect(() => {
     if (!result?.qrCode || connected) return;
@@ -103,33 +107,35 @@ export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrP
         </span>
       </div>
 
-      {!manager.configured ? (
+      {!evolutionAvailable ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-950">
           {managerAlert}
         </div>
       ) : (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold leading-6 text-emerald-950">
-          Evolution central configurada. Clique em <strong>Conectar WhatsApp</strong> para criar a instância e depois em <strong>Mostrar QR Code</strong>.
+          {manager.configured
+            ? <>Evolution central configurada. Clique em <strong>Conectar WhatsApp</strong> para criar a instância e depois em <strong>Mostrar QR Code</strong>.</>
+            : <>Configuração avançada salva. Clique em <strong>Conectar WhatsApp</strong> para criar a instância usando a URL/API Key salvas para esta empresa.</>}
         </div>
       )}
 
       <div className="flex flex-wrap gap-2">
         <form action={createEvolutionEasyInstanceAction}>
-          <button className="button-primary" disabled={!canEdit || !manager.configured || isPending} type="submit">
+          <button className="button-primary" disabled={!canEdit || !evolutionAvailable || isPending} type="submit">
             <PlugZap className="h-4 w-4" aria-hidden />
             Conectar WhatsApp
           </button>
         </form>
-        <button className="button-secondary" disabled={!canEdit || !manager.configured || isPending} type="button" onClick={loadQr}>
+        <button className="button-secondary" disabled={!canEdit || !evolutionAvailable || isPending} type="button" onClick={loadQr}>
           <QrCode className="h-4 w-4" aria-hidden />
           Mostrar QR Code
         </button>
-        <button className="button-secondary" disabled={!canEdit || !manager.configured || isPending} type="button" onClick={checkStatus}>
+        <button className="button-secondary" disabled={!canEdit || !evolutionAvailable || isPending} type="button" onClick={checkStatus}>
           <RefreshCw className="h-4 w-4" aria-hidden />
           Verificar status
         </button>
         <form action={reconnectEvolutionEasyAction}>
-          <button className="button-secondary" disabled={!canEdit || !manager.configured || !hasInstance || isPending} type="submit">Reconectar</button>
+          <button className="button-secondary" disabled={!canEdit || !evolutionAvailable || !hasInstance || isPending} type="submit">Reconectar</button>
         </form>
         <form action={disconnectEvolutionEasyAction}>
           <button className="button-danger" disabled={!canEdit || !hasInstance || isPending} type="submit">
@@ -144,9 +150,11 @@ export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrP
         <div className="grid gap-2 border-t border-border p-3 text-sm font-semibold leading-6 text-muted-foreground md:grid-cols-2">
           <DiagnosticItem label="URL central" value={manager.apiUrl ? "Configurada" : "Não configurada"} ok={Boolean(manager.apiUrl)} />
           <DiagnosticItem label="API Key central" value={manager.apiKeyConfigured ? "Configurada" : "Não configurada"} ok={manager.apiKeyConfigured} />
+          <DiagnosticItem label="URL salva na empresa" value={integration.apiUrl ? "Configurada" : "Não configurada"} ok={Boolean(integration.apiUrl)} />
+          <DiagnosticItem label="API Key salva na empresa" value={integration.apiKeyConfigured ? "Configurada" : "Não configurada"} ok={integration.apiKeyConfigured === true} />
           <DiagnosticItem label="Prefixo das instâncias" value={manager.prefix || "lavagestor"} ok />
           <DiagnosticItem label="Instância atual" value={integration.instanciaId || result?.instance || "Ainda não criada"} ok={hasInstance} />
-          {manager.missing.length ? (
+          {manager.missing.length && !hasSavedEvolutionConfig ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-950 md:col-span-2">
               <strong className="block text-xs uppercase tracking-[0.08em]">Variáveis faltando na Vercel</strong>
               <span>{manager.missing.join(", ")}</span>
@@ -195,14 +203,15 @@ function DiagnosticItem({ label, value, ok }: { label: string; value: string; ok
   );
 }
 
-function evolutionManagerMessage(manager: EvolutionQrPanelProps["manager"]) {
+function evolutionManagerMessage(manager: EvolutionQrPanelProps["manager"], hasSavedEvolutionConfig: boolean) {
+  if (hasSavedEvolutionConfig) return "Configuração avançada da Evolution salva para esta empresa.";
   if (manager.apiUrl && !manager.apiKeyConfigured) {
-    return "A URL da Evolution foi encontrada, mas a API Key central não foi lida pelo app. Confira LAVAGESTOR_EVOLUTION_MANAGER_API_KEY na Vercel em Production/Preview e faça redeploy.";
+    return "A URL da Evolution foi encontrada, mas a API Key central não foi lida pelo app. Cole a AUTHENTICATION_API_KEY no campo avançado Evolution API Key, salve o modo do WhatsApp e tente conectar novamente.";
   }
   if (!manager.apiUrl && manager.apiKeyConfigured) {
     return "A API Key da Evolution foi encontrada, mas a URL central não foi configurada. Configure LAVAGESTOR_EVOLUTION_MANAGER_URL na Vercel e faça redeploy.";
   }
-  return "O WhatsApp automático ainda não está disponível. Configure LAVAGESTOR_EVOLUTION_MANAGER_URL e LAVAGESTOR_EVOLUTION_MANAGER_API_KEY na Vercel e faça redeploy.";
+  return "O WhatsApp automático ainda não está disponível. Configure a Evolution central na Vercel ou preencha URL/API Key em Configurações avançadas.";
 }
 
 function imageSource(qrCode?: string) {
