@@ -34,6 +34,7 @@ type QrResult = {
   status?: string;
   state?: string;
   error?: string;
+  instance?: string;
 };
 
 export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrPanelProps) {
@@ -41,9 +42,10 @@ export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrP
   const [result, setResult] = useState<QrResult | null>(null);
   const [status, setStatus] = useState(integration.status);
   const [error, setError] = useState(integration.ultimoErro || "");
-  const hasInstance = Boolean(integration.instanciaId);
+  const hasInstance = Boolean(integration.instanciaId || result?.instance);
   const connected = status === "conectado" || result?.status === "conectado";
   const qrImage = useMemo(() => imageSource(result?.qrCode), [result?.qrCode]);
+  const managerAlert = evolutionManagerMessage(manager);
 
   useEffect(() => {
     if (!result?.qrCode || connected) return;
@@ -55,7 +57,7 @@ export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrP
           setError("");
           if (next.status === "conectado") window.clearInterval(timer);
         } else {
-          setError(String(next.error || "Nao foi possivel conferir o WhatsApp."));
+          setError(String(next.error || "Não foi possível conferir o WhatsApp."));
         }
       });
     }, 7000);
@@ -67,8 +69,11 @@ export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrP
       setError("");
       const next = (await getEvolutionEasyQrAction()) as QrResult;
       setResult(next);
-      if (next.ok) setStatus(String(next.status || "inativo"));
-      else setError(String(next.error || "Nao foi possivel gerar o QR Code."));
+      if (next.ok) {
+        setStatus(String(next.status || "inativo"));
+      } else {
+        setError(String(next.error || "Não foi possível gerar o QR Code."));
+      }
     });
   }
 
@@ -80,7 +85,7 @@ export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrP
         setStatus(String(next.status || "inativo"));
         setResult(next);
       } else {
-        setError(String(next.error || "Nao foi possivel conferir o WhatsApp."));
+        setError(String(next.error || "Não foi possível conferir o WhatsApp."));
       }
     });
   }
@@ -94,24 +99,28 @@ export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrP
           <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">Leia o QR Code no WhatsApp do celular da empresa.</p>
         </div>
         <span className={`w-fit rounded-full px-3 py-1 text-xs font-black ${connected ? "bg-emerald-50 text-emerald-900" : error ? "bg-red-50 text-red-900" : "bg-amber-50 text-amber-900"}`}>
-          {connected ? "Conectado" : error ? "Erro" : hasInstance ? "Aguardando QR Code" : "Nao conectado"}
+          {connected ? "Conectado" : error ? "Erro" : hasInstance ? "Aguardando QR Code" : "Não conectado"}
         </span>
       </div>
 
       {!manager.configured ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-950">
-          O WhatsApp automatico ainda nao esta disponivel. Fale com a MBA Labs para ativar.
+          {managerAlert}
         </div>
-      ) : null}
+      ) : (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold leading-6 text-emerald-950">
+          Evolution central configurada. Clique em <strong>Conectar WhatsApp</strong> para criar a instância e depois em <strong>Mostrar QR Code</strong>.
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2">
         <form action={createEvolutionEasyInstanceAction}>
-          <button className="button-primary" disabled={!canEdit || !manager.configured} type="submit">
+          <button className="button-primary" disabled={!canEdit || !manager.configured || isPending} type="submit">
             <PlugZap className="h-4 w-4" aria-hidden />
-            Criar conexao
+            Conectar WhatsApp
           </button>
         </form>
-        <button className="button-secondary" disabled={!canEdit || !manager.configured || (!hasInstance && !result?.ok) || isPending} type="button" onClick={loadQr}>
+        <button className="button-secondary" disabled={!canEdit || !manager.configured || isPending} type="button" onClick={loadQr}>
           <QrCode className="h-4 w-4" aria-hidden />
           Mostrar QR Code
         </button>
@@ -120,15 +129,37 @@ export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrP
           Verificar status
         </button>
         <form action={reconnectEvolutionEasyAction}>
-          <button className="button-secondary" disabled={!canEdit || !manager.configured || !hasInstance} type="submit">Reconectar</button>
+          <button className="button-secondary" disabled={!canEdit || !manager.configured || !hasInstance || isPending} type="submit">Reconectar</button>
         </form>
         <form action={disconnectEvolutionEasyAction}>
-          <button className="button-danger" disabled={!canEdit || !hasInstance} type="submit">
+          <button className="button-danger" disabled={!canEdit || !hasInstance || isPending} type="submit">
             <PowerOff className="h-4 w-4" aria-hidden />
             Desconectar
           </button>
         </form>
       </div>
+
+      <details className="rounded-xl border border-border bg-muted/30">
+        <summary className="cursor-pointer px-3 py-2 text-sm font-black">Diagnóstico da Evolution central</summary>
+        <div className="grid gap-2 border-t border-border p-3 text-sm font-semibold leading-6 text-muted-foreground md:grid-cols-2">
+          <DiagnosticItem label="URL central" value={manager.apiUrl ? "Configurada" : "Não configurada"} ok={Boolean(manager.apiUrl)} />
+          <DiagnosticItem label="API Key central" value={manager.apiKeyConfigured ? "Configurada" : "Não configurada"} ok={manager.apiKeyConfigured} />
+          <DiagnosticItem label="Prefixo das instâncias" value={manager.prefix || "lavagestor"} ok />
+          <DiagnosticItem label="Instância atual" value={integration.instanciaId || result?.instance || "Ainda não criada"} ok={hasInstance} />
+          {manager.missing.length ? (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-amber-950 md:col-span-2">
+              <strong className="block text-xs uppercase tracking-[0.08em]">Variáveis faltando na Vercel</strong>
+              <span>{manager.missing.join(", ")}</span>
+            </div>
+          ) : null}
+          {integration.ultimoErro || error ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-red-950 md:col-span-2">
+              <strong className="block text-xs uppercase tracking-[0.08em]">Último erro</strong>
+              <span className="break-words">{error || integration.ultimoErro}</span>
+            </div>
+          ) : null}
+        </div>
+      </details>
 
       {isPending ? <p className="rounded-xl bg-muted p-3 text-sm font-semibold text-muted-foreground">Conferindo WhatsApp...</p> : null}
 
@@ -139,7 +170,7 @@ export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrP
           <img className="mx-auto aspect-square w-full max-w-[220px] rounded-lg border border-border bg-white p-2" src={qrImage} alt="QR Code do WhatsApp" />
           <div className="grid gap-2 text-sm font-semibold leading-6 text-emerald-950">
             <strong className="text-base">QR Code gerado no app</strong>
-            <span>Abra o WhatsApp no celular, toque em Aparelhos conectados e leia este codigo.</span>
+            <span>Abra o WhatsApp no celular, toque em Aparelhos conectados e leia este código.</span>
             {result?.pairingCode ? <code className="w-fit rounded bg-white px-2 py-1 font-mono text-sm">{result.pairingCode}</code> : null}
           </div>
         </div>
@@ -147,12 +178,31 @@ export function EvolutionQrPanel({ canEdit, manager, integration }: EvolutionQrP
 
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold leading-6 text-red-950">
-          <strong className="block text-xs uppercase tracking-[0.1em]">Ultimo erro</strong>
+          <strong className="block text-xs uppercase tracking-[0.1em]">Último erro</strong>
           <span className="break-words">{error}</span>
         </div>
       ) : null}
     </section>
   );
+}
+
+function DiagnosticItem({ label, value, ok }: { label: string; value: string; ok: boolean }) {
+  return (
+    <div className={`rounded-lg border p-2 ${ok ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-amber-200 bg-amber-50 text-amber-950"}`}>
+      <strong className="block text-xs uppercase tracking-[0.08em] text-muted-foreground">{label}</strong>
+      <span className="break-words">{value}</span>
+    </div>
+  );
+}
+
+function evolutionManagerMessage(manager: EvolutionQrPanelProps["manager"]) {
+  if (manager.apiUrl && !manager.apiKeyConfigured) {
+    return "A URL da Evolution foi encontrada, mas a API Key central não foi lida pelo app. Confira LAVAGESTOR_EVOLUTION_MANAGER_API_KEY na Vercel em Production/Preview e faça redeploy.";
+  }
+  if (!manager.apiUrl && manager.apiKeyConfigured) {
+    return "A API Key da Evolution foi encontrada, mas a URL central não foi configurada. Configure LAVAGESTOR_EVOLUTION_MANAGER_URL na Vercel e faça redeploy.";
+  }
+  return "O WhatsApp automático ainda não está disponível. Configure LAVAGESTOR_EVOLUTION_MANAGER_URL e LAVAGESTOR_EVOLUTION_MANAGER_API_KEY na Vercel e faça redeploy.";
 }
 
 function imageSource(qrCode?: string) {
