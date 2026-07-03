@@ -2,7 +2,9 @@ import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, MessageBanner, PageHeader, formatDateTime } from "@/components/ui-kit";
 import { confirmarLavaPlacaLeitura, saveLavaPlacaLeitura } from "@/lib/actions/lavagestor-placa-actions";
+import { requireAppAccess } from "@/lib/core-data";
 import { firstParam } from "@/lib/form-utils";
+import { getLavaAiMode } from "@/lib/lavagestor-ai";
 import { getLavaPlacaData } from "@/lib/lavagestor-placa-data";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function PlacaPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const data = await getLavaPlacaData();
+  const aiMode = await getLavaAiMode(await requireAppAccess("lavagestor", "/lavagestor/placa"));
   const veiculoId = firstParam(params.veiculo_id) ?? firstParam(params.veiculo);
   const placa = firstParam(params.placa) ?? "";
   const foundVehicle = veiculoId ? data.veiculos.find((row) => String(row.id) === veiculoId) : null;
@@ -20,13 +23,13 @@ export default async function PlacaPage({ searchParams }: { searchParams: Promis
         <PageHeader
           eyebrow="LavaGestor"
           title="Ler placa"
-          description="Reconhecimento de placa preparado para IA futura. Nesta fase, funciona em modo manual com foto opcional."
+          description={aiMode.allowPlateReading ? "Reconhecimento de placa com IAMob/Gemini ou modo manual." : "Reconhecimento de placa em modo manual com foto opcional."}
           actions={<><BackButton href="/lavagestor" /><Link className="button-secondary" href="/lavagestor/nova-lavagem">Nova lavagem</Link></>}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold leading-6 text-amber-950">
-          Reconhecimento automático ainda não configurado. Digite a placa manualmente.
+        <div className={`rounded-xl border p-4 text-sm font-bold leading-6 ${aiMode.allowPlateReading ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-amber-200 bg-amber-50 text-amber-950"}`}>
+          {aiMode.allowPlateReading ? "Leitura de placa com IAMob ativa. Confirme a placa antes de abrir lavagem ou cadastro." : "Reconhecimento automatico nao configurado. Digite a placa manualmente."}
         </div>
 
         {foundVehicle ? (
@@ -61,10 +64,13 @@ export default async function PlacaPage({ searchParams }: { searchParams: Promis
             </label>
             <label className="grid gap-2">
               <span className="text-sm font-black">Placa manual</span>
-              <input className="input uppercase" name="placa" placeholder="ABC1D23" maxLength={8} defaultValue={placa} required />
+              <input className="input uppercase" name="placa" placeholder="ABC1D23" maxLength={8} defaultValue={placa} />
             </label>
           </div>
-          <button className="button-primary w-fit" type="submit">Salvar leitura</button>
+          <div className="flex flex-wrap gap-2">
+            <button className="button-primary" name="intent" type="submit" value="manual">Salvar leitura manual</button>
+            {aiMode.allowPlateReading ? <button className="button-secondary" name="intent" type="submit" value="gemini">Ler placa com IAMob</button> : null}
+          </div>
         </form>
 
         <section className="grid gap-3 rounded-xl border border-border bg-white p-4 shadow-sm">

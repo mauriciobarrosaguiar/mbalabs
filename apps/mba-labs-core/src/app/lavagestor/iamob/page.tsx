@@ -4,6 +4,7 @@ import { MessageActions } from "@/components/lavagestor/MessageActions";
 import { BackButton, MessageBanner, PageHeader, formatDateTime, formatMoney } from "@/components/ui-kit";
 import { registrarIAmobLog } from "@/lib/actions/lavagestor-iamob-actions";
 import { firstParam } from "@/lib/form-utils";
+import { getLavaAiMode } from "@/lib/lavagestor-ai";
 import { getLavaIAmobData } from "@/lib/lavagestor-iamob-data";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function IAmobPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const data = await getLavaIAmobData();
+  const aiMode = await getLavaAiMode(data.current);
 
   return (
     <LavaGestorShell activePath="/lavagestor/iamob" companyName={data.config.nome_exibicao}>
@@ -18,13 +20,16 @@ export default async function IAmobPage({ searchParams }: { searchParams: Promis
         <PageHeader
           eyebrow="LavaGestor"
           title="IAMob"
-          description="Inteligencia operacional em modo regras, sem depender de API externa."
+          description={aiMode.active ? "Inteligencia operacional com Gemini ativo e fallback por regras." : "Inteligencia operacional em modo regras, sem depender de API externa."}
           actions={<><BackButton href="/lavagestor" /><Link className="button-secondary" href="/lavagestor/automacoes">Automacoes</Link></>}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold leading-6 text-emerald-950">
-          IAMob esta funcionando em modo regras: cruza fila, pagamentos, agenda, estoque e historico para sugerir proximas acoes. Analise por IA externa fica preparada para uma etapa futura.
+        <div className={`rounded-xl border p-4 text-sm font-bold leading-6 ${aiMode.active ? "border-emerald-200 bg-emerald-50 text-emerald-950" : "border-amber-200 bg-amber-50 text-amber-950"}`}>
+          {aiMode.active
+            ? "IAMob usando Gemini. Se a IA falhar, o LavaGestor usa regras internas e registra o erro."
+            : "IAMob em modo regras: cruza fila, pagamentos, agenda, estoque e historico para sugerir proximas acoes."}
+          {aiMode.connection.ultimoErro ? <span className="mt-2 block break-words">Ultimo erro Gemini: {aiMode.connection.ultimoErro}</span> : null}
         </div>
 
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">

@@ -7,6 +7,7 @@ import { booleanValue, messageParam, nullableTextValue, textValue } from "@/lib/
 import { canUploadCheckoutPhoto, ensureChecklistForLavagem, LAVA_CHECKLIST_BUCKET } from "@/lib/lavagestor-checklists-data";
 import { requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
 import { ensurePendingSyncRowsForPhoto } from "@/lib/lavagestor-storage";
+import { enqueueWhatsappMessage } from "@/lib/lavagestor-whatsapp";
 import { getSupabaseServer } from "@/lib/supabase";
 
 type Row = Record<string, unknown>;
@@ -75,6 +76,11 @@ export async function saveLavaChecklist(formData: FormData) {
 
   await updateChecklistServicos(client, current.empresaId, checklist.id, formData);
   await insertHistory(client, current, lavagemId, intent === "concluir" ? "checklist_entrada_concluido" : intent === "cancelar" ? "checklist_cancelado" : "checklist_salvo");
+  if (intent === "concluir") {
+    await enqueueChecklistWhatsapp(client, current, lavagemId).catch(async (err) => {
+      await insertHistory(client, current, lavagemId, "whatsapp_erro_checklist", err instanceof Error ? err.message : "Falha ao enfileirar WhatsApp.");
+    });
+  }
   await logAction({ appSlug: "lavagestor", acao: "salvar checklist", detalhes: { lavagem_id: lavagemId, status } });
   revalidateLavaChecklistPaths(lavagemId);
   redirect(`${returnTo}?ok=${messageParam(intent === "concluir" ? "Checklist concluido." : "Checklist salvo.")}`);
@@ -221,11 +227,30 @@ export async function deleteLavaChecklistFoto(formData: FormData) {
 async function getLavagem(client: any, empresaId: string | null, lavagemId: string) {
   const { data } = await client
     .from("lava_lavagens")
-    .select("id,cliente_id,veiculo_id,status,data_entrada,data_lavagem,lava_clientes(nome),lava_veiculos(placa,marca,modelo,cor,tipo)")
+    .select("id,cliente_id,veiculo_id,status,data_entrada,data_lavagem,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor,tipo)")
     .eq("id", lavagemId)
     .eq("empresa_id", empresaId)
     .maybeSingle();
   return data as Row | null;
+}
+
+async function enqueueChecklistWhatsapp(client: any, current: { empresaId: string | null; usuario: { id: string } }, lavagemId: string) {
+  const lavagem = await getLavagem(client, current.empresaId, lavagemId);
+  if (!lavagem) return;
+  const cliente = relationObject(lavagem.lava_clientes);
+  const veiculo = relationObject(lavagem.lava_veiculos);
+  await enqueueWhatsappMessage(current, {
+    evento: "checklist_concluido",
+    clienteId: String(lavagem.cliente_id ?? "") || null,
+    lavagemId,
+    telefone: String(cliente?.telefone ?? ""),
+    data: {
+      cliente: String(cliente?.nome ?? "cliente"),
+      veiculo: vehicleLabel(veiculo),
+      placa: String(veiculo?.placa ?? ""),
+      empresa: "LavaGestor"
+    }
+  });
 }
 
 async function getChecklistConfig(client: any, empresaId: string | null) {
@@ -311,6 +336,7 @@ function revalidateLavaChecklistPaths(lavagemId: string) {
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/fila");
   revalidatePath("/lavagestor/lavagens");
+  revalidatePath("/lavagestor/whatsapp");
   revalidatePath(`/lavagestor/checklists/${lavagemId}`);
   revalidatePath(`/lavagestor/tickets/${lavagemId}`);
   revalidatePath(`/lavagestor/recibos/${lavagemId}`);
@@ -334,6 +360,18 @@ function arrayValue(value: unknown) {
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
   if (typeof value === "string") return value.split("\n").map((item) => item.trim()).filter(Boolean);
   return [];
+}
+
+function relationObject(value: unknown): Row | null {
+  const relation = Array.isArray(value) ? value[0] : value;
+  return relation && typeof relation === "object" ? relation as Row : null;
+}
+
+function vehicleLabel(value: unknown) {
+  const relation = relationObject(value) ?? (value as Row | null);
+  if (!relation || typeof relation !== "object") return "veiculo";
+  const model = [relation.marca, relation.modelo].filter(Boolean).join(" ");
+  return [relation.placa, model, relation.cor].filter(Boolean).join(" - ") || "veiculo";
 }
 
 function extensionFromFile(file: File) {

@@ -3,8 +3,11 @@ import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { LavaPhotoCard, LavaSyncPendingButton } from "@/components/lavagestor/LavaPhotoCard";
 import { PhotoUploadSubmitButton } from "@/components/lavagestor/PhotoUploadSubmitButton";
 import { BackButton, MessageBanner, PageHeader, formatDateTime } from "@/components/ui-kit";
+import { analyzeLavaChecklistPhotoAction } from "@/lib/actions/lavagestor-ai-actions";
 import { deleteLavaChecklistFoto, saveLavaChecklist, uploadLavaChecklistFoto } from "@/lib/actions/lavagestor-checklists-actions";
+import { requireAppAccess } from "@/lib/core-data";
 import { firstParam } from "@/lib/form-utils";
+import { getLavaAiMode } from "@/lib/lavagestor-ai";
 import { canUploadCheckoutPhoto, getLavaChecklistPageData, LAVA_CHECKLIST_PHOTO_TYPES } from "@/lib/lavagestor-checklists-data";
 
 export const dynamic = "force-dynamic";
@@ -19,6 +22,7 @@ export default async function LavaChecklistPage({
   const { lavagem_id: lavagemId } = await params;
   const query = await searchParams;
   const { lavagem, checklist, servicos, fotos, config, error } = await getLavaChecklistPageData(lavagemId);
+  const aiMode = await getLavaAiMode(await requireAppAccess("lavagestor", `/lavagestor/checklists/${lavagemId}`));
 
   if (!lavagem || !checklist) {
     return (
@@ -127,6 +131,7 @@ export default async function LavaChecklistPage({
 
         <PhotoSection
           canDelete={!locked}
+          canAnalyze={aiMode.allowPhotoAnalysis}
           canUpload={!locked}
           description="Use a camera do celular ou anexe imagens da galeria antes de concluir o checklist."
           emptyText="Nenhuma foto de entrada anexada ainda."
@@ -140,6 +145,7 @@ export default async function LavaChecklistPage({
         {showCheckout ? (
           <PhotoSection
             canDelete={canUploadCheckout && !isDelivered}
+            canAnalyze={aiMode.allowPhotoAnalysis}
             canUpload={canUploadCheckout && !isDelivered}
             description={isDelivered ? "Lavagem entregue: as fotos de checkout ficam apenas para consulta." : "Registre o estado final antes da retirada ou entrega ao cliente."}
             emptyText="Nenhuma foto de checkout anexada ainda."
@@ -164,6 +170,7 @@ function PhotoSection({
   momento,
   canUpload,
   canDelete,
+  canAnalyze,
   photoTypes
 }: {
   title: string;
@@ -174,6 +181,7 @@ function PhotoSection({
   momento: "entrada" | "checkout";
   canUpload: boolean;
   canDelete: boolean;
+  canAnalyze: boolean;
   photoTypes: { value: string; label: string }[];
 }) {
   return (
@@ -229,6 +237,15 @@ function PhotoSection({
                   <input name="lavagem_id" type="hidden" value={lavagemId} />
                   <input name="foto_id" type="hidden" value={String(foto.id)} />
                   <button className="button-danger w-full" type="submit">Excluir foto</button>
+                </form>
+              ) : null}
+              {canAnalyze ? (
+                <form action={analyzeLavaChecklistPhotoAction}>
+                  <input name="lavagem_id" type="hidden" value={lavagemId} />
+                  <input name="foto_id" type="hidden" value={String(foto.id)} />
+                  <input name="return_to" type="hidden" value={`/lavagestor/checklists/${lavagemId}#fotos-${momento}`} />
+                  <button className="button-secondary w-full" type="submit">Analisar foto com IAMob</button>
+                  <p className="mt-1 text-xs font-semibold text-muted-foreground">Analise gerada por IA. Confirme manualmente antes de usar.</p>
                 </form>
               ) : null}
           </LavaPhotoCard>

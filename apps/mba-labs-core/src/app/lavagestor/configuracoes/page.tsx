@@ -4,11 +4,15 @@ import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { MessageTemplateEditor } from "@/components/lavagestor/MessageTemplateEditor";
 import { BackButton, MessageBanner, PageHeader } from "@/components/ui-kit";
 import { requireAppAccess } from "@/lib/core-data";
+import { removeLavaAiConnectionAction, saveLavaAiSettingsAction, testLavaAiConnectionAction } from "@/lib/actions/lavagestor-ai-actions";
 import { saveLavaConfiguracoesEmpresa } from "@/lib/actions/lavagestor-configuracoes-actions";
+import { saveLavaWhatsappIntegrationAction, testLavaWhatsappIntegrationAction } from "@/lib/actions/lavagestor-whatsapp-actions";
 import { firstParam } from "@/lib/form-utils";
+import { betterGeminiModel, defaultGeminiModel, getLavaAiMode } from "@/lib/lavagestor-ai";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
 import { requireLavaGestorSettingsAccess } from "@/lib/lavagestor-permissions";
 import { getLavaStorageOverview, lavaStorageProviderLabel, type LavaStorageProvider } from "@/lib/lavagestor-storage";
+import { getWhatsappIntegration, type WhatsappIntegrationView } from "@/lib/lavagestor-whatsapp";
 
 export const dynamic = "force-dynamic";
 
@@ -17,14 +21,33 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
   const params = await searchParams;
   const current = await requireAppAccess("lavagestor", "/lavagestor/configuracoes");
   const requestOrigin = await getRequestOrigin();
-  const [{ config, error }, storageOverview] = await Promise.all([
+  const [{ config, error }, storageOverview, aiMode, whatsappIntegration] = await Promise.all([
     getLavaConfiguracoesEmpresa(),
     getLavaStorageOverview(current, requestOrigin).catch((storageError) => ({
       connections: [],
       pendingCount: 0,
       errorCount: 0,
       error: storageError instanceof Error ? storageError.message : "Não foi possível carregar armazenamento."
-    }))
+    })),
+    getLavaAiMode(current).catch((aiError) => ({
+      active: false,
+      mode: "regras" as const,
+      label: "IAMob em modo regras",
+      allowPhotoAnalysis: false,
+      allowPlateReading: false,
+      connection: {
+        provider: "gemini" as const,
+        status: "erro" as const,
+        model: configSafeModel(),
+        accountHint: "",
+        ultimoTesteEm: null,
+        ultimoErro: aiError instanceof Error ? aiError.message : "Nao foi possivel carregar IA.",
+        usoTotal: 0,
+        apiKeyConfigured: false
+      },
+      error: aiError instanceof Error ? aiError.message : "Nao foi possivel carregar IA."
+    })),
+    getWhatsappIntegration(current)
   ]);
   const color = config.cor_principal || "#059669";
 
@@ -52,7 +75,8 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
         </div>
 
         <StorageSection overview={storageOverview} />
-        <WhatsappCompanySection whatsapp={config.whatsapp} />
+        <AiRealSection aiMode={aiMode} config={config} />
+        <WhatsappAutomationSection integration={whatsappIntegration} whatsapp={config.whatsapp} />
 
         <form action={saveLavaConfiguracoesEmpresa} className="grid gap-4">
           <ConfigBlock badge="01" title="Empresa" description="Dados que aparecem no cabeçalho, recibo e relatório." defaultOpen>
@@ -142,6 +166,190 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
 
 type StorageOverview = Awaited<ReturnType<typeof getLavaStorageOverview>> | { connections: Record<string, unknown>[]; pendingCount: number; errorCount: number; error: string; oauth?: Record<string, unknown>[]; lastSyncErrors?: Record<string, unknown>[] };
 
+function AiRealSection({ aiMode, config }: { aiMode: Awaited<ReturnType<typeof getLavaAiMode>>; config: { iamob_model: string; iamob_modo: string; iamob_permitir_analise_foto: boolean; iamob_permitir_leitura_placa: boolean } }) {
+  const connection = aiMode.connection;
+  return (
+    <section className="grid gap-4 rounded-2xl border border-border bg-white p-4 shadow-sm">
+      <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-start">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">IAMob com IA real</p>
+          <h2 className="mt-1 text-xl font-black">Gemini API por empresa</h2>
+          <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">Use uma chave criada pela propria conta Google/Gmail da empresa no Google AI Studio. A MBA Labs nao paga o consumo da IA do cliente.</p>
+        </div>
+        <span className={`rounded-full px-3 py-1 text-xs font-black ${connection.status === "conectado" ? "bg-emerald-50 text-emerald-900" : connection.status === "erro" ? "bg-red-50 text-red-900" : "bg-muted text-muted-foreground"}`}>
+          {aiMode.label}
+        </span>
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-4">
+        <InfoTile label="Status Gemini" value={connection.status} />
+        <InfoTile label="API Key" value={connection.apiKeyConfigured ? "Configurada" : "Nao configurada"} />
+        <InfoTile label="Modelo" value={connection.model || config.iamob_model || defaultGeminiModel()} />
+        <InfoTile label="Uso aproximado" value={String(connection.usoTotal)} />
+      </div>
+
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-950">
+        No plano gratuito da Gemini API, evite enviar dados sensiveis, documentos confidenciais ou informacoes pessoais desnecessarias.
+      </div>
+
+      {connection.ultimoErro ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold leading-6 text-red-950">
+          <strong className="block text-xs uppercase tracking-[0.1em]">Ultimo erro</strong>
+          <span className="break-words">{connection.ultimoErro}</span>
+        </div>
+      ) : null}
+
+      <form action={saveLavaAiSettingsAction} className="grid gap-3 md:grid-cols-2">
+        <label className="grid gap-2">
+          <span className="text-sm font-black">Modo</span>
+          <select className="input" name="iamob_modo" defaultValue={aiMode.mode || config.iamob_modo || "regras"}>
+            <option value="regras">Regras internas</option>
+            <option value="gemini">Gemini API</option>
+          </select>
+        </label>
+        <label className="grid gap-2">
+          <span className="text-sm font-black">Modelo</span>
+          <input className="input" list="gemini-models" name="iamob_model" defaultValue={connection.model || config.iamob_model || defaultGeminiModel()} />
+          <datalist id="gemini-models">
+            <option value={defaultGeminiModel()} />
+            <option value={betterGeminiModel()} />
+          </datalist>
+        </label>
+        <label className="grid gap-2 md:col-span-2">
+          <span className="text-sm font-black">API Key Gemini</span>
+          <input className="input" name="gemini_api_key" placeholder={connection.apiKeyConfigured ? "Chave configurada. Preencha apenas para trocar." : "Cole a API Key criada no Google AI Studio"} type="password" autoComplete="new-password" />
+        </label>
+        <Toggle label="Permitir analise de fotos" description="Libera o botao Analisar foto com IAMob nos checklists." name="iamob_permitir_analise_foto" defaultChecked={aiMode.allowPhotoAnalysis || config.iamob_permitir_analise_foto} />
+        <Toggle label="Permitir leitura de placa por IA" description="Libera Ler placa com IAMob na tela de placa." name="iamob_permitir_leitura_placa" defaultChecked={aiMode.allowPlateReading || config.iamob_permitir_leitura_placa} />
+        <div className="flex flex-wrap gap-2 md:col-span-2">
+          <button className="button-primary" type="submit">Salvar chave</button>
+        </div>
+      </form>
+      <div className="flex flex-wrap gap-2">
+        <form action={testLavaAiConnectionAction}>
+          <button className="button-secondary" disabled={!connection.apiKeyConfigured} type="submit">Testar IA</button>
+        </form>
+        <form action={removeLavaAiConnectionAction}>
+          <button className="button-danger" disabled={!connection.apiKeyConfigured} type="submit">Remover chave</button>
+        </form>
+        <a className="button-secondary" href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer">Google AI Studio</a>
+      </div>
+    </section>
+  );
+}
+
+function WhatsappAutomationSection({ integration, whatsapp }: { integration: WhatsappIntegrationView; whatsapp?: string | null }) {
+  return (
+    <section className="grid gap-4 rounded-2xl border border-border bg-white p-4 shadow-sm">
+      <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-start">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">WhatsApp automatico com IA</p>
+          <h2 className="mt-1 text-xl font-black">Manual, aprovacao ou automatico total</h2>
+          <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">Se o WhatsApp automatico nao estiver configurado, o LavaGestor continuara usando envio manual pelo wa.me.</p>
+        </div>
+        <a className="button-secondary" href="/lavagestor/whatsapp">Abrir fila</a>
+      </div>
+
+      <div className="grid gap-2 md:grid-cols-4">
+        <InfoTile label="Status" value={integration.status} />
+        <InfoTile label="Provider" value={providerLabel(integration.provider)} />
+        <InfoTile label="Modo" value={modeLabel(integration.modoEnvio)} />
+        <InfoTile label="Numero" value={integration.numero || whatsapp || "Nao informado"} />
+      </div>
+
+      {integration.ultimoErro ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold leading-6 text-red-950">
+          <strong className="block text-xs uppercase tracking-[0.1em]">Ultimo erro</strong>
+          <span className="break-words">{integration.ultimoErro}</span>
+        </div>
+      ) : null}
+
+      <form action={saveLavaWhatsappIntegrationAction} className="grid gap-3 md:grid-cols-2">
+        <label className="grid gap-2">
+          <span className="text-sm font-black">Modo de envio</span>
+          <select className="input" name="modo_envio" defaultValue={integration.modoEnvio}>
+            <option value="manual">Manual</option>
+            <option value="automatico_com_aprovacao">Automatico com aprovacao</option>
+            <option value="automatico_total">Automatico total</option>
+          </select>
+        </label>
+        <label className="grid gap-2">
+          <span className="text-sm font-black">Provedor</span>
+          <select className="input" name="provider" defaultValue={integration.provider}>
+            <option value="manual">Manual / wa.me</option>
+            <option value="evolution">Evolution API</option>
+            <option value="whatsapp_cloud_api">WhatsApp Cloud API oficial</option>
+          </select>
+        </label>
+        <Field label="Numero da empresa" name="numero" defaultValue={integration.numero || whatsapp || ""} placeholder="Ex.: 5563999999999" />
+        <Field label="Nome de exibicao" name="nome_exibicao" defaultValue={integration.nomeExibicao} />
+        <Field label="Evolution API URL" name="api_url" defaultValue={integration.apiUrl} placeholder="https://sua-evolution-api.com" />
+        <Field label="Instancia Evolution" name="instancia_id" defaultValue={integration.instanciaId} />
+        <SecretField label="Evolution API Key" name="api_key" configured={integration.apiKeyConfigured} />
+        <Field label="Phone Number ID" name="phone_number_id" defaultValue={integration.phoneNumberId} />
+        <Field label="Business Account ID" name="business_account_id" defaultValue={integration.businessAccountId} />
+        <SecretField label="Access Token Cloud API" name="access_token" configured={integration.accessTokenConfigured} />
+        <SecretField label="Webhook Secret" name="webhook_secret" configured={integration.webhookSecretConfigured} />
+        <Toggle label="Usar IAMob/Gemini nas mensagens" description="Se falhar, usa o modelo padrao." name="usar_ia_para_mensagens" defaultChecked={integration.usarIaParaMensagens} />
+        <Toggle label="Exigir aprovacao" description="Recomendado para mensagens geradas por IA." name="exigir_aprovacao" defaultChecked={integration.exigirAprovacao} />
+        <Toggle label="Confirmacao de agendamento" description="Criar/enviar confirmacao automaticamente." name="enviar_agendamento_auto" defaultChecked={integration.eventFlags.confirmacao_agendamento} />
+        <Toggle label="Lembrete de agendamento" description="Preparar lembretes futuros." name="enviar_lembrete_auto" defaultChecked={integration.eventFlags.lembrete_agendamento} />
+        <Toggle label="Veiculo recebido" description="Avisar entrada da lavagem." name="enviar_veiculo_recebido_auto" defaultChecked={integration.eventFlags.lavagem_recebida} />
+        <Toggle label="Checklist concluido" description="Avisar checklist ao cliente." name="enviar_checklist_auto" defaultChecked={integration.eventFlags.checklist_concluido} />
+        <Toggle label="Veiculo pronto" description="Evento principal do piloto." name="enviar_veiculo_pronto_auto" defaultChecked={integration.eventFlags.veiculo_pronto} />
+        <Toggle label="Pagamento recebido" description="Confirmar pagamento." name="enviar_pagamento_auto" defaultChecked={integration.eventFlags.pagamento_recebido} />
+        <Toggle label="Pos-venda" description="Agradecimento e pesquisa." name="enviar_pos_venda_auto" defaultChecked={integration.eventFlags.pos_venda} />
+        <Toggle label="Cobranca de fiado" description="Cobrar valores em aberto." name="enviar_cobranca_auto" defaultChecked={integration.eventFlags.cobranca_fiado} />
+        <Toggle label="Promocao" description="Promocoes exigem aprovacao por seguranca." name="enviar_promocao_auto" defaultChecked={integration.eventFlags.promocao} />
+        <Field label="Horario inicio" name="horario_envio_inicio" defaultValue={integration.horarioEnvioInicio} type="time" />
+        <Field label="Horario fim" name="horario_envio_fim" defaultValue={integration.horarioEnvioFim} type="time" />
+        <Field label="Limite cliente/dia" name="limite_mensagens_cliente_dia" defaultValue={String(integration.limiteMensagensClienteDia)} type="number" />
+        <Field label="Limite de tentativas" name="limite_tentativas" defaultValue={String(integration.limiteTentativas)} type="number" />
+        <div className="flex flex-wrap gap-2 md:col-span-2">
+          <button className="button-primary" type="submit">Salvar WhatsApp</button>
+        </div>
+      </form>
+      <div className="flex flex-wrap gap-2">
+        <form action={testLavaWhatsappIntegrationAction}>
+          <button className="button-secondary" type="submit">Testar conexao</button>
+        </form>
+        <a className="button-secondary" href="https://developers.facebook.com/apps/" target="_blank" rel="noreferrer">Meta Developers</a>
+      </div>
+      <div className="grid gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-950">
+        <span>Modo manual: o sistema abre o WhatsApp com mensagem pronta.</span>
+        <span>Modo automatico com aprovacao: a IA gera a mensagem, voce aprova e o sistema envia.</span>
+        <span>Modo automatico total: a IA gera e o sistema envia sozinho conforme as regras ativadas.</span>
+      </div>
+    </section>
+  );
+}
+
+function configSafeModel() {
+  return defaultGeminiModel();
+}
+
+function providerLabel(provider: string) {
+  if (provider === "evolution") return "Evolution API";
+  if (provider === "whatsapp_cloud_api") return "WhatsApp Cloud API";
+  return "Manual / wa.me";
+}
+
+function modeLabel(mode: string) {
+  if (mode === "automatico_com_aprovacao") return "Automatico com aprovacao";
+  if (mode === "automatico_total") return "Automatico total";
+  return "Manual";
+}
+
+function SecretField({ label, name, configured }: { label: string; name: string; configured: boolean }) {
+  return (
+    <label className="grid gap-2">
+      <span className="text-sm font-black">{label}</span>
+      <input className="input" name={name} type="password" autoComplete="new-password" placeholder={configured ? "Configurado. Preencha apenas para trocar." : "Nao configurado"} />
+    </label>
+  );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function WhatsappCompanySection({ whatsapp }: { whatsapp?: string | null }) {
   return (
     <section className="grid gap-3 rounded-2xl border border-border bg-white p-4 shadow-sm">

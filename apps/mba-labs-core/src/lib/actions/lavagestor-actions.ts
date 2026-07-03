@@ -7,6 +7,7 @@ import { booleanValue, dateValue, messageParam, nullableTextValue, numberValue, 
 import { normalizeLavaStatus } from "@/lib/lavagestor-data";
 import { baixarEstoqueDaLavagem } from "@/lib/lavagestor-estoque-sync";
 import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
+import { enqueueWhatsappMessage } from "@/lib/lavagestor-whatsapp";
 import { getSupabaseServer } from "@/lib/supabase";
 
 export async function saveCliente(formData: FormData) {
@@ -358,6 +359,18 @@ export async function createLavagem(formData: FormData) {
     observacao: "Lavagem registrada na fila."
   });
 
+  await enqueueLavagemReceivedWhatsapp(client, current, lavagem.id).catch(async (whatsappError) => {
+    await insertLavaHistory(client, {
+      empresaId: current.empresaId,
+      lavagemId: lavagem.id,
+      usuarioId: current.usuario.id,
+      acao: "whatsapp_erro_lavagem_recebida",
+      statusAnterior: null,
+      statusNovo: "na_fila",
+      observacao: whatsappError instanceof Error ? whatsappError.message : "Falha ao enfileirar WhatsApp de veiculo recebido."
+    });
+  });
+
   await logAction({
     appSlug: "lavagestor",
     acao: "criar lavagem",
@@ -365,6 +378,7 @@ export async function createLavagem(formData: FormData) {
   });
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/fila");
+  revalidatePath("/lavagestor/whatsapp");
   redirect(`/lavagestor/checklists/${lavagem.id}?ok=${messageParam("Lavagem registrada na fila. Complete o checklist de entrada.")}`);
 }
 
@@ -521,6 +535,20 @@ export async function updateLavagemStatus(formData: FormData) {
     }
   }
 
+  if (["finalizar", "avisar_cliente"].includes(action)) {
+    await enqueueLavagemReadyWhatsapp(client, current, id).catch(async (error) => {
+      await insertLavaHistory(client, {
+        empresaId: current.empresaId,
+        lavagemId: id,
+        usuarioId: current.usuario.id,
+        acao: "whatsapp_erro_veiculo_pronto",
+        statusAnterior,
+        statusNovo,
+        observacao: error instanceof Error ? error.message : "Falha ao enfileirar WhatsApp de veiculo pronto."
+      });
+    });
+  }
+
   await insertLavaHistory(client, {
     empresaId: current.empresaId,
     lavagemId: id,
@@ -539,6 +567,7 @@ export async function updateLavagemStatus(formData: FormData) {
   revalidatePath("/lavagestor/comissoes");
   revalidatePath("/lavagestor/relatorios");
   revalidatePath("/lavagestor/estoque");
+  revalidatePath("/lavagestor/whatsapp");
   redirect(`${returnTo}?ok=${messageParam(action === "cancelar" ? "Lavagem cancelada. Pagamento e comissão foram zerados." : "Status atualizado.")}`);
 }
 
@@ -605,6 +634,20 @@ export async function registrarPagamentoLavagem(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam(updateError.message)}`);
   }
 
+  if (statusPagamento === "pago" && valorLancamento > 0) {
+    await enqueuePagamentoWhatsapp(client, current, id, valorLancamento, formaPagamento).catch(async (whatsappError) => {
+      await insertLavaHistory(client, {
+        empresaId: current.empresaId,
+        lavagemId: id,
+        usuarioId: current.usuario.id,
+        acao: "whatsapp_erro_pagamento_recebido",
+        statusAnterior: normalizedStatus,
+        statusNovo: nextLavagemStatus,
+        observacao: whatsappError instanceof Error ? whatsappError.message : "Falha ao enfileirar WhatsApp de pagamento recebido."
+      });
+    });
+  }
+
   await insertLavaHistory(client, {
     empresaId: current.empresaId,
     lavagemId: id,
@@ -619,6 +662,7 @@ export async function registrarPagamentoLavagem(formData: FormData) {
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/fila");
   revalidatePath("/lavagestor/pagamentos");
+  revalidatePath("/lavagestor/whatsapp");
   redirect(`${returnTo}?ok=${messageParam("Pagamento atualizado.")}`);
 }
 
@@ -792,6 +836,97 @@ async function insertLavaHistory(
   });
 }
 
+async function enqueueLavagemReadyWhatsapp(client: any, current: { empresaId: string | null; usuario: { id: string } }, lavagemId: string) {
+  const { data } = await client
+    .from("lava_lavagens")
+    .select("id,cliente_id,valor_final,valor,valor_pendente,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_servicos(nome)")
+    .eq("id", lavagemId)
+    .eq("empresa_id", current.empresaId)
+    .maybeSingle();
+  if (!data) return;
+  const cliente = relationObject(data.lava_clientes);
+  const veiculo = relationObject(data.lava_veiculos);
+  const servico = relationObject(data.lava_servicos);
+  await enqueueWhatsappMessage(current, {
+    evento: "veiculo_pronto",
+    clienteId: String(data.cliente_id ?? "") || null,
+    lavagemId,
+    telefone: String(cliente?.telefone ?? ""),
+    data: {
+      cliente: String(cliente?.nome ?? "cliente"),
+      veiculo: vehicleLabel(veiculo),
+      placa: String(veiculo?.placa ?? ""),
+      servico: String(servico?.nome ?? "servico"),
+      total: formatMoney(data.valor_final ?? data.valor ?? 0),
+      valor: formatMoney(data.valor_final ?? data.valor ?? 0),
+      empresa: "LavaGestor"
+    }
+  });
+}
+
+async function enqueueLavagemReceivedWhatsapp(client: any, current: { empresaId: string | null; usuario: { id: string } }, lavagemId: string) {
+  const { data } = await client
+    .from("lava_lavagens")
+    .select("id,cliente_id,valor_final,valor,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_servicos(nome)")
+    .eq("id", lavagemId)
+    .eq("empresa_id", current.empresaId)
+    .maybeSingle();
+  if (!data) return;
+  const cliente = relationObject(data.lava_clientes);
+  const veiculo = relationObject(data.lava_veiculos);
+  const servico = relationObject(data.lava_servicos);
+  await enqueueWhatsappMessage(current, {
+    evento: "lavagem_recebida",
+    clienteId: String(data.cliente_id ?? "") || null,
+    lavagemId,
+    telefone: String(cliente?.telefone ?? ""),
+    data: {
+      cliente: String(cliente?.nome ?? "cliente"),
+      veiculo: vehicleLabel(veiculo),
+      placa: String(veiculo?.placa ?? ""),
+      servico: String(servico?.nome ?? "servico"),
+      total: formatMoney(data.valor_final ?? data.valor ?? 0),
+      valor: formatMoney(data.valor_final ?? data.valor ?? 0),
+      empresa: "LavaGestor"
+    }
+  });
+}
+
+async function enqueuePagamentoWhatsapp(
+  client: any,
+  current: { empresaId: string | null; usuario: { id: string } },
+  lavagemId: string,
+  valorPago: number,
+  formaPagamento: string
+) {
+  const { data } = await client
+    .from("lava_lavagens")
+    .select("id,cliente_id,valor_final,valor,valor_recebido,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_servicos(nome)")
+    .eq("id", lavagemId)
+    .eq("empresa_id", current.empresaId)
+    .maybeSingle();
+  if (!data) return;
+  const cliente = relationObject(data.lava_clientes);
+  const veiculo = relationObject(data.lava_veiculos);
+  const servico = relationObject(data.lava_servicos);
+  await enqueueWhatsappMessage(current, {
+    evento: "pagamento_recebido",
+    clienteId: String(data.cliente_id ?? "") || null,
+    lavagemId,
+    telefone: String(cliente?.telefone ?? ""),
+    data: {
+      cliente: String(cliente?.nome ?? "cliente"),
+      veiculo: vehicleLabel(veiculo),
+      placa: String(veiculo?.placa ?? ""),
+      servico: String(servico?.nome ?? "servico"),
+      valor: formatMoney(valorPago),
+      total: formatMoney(data.valor_final ?? data.valor ?? 0),
+      forma_pagamento: formaPagamento || "nao informada",
+      empresa: "LavaGestor"
+    }
+  });
+}
+
 function ensureTransition(returnTo: string, currentStatus: string, allowedStatuses: string[], message: string) {
   if (!allowedStatuses.includes(currentStatus)) {
     redirect(`${returnTo}?error=${messageParam(message)}`);
@@ -805,4 +940,21 @@ function returnPath(formData: FormData, fallback: string) {
 
 function roundMoney(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function relationObject(value: unknown): Record<string, unknown> | null {
+  const relation = Array.isArray(value) ? value[0] : value;
+  return relation && typeof relation === "object" ? relation as Record<string, unknown> : null;
+}
+
+function vehicleLabel(value: unknown) {
+  const relation = relationObject(value);
+  if (!relation) return "veiculo";
+  const model = [relation.marca, relation.modelo].filter(Boolean).join(" ");
+  return [relation.placa, model, relation.cor].filter(Boolean).join(" - ") || "veiculo";
+}
+
+function formatMoney(value: unknown) {
+  const amount = Number(value ?? 0);
+  return Number.isFinite(amount) ? amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "R$ 0,00";
 }

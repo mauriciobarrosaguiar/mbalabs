@@ -38,7 +38,9 @@ export type LavaConfiguracoesEmpresa = {
   iamob_ativo: boolean;
   iamob_provider: string;
   iamob_modo: string;
+  iamob_model: string;
   iamob_permitir_analise_foto: boolean;
+  iamob_permitir_leitura_placa: boolean;
   horario_abertura: string;
   horario_fechamento: string;
   intervalo_agenda_min: number;
@@ -109,7 +111,9 @@ export async function getLavaConfiguracoesEmpresa(redirectTo = "/lavagestor/conf
       iamob_ativo: boolValue(config.iamob_ativo, true),
       iamob_provider: String(config.iamob_provider ?? "regras"),
       iamob_modo: String(config.iamob_modo ?? "regras"),
+      iamob_model: String(config.iamob_model ?? "gemini-3.1-flash-lite"),
       iamob_permitir_analise_foto: boolValue(config.iamob_permitir_analise_foto, false),
+      iamob_permitir_leitura_placa: boolValue(config.iamob_permitir_leitura_placa, false),
       horario_abertura: String(config.horario_abertura ?? "08:00"),
       horario_fechamento: String(config.horario_fechamento ?? "18:00"),
       intervalo_agenda_min: numberValue(config.intervalo_agenda_min, 30),
@@ -164,7 +168,9 @@ function defaultConfig(empresaId: string | null, nome: string): LavaConfiguracoe
     iamob_ativo: true,
     iamob_provider: "regras",
     iamob_modo: "regras",
+    iamob_model: "gemini-3.1-flash-lite",
     iamob_permitir_analise_foto: false,
+    iamob_permitir_leitura_placa: false,
     horario_abertura: "08:00",
     horario_fechamento: "18:00",
     intervalo_agenda_min: 30,

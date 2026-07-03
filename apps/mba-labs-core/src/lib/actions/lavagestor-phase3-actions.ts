@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { logAction } from "@/lib/core-data";
 import { dateValue, messageParam, nullableTextValue, numberValue, textValue } from "@/lib/form-utils";
 import { LAVA_CHECKLIST_BUCKET } from "@/lib/lavagestor-checklists-data";
+import { getLavaAiMode, recognizePlateWithGemini } from "@/lib/lavagestor-ai";
 import { requireLavaGestorAccess, requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
 import { normalizePlate } from "@/lib/lavagestor-placa";
 import { baseUnitFor, convertToBaseQuantity, normalizeStockUnit, roundStock } from "@/lib/lavagestor-stock";
@@ -137,6 +138,7 @@ export async function saveLavaAgendamento(formData: FormData) {
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/agendamentos");
   revalidatePath("/lavagestor/automacoes");
+  revalidatePath("/lavagestor/whatsapp");
   redirect(`/lavagestor/agendamentos?ok=${messageParam("Agendamento salvo. Confirmação adicionada na fila de WhatsApp manual.")}`);
 }
 
@@ -402,11 +404,12 @@ export async function saveLavaPlacaLeitura(formData: FormData) {
   const { current } = await requireLavaGestorAccess("/lavagestor/placa");
   ensureEmpresa(current, "/lavagestor/placa");
   const client = (await getSupabaseServer()) as any;
-  const placa = normalizePlate(textValue(formData, "placa"));
+  const intent = textValue(formData, "intent") || "manual";
+  let placa = normalizePlate(textValue(formData, "placa"));
   const file = formData.get("foto");
   let storagePath: string | null = null;
 
-  if (!placa) {
+  if (intent !== "gemini" && !placa) {
     redirect(`/lavagestor/placa?error=${messageParam("Informe a placa manualmente para continuar.")}`);
   }
 
@@ -421,22 +424,66 @@ export async function saveLavaPlacaLeitura(formData: FormData) {
     if (upload.error) redirect(`/lavagestor/placa?error=${messageParam(upload.error.message)}`);
   }
 
+  let provider = "manual";
+  let status = "confirmada";
+  let erro: string | null = null;
+  let confianca: number | null = null;
+
+  if (intent === "gemini") {
+    const aiMode = await getLavaAiMode(current);
+    if (!aiMode.allowPlateReading) {
+      redirect(`/lavagestor/placa?error=${messageParam("Leitura de placa com IAMob nao esta habilitada.")}`);
+    }
+    if (!storagePath || !(file instanceof File) || file.size <= 0) {
+      redirect(`/lavagestor/placa?error=${messageParam("Envie uma foto da placa para usar o IAMob.")}`);
+    }
+
+    const bytes = Buffer.from(await file.arrayBuffer());
+    const result = await recognizePlateWithGemini(current, {
+      imageBase64: bytes.toString("base64"),
+      mimeType: file.type || "image/jpeg"
+    });
+    provider = "gemini";
+    placa = result.plate === "NAO_IDENTIFICADA" ? "" : normalizePlate(result.plate);
+    status = placa ? "detectada" : "erro";
+    erro = placa ? null : result.error || "IAMob nao identificou a placa. Digite manualmente.";
+    confianca = result.ok ? 80 : null;
+  }
+
+  if (!placa) {
+    const { error } = await client.from("lava_placa_leituras").insert({
+      empresa_id: current.empresaId,
+      usuario_id: current.usuario.id,
+      storage_path: storagePath,
+      placa_detectada: null,
+      placa_confirmada: null,
+      veiculo_id: null,
+      provider,
+      status: "erro",
+      erro: erro || "Placa nao informada ou nao identificada."
+    });
+    if (error) redirect(`/lavagestor/placa?error=${messageParam(error.message)}`);
+    revalidatePath("/lavagestor/placa");
+    redirect(`/lavagestor/placa?error=${messageParam(erro || "Placa nao identificada. Digite manualmente.")}`);
+  }
+
   const veiculo = await findVehicleByPlate(client, current.empresaId, placa);
   const { error } = await client.from("lava_placa_leituras").insert({
     empresa_id: current.empresaId,
     usuario_id: current.usuario.id,
     storage_path: storagePath,
     placa_detectada: placa || null,
-    placa_confirmada: placa || null,
+    placa_confirmada: provider === "gemini" ? null : placa || null,
     veiculo_id: veiculo?.id ?? null,
-    provider: "manual",
-    status: "confirmada",
-    erro: null
+    provider,
+    status,
+    confianca,
+    erro
   });
   if (error) redirect(`/lavagestor/placa?error=${messageParam(error.message)}`);
   revalidatePath("/lavagestor/placa");
   const suffix = buildPlateRedirectSuffix(placa, veiculo);
-  redirect(`/lavagestor/placa?ok=${messageParam("Leitura de placa salva em modo manual.")}${suffix}`);
+  redirect(`/lavagestor/placa?ok=${messageParam(provider === "gemini" ? "IAMob leu uma possivel placa. Confirme antes de continuar." : "Leitura de placa salva em modo manual.")}${suffix}`);
 }
 
 export async function confirmarLavaPlacaLeitura(formData: FormData) {
@@ -717,19 +764,27 @@ async function ensureAgendamentoConfirmationQueue(client: any, current: Current 
     tipo: "confirmacao_agendamento",
     agendadoPara: String(agendamento.data_inicio ?? "")
   });
-  const envio = await enqueueWhatsappMessage(client, {
-    empresaId: current.empresaId,
+  const envio = await enqueueWhatsappMessage(current, {
+    evento: "confirmacao_agendamento",
     clienteId: String(agendamento.cliente_id ?? "") || null,
     agendamentoId,
     telefone: String(cliente?.telefone ?? ""),
-    mensagem
+    mensagem,
+    data: {
+      cliente: String(cliente?.nome ?? "cliente"),
+      empresa: String(config.nome_exibicao ?? "empresa"),
+      servico: String(servico?.nome ?? "lavagem"),
+      data: formatDateShort(agendamento.data_inicio),
+      hora: formatTimeShort(agendamento.data_inicio),
+      horario: formatTimeShort(agendamento.data_inicio)
+    }
   });
   const erro = [queue, envio].map((item) => item.ok ? "" : item.error).filter(Boolean).join(" | ");
 
   await client
     .from("lava_agendamentos")
     .update({
-      confirmacao_status: erro ? "erro" : "pronto",
+      confirmacao_status: erro ? "erro" : String((envio as Row).status ?? "pronto"),
       confirmacao_erro: erro || null
     })
     .eq("id", agendamentoId)
