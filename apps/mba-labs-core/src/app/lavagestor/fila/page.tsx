@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export default async function FilaLavagemPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
-  const [{ rows, error }, { config, error: configError }] = await Promise.all([listLavaFila(), getLavaConfiguracoesEmpresa()]);
+  const [{ rows, funcionarios, error }, { config, error: configError }] = await Promise.all([listLavaFila(), getLavaConfiguracoesEmpresa()]);
 
   return (
     <LavaGestorShell activePath="/lavagestor/fila" companyName={config.nome_exibicao}>
@@ -28,7 +28,7 @@ export default async function FilaLavagemPage({ searchParams }: { searchParams: 
           }
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? configError ?? undefined} />
-        <FilaKanbanClient rows={rows} config={config as Record<string, unknown>} />
+        <FilaKanbanClient rows={rows} funcionarios={funcionarios} config={config as Record<string, unknown>} />
       </section>
     </LavaGestorShell>
   );
