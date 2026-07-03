@@ -13,6 +13,7 @@ type Metric = {
   label: string;
   value: string | number;
   tone?: MetricTone;
+  href: string;
 };
 
 export default async function LavaGestorPortalPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -23,16 +24,20 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
   const companyName = config.nome_exibicao || dashboard.companyName;
 
   const metrics: Metric[] = [
-    { label: "Lavagens hoje", value: dashboard.lavagensHoje },
-    { label: "Entrada hoje", value: formatMoney(dashboard.entradaHoje), tone: "success" },
-    { label: "Em lavagem", value: dashboard.veiculosEmLavagem },
-    { label: "Aguardando retirada", value: dashboard.finalizadosAguardandoRetirada },
-    { label: "A receber", value: formatMoney(dashboard.aReceber), tone: "warning" },
-    { label: "Fiado", value: formatMoney(dashboard.fiado), tone: "warning" },
-    { label: "Ticket medio", value: formatMoney(dashboard.ticketMedio), tone: "success" },
-    { label: "Clientes no mes", value: dashboard.clientesAtendidosMes },
-    { label: "Retorno de clientes", value: dashboard.retornoClientes },
-    { label: "Comissoes pendentes", value: formatMoney(dashboard.totalComissoesPendentes), tone: "warning" }
+    { label: "Lavagens hoje", value: dashboard.lavagensHoje, href: "/lavagestor/lavagens" },
+    { label: "Entrada hoje", value: formatMoney(dashboard.entradaHoje), tone: "success", href: "/lavagestor/financeiro" },
+    { label: "Em lavagem", value: dashboard.veiculosEmLavagem, href: "/lavagestor/fila" },
+    { label: "Aguardando retirada", value: dashboard.finalizadosAguardandoRetirada, href: "/lavagestor/fila" },
+    { label: "A receber", value: formatMoney(dashboard.aReceber), tone: "warning", href: "/lavagestor/pagamentos" },
+    { label: "Fiado", value: formatMoney(dashboard.fiado), tone: "warning", href: "/lavagestor/pagamentos" },
+    { label: "Ticket médio", value: formatMoney(dashboard.ticketMedio), tone: "success", href: "/lavagestor/relatorios" },
+    { label: "Clientes no mês", value: dashboard.clientesAtendidosMes, href: "/lavagestor/clientes" },
+    { label: "Retorno de clientes", value: dashboard.retornoClientes, href: "/lavagestor/pos-venda" },
+    { label: "Agendamentos hoje", value: dashboard.agendamentosHoje, href: "/lavagestor/agendamentos?periodo=hoje" },
+    { label: "Estoque baixo", value: dashboard.estoqueBaixo, tone: "warning", href: "/lavagestor/estoque" },
+    { label: "Cobranças pendentes", value: dashboard.cobrancasPendentes, tone: "warning", href: "/lavagestor/pagamentos-integrados" },
+    { label: "Automação pendente", value: dashboard.automacaoPendente, tone: "warning", href: "/lavagestor/automacoes" },
+    { label: "Comissões pendentes", value: formatMoney(dashboard.totalComissoesPendentes), tone: "warning", href: "/lavagestor/comissoes" }
   ];
 
   return (
@@ -57,18 +62,21 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
         {dashboard.error ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{dashboard.error}</div> : null}
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-5">
-          {metrics.map((metric) => <MetricCard key={metric.label} label={metric.label} tone={metric.tone} value={metric.value} />)}
+          {metrics.map((metric) => <MetricCard key={metric.label} href={metric.href} label={metric.label} tone={metric.tone} value={metric.value} />)}
         </div>
 
-        <Panel title="Acoes rapidas">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
-            <QuickAction href="/lavagestor/nova-lavagem" label="Nova lavagem" />
-            <QuickAction href="/lavagestor/busca" label="Buscar placa" />
-            <QuickAction href="/lavagestor/fila" label="Ver fila" />
-            <QuickAction href="/lavagestor/financeiro" label="Fechar caixa" />
-            <QuickAction href="/lavagestor/pos-venda" label="Pos-venda" />
-            <QuickAction href="/lavagestor/servicos" label="Servicos" />
-          </div>
+        <Panel title="IAMob recomenda">
+          {dashboard.recomendacoesPremium.length === 0 ? (
+            <p className="rounded-lg bg-muted p-4 text-sm font-semibold text-muted-foreground">Sem recomendações críticas agora.</p>
+          ) : (
+            <div className="grid gap-2 md:grid-cols-2">
+              {dashboard.recomendacoesPremium.map((item: any) => (
+                <Link className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm font-black text-emerald-950 shadow-sm" href={item.href} key={item.label}>
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          )}
         </Panel>
 
         {dashboard.alertas.length ? (
@@ -83,7 +91,7 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
           </Panel>
         ) : null}
 
-        <Panel title="Ultimas lavagens">
+        <Panel title="Últimas lavagens">
           {dashboard.ultimasLavagens.length === 0 ? (
             <p className="rounded-lg bg-muted p-4 text-center text-sm text-muted-foreground">Nenhuma lavagem registrada ainda.</p>
           ) : (
@@ -101,8 +109,8 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
                     <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                       <MobileInfo label="Data" value={formatDate(wash.data_lavagem)} />
                       <MobileInfo label="Valor" value={formatMoney(wash.valor)} strong />
-                      <MobileInfo label="Servico" value={String(wash.servico ?? "-")} />
-                      <MobileInfo label="Funcionario" value={String(wash.funcionario ?? "-")} />
+                      <MobileInfo label="Serviço" value={String(wash.servico ?? "-")} />
+                      <MobileInfo label="Funcionário" value={String(wash.funcionario ?? "-")} />
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <Link className="button-secondary justify-center" href={`/lavagestor/tickets/${wash.id}`}>Ticket</Link>
@@ -117,12 +125,12 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
                     <tr>
                       <th className="py-2 pr-3">Data</th>
                       <th className="py-2 pr-3">Cliente</th>
-                      <th className="py-2 pr-3">Veiculo</th>
-                      <th className="py-2 pr-3">Servico</th>
-                      <th className="py-2 pr-3">Funcionario</th>
+                      <th className="py-2 pr-3">Veículo</th>
+                      <th className="py-2 pr-3">Serviço</th>
+                      <th className="py-2 pr-3">Funcionário</th>
                       <th className="py-2 pr-3">Status</th>
                       <th className="py-2 pr-3">Valor</th>
-                      <th className="py-2 pr-3">Acoes</th>
+                      <th className="py-2 pr-3">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -149,13 +157,13 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
   );
 }
 
-function MetricCard({ label, value, tone = "default" }: { label: string; value: string | number; tone?: MetricTone }) {
+function MetricCard({ href, label, value, tone = "default" }: { href: string; label: string; value: string | number; tone?: MetricTone }) {
   const toneClass = tone === "success" ? "border-emerald-200 bg-emerald-50" : tone === "warning" ? "border-amber-200 bg-amber-50" : "border-border bg-card";
   return (
-    <div className={`min-h-[86px] rounded-xl border p-3 shadow-sm sm:min-h-[110px] sm:p-4 ${toneClass}`}>
+    <Link className={`block min-h-[86px] rounded-xl border p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:min-h-[110px] sm:p-4 ${toneClass}`} href={href}>
       <p className="text-xs font-bold text-muted-foreground sm:text-sm">{label}</p>
       <p className="mt-2 break-words text-[1.45rem] font-black leading-tight tracking-tight sm:text-2xl">{value}</p>
-    </div>
+    </Link>
   );
 }
 
@@ -168,15 +176,11 @@ function MobileInfo({ label, value, strong = false }: { label: string; value: st
   );
 }
 
-function QuickAction({ href, label }: { href: string; label: string }) {
-  return <Link className="rounded-lg border border-border bg-white px-3 py-3 text-center text-sm font-black shadow-sm hover:bg-emerald-50" href={href}>{label}</Link>;
-}
-
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return <section className="rounded-xl border border-border bg-card p-3 shadow-sm sm:p-4"><h2 className="text-base font-black sm:text-lg">{title}</h2><div className="mt-3">{children}</div></section>;
 }
 
 function labelRole(role: string) {
-  const labels: Record<string, string> = { admin_master: "Admin Master", super_admin: "Admin Master", admin_empresa: "Admin da empresa", operador: "Operador", usuario: "Usuario" };
+  const labels: Record<string, string> = { admin_master: "Admin Master", super_admin: "Admin Master", admin_empresa: "Admin da empresa", operador: "Operador", usuario: "Usuário" };
   return labels[role] ?? role;
 }

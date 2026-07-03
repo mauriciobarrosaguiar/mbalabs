@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -315,24 +316,201 @@ function MiniCounter({ label, value }: { label: string; value: number }) {
 function PhotoStrip({ row, checkoutAvailable }: { row: FilaRow; checkoutAvailable: boolean }) {
   const entradaCount = Number(row.fotos_entrada_count ?? 0);
   const checkoutCount = Number(row.fotos_checkout_count ?? 0);
+  const entradaPhotos = arrayRows(row.fotos_entrada);
+  const checkoutPhotos = arrayRows(row.fotos_checkout);
   return (
     <div className="grid grid-cols-2 gap-2">
-      <PhotoThumb label="Antes" url={String(row.foto_entrada_url ?? "")} count={entradaCount} />
-      <PhotoThumb label="Depois" url={String(row.foto_checkout_url ?? "")} count={checkoutCount} muted={!checkoutAvailable && checkoutCount === 0} />
+      <PhotoThumb label="Antes" photos={entradaPhotos} count={entradaCount} />
+      <PhotoThumb label="Depois" photos={checkoutPhotos} count={checkoutCount} muted={!checkoutAvailable && checkoutCount === 0} />
     </div>
   );
 }
 
-function PhotoThumb({ label, url, count, muted = false }: { label: string; url: string; count: number; muted?: boolean }) {
+function PhotoThumb({ label, photos, count, muted = false }: { label: string; photos: FilaRow[]; count: number; muted?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const active = photos[activeIndex] ?? photos[0];
+  const thumbnailUrl = photoUrl(active);
+  const summaryRows = backupSummaryRows(photos);
+
+  function openPhoto(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!photos.length) return;
+    setActiveIndex(0);
+    setOpen(true);
+  }
+
+  function closePhoto(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setOpen(false);
+  }
+
+  function previousPhoto(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setActiveIndex((current) => (current - 1 + photos.length) % photos.length);
+  }
+
+  function nextPhoto(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    setActiveIndex((current) => (current + 1) % photos.length);
+  }
+
   return (
     <div className={`min-w-0 overflow-hidden rounded-xl border border-border bg-white ${muted ? "opacity-60" : ""}`}>
-      {url ? <img className="aspect-[4/3] w-full object-cover" src={url} alt={`Foto ${label.toLowerCase()}`} /> : <div className="grid aspect-[4/3] place-items-center bg-muted text-xs font-black text-muted-foreground">{label}</div>}
+      <button
+        className={`block w-full min-w-0 text-left ${photos.length ? "cursor-zoom-in" : "cursor-default"}`}
+        disabled={!photos.length}
+        onClick={openPhoto}
+        type="button"
+      >
+        {thumbnailUrl ? (
+          <img className="aspect-[4/3] w-full object-cover" src={thumbnailUrl} alt={`Foto ${label.toLowerCase()}`} />
+        ) : photos.length ? (
+          <div className="grid aspect-[4/3] place-items-center bg-muted px-2 text-center text-[11px] font-black leading-4 text-muted-foreground">Foto salva, mas a prévia não carregou.</div>
+        ) : (
+          <div className="grid aspect-[4/3] place-items-center bg-muted text-xs font-black text-muted-foreground">{label}</div>
+        )}
+      </button>
       <div className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px] font-black uppercase tracking-[0.06em] text-muted-foreground">
         <span>{label}</span>
         <span>{count}</span>
       </div>
+      {summaryRows.length ? (
+        <div className="grid gap-1 border-t border-border px-2 py-1.5 text-[10px] font-black leading-4">
+          {summaryRows.map((row) => (
+            <span className={`truncate rounded-md px-1.5 py-0.5 ${compactStatusTone(row.status)}`} key={`${label}-${row.provider}`} title={row.error || undefined}>
+              {providerLabel(row.provider)}: {statusLabel(row.status)}{row.count > 1 ? ` (${row.count})` : ""}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {open && active ? (
+        <div className="fixed inset-0 z-50 grid bg-black/80 p-3 sm:p-6" role="dialog" aria-modal="true" aria-label={`Fotos ${label}`} onClick={(event) => event.stopPropagation()}>
+          <div className="grid max-h-full min-h-0 w-full max-w-5xl self-center justify-self-center overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
+              <div className="min-w-0">
+                <strong className="block truncate text-sm">Fotos {label.toLowerCase()}</strong>
+                <span className="text-xs font-bold text-muted-foreground">{activeIndex + 1} de {photos.length}</span>
+              </div>
+              <button className="rounded-lg border border-border px-3 py-2 text-sm font-black" type="button" onClick={closePhoto}>Fechar</button>
+            </div>
+            <div className="grid min-h-0 gap-3 p-3 lg:grid-cols-[1fr_320px]">
+              <div className="relative grid min-h-[48vh] place-items-center overflow-hidden rounded-lg bg-black">
+                {photoUrl(active) ? (
+                  <img alt={`Foto ${label.toLowerCase()}`} className="max-h-[72vh] w-full object-contain" src={photoUrl(active)} />
+                ) : (
+                  <div className="p-6 text-center text-sm font-bold text-white">Foto salva, mas a prévia não carregou.</div>
+                )}
+                {photos.length > 1 ? (
+                  <>
+                    <button className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 px-3 py-2 text-sm font-black text-slate-950 shadow" type="button" onClick={previousPhoto} aria-label="Foto anterior">Anterior</button>
+                    <button className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 px-3 py-2 text-sm font-black text-slate-950 shadow" type="button" onClick={nextPhoto} aria-label="Próxima foto">Próxima</button>
+                  </>
+                ) : null}
+              </div>
+              <aside className="grid min-h-0 content-start gap-3 overflow-auto rounded-lg border border-border bg-muted/40 p-3">
+                <div>
+                  <h3 className="text-lg font-black">Foto {label.toLowerCase()}</h3>
+                  {active.created_at ? <p className="mt-1 text-sm font-semibold text-muted-foreground">{formatDateTime(active.created_at)}</p> : null}
+                  {String(active.legenda ?? "").trim() ? <p className="mt-2 break-words text-sm font-bold">{String(active.legenda)}</p> : null}
+                </div>
+                <PhotoBackupDetails rows={arrayRows(active.sync_rows)} fotoId={String(active.id ?? "")} />
+              </aside>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
+}
+
+function PhotoBackupDetails({ rows, fotoId }: { rows: FilaRow[]; fotoId: string }) {
+  if (!rows.length) {
+    return <p className="rounded-lg bg-white px-2 py-1.5 text-xs font-bold text-muted-foreground">Foto salva no LavaGestor. Backup externo sem provedor conectado.</p>;
+  }
+
+  return (
+    <div className="grid gap-2">
+      {rows.map((row) => {
+        const provider = String(row.provider ?? "");
+        const status = String(row.status ?? "pendente");
+        const error = String(row.erro ?? "").trim();
+        const lastAttempt = row.last_attempt_at || row.updated_at || row.synced_at;
+        return (
+          <div className={`rounded-lg border px-2 py-1.5 text-xs font-semibold ${detailStatusTone(status)}`} key={`${fotoId}-${provider}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-black">{providerLabel(provider)}: {statusLabel(status)}</span>
+              {lastAttempt ? <span className="text-[11px]">{status === "sincronizado" ? "sincronizado" : "tentativa"} {formatDateTime(lastAttempt)}</span> : null}
+            </div>
+            {error ? <p className="mt-1 max-h-32 overflow-auto break-words">{providerLabel(provider)}: erro - {error}</p> : null}
+            {status === "erro" ? (
+              <form action="/api/lavagestor/storage/sync" className="mt-2" method="post">
+                <input name="foto_id" type="hidden" value={fotoId} />
+                <input name="provider" type="hidden" value={provider} />
+                <input name="return_to" type="hidden" value="/lavagestor/fila" />
+                <button className="rounded-md border border-current px-2 py-1 text-[11px] font-black" type="submit">Tentar novamente</button>
+              </form>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function backupSummaryRows(photos: FilaRow[]) {
+  const byProvider = new Map<string, { provider: string; status: string; count: number; error: string }>();
+
+  for (const photo of photos) {
+    for (const syncRow of arrayRows(photo.sync_rows)) {
+      const provider = String(syncRow.provider ?? "");
+      if (!provider) continue;
+      const status = String(syncRow.status ?? "pendente");
+      const current = byProvider.get(provider);
+      const next = {
+        provider,
+        status: current && statusRank(current.status) >= statusRank(status) ? current.status : status,
+        count: (current?.count ?? 0) + 1,
+        error: current?.error || String(syncRow.erro ?? "").trim()
+      };
+      byProvider.set(provider, next);
+    }
+  }
+
+  return Array.from(byProvider.values()).sort((a, b) => providerLabel(a.provider).localeCompare(providerLabel(b.provider), "pt-BR"));
+}
+
+function photoUrl(foto: FilaRow | undefined) {
+  return foto ? String(foto.signed_url || foto.preview_url || "") : "";
+}
+
+function statusLabel(status: string) {
+  if (status === "sincronizado") return "sincronizado";
+  if (status === "erro") return "erro";
+  return "pendente";
+}
+
+function statusRank(status: string) {
+  if (status === "erro") return 3;
+  if (status === "pendente") return 2;
+  if (status === "sincronizado") return 1;
+  return 2;
+}
+
+function compactStatusTone(status: string) {
+  if (status === "sincronizado") return "bg-emerald-50 text-emerald-800";
+  if (status === "erro") return "bg-red-50 text-red-700";
+  return "bg-amber-50 text-amber-800";
+}
+
+function detailStatusTone(status: string) {
+  if (status === "sincronizado") return "border-emerald-200 bg-emerald-50 text-emerald-950";
+  if (status === "erro") return "border-red-200 bg-red-50 text-red-950";
+  return "border-amber-200 bg-amber-50 text-amber-950";
 }
 
 function MiniInfo({ label, value, strong = false, warning = false }: { label: string; value: string; strong?: boolean; warning?: boolean }) {
@@ -358,3 +536,5 @@ function priorityLabel(row: FilaRow) { if (row.status_pagamento !== "pago") retu
 function configText(config: LavaConfig, key: string) { const value = config[key]; return typeof value === "string" ? value : ""; }
 function configBoolean(config: LavaConfig, key: string) { return config[key] === true; }
 function configArray(config: LavaConfig, key: string) { const value = config[key]; return Array.isArray(value) ? value.map(String).filter(Boolean) : []; }
+function arrayRows(value: unknown) { return Array.isArray(value) ? value as FilaRow[] : []; }
+function providerLabel(provider: string) { if (provider === "google_drive") return "Google Drive"; if (provider === "dropbox") return "Dropbox"; return provider || "Backup"; }

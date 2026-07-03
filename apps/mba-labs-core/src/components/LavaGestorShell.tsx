@@ -2,6 +2,9 @@ import Link from "next/link";
 import {
   ArrowLeft,
   Banknote,
+  Bot,
+  Boxes,
+  CalendarDays,
   Car,
   ClipboardList,
   CreditCard,
@@ -11,10 +14,15 @@ import {
   LogOut,
   Menu,
   MessageCircle,
+  Package,
+  ReceiptText,
+  ScanLine,
   Search,
   Settings,
   Sparkles,
   Users,
+  WalletCards,
+  Workflow,
   Wrench
 } from "lucide-react";
 
@@ -26,21 +34,39 @@ type LavaNavItem = {
 
 const lavaNavItems: LavaNavItem[] = [
   { href: "/lavagestor", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/lavagestor/busca", label: "Busca rapida", icon: Search },
+  { href: "/lavagestor/busca", label: "Busca rápida", icon: Search },
   { href: "/lavagestor/nova-lavagem", label: "Nova lavagem", icon: Car },
   { href: "/lavagestor/fila", label: "Fila", icon: ClipboardList },
   { href: "/lavagestor/lavagens", label: "Lavagens", icon: ClipboardList },
+  { href: "/lavagestor/agendamentos", label: "Agendamentos", icon: CalendarDays },
+  { href: "/lavagestor/placa", label: "Ler placa", icon: ScanLine },
   { href: "/lavagestor/clientes", label: "Clientes", icon: Users },
   { href: "/lavagestor/veiculos", label: "Veículos", icon: Car },
   { href: "/lavagestor/funcionarios", label: "Funcionários", icon: Wrench },
   { href: "/lavagestor/servicos", label: "Serviços", icon: Sparkles },
+  { href: "/lavagestor/estoque", label: "Estoque", icon: Package },
   { href: "/lavagestor/comissoes", label: "Comissões", icon: HandCoins },
   { href: "/lavagestor/vales", label: "Vales", icon: Banknote },
   { href: "/lavagestor/pagamentos", label: "Pagamentos", icon: CreditCard },
-  { href: "/lavagestor/financeiro", label: "Financeiro", icon: Banknote },
-  { href: "/lavagestor/pos-venda", label: "Pos-venda", icon: MessageCircle },
+  { href: "/lavagestor/financeiro", label: "Caixa", icon: Banknote },
+  { href: "/lavagestor/pagamentos-integrados", label: "Pagamentos integrados", icon: WalletCards },
+  { href: "/lavagestor/notas-fiscais", label: "Notas fiscais", icon: ReceiptText },
+  { href: "/lavagestor/whatsapp", label: "WhatsApp", icon: MessageCircle },
+  { href: "/lavagestor/setup-facil", label: "Configuracao Facil", icon: Sparkles },
+  { href: "/lavagestor/pos-venda", label: "Pós-venda", icon: MessageCircle },
+  { href: "/lavagestor/automacoes", label: "Automações", icon: Workflow },
+  { href: "/lavagestor/iamob", label: "IAMob", icon: Bot },
   { href: "/lavagestor/relatorios", label: "Relatórios", icon: FileText },
+  { href: "/lavagestor/usuarios", label: "Usuários", icon: Users },
   { href: "/lavagestor/configuracoes", label: "Configurações", icon: Settings }
+];
+
+const lavaNavGroups: Array<{ label: string; items: LavaNavItem[] }> = [
+  { label: "Operação", items: lavaNavItems.filter((item) => ["/lavagestor", "/lavagestor/busca", "/lavagestor/nova-lavagem", "/lavagestor/fila", "/lavagestor/lavagens", "/lavagestor/agendamentos", "/lavagestor/placa"].includes(item.href)) },
+  { label: "Cadastros", items: lavaNavItems.filter((item) => ["/lavagestor/clientes", "/lavagestor/veiculos", "/lavagestor/funcionarios", "/lavagestor/servicos", "/lavagestor/estoque"].includes(item.href)) },
+  { label: "Financeiro", items: lavaNavItems.filter((item) => ["/lavagestor/pagamentos", "/lavagestor/financeiro", "/lavagestor/comissoes", "/lavagestor/vales", "/lavagestor/pagamentos-integrados", "/lavagestor/notas-fiscais"].includes(item.href)) },
+  { label: "Crescimento", items: lavaNavItems.filter((item) => ["/lavagestor/whatsapp", "/lavagestor/pos-venda", "/lavagestor/automacoes", "/lavagestor/iamob"].includes(item.href)) },
+  { label: "Sistema", items: lavaNavItems.filter((item) => ["/lavagestor/relatorios", "/lavagestor/usuarios", "/lavagestor/setup-facil", "/lavagestor/configuracoes"].includes(item.href)) }
 ];
 
 export function LavaGestorShell({
@@ -64,9 +90,14 @@ export function LavaGestorShell({
           <div className="mt-1 truncate text-sm text-muted-foreground" title={companyName}>{companyName}</div>
         </Link>
 
-        <nav className="mt-8 min-h-0 flex-1 space-y-1 overflow-y-auto pb-4 pr-1">
-          {lavaNavItems.map((item) => (
-            <LavaNavLink activePath={activePath} item={item} key={item.href} />
+        <nav className="mt-8 min-h-0 flex-1 space-y-4 overflow-y-auto pb-4 pr-1">
+          {lavaNavGroups.map((group) => (
+            <div className="grid gap-1" key={group.label}>
+              <p className="px-3 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">{group.label}</p>
+              {group.items.map((item) => (
+                <LavaNavLink activePath={activePath} item={item} key={item.href} />
+              ))}
+            </div>
           ))}
         </nav>
 
@@ -101,9 +132,19 @@ export function LavaGestorShell({
               <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg border border-border bg-white shadow-sm [&::-webkit-details-marker]:hidden" aria-label="Abrir menu">
                 <Menu className="h-5 w-5" aria-hidden />
               </summary>
-              <div className="absolute right-0 top-12 z-40 grid w-64 gap-1 rounded-xl border border-border bg-white p-2 shadow-xl">
-                {lavaNavItems.map((item) => (
-                  <LavaNavLink activePath={activePath} item={item} key={`${item.href}-dropdown`} mobile />
+              <div className="absolute right-0 top-12 z-40 grid max-h-[calc(100vh-5rem)] w-72 gap-1 overflow-y-auto rounded-xl border border-border bg-white p-2 shadow-xl">
+                {lavaNavGroups.map((group, index) => (
+                  <details className="rounded-lg border border-border/70 bg-white" key={group.label} open={index === 0 || group.items.some((item) => isActivePath(activePath, item.href))}>
+                    <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between px-3 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground [&::-webkit-details-marker]:hidden">
+                      {group.label}
+                      <Boxes className="h-4 w-4 text-primary" aria-hidden />
+                    </summary>
+                    <div className="grid gap-1 border-t border-border/70 p-1">
+                      {group.items.map((item) => (
+                        <LavaNavLink activePath={activePath} item={item} key={`${item.href}-dropdown`} mobile />
+                      ))}
+                    </div>
+                  </details>
                 ))}
                 <div className="my-1 border-t border-border" />
                 <Link className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold hover:bg-muted" href="/dashboard">
@@ -139,7 +180,7 @@ function LavaNavLink({
   mobile?: boolean;
 }) {
   const Icon = item.icon;
-  const active = item.href === "/lavagestor" ? activePath === item.href : activePath.startsWith(item.href);
+  const active = isActivePath(activePath, item.href);
 
   if (mobile) {
     return (
@@ -164,4 +205,8 @@ function LavaNavLink({
       {item.label}
     </Link>
   );
+}
+
+function isActivePath(activePath: string, href: string) {
+  return href === "/lavagestor" ? activePath === href : activePath.startsWith(href);
 }

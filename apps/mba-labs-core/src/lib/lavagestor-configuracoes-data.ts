@@ -35,14 +35,29 @@ export type LavaConfiguracoesEmpresa = {
   mensagem_retorno: string;
   mensagem_cobranca_fiado: string;
   mensagem_promocao: string;
+  iamob_ativo: boolean;
+  iamob_provider: string;
+  iamob_modo: string;
+  iamob_model: string;
+  iamob_permitir_analise_foto: boolean;
+  iamob_permitir_leitura_placa: boolean;
+  horario_abertura: string;
+  horario_fechamento: string;
+  intervalo_agenda_min: number;
+  permitir_agendamento_online: boolean;
+  mensagem_confirmacao_agendamento: string;
+  mensagem_lembrete_agendamento: string;
+  placa_reconhecimento_ativo: boolean;
+  placa_provider: string;
+  placa_exigir_confirmacao: boolean;
   motivos_cancelamento: string[];
   tipos_entrega: string[];
   checklist_itens_padrao: string[];
   checklist_tipos_foto: string[];
 };
 
-export async function getLavaConfiguracoesEmpresa() {
-  const current = await requireAppAccess("lavagestor", "/lavagestor/configuracoes");
+export async function getLavaConfiguracoesEmpresa(redirectTo = "/lavagestor/configuracoes") {
+  const current = await requireAppAccess("lavagestor", redirectTo);
   const supabase = await getSupabaseServer();
   const client = supabase as any;
   const empresaId = current.empresaId;
@@ -93,6 +108,21 @@ export async function getLavaConfiguracoesEmpresa() {
       mensagem_retorno: String(config.mensagem_retorno ?? defaultReturnMessage()),
       mensagem_cobranca_fiado: String(config.mensagem_cobranca_fiado ?? defaultDebtMessage()),
       mensagem_promocao: String(config.mensagem_promocao ?? defaultPromoMessage()),
+      iamob_ativo: boolValue(config.iamob_ativo, true),
+      iamob_provider: String(config.iamob_provider ?? "regras"),
+      iamob_modo: String(config.iamob_modo ?? "regras"),
+      iamob_model: String(config.iamob_model ?? "gemini-3.1-flash-lite"),
+      iamob_permitir_analise_foto: boolValue(config.iamob_permitir_analise_foto, false),
+      iamob_permitir_leitura_placa: boolValue(config.iamob_permitir_leitura_placa, false),
+      horario_abertura: String(config.horario_abertura ?? "08:00"),
+      horario_fechamento: String(config.horario_fechamento ?? "18:00"),
+      intervalo_agenda_min: numberValue(config.intervalo_agenda_min, 30),
+      permitir_agendamento_online: boolValue(config.permitir_agendamento_online, false),
+      mensagem_confirmacao_agendamento: String(config.mensagem_confirmacao_agendamento ?? defaultScheduleConfirmMessage()),
+      mensagem_lembrete_agendamento: String(config.mensagem_lembrete_agendamento ?? defaultScheduleReminderMessage()),
+      placa_reconhecimento_ativo: boolValue(config.placa_reconhecimento_ativo, false),
+      placa_provider: String(config.placa_provider ?? "manual"),
+      placa_exigir_confirmacao: boolValue(config.placa_exigir_confirmacao, true),
       motivos_cancelamento: arrayValue(config.motivos_cancelamento, defaultCancelReasons()),
       tipos_entrega: arrayValue(config.tipos_entrega, ["Cliente retira", "Levar ao cliente"]),
       checklist_itens_padrao: arrayValue(config.checklist_itens_padrao, defaultChecklistItems()),
@@ -135,6 +165,21 @@ function defaultConfig(empresaId: string | null, nome: string): LavaConfiguracoe
     mensagem_retorno: defaultReturnMessage(),
     mensagem_cobranca_fiado: defaultDebtMessage(),
     mensagem_promocao: defaultPromoMessage(),
+    iamob_ativo: true,
+    iamob_provider: "regras",
+    iamob_modo: "regras",
+    iamob_model: "gemini-3.1-flash-lite",
+    iamob_permitir_analise_foto: false,
+    iamob_permitir_leitura_placa: false,
+    horario_abertura: "08:00",
+    horario_fechamento: "18:00",
+    intervalo_agenda_min: 30,
+    permitir_agendamento_online: false,
+    mensagem_confirmacao_agendamento: defaultScheduleConfirmMessage(),
+    mensagem_lembrete_agendamento: defaultScheduleReminderMessage(),
+    placa_reconhecimento_ativo: false,
+    placa_provider: "manual",
+    placa_exigir_confirmacao: true,
     motivos_cancelamento: defaultCancelReasons(),
     tipos_entrega: ["Cliente retira", "Levar ao cliente"],
     checklist_itens_padrao: defaultChecklistItems(),
@@ -168,6 +213,14 @@ function defaultDebtMessage() {
 
 function defaultPromoMessage() {
   return "Olá, {cliente}! Temos uma condição especial para uma nova lavagem do seu veículo {veiculo}.";
+}
+
+function defaultScheduleConfirmMessage() {
+  return "Olá, {cliente}! Confirmando seu agendamento na {empresa} para {data} às {hora}, serviço: {servico}. Podemos confirmar?";
+}
+
+function defaultScheduleReminderMessage() {
+  return "Olá, {cliente}! Passando para lembrar seu agendamento na {empresa} em {data} às {hora}.";
 }
 
 function defaultCancelReasons() {

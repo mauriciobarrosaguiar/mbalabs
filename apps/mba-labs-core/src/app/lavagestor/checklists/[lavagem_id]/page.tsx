@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
+import { LavaPhotoCard, LavaSyncPendingButton } from "@/components/lavagestor/LavaPhotoCard";
+import { PhotoUploadSubmitButton } from "@/components/lavagestor/PhotoUploadSubmitButton";
 import { BackButton, MessageBanner, PageHeader, formatDateTime } from "@/components/ui-kit";
+import { analyzeLavaChecklistPhotoAction } from "@/lib/actions/lavagestor-ai-actions";
 import { deleteLavaChecklistFoto, saveLavaChecklist, uploadLavaChecklistFoto } from "@/lib/actions/lavagestor-checklists-actions";
+import { requireAppAccess } from "@/lib/core-data";
 import { firstParam } from "@/lib/form-utils";
+import { getLavaAiMode } from "@/lib/lavagestor-ai";
 import { canUploadCheckoutPhoto, getLavaChecklistPageData, LAVA_CHECKLIST_PHOTO_TYPES } from "@/lib/lavagestor-checklists-data";
 
 export const dynamic = "force-dynamic";
@@ -17,13 +22,14 @@ export default async function LavaChecklistPage({
   const { lavagem_id: lavagemId } = await params;
   const query = await searchParams;
   const { lavagem, checklist, servicos, fotos, config, error } = await getLavaChecklistPageData(lavagemId);
+  const aiMode = await getLavaAiMode(await requireAppAccess("lavagestor", `/lavagestor/checklists/${lavagemId}`));
 
   if (!lavagem || !checklist) {
     return (
       <LavaGestorShell activePath="/lavagestor/fila">
         <section className="grid gap-5">
-          <PageHeader eyebrow="LavaGestor" title="Checklist nao encontrado" actions={<BackButton href="/lavagestor/fila" />} />
-          <MessageBanner error={firstParam(query.error) ?? error ?? "Nao foi possivel abrir o checklist."} />
+          <PageHeader eyebrow="LavaGestor" title="Checklist não encontrado" actions={<BackButton href="/lavagestor/fila" />} />
+          <MessageBanner error={firstParam(query.error) ?? error ?? "Não foi possível abrir o checklist."} />
         </section>
       </LavaGestorShell>
     );
@@ -46,7 +52,7 @@ export default async function LavaChecklistPage({
         <PageHeader
           eyebrow="LavaGestor"
           title={`Checklist ${String(lavagem.id).slice(0, 8).toUpperCase()}`}
-          description={`${String(lavagem.cliente || "Cliente")} - ${String(lavagem.veiculo || "Veiculo/item")} - entrada ${formatDateTime(lavagem.data_entrada ?? lavagem.data_lavagem)}`}
+          description={`${String(lavagem.cliente || "Cliente")} - ${String(lavagem.veiculo || "Veículo/item")} - entrada ${formatDateTime(lavagem.data_entrada ?? lavagem.data_lavagem)}`}
           actions={
             <>
               <BackButton href="/lavagestor/fila" />
@@ -58,7 +64,7 @@ export default async function LavaChecklistPage({
 
         {locked ? (
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm font-black text-emerald-950">
-            Checklist concluido. As informacoes ficam protegidas contra alteracoes destrutivas.
+            Checklist concluído. As informações ficam protegidas contra alterações destrutivas.
           </div>
         ) : null}
         {entryPhotoRequired && entradaFotos.length === 0 ? (
@@ -81,22 +87,22 @@ export default async function LavaChecklistPage({
               <Toggle label="Vidro trincado" name="vidro_trincado" checked={bool(checklist.vidro_trincado)} disabled={locked} />
               <Toggle label="Retrovisor ok" name="retrovisor_ok" checked={bool(checklist.retrovisor_ok, true)} disabled={locked} />
               <Toggle label="Pneus ok" name="pneus_ok" checked={bool(checklist.pneus_ok, true)} disabled={locked} />
-              <Toggle label="Farois ok" name="farois_ok" checked={bool(checklist.farois_ok, true)} disabled={locked} />
+              <Toggle label="Faróis ok" name="farois_ok" checked={bool(checklist.farois_ok, true)} disabled={locked} />
               <Toggle label="Interior ok" name="interior_ok" checked={bool(checklist.interior_ok, true)} disabled={locked} />
               <Toggle label="Objetos do cliente" name="objetos_cliente" checked={bool(checklist.objetos_cliente)} disabled={locked} />
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
-              <Field label="Nivel de combustivel" name="combustivel_nivel" defaultValue={String(checklist.combustivel_nivel ?? "")} disabled={locked} />
+              <Field label="Nível de combustível" name="combustivel_nivel" defaultValue={String(checklist.combustivel_nivel ?? "")} disabled={locked} />
               <Field label="KM" name="km" defaultValue={String(checklist.km ?? "")} disabled={locked} />
-              <TextArea label="Observacao de avarias" name="observacao_avarias" defaultValue={String(checklist.observacao_avarias ?? "")} disabled={locked} />
-              <TextArea label="Observacao geral" name="observacao_geral" defaultValue={String(checklist.observacao_geral ?? "")} disabled={locked} />
+              <TextArea label="Observação de avarias" name="observacao_avarias" defaultValue={String(checklist.observacao_avarias ?? "")} disabled={locked} />
+              <TextArea label="Observação geral" name="observacao_geral" defaultValue={String(checklist.observacao_geral ?? "")} disabled={locked} />
             </div>
           </section>
 
           <section className="grid gap-4 rounded-xl border border-border bg-white p-4 shadow-sm">
             <div>
-              <h2 className="text-xl font-black">Servicos confirmados</h2>
+              <h2 className="text-xl font-black">Serviços confirmados</h2>
               <p className="mt-1 text-sm font-semibold text-muted-foreground">Confira o que entrou na ordem de servico.</p>
             </div>
             <div className="grid gap-2">
@@ -106,7 +112,7 @@ export default async function LavaChecklistPage({
                   <input name="checklist_servico_ids" type="hidden" value={String(servico.id)} />
                   <div className="min-w-0">
                     <strong className="block break-words">{String(servico.descricao)}</strong>
-                    <input className="input mt-2 bg-white" disabled={locked} name={`servico_${servico.id}_observacao`} defaultValue={String(servico.observacao ?? "")} placeholder="Observacao opcional" />
+                    <input className="input mt-2 bg-white" disabled={locked} name={`servico_${servico.id}_observacao`} defaultValue={String(servico.observacao ?? "")} placeholder="Observação opcional" />
                   </div>
                   <label className="flex min-h-12 items-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-black">
                     <input disabled={locked} name={`servico_${servico.id}_conferido`} type="checkbox" defaultChecked={servico.conferido !== false} />
@@ -125,6 +131,7 @@ export default async function LavaChecklistPage({
 
         <PhotoSection
           canDelete={!locked}
+          canAnalyze={aiMode.allowPhotoAnalysis}
           canUpload={!locked}
           description="Use a camera do celular ou anexe imagens da galeria antes de concluir o checklist."
           emptyText="Nenhuma foto de entrada anexada ainda."
@@ -138,6 +145,7 @@ export default async function LavaChecklistPage({
         {showCheckout ? (
           <PhotoSection
             canDelete={canUploadCheckout && !isDelivered}
+            canAnalyze={aiMode.allowPhotoAnalysis}
             canUpload={canUploadCheckout && !isDelivered}
             description={isDelivered ? "Lavagem entregue: as fotos de checkout ficam apenas para consulta." : "Registre o estado final antes da retirada ou entrega ao cliente."}
             emptyText="Nenhuma foto de checkout anexada ainda."
@@ -162,6 +170,7 @@ function PhotoSection({
   momento,
   canUpload,
   canDelete,
+  canAnalyze,
   photoTypes
 }: {
   title: string;
@@ -172,16 +181,20 @@ function PhotoSection({
   momento: "entrada" | "checkout";
   canUpload: boolean;
   canDelete: boolean;
+  canAnalyze: boolean;
   photoTypes: { value: string; label: string }[];
 }) {
   return (
-    <section className="grid gap-4 rounded-xl border border-border bg-white p-4 shadow-sm">
+    <section className="grid gap-4 rounded-xl border border-border bg-white p-4 shadow-sm" id={`fotos-${momento}`}>
       <div className="grid gap-1 sm:grid-cols-[1fr_auto] sm:items-start">
         <div>
           <h2 className="text-xl font-black">{title}</h2>
           <p className="mt-1 text-sm font-semibold text-muted-foreground">{description}</p>
         </div>
-        <span className="rounded-full bg-muted px-3 py-1 text-sm font-black">{fotos.length} foto(s)</span>
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <span className="rounded-full bg-muted px-3 py-1 text-sm font-black">{fotos.length} foto(s)</span>
+          <LavaSyncPendingButton compact lavagemId={lavagemId} returnTo={`/lavagestor/checklists/${lavagemId}#fotos-${momento}`} />
+        </div>
       </div>
 
       {canUpload ? (
@@ -202,21 +215,23 @@ function PhotoSection({
             <span className="text-sm font-black">Legenda</span>
             <input className="input" name="legenda" placeholder="Opcional" />
           </label>
-          <button className="button-primary self-end" type="submit">{momento === "checkout" ? "Anexar depois" : "Anexar antes"}</button>
+          <PhotoUploadSubmitButton idleLabel={momento === "checkout" ? "Tirar foto depois" : "Tirar foto antes"} />
         </form>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {fotos.length === 0 ? <p className="rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground sm:col-span-2 lg:col-span-3">{emptyText}</p> : null}
-        {fotos.map((foto) => (
-          <figure className="overflow-hidden rounded-xl border border-border bg-white shadow-sm" key={String(foto.id)}>
-            {foto.signed_url ? <img alt={String(foto.legenda || foto.tipo || "Foto do checklist")} className="aspect-[4/3] w-full object-cover" src={String(foto.signed_url)} /> : <div className="grid aspect-[4/3] place-items-center bg-muted text-sm font-bold text-muted-foreground">Foto indisponivel</div>}
-            <figcaption className="grid gap-2 p-3">
-              <div>
-                <strong className="text-sm">{photoTypeLabel(String(foto.tipo))}</strong>
-                {foto.legenda ? <p className="mt-1 text-xs font-semibold text-muted-foreground">{String(foto.legenda)}</p> : null}
-                <p className="mt-2 text-xs font-black uppercase tracking-[0.08em] text-muted-foreground">{syncStatus(foto)}</p>
-              </div>
+      <div className="-mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
+        {fotos.length === 0 ? <p className="w-full rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground">{emptyText}</p> : null}
+        {fotos.map((foto, index) => (
+          <LavaPhotoCard
+            className="w-[min(82vw,22rem)] shrink-0 snap-start sm:w-80"
+            foto={foto}
+            gallery={fotos}
+            galleryIndex={index}
+            key={String(foto.id)}
+            returnTo={`/lavagestor/checklists/${lavagemId}#fotos-${momento}`}
+            subtitle={foto.legenda ? String(foto.legenda) : undefined}
+            title={photoTypeLabel(String(foto.tipo))}
+          >
               {canDelete ? (
                 <form action={deleteLavaChecklistFoto}>
                   <input name="lavagem_id" type="hidden" value={lavagemId} />
@@ -224,8 +239,16 @@ function PhotoSection({
                   <button className="button-danger w-full" type="submit">Excluir foto</button>
                 </form>
               ) : null}
-            </figcaption>
-          </figure>
+              {canAnalyze ? (
+                <form action={analyzeLavaChecklistPhotoAction}>
+                  <input name="lavagem_id" type="hidden" value={lavagemId} />
+                  <input name="foto_id" type="hidden" value={String(foto.id)} />
+                  <input name="return_to" type="hidden" value={`/lavagestor/checklists/${lavagemId}#fotos-${momento}`} />
+                  <button className="button-secondary w-full" type="submit">Analisar foto com IAMob</button>
+                  <p className="mt-1 text-xs font-semibold text-muted-foreground">Analise gerada por IA. Confirme manualmente antes de usar.</p>
+                </form>
+              ) : null}
+          </LavaPhotoCard>
         ))}
       </div>
     </section>
@@ -257,12 +280,4 @@ function photoTypeOptions(values: unknown) {
   const known = new Map(LAVA_CHECKLIST_PHOTO_TYPES.map((item) => [item.value, item.label]));
   const items = configured.length ? configured : LAVA_CHECKLIST_PHOTO_TYPES.map((item) => item.value);
   return items.map((value) => ({ value, label: known.get(value) ?? value.replaceAll("_", " ") }));
-}
-
-function syncStatus(foto: Record<string, unknown>) {
-  const rows = Array.isArray(foto.sync_rows) ? foto.sync_rows as Record<string, unknown>[] : [];
-  if (rows.length === 0) return "Backup local";
-  if (rows.some((row) => row.status === "erro")) return "Backup com erro";
-  if (rows.every((row) => row.status === "sincronizado")) return "Backup sincronizado";
-  return "Backup pendente";
 }

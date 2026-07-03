@@ -6,10 +6,12 @@ import { logAction } from "@/lib/core-data";
 import { booleanValue, messageParam, nullableTextValue, textValue } from "@/lib/form-utils";
 import { canUploadCheckoutPhoto, ensureChecklistForLavagem, LAVA_CHECKLIST_BUCKET } from "@/lib/lavagestor-checklists-data";
 import { requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
-import { syncLavaPhotoToExternalStorage, syncPendingLavaPhotos } from "@/lib/lavagestor-storage";
+import { ensurePendingSyncRowsForPhoto } from "@/lib/lavagestor-storage";
+import { enqueueWhatsappMessage } from "@/lib/lavagestor-whatsapp";
 import { getSupabaseServer } from "@/lib/supabase";
 
 type Row = Record<string, unknown>;
+const MAX_LAVA_PHOTO_BYTES = 8 * 1024 * 1024;
 
 export async function saveLavaChecklist(formData: FormData) {
   const lavagemId = textValue(formData, "lavagem_id");
@@ -73,11 +75,12 @@ export async function saveLavaChecklist(formData: FormData) {
   }
 
   await updateChecklistServicos(client, current.empresaId, checklist.id, formData);
-  if (intent === "concluir") {
-    await syncPendingLavaPhotos(current, lavagemId).catch(() => null);
-  }
-
   await insertHistory(client, current, lavagemId, intent === "concluir" ? "checklist_entrada_concluido" : intent === "cancelar" ? "checklist_cancelado" : "checklist_salvo");
+  if (intent === "concluir") {
+    await enqueueChecklistWhatsapp(client, current, lavagemId).catch(async (err) => {
+      await insertHistory(client, current, lavagemId, "whatsapp_erro_checklist", err instanceof Error ? err.message : "Falha ao enfileirar WhatsApp.");
+    });
+  }
   await logAction({ appSlug: "lavagestor", acao: "salvar checklist", detalhes: { lavagem_id: lavagemId, status } });
   revalidateLavaChecklistPaths(lavagemId);
   redirect(`${returnTo}?ok=${messageParam(intent === "concluir" ? "Checklist concluido." : "Checklist salvo.")}`);
@@ -121,6 +124,10 @@ export async function uploadLavaChecklistFoto(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam("Envie apenas arquivos de imagem.")}`);
   }
 
+  if (file.size > MAX_LAVA_PHOTO_BYTES) {
+    redirect(`${returnTo}?error=${messageParam("Foto muito grande. Tire outra foto ou envie uma imagem menor.")}`);
+  }
+
   const tipo = sanitizePathPart(textValue(formData, "tipo") || "outras");
   const extension = extensionFromFile(file);
   const storagePath = `${current.empresaId}/${lavagemId}/${momento}/${tipo}/${Date.now()}-${crypto.randomUUID()}${extension}`;
@@ -152,24 +159,18 @@ export async function uploadLavaChecklistFoto(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam(error.message)}`);
   }
 
-  if (foto) {
-    await syncLavaPhotoToExternalStorage({
-      current,
-      foto,
-      lavagem,
-      bytes,
-      mimeType: file.type || "image/jpeg",
-      fileName: file.name || undefined
-    }).catch(() => null);
-  }
+  const pending = foto ? await ensurePendingSyncRowsForPhoto(current, foto).catch(() => ({ created: 0, skipped: 0, connected: 0 })) : { created: 0, skipped: 0, connected: 0 };
 
-  await insertHistory(client, current, lavagemId, momento === "checkout" ? "foto_checkout_adicionada" : "foto_entrada_adicionada");
+  await insertHistory(client, current, lavagemId, "foto_local_salva", momento === "checkout" ? "Foto de checkout salva no Supabase." : "Foto de entrada salva no Supabase.");
+  if (pending.created > 0) {
+    await insertHistory(client, current, lavagemId, "backup_pendente", `${pending.created} backup(s) externo(s) pendente(s).`);
+  }
   if (momento === "checkout" && checkoutCountBefore === 0) {
-    await insertHistory(client, current, lavagemId, "checkout_concluido");
+    await insertHistory(client, current, lavagemId, "checkout_concluido", "Primeira foto de checkout registrada.");
   }
   await logAction({ appSlug: "lavagestor", acao: "adicionar foto checklist", detalhes: { lavagem_id: lavagemId, tipo, momento } });
   revalidateLavaChecklistPaths(lavagemId);
-  redirect(`${returnTo}?ok=${messageParam(momento === "checkout" ? "Foto de checkout anexada." : "Foto de entrada anexada.")}`);
+  redirect(`${returnTo}?ok=${messageParam("Foto salva no LavaGestor. Backup externo sera sincronizado em seguida.")}#fotos-${momento}`);
 }
 
 export async function deleteLavaChecklistFoto(formData: FormData) {
@@ -226,11 +227,30 @@ export async function deleteLavaChecklistFoto(formData: FormData) {
 async function getLavagem(client: any, empresaId: string | null, lavagemId: string) {
   const { data } = await client
     .from("lava_lavagens")
-    .select("id,cliente_id,veiculo_id,status,data_entrada,data_lavagem,lava_clientes(nome),lava_veiculos(placa,marca,modelo,cor,tipo)")
+    .select("id,cliente_id,veiculo_id,status,data_entrada,data_lavagem,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor,tipo)")
     .eq("id", lavagemId)
     .eq("empresa_id", empresaId)
     .maybeSingle();
   return data as Row | null;
+}
+
+async function enqueueChecklistWhatsapp(client: any, current: { empresaId: string | null; usuario: { id: string } }, lavagemId: string) {
+  const lavagem = await getLavagem(client, current.empresaId, lavagemId);
+  if (!lavagem) return;
+  const cliente = relationObject(lavagem.lava_clientes);
+  const veiculo = relationObject(lavagem.lava_veiculos);
+  await enqueueWhatsappMessage(current, {
+    evento: "checklist_concluido",
+    clienteId: String(lavagem.cliente_id ?? "") || null,
+    lavagemId,
+    telefone: String(cliente?.telefone ?? ""),
+    data: {
+      cliente: String(cliente?.nome ?? "cliente"),
+      veiculo: vehicleLabel(veiculo),
+      placa: String(veiculo?.placa ?? ""),
+      empresa: "LavaGestor"
+    }
+  });
 }
 
 async function getChecklistConfig(client: any, empresaId: string | null) {
@@ -300,7 +320,7 @@ async function updateChecklistServicos(client: any, empresaId: string | null, ch
   );
 }
 
-async function insertHistory(client: any, current: { empresaId: string | null; usuario: { id: string } }, lavagemId: string, acao: string) {
+async function insertHistory(client: any, current: { empresaId: string | null; usuario: { id: string } }, lavagemId: string, acao: string, observacao?: string | null) {
   await client.from("lava_historico").insert({
     empresa_id: current.empresaId,
     lavagem_id: lavagemId,
@@ -308,7 +328,7 @@ async function insertHistory(client: any, current: { empresaId: string | null; u
     acao,
     status_anterior: null,
     status_novo: null,
-    observacao: null
+    observacao: observacao ?? null
   });
 }
 
@@ -316,6 +336,7 @@ function revalidateLavaChecklistPaths(lavagemId: string) {
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/fila");
   revalidatePath("/lavagestor/lavagens");
+  revalidatePath("/lavagestor/whatsapp");
   revalidatePath(`/lavagestor/checklists/${lavagemId}`);
   revalidatePath(`/lavagestor/tickets/${lavagemId}`);
   revalidatePath(`/lavagestor/recibos/${lavagemId}`);
@@ -339,6 +360,18 @@ function arrayValue(value: unknown) {
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
   if (typeof value === "string") return value.split("\n").map((item) => item.trim()).filter(Boolean);
   return [];
+}
+
+function relationObject(value: unknown): Row | null {
+  const relation = Array.isArray(value) ? value[0] : value;
+  return relation && typeof relation === "object" ? relation as Row : null;
+}
+
+function vehicleLabel(value: unknown) {
+  const relation = relationObject(value) ?? (value as Row | null);
+  if (!relation || typeof relation !== "object") return "veiculo";
+  const model = [relation.marca, relation.modelo].filter(Boolean).join(" ");
+  return [relation.placa, model, relation.cor].filter(Boolean).join(" - ") || "veiculo";
 }
 
 function extensionFromFile(file: File) {
