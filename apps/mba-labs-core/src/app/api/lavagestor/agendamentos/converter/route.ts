@@ -45,8 +45,13 @@ export async function POST(request: Request) {
       return redirectTo(`/lavagestor/fila?ok=${messageParam("Agendamento já estava convertido.")}`);
     }
 
-    if (!agendamento.cliente_id || !agendamento.veiculo_id || !agendamento.servico_id || !agendamento.funcionario_id) {
-      return redirectTo(`${returnTo}?error=${messageParam("Agendamento precisa de cliente, veículo, serviço e funcionário para converter.")}`);
+    if (!agendamento.cliente_id || !agendamento.veiculo_id || !agendamento.servico_id) {
+      return redirectTo(`${returnTo}?error=${messageParam("Agendamento precisa de cliente, veículo e serviço para converter.")}`);
+    }
+
+    const funcionarioId = String(agendamento.funcionario_id || (await getFallbackFuncionarioId(client, current.empresaId)) || "");
+    if (!funcionarioId) {
+      return redirectTo(`${returnTo}?error=${messageParam("Cadastre pelo menos um funcionário ativo antes de converter em lavagem.")}`);
     }
 
     const [servicoResult, funcionarioResult] = await Promise.all([
@@ -59,7 +64,7 @@ export async function POST(request: Request) {
       client
         .from("lava_funcionarios")
         .select("id,nome,percentual_comissao")
-        .eq("id", agendamento.funcionario_id)
+        .eq("id", funcionarioId)
         .eq("empresa_id", current.empresaId)
         .maybeSingle()
     ]);
@@ -77,6 +82,7 @@ export async function POST(request: Request) {
       : moneyNumber(servico.percentual_comissao);
     const comissao = roundMoney((valor * percentual) / 100);
     const now = new Date().toISOString();
+    const funcionarioFoiDefinidoAutomaticamente = !agendamento.funcionario_id;
 
     const { data: lavagem, error: insertError } = await client
       .from("lava_lavagens")
@@ -84,7 +90,7 @@ export async function POST(request: Request) {
         empresa_id: current.empresaId,
         cliente_id: agendamento.cliente_id,
         veiculo_id: agendamento.veiculo_id,
-        funcionario_id: agendamento.funcionario_id,
+        funcionario_id: funcionarioId,
         servico_id: agendamento.servico_id,
         descricao_extra: null,
         valor,
@@ -112,7 +118,7 @@ export async function POST(request: Request) {
       empresa_id: current.empresaId,
       lavagem_id: lavagem.id,
       servico_id: agendamento.servico_id,
-      funcionario_id: agendamento.funcionario_id,
+      funcionario_id: funcionarioId,
       descricao: servico.nome ?? "Serviço",
       valor,
       tipo_comissao: percentual > 0 ? "percentual" : "sem_comissao",
@@ -127,7 +133,7 @@ export async function POST(request: Request) {
     if (comissao > 0) {
       await client.from("lava_comissoes").insert({
         empresa_id: current.empresaId,
-        funcionario_id: agendamento.funcionario_id,
+        funcionario_id: funcionarioId,
         lavagem_id: lavagem.id,
         valor: comissao,
         status: "pendente"
@@ -136,7 +142,7 @@ export async function POST(request: Request) {
 
     await client
       .from("lava_agendamentos")
-      .update({ status: "convertido", lavagem_id: lavagem.id, updated_at: now })
+      .update({ status: "convertido", lavagem_id: lavagem.id, funcionario_id: funcionarioId, updated_at: now })
       .eq("id", id)
       .eq("empresa_id", current.empresaId);
 
@@ -162,19 +168,40 @@ export async function POST(request: Request) {
       acao: "agendamento_convertido",
       status_anterior: null,
       status_novo: "na_fila",
-      observacao: "Lavagem criada a partir de agendamento."
+      observacao: funcionarioFoiDefinidoAutomaticamente
+        ? `Lavagem criada a partir de agendamento. Funcionário definido automaticamente: ${String(funcionario.nome ?? "funcionário")}.`
+        : "Lavagem criada a partir de agendamento."
     });
 
-    await logAction({ appSlug: "lavagestor", acao: "converter agendamento", detalhes: { agendamento_id: id, lavagem_id: lavagem.id } }).catch(() => null);
+    await logAction({
+      appSlug: "lavagestor",
+      acao: "converter agendamento",
+      detalhes: { agendamento_id: id, lavagem_id: lavagem.id, funcionario_id: funcionarioId, funcionario_auto: funcionarioFoiDefinidoAutomaticamente }
+    }).catch(() => null);
     revalidatePath("/lavagestor");
     revalidatePath("/lavagestor/fila");
     revalidatePath("/lavagestor/agendamentos");
     revalidatePath("/lavagestor/checklists");
-    return redirectTo(`/lavagestor/fila?ok=${messageParam("Agendamento convertido em lavagem.")}`);
+    const ok = funcionarioFoiDefinidoAutomaticamente
+      ? `Agendamento convertido em lavagem. Funcionário definido automaticamente: ${String(funcionario.nome ?? "funcionário")}.`
+      : "Agendamento convertido em lavagem.";
+    return redirectTo(`/lavagestor/fila?ok=${messageParam(ok)}`);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Não foi possível converter o agendamento.";
     return redirectTo(`${returnTo}?error=${messageParam(message)}`);
   }
+}
+
+async function getFallbackFuncionarioId(client: any, empresaId: string) {
+  const { data } = await client
+    .from("lava_funcionarios")
+    .select("id")
+    .eq("empresa_id", empresaId)
+    .eq("ativo", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return data?.id ? String(data.id) : "";
 }
 
 function safeReturn(value: string) {
