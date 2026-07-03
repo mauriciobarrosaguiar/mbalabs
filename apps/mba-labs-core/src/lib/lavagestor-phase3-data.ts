@@ -3,6 +3,8 @@ import { firstParam } from "./form-utils";
 import { getLavaConfiguracoesEmpresa } from "./lavagestor-configuracoes-data";
 import { getLavaDashboard, normalizeLavaStatus } from "./lavagestor-data";
 import { requireLavaGestorAccess } from "./lavagestor-permissions";
+import { formatStockQuantity } from "./lavagestor-stock";
+import { buildWhatsappUrl } from "./lavagestor-whatsapp";
 import { getSupabaseServer } from "./supabase";
 
 type Row = Record<string, unknown>;
@@ -150,12 +152,13 @@ export async function getLavaAgendamentosData(params: Record<string, string | st
   const lookups = await getLavaPhase3Lookups("/lavagestor/agendamentos");
   const client = (await getSupabaseServer()) as any;
   const empresaId = lookups.current.empresaId;
+  const configPromise = getLavaConfiguracoesEmpresa("/lavagestor/agendamentos");
   const periodo = firstParam(params.periodo) ?? "semana";
   const range = resolveAgendaRange(periodo);
   let query = scopeEmpresa(
     client
       .from("lava_agendamentos")
-      .select("id,cliente_id,veiculo_id,servico_id,funcionario_id,titulo,data_inicio,data_fim,duracao_min,status,observacao,origem,lavagem_id,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_servicos(nome,preco),lava_funcionarios(nome)")
+      .select("id,cliente_id,veiculo_id,servico_id,funcionario_id,titulo,data_inicio,data_fim,duracao_min,status,observacao,adicional_texto,origem,lavagem_id,confirmacao_status,confirmacao_enviada_em,confirmacao_erro,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_servicos(nome,preco),lava_funcionarios(nome)")
       .gte("data_inicio", range.start.toISOString())
       .lt("data_inicio", range.end.toISOString())
       .order("data_inicio", { ascending: true })
@@ -168,11 +171,12 @@ export async function getLavaAgendamentosData(params: Record<string, string | st
   if (status) query = query.eq("status", status);
   if (funcionario) query = query.eq("funcionario_id", funcionario);
   if (servico) query = query.eq("servico_id", servico);
-  const result = await query;
+  const [{ config }, result] = await Promise.all([configPromise, query]);
   const rows: Row[] = ((result.data ?? []) as Row[]).map(mapAgendamento);
 
   return {
     ...lookups,
+    config,
     rows,
     range,
     filter: { periodo, status: status ?? "", funcionario: funcionario ?? "", servico: servico ?? "" },
@@ -194,10 +198,15 @@ export async function getLavaEstoqueData() {
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
   const [produtos, movimentos, insumos] = await Promise.all([
     scopeEmpresa(client.from("lava_estoque_produtos").select("*").order("nome").limit(500), empresaId),
-    scopeEmpresa(client.from("lava_estoque_movimentos").select("*,lava_estoque_produtos(nome),lava_servicos(nome)").order("created_at", { ascending: false }).limit(200), empresaId),
-    scopeEmpresa(client.from("lava_servico_insumos").select("*,lava_estoque_produtos(nome,unidade),lava_servicos(nome)").order("created_at", { ascending: false }).limit(300), empresaId)
+    scopeEmpresa(client.from("lava_estoque_movimentos").select("*,lava_estoque_produtos(nome,unidade,unidade_base),lava_servicos(nome)").order("created_at", { ascending: false }).limit(200), empresaId),
+    scopeEmpresa(client.from("lava_servico_insumos").select("*,lava_estoque_produtos(nome,unidade,unidade_base),lava_servicos(nome)").order("created_at", { ascending: false }).limit(300), empresaId)
   ]);
-  const productRows = (produtos.data ?? []) as Row[];
+  const productRows = ((produtos.data ?? []) as Row[]).map((row): Row => ({
+    ...row,
+    unidade_base: row.unidade_base ?? row.unidade ?? "un",
+    quantidade_label: formatStockQuantity(row.estoque_atual, row.unidade_base ?? row.unidade ?? "un"),
+    valor_estoque: moneyNumber(row.estoque_atual) * moneyNumber(row.custo_unitario)
+  }));
   const movimentoRows: Row[] = ((movimentos.data ?? []) as Row[]).map((row): Row => ({
     ...row,
     produto: relationName(row.lava_estoque_produtos),
@@ -214,7 +223,7 @@ export async function getLavaEstoqueData() {
     insumos: ((insumos.data ?? []) as Row[]).map((row): Row => ({
       ...row,
       produto: relationName(row.lava_estoque_produtos),
-      unidade: relationObject(row.lava_estoque_produtos)?.unidade ?? "",
+      unidade: row.unidade ?? relationObject(row.lava_estoque_produtos)?.unidade_base ?? relationObject(row.lava_estoque_produtos)?.unidade ?? "",
       servico: relationName(row.lava_servicos)
     })),
     summary: {
@@ -335,6 +344,7 @@ function firstError(...results: Array<{ error?: { message?: string } | null }>) 
 }
 
 function mapAgendamento(row: Row): Row {
+  const statusConfirmacao = String(row.confirmacao_status ?? "pendente");
   return {
     ...row,
     cliente: relationName(row.lava_clientes),
@@ -342,6 +352,7 @@ function mapAgendamento(row: Row): Row {
     veiculo: vehicleLabel(row.lava_veiculos),
     servico: relationName(row.lava_servicos),
     funcionario: relationName(row.lava_funcionarios),
+    confirmacao_label: statusConfirmacao === "enviado_manual" ? "Confirmacao enviada" : statusConfirmacao === "erro" ? "Confirmacao com erro" : statusConfirmacao === "pronto" ? "Confirmacao pronta" : "Confirmacao pendente",
     status_label: LAVA_AGENDAMENTO_STATUS.find((item) => item.value === row.status)?.label ?? String(row.status ?? "-")
   };
 }
@@ -492,8 +503,5 @@ function applyTemplate(template: string, variables: Record<string, string>) {
 }
 
 export function whatsappUrl(phone: unknown, message: string) {
-  const digits = String(phone ?? "").replace(/\D/g, "");
-  if (!digits) return "";
-  const normalized = digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
-  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
+  return buildWhatsappUrl(phone, message);
 }

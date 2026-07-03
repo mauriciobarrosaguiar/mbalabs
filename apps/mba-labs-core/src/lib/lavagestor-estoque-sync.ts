@@ -1,3 +1,5 @@
+import { normalizeStockUnit, roundStock } from "./lavagestor-stock";
+
 type Current = { empresaId: string | null; usuario: { id: string } };
 type Row = Record<string, unknown>;
 
@@ -17,7 +19,7 @@ export async function baixarEstoqueDaLavagem(client: any, current: Current, lava
 
   const insumosResult = await client
     .from("lava_servico_insumos")
-    .select("servico_id,produto_id,quantidade_por_servico,lava_estoque_produtos(id,estoque_atual,custo_unitario,nome)")
+    .select("servico_id,produto_id,quantidade_por_servico,unidade,lava_estoque_produtos(id,estoque_atual,custo_unitario,nome,unidade,unidade_base)")
     .eq("empresa_id", current.empresaId)
     .in("servico_id", servicoIds);
   const insumos = (insumosResult.data ?? []) as Row[];
@@ -29,8 +31,10 @@ export async function baixarEstoqueDaLavagem(client: any, current: Current, lava
     const produtoId = String(insumo.produto_id ?? "");
     const quantidade = moneyNumber(insumo.quantidade_por_servico);
     if (!produtoId || quantidade <= 0 || !produto) continue;
+    const unidade = normalizeStockUnit(insumo.unidade, String(produto.unidade_base ?? produto.unidade ?? "un"));
     const estoqueAtual = moneyNumber(produto.estoque_atual);
-    const novoEstoque = roundMoney(estoqueAtual - quantidade);
+    const novoEstoque = roundStock(estoqueAtual - quantidade);
+    const custoUnitario = moneyNumber(produto.custo_unitario);
     if (novoEstoque < 0) avisos.push(`${produto.nome ?? "Produto"} ficou negativo (${novoEstoque}).`);
     await client.from("lava_estoque_produtos").update({ estoque_atual: novoEstoque }).eq("id", produtoId).eq("empresa_id", current.empresaId);
     await client.from("lava_estoque_movimentos").insert({
@@ -41,7 +45,9 @@ export async function baixarEstoqueDaLavagem(client: any, current: Current, lava
       usuario_id: current.usuario.id,
       tipo: "baixa_servico",
       quantidade,
-      custo_unitario: moneyNumber(produto.custo_unitario),
+      unidade_movimento: unidade,
+      custo_unitario: custoUnitario,
+      custo_total: roundMoney(quantidade * custoUnitario),
       observacao: "Baixa automatica ao finalizar lavagem."
     });
     baixados += 1;

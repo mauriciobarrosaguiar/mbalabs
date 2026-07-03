@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
+import { MessageActions } from "@/components/lavagestor/MessageActions";
 import { BackButton, MessageBanner, PageHeader, formatDateTime, formatMoney } from "@/components/ui-kit";
 import { registrarIAmobLog } from "@/lib/actions/lavagestor-iamob-actions";
 import { firstParam } from "@/lib/form-utils";
@@ -23,7 +24,7 @@ export default async function IAmobPage({ searchParams }: { searchParams: Promis
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold leading-6 text-emerald-950">
-          IAMob esta funcionando em modo regras. Para analise avancada por IA, configure um provedor externo futuramente.
+          IAMob esta funcionando em modo regras: cruza fila, pagamentos, agenda, estoque e historico para sugerir proximas acoes. Analise por IA externa fica preparada para uma etapa futura.
         </div>
 
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
@@ -57,6 +58,7 @@ export default async function IAmobPage({ searchParams }: { searchParams: Promis
               <article className="grid gap-3 rounded-lg border border-border bg-muted/20 p-3" key={item.tipo}>
                 <strong>{item.label}</strong>
                 <p className="text-sm font-semibold leading-6 text-muted-foreground">{item.message}</p>
+                <MessageActions message={item.message} />
               </article>
             ))}
           </div>

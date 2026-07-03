@@ -2,7 +2,7 @@ import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, MessageBanner, PageHeader, formatDateTime, formatMoney } from "@/components/ui-kit";
 import { createLavaEstoqueMovimento, criarProdutosPadraoLavaGestor, saveLavaEstoqueProduto, saveLavaServicoInsumo } from "@/lib/actions/lavagestor-estoque-actions";
 import { firstParam } from "@/lib/form-utils";
-import { LAVA_ESTOQUE_MOVIMENTOS, getLavaEstoqueData } from "@/lib/lavagestor-estoque-data";
+import { LAVA_ESTOQUE_CATEGORIAS, LAVA_ESTOQUE_MOVIMENTOS, LAVA_ESTOQUE_UNIDADES, getLavaEstoqueData } from "@/lib/lavagestor-estoque-data";
 
 export const dynamic = "force-dynamic";
 
@@ -33,8 +33,8 @@ export default async function EstoquePage({ searchParams }: { searchParams: Prom
             <h2 className="text-xl font-black">Produto</h2>
             <div className="grid gap-3 md:grid-cols-2">
               <Input label="Nome" name="nome" required />
-              <Input label="Categoria" name="categoria" placeholder="Ex.: Quimicos" />
-              <Input label="Unidade" name="unidade" defaultValue="un" />
+              <Select label="Categoria" name="categoria" options={LAVA_ESTOQUE_CATEGORIAS.map((item) => ({ value: item, label: item }))} />
+              <Select label="Unidade base" name="unidade_base" options={LAVA_ESTOQUE_UNIDADES.map((item) => ({ value: item.value, label: item.label }))} />
               <Input label="Estoque atual" name="estoque_atual" type="number" step="0.001" defaultValue="0" />
               <Input label="Estoque minimo" name="estoque_minimo" type="number" step="0.001" defaultValue="0" />
               <Input label="Custo unitario" name="custo_unitario" type="number" step="0.01" defaultValue="0" />
@@ -59,7 +59,9 @@ export default async function EstoquePage({ searchParams }: { searchParams: Prom
                 </select>
               </label>
               <Input label="Quantidade" name="quantidade" type="number" step="0.001" required />
+              <Select label="Unidade" name="unidade_movimento" options={LAVA_ESTOQUE_UNIDADES.map((item) => ({ value: item.value, label: item.label }))} />
               <Input label="Custo unitario" name="custo_unitario" type="number" step="0.01" />
+              <Input label="Custo total" name="custo_total" type="number" step="0.01" />
               <label className="grid gap-2 md:col-span-2">
                 <span className="text-sm font-black">Observacao</span>
                 <textarea className="input min-h-20" name="observacao" />
@@ -71,7 +73,7 @@ export default async function EstoquePage({ searchParams }: { searchParams: Prom
 
         <form action={saveLavaServicoInsumo} className="grid gap-3 rounded-xl border border-border bg-white p-4 shadow-sm">
           <h2 className="text-xl font-black">Insumo por servico</h2>
-          <div className="grid gap-3 md:grid-cols-[1fr_1fr_180px_auto]">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[1fr_1fr_160px_160px_auto]">
             <label className="grid gap-2">
               <span className="text-sm font-black">Servico</span>
               <select className="input" name="servico_id" required>
@@ -87,6 +89,7 @@ export default async function EstoquePage({ searchParams }: { searchParams: Prom
               </select>
             </label>
             <Input label="Qtd. por servico" name="quantidade_por_servico" type="number" step="0.001" required />
+            <Select label="Unidade" name="unidade" options={LAVA_ESTOQUE_UNIDADES.map((item) => ({ value: item.value, label: item.label }))} />
             <button className="button-primary self-end" type="submit">Vincular</button>
           </div>
         </form>
@@ -100,13 +103,13 @@ export default async function EstoquePage({ searchParams }: { searchParams: Prom
                 <article className={`rounded-lg border p-3 ${baixo ? "border-amber-200 bg-amber-50" : "border-border bg-white"}`} key={String(row.id)}>
                   <div className="flex items-start justify-between gap-2">
                     <strong className="break-words">{String(row.nome)}</strong>
-                    <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black">{String(row.unidade ?? "un")}</span>
+                    <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black">{String(row.unidade_base ?? row.unidade ?? "un")}</span>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    <Info label="Atual" value={String(row.estoque_atual ?? 0)} />
+                    <Info label="Atual" value={String(row.quantidade_label ?? row.estoque_atual ?? 0)} />
                     <Info label="Minimo" value={String(row.estoque_minimo ?? 0)} />
                     <Info label="Custo" value={formatMoney(row.custo_unitario)} />
-                    <Info label="Valor" value={formatMoney(Number(row.estoque_atual ?? 0) * Number(row.custo_unitario ?? 0))} />
+                    <Info label="Valor" value={formatMoney(row.valor_estoque ?? Number(row.estoque_atual ?? 0) * Number(row.custo_unitario ?? 0))} />
                   </div>
                 </article>
               );
@@ -134,7 +137,7 @@ export default async function EstoquePage({ searchParams }: { searchParams: Prom
               <div className="grid gap-2 rounded-lg border border-border p-3 text-sm md:grid-cols-[1fr_auto_auto_auto]" key={String(row.id)}>
                 <strong>{String(row.produto || "Produto")}</strong>
                 <span>{String(row.tipo)}</span>
-                <span>{String(row.quantidade)}</span>
+                <span>{String(row.quantidade)} {String(row.unidade_movimento ?? "")}</span>
                 <span className="text-muted-foreground">{formatDateTime(row.created_at)}</span>
               </div>
             ))}
@@ -156,4 +159,15 @@ function Info({ label, value }: { label: string; value: string }) {
 
 function Input({ label, name, type = "text", required = false, defaultValue, placeholder, step }: { label: string; name: string; type?: string; required?: boolean; defaultValue?: string; placeholder?: string; step?: string }) {
   return <label className="grid gap-2"><span className="text-sm font-black">{label}</span><input className="input" name={name} type={type} required={required} defaultValue={defaultValue} placeholder={placeholder} step={step} /></label>;
+}
+
+function Select({ label, name, options }: { label: string; name: string; options: Array<{ value: string; label: string }> }) {
+  return (
+    <label className="grid gap-2">
+      <span className="text-sm font-black">{label}</span>
+      <select className="input" name={name}>
+        {options.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+      </select>
+    </label>
+  );
 }

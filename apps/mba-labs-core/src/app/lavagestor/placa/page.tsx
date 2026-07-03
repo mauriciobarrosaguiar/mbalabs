@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 export default async function PlacaPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const data = await getLavaPlacaData();
-  const veiculoId = firstParam(params.veiculo);
+  const veiculoId = firstParam(params.veiculo_id) ?? firstParam(params.veiculo);
+  const placa = firstParam(params.placa) ?? "";
   const foundVehicle = veiculoId ? data.veiculos.find((row) => String(row.id) === veiculoId) : null;
 
   return (
@@ -25,16 +26,28 @@ export default async function PlacaPage({ searchParams }: { searchParams: Promis
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold leading-6 text-amber-950">
-          Reconhecimento automatico ainda nao configurado. Digite a placa manualmente.
+          Reconhecimento automático ainda não configurado. Digite a placa manualmente.
         </div>
 
         {foundVehicle ? (
           <section className="grid gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-            <h2 className="text-xl font-black">Veiculo encontrado</h2>
+            <h2 className="text-xl font-black">Veículo encontrado</h2>
             <p className="font-semibold">{String(foundVehicle.veiculo)}</p>
+            <p className="text-sm font-bold text-emerald-950">Cliente: {String(data.clientes.find((row) => String(row.id) === String(foundVehicle.cliente_id))?.nome ?? "-")}</p>
             <div className="flex flex-wrap gap-2">
-              <Link className="button-primary" href={`/lavagestor/nova-lavagem?veiculo=${foundVehicle.id}`}>Nova lavagem</Link>
-              <Link className="button-secondary" href={`/lavagestor/veiculos/${foundVehicle.id}`}>Abrir veiculo</Link>
+              <Link className="button-primary" href={`/lavagestor/nova-lavagem?cliente_id=${foundVehicle.cliente_id ?? ""}&veiculo_id=${foundVehicle.id}&placa=${encodeURIComponent(String(foundVehicle.placa ?? placa))}`}>Nova lavagem</Link>
+              <Link className="button-secondary" href={`/lavagestor/veiculos/${foundVehicle.id}`}>Abrir veículo</Link>
+            </div>
+          </section>
+        ) : null}
+
+        {!foundVehicle && placa ? (
+          <section className="grid gap-3 rounded-xl border border-border bg-white p-4 shadow-sm">
+            <h2 className="text-xl font-black">Placa não localizada</h2>
+            <p className="text-sm font-semibold text-muted-foreground">Cadastre o cliente ou vincule um veículo antes de abrir a lavagem.</p>
+            <div className="flex flex-wrap gap-2">
+              <Link className="button-primary" href={`/lavagestor/veiculos?placa=${encodeURIComponent(placa)}`}>Cadastrar veículo</Link>
+              <Link className="button-secondary" href={`/lavagestor/clientes?placa=${encodeURIComponent(placa)}`}>Cadastrar cliente</Link>
             </div>
           </section>
         ) : null}
@@ -48,7 +61,7 @@ export default async function PlacaPage({ searchParams }: { searchParams: Promis
             </label>
             <label className="grid gap-2">
               <span className="text-sm font-black">Placa manual</span>
-              <input className="input uppercase" name="placa" placeholder="ABC1D23" maxLength={8} />
+              <input className="input uppercase" name="placa" placeholder="ABC1D23" maxLength={8} defaultValue={placa} required />
             </label>
           </div>
           <button className="button-primary w-fit" type="submit">Salvar leitura</button>
@@ -63,7 +76,7 @@ export default async function PlacaPage({ searchParams }: { searchParams: Promis
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <strong className="text-lg">{String(row.placa_confirmada || row.placa_detectada || "Sem placa")}</strong>
-                    <p className="text-sm font-semibold text-muted-foreground">{String(row.veiculo || "Veiculo nao localizado")}</p>
+                    <p className="text-sm font-semibold text-muted-foreground">{String(row.veiculo || "Veículo não localizado")}</p>
                   </div>
                   <span className="rounded-full bg-muted px-2 py-1 text-[10px] font-black">{String(row.status)}</span>
                 </div>

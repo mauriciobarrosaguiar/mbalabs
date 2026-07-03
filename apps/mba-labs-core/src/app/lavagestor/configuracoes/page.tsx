@@ -52,6 +52,7 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
         </div>
 
         <StorageSection overview={storageOverview} />
+        <WhatsappCompanySection whatsapp={config.whatsapp} />
 
         <form action={saveLavaConfiguracoesEmpresa} className="grid gap-4">
           <ConfigBlock badge="01" title="Empresa" description="Dados que aparecem no cabeçalho, recibo e relatório." defaultOpen>
@@ -92,6 +93,9 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
           </ConfigBlock>
 
           <ConfigBlock badge="03" title="Operação" description="Listas usadas dentro da fila e da nova lavagem.">
+            <Field label="Abertura da agenda" name="horario_abertura" defaultValue={config.horario_abertura} type="time" />
+            <Field label="Fechamento da agenda" name="horario_fechamento" defaultValue={config.horario_fechamento} type="time" />
+            <Field label="Intervalo da agenda (min)" name="intervalo_agenda_min" defaultValue={String(config.intervalo_agenda_min)} type="number" step="5" />
             <TextArea label="Motivos de cancelamento" name="motivos_cancelamento" defaultValue={config.motivos_cancelamento.join("\n")} helper="Um motivo por linha. Ex.: Cliente desistiu." />
             <TextArea label="Tipos de entrega" name="tipos_entrega" defaultValue={config.tipos_entrega.join("\n")} helper="Um tipo por linha. Ex.: Cliente retira / Levar ao cliente." />
             <TextArea label="Itens padrão do checklist" name="checklist_itens_padrao" defaultValue={config.checklist_itens_padrao.join("\n")} helper="Um item por linha para orientar a conferência." />
@@ -101,6 +105,7 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
 
           <ConfigBlock badge="04" title="WhatsApp" description="Textos enviados ao cliente. Toque numa mensagem e depois numa variável para inserir.">
             <MessageTemplateEditor readyDefault={config.mensagem_veiculo_pronto} receiptDefault={config.mensagem_recibo} />
+            <TextArea compact label="Agendamento: confirmação" name="mensagem_confirmacao_agendamento" defaultValue={config.mensagem_confirmacao_agendamento} />
             <TextArea compact label="Pos-venda: agradecimento" name="mensagem_pos_venda_agradecimento" defaultValue={config.mensagem_pos_venda_agradecimento} />
             <TextArea compact label="Pos-venda: pesquisa de satisfação" name="mensagem_pesquisa_satisfacao" defaultValue={config.mensagem_pesquisa_satisfacao} />
             <TextArea compact label="Pos-venda: lembrete de retorno" name="mensagem_retorno" defaultValue={config.mensagem_retorno} />
@@ -136,6 +141,35 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
 }
 
 type StorageOverview = Awaited<ReturnType<typeof getLavaStorageOverview>> | { connections: Record<string, unknown>[]; pendingCount: number; errorCount: number; error: string; oauth?: Record<string, unknown>[]; lastSyncErrors?: Record<string, unknown>[] };
+
+function WhatsappCompanySection({ whatsapp }: { whatsapp?: string | null }) {
+  return (
+    <section className="grid gap-3 rounded-2xl border border-border bg-white p-4 shadow-sm">
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">WhatsApp da empresa</p>
+        <h2 className="mt-1 text-xl font-black">Envio manual agora, integracao futura preparada</h2>
+        <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">O LavaGestor gera a mensagem e abre o WhatsApp. Quando houver provedor oficial configurado, a fila vai registrar envio e erro por integracao.</p>
+      </div>
+      <div className="grid gap-2 md:grid-cols-3">
+        <InfoTile label="Número principal" value={whatsapp || "Não informado"} />
+        <InfoTile label="Provider atual" value="Manual / wa.me" />
+        <InfoTile label="Status" value="Pronto para fila manual" />
+      </div>
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-950">
+        Configure o numero principal no bloco Empresa. As proximas integracoes poderao usar a fila `lava_whatsapp_envios` sem travar agendamentos, fotos ou lavagens.
+      </div>
+    </section>
+  );
+}
+
+function InfoTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-muted p-3">
+      <p className="text-xs font-black uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
+      <strong className="mt-1 block break-words text-sm">{value}</strong>
+    </div>
+  );
+}
 
 function StorageSection({ overview }: { overview: StorageOverview }) {
   const providers: LavaStorageProvider[] = ["google_drive", "dropbox"];

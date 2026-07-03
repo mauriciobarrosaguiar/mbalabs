@@ -13,6 +13,7 @@ type Metric = {
   label: string;
   value: string | number;
   tone?: MetricTone;
+  href: string;
 };
 
 export default async function LavaGestorPortalPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -23,31 +24,20 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
   const companyName = config.nome_exibicao || dashboard.companyName;
 
   const metrics: Metric[] = [
-    { label: "Lavagens hoje", value: dashboard.lavagensHoje },
-    { label: "Entrada hoje", value: formatMoney(dashboard.entradaHoje), tone: "success" },
-    { label: "Em lavagem", value: dashboard.veiculosEmLavagem },
-    { label: "Aguardando retirada", value: dashboard.finalizadosAguardandoRetirada },
-    { label: "A receber", value: formatMoney(dashboard.aReceber), tone: "warning" },
-    { label: "Fiado", value: formatMoney(dashboard.fiado), tone: "warning" },
-    { label: "Ticket médio", value: formatMoney(dashboard.ticketMedio), tone: "success" },
-    { label: "Clientes no mês", value: dashboard.clientesAtendidosMes },
-    { label: "Retorno de clientes", value: dashboard.retornoClientes },
-    { label: "Agendamentos hoje", value: dashboard.agendamentosHoje },
-    { label: "Estoque baixo", value: dashboard.estoqueBaixo, tone: "warning" },
-    { label: "Cobranças pendentes", value: dashboard.cobrancasPendentes, tone: "warning" },
-    { label: "Automação pendente", value: dashboard.automacaoPendente, tone: "warning" },
-    { label: "Comissões pendentes", value: formatMoney(dashboard.totalComissoesPendentes), tone: "warning" }
-  ];
-
-  const quickActions = [
-    { href: "/lavagestor/nova-lavagem", label: "Nova lavagem" },
-    { href: "/lavagestor/placa", label: "Ler placa" },
-    { href: "/lavagestor/agendamentos", label: "Novo agendamento" },
-    { href: "/lavagestor/estoque", label: "Estoque" },
-    { href: "/lavagestor/pos-venda", label: "Pós-venda" },
-    { href: "/lavagestor/iamob", label: "IAMob" },
-    { href: "/lavagestor/financeiro", label: "Fechar caixa" },
-    { href: "/lavagestor/configuracoes", label: "Backup" }
+    { label: "Lavagens hoje", value: dashboard.lavagensHoje, href: "/lavagestor/lavagens" },
+    { label: "Entrada hoje", value: formatMoney(dashboard.entradaHoje), tone: "success", href: "/lavagestor/financeiro" },
+    { label: "Em lavagem", value: dashboard.veiculosEmLavagem, href: "/lavagestor/fila" },
+    { label: "Aguardando retirada", value: dashboard.finalizadosAguardandoRetirada, href: "/lavagestor/fila" },
+    { label: "A receber", value: formatMoney(dashboard.aReceber), tone: "warning", href: "/lavagestor/pagamentos" },
+    { label: "Fiado", value: formatMoney(dashboard.fiado), tone: "warning", href: "/lavagestor/pagamentos" },
+    { label: "Ticket médio", value: formatMoney(dashboard.ticketMedio), tone: "success", href: "/lavagestor/relatorios" },
+    { label: "Clientes no mês", value: dashboard.clientesAtendidosMes, href: "/lavagestor/clientes" },
+    { label: "Retorno de clientes", value: dashboard.retornoClientes, href: "/lavagestor/pos-venda" },
+    { label: "Agendamentos hoje", value: dashboard.agendamentosHoje, href: "/lavagestor/agendamentos?periodo=hoje" },
+    { label: "Estoque baixo", value: dashboard.estoqueBaixo, tone: "warning", href: "/lavagestor/estoque" },
+    { label: "Cobranças pendentes", value: dashboard.cobrancasPendentes, tone: "warning", href: "/lavagestor/pagamentos-integrados" },
+    { label: "Automação pendente", value: dashboard.automacaoPendente, tone: "warning", href: "/lavagestor/automacoes" },
+    { label: "Comissões pendentes", value: formatMoney(dashboard.totalComissoesPendentes), tone: "warning", href: "/lavagestor/comissoes" }
   ];
 
   return (
@@ -72,7 +62,7 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
         {dashboard.error ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-800">{dashboard.error}</div> : null}
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 xl:grid-cols-5">
-          {metrics.map((metric) => <MetricCard key={metric.label} label={metric.label} tone={metric.tone} value={metric.value} />)}
+          {metrics.map((metric) => <MetricCard key={metric.label} href={metric.href} label={metric.label} tone={metric.tone} value={metric.value} />)}
         </div>
 
         <Panel title="IAMob recomenda">
@@ -87,14 +77,6 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
               ))}
             </div>
           )}
-        </Panel>
-
-        <Panel title="Ações rápidas">
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-            {quickActions.map((item) => (
-              <Link className="button-secondary min-h-11 justify-center text-center" href={item.href} key={item.href}>{item.label}</Link>
-            ))}
-          </div>
         </Panel>
 
         {dashboard.alertas.length ? (
@@ -175,13 +157,13 @@ export default async function LavaGestorPortalPage({ searchParams }: { searchPar
   );
 }
 
-function MetricCard({ label, value, tone = "default" }: { label: string; value: string | number; tone?: MetricTone }) {
+function MetricCard({ href, label, value, tone = "default" }: { href: string; label: string; value: string | number; tone?: MetricTone }) {
   const toneClass = tone === "success" ? "border-emerald-200 bg-emerald-50" : tone === "warning" ? "border-amber-200 bg-amber-50" : "border-border bg-card";
   return (
-    <div className={`min-h-[86px] rounded-xl border p-3 shadow-sm sm:min-h-[110px] sm:p-4 ${toneClass}`}>
+    <Link className={`block min-h-[86px] rounded-xl border p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:min-h-[110px] sm:p-4 ${toneClass}`} href={href}>
       <p className="text-xs font-bold text-muted-foreground sm:text-sm">{label}</p>
       <p className="mt-2 break-words text-[1.45rem] font-black leading-tight tracking-tight sm:text-2xl">{value}</p>
-    </div>
+    </Link>
   );
 }
 

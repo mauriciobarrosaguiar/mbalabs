@@ -387,11 +387,11 @@ export async function updateLavagemStatus(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam(error?.message ?? "Lavagem não encontrada.")}`);
   }
 
-  const [configResult, checklistResult, checkoutFotosResult] = await Promise.all([
+  const [configResult, checklistResult, entradaFotosResult, checkoutFotosResult] = await Promise.all([
     current.empresaId
       ? client
           .from("lava_configuracoes")
-          .select("exigir_checklist_antes_finalizar,exigir_checklist_antes_entregar,exigir_foto_checkout_antes_entrega")
+          .select("exigir_checklist_antes_finalizar,exigir_checklist_antes_entregar,exigir_foto_entrada,permitir_concluir_checklist_sem_foto,exigir_foto_checkout_antes_entrega")
           .eq("empresa_id", current.empresaId)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -406,10 +406,17 @@ export async function updateLavagemStatus(formData: FormData) {
       .select("id", { count: "exact", head: true })
       .eq("lavagem_id", id)
       .eq("empresa_id", current.empresaId)
+      .eq("momento", "entrada"),
+    client
+      .from("lava_checklist_fotos")
+      .select("id", { count: "exact", head: true })
+      .eq("lavagem_id", id)
+      .eq("empresa_id", current.empresaId)
       .eq("momento", "checkout")
   ]);
   const config = (configResult.data ?? {}) as Record<string, unknown>;
   const checklistConcluido = checklistResult.data?.status === "concluido";
+  const entradaFotos = entradaFotosResult.count ?? 0;
   const checkoutFotos = checkoutFotosResult.count ?? 0;
 
   const statusAnterior = normalizeLavaStatus(lavagem.status);
@@ -427,6 +434,9 @@ export async function updateLavagemStatus(formData: FormData) {
     if (config.exigir_checklist_antes_finalizar === true && !checklistConcluido) {
       redirect(`${returnTo}?error=${messageParam("Conclua o checklist antes de finalizar a lavagem.")}`);
     }
+    if (config.exigir_foto_entrada !== false && config.permitir_concluir_checklist_sem_foto !== true && entradaFotos < 1) {
+      redirect(`${returnTo}?error=${messageParam("Tire pelo menos uma foto de entrada antes de concluir o serviço.")}`);
+    }
     statusNovo = "finalizado";
     payload.data_finalizacao = now;
   } else if (action === "avisar_cliente") {
@@ -437,6 +447,9 @@ export async function updateLavagemStatus(formData: FormData) {
     ensureTransition(returnTo, statusAnterior, ["finalizado", "cliente_avisado", "pago"], "A lavagem precisa estar finalizada para entrega.");
     if (config.exigir_checklist_antes_entregar === true && !checklistConcluido) {
       redirect(`${returnTo}?error=${messageParam("Conclua o checklist antes de entregar.")}`);
+    }
+    if (config.exigir_foto_entrada !== false && config.permitir_concluir_checklist_sem_foto !== true && entradaFotos < 1) {
+      redirect(`${returnTo}?error=${messageParam("Tire pelo menos uma foto de entrada antes de concluir o serviço.")}`);
     }
     if (config.exigir_foto_checkout_antes_entrega === true && checkoutFotos < 1) {
       redirect(`${returnTo}?error=${messageParam("Adicione uma foto de checkout antes de entregar.")}`);

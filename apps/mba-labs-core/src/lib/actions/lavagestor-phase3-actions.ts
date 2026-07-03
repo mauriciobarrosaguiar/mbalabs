@@ -7,6 +7,8 @@ import { dateValue, messageParam, nullableTextValue, numberValue, textValue } fr
 import { LAVA_CHECKLIST_BUCKET } from "@/lib/lavagestor-checklists-data";
 import { requireLavaGestorAccess, requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
 import { normalizePlate } from "@/lib/lavagestor-placa";
+import { baseUnitFor, convertToBaseQuantity, normalizeStockUnit, roundStock } from "@/lib/lavagestor-stock";
+import { buildAgendamentoConfirmacaoMessage, enqueueAutomationQueue, enqueueWhatsappMessage } from "@/lib/lavagestor-whatsapp";
 import { getSupabaseServer } from "@/lib/supabase";
 
 type Row = Record<string, unknown>;
@@ -14,16 +16,16 @@ type Current = { empresaId: string | null; usuario: { id: string }; isAdminMaste
 
 const MAX_PLATE_IMAGE_BYTES = 8 * 1024 * 1024;
 const DEFAULT_PRODUCTS = [
-  "Shampoo automotivo",
-  "Cera",
-  "Pretinho",
-  "Limpa vidro",
-  "Multiuso",
-  "Pano microfibra",
-  "Produto de higienizacao",
-  "Aromatizante",
-  "Limpa pneu",
-  "Solupan"
+  { nome: "Shampoo automotivo", categoria: "Químicos", unidade: "l" },
+  { nome: "Cera", categoria: "Acabamento", unidade: "l" },
+  { nome: "Pretinho", categoria: "Acabamento", unidade: "l" },
+  { nome: "Limpa vidro", categoria: "Limpeza interna", unidade: "l" },
+  { nome: "Multiuso", categoria: "Químicos", unidade: "l" },
+  { nome: "Pano microfibra", categoria: "Panos e acessórios", unidade: "un" },
+  { nome: "Produto de higienizacao", categoria: "Limpeza interna", unidade: "l" },
+  { nome: "Aromatizante", categoria: "Acabamento", unidade: "un" },
+  { nome: "Limpa pneu", categoria: "Acabamento", unidade: "l" },
+  { nome: "Solupan", categoria: "Químicos", unidade: "l" }
 ];
 
 export async function registrarIAmobLog(formData: FormData) {
@@ -61,41 +63,81 @@ export async function saveLavaAgendamento(formData: FormData) {
   const client = (await getSupabaseServer()) as any;
   const id = textValue(formData, "id");
   const data = textValue(formData, "data");
-  const hora = textValue(formData, "hora");
+  const hora = textValue(formData, "hora_manual") || textValue(formData, "hora");
   const duracao = numberValue(formData, "duracao_min", 60) || 60;
+  const clienteId = nullableTextValue(formData, "cliente_id");
+  let veiculoId = nullableTextValue(formData, "veiculo_id");
 
-  if (!data || !hora) {
+  if (!data || !hora || hora === "__manual__" || !/^\d{2}:\d{2}$/.test(hora)) {
     redirect(`/lavagestor/agendamentos?error=${messageParam("Informe data e hora do agendamento.")}`);
+  }
+  if (!clienteId) {
+    redirect(`/lavagestor/agendamentos?error=${messageParam("Selecione o cliente do agendamento.")}`);
+  }
+
+  if (veiculoId === "__novo__") {
+    const placa = normalizePlate(textValue(formData, "novo_veiculo_placa"));
+    const marca = textValue(formData, "novo_veiculo_marca");
+    const modelo = textValue(formData, "novo_veiculo_modelo");
+    if (!placa && !marca && !modelo) {
+      redirect(`/lavagestor/agendamentos?error=${messageParam("Informe placa, marca ou modelo do novo veículo.")}`);
+    }
+    const inserted = await client
+      .from("lava_veiculos")
+      .insert({
+        empresa_id: current.empresaId,
+        cliente_id: clienteId,
+        placa: placa || null,
+        marca: marca || null,
+        modelo: modelo || null,
+        cor: nullableTextValue(formData, "novo_veiculo_cor"),
+        tipo: textValue(formData, "novo_veiculo_tipo") || "carro",
+        ativo: true
+      })
+      .select("id")
+      .single();
+    if (inserted.error || !inserted.data?.id) {
+      redirect(`/lavagestor/agendamentos?error=${messageParam(inserted.error?.message ?? "Não foi possível cadastrar o veículo.")}`);
+    }
+    veiculoId = String(inserted.data.id);
   }
 
   const start = new Date(`${data}T${hora}:00`);
   const end = new Date(start);
   end.setMinutes(end.getMinutes() + duracao);
+  const servicoId = nullableTextValue(formData, "servico_id");
+  const tituloManual = nullableTextValue(formData, "titulo");
+  const serviceName = servicoId ? await getServiceName(client, current.empresaId, servicoId) : "";
   const payload = {
     empresa_id: current.empresaId,
-    cliente_id: nullableTextValue(formData, "cliente_id"),
-    veiculo_id: nullableTextValue(formData, "veiculo_id"),
-    servico_id: nullableTextValue(formData, "servico_id"),
+    cliente_id: clienteId,
+    veiculo_id: veiculoId,
+    servico_id: servicoId,
     funcionario_id: nullableTextValue(formData, "funcionario_id"),
     usuario_id: current.usuario.id,
-    titulo: nullableTextValue(formData, "titulo"),
+    titulo: tituloManual || serviceName || "Agendamento",
     data_inicio: start.toISOString(),
     data_fim: end.toISOString(),
     duracao_min: duracao,
     status: textValue(formData, "status") || "agendado",
     observacao: nullableTextValue(formData, "observacao"),
+    adicional_texto: nullableTextValue(formData, "adicional_texto"),
     origem: "manual"
   };
 
   const result = id
-    ? await client.from("lava_agendamentos").update(payload).eq("id", id).eq("empresa_id", current.empresaId)
-    : await client.from("lava_agendamentos").insert(payload);
+    ? await client.from("lava_agendamentos").update(payload).eq("id", id).eq("empresa_id", current.empresaId).select("id").single()
+    : await client.from("lava_agendamentos").insert(payload).select("id").single();
 
   if (result.error) redirect(`/lavagestor/agendamentos?error=${messageParam(result.error.message)}`);
+  if (result.data?.id) {
+    await ensureAgendamentoConfirmationQueue(client, current, String(result.data.id));
+  }
   await logAction({ appSlug: "lavagestor", acao: id ? "editar agendamento" : "criar agendamento", detalhes: { id, data, hora } });
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/agendamentos");
-  redirect(`/lavagestor/agendamentos?ok=${messageParam("Agendamento salvo.")}`);
+  revalidatePath("/lavagestor/automacoes");
+  redirect(`/lavagestor/agendamentos?ok=${messageParam("Agendamento salvo. Confirmação adicionada na fila de WhatsApp manual.")}`);
 }
 
 export async function updateLavaAgendamentoStatus(formData: FormData) {
@@ -113,6 +155,9 @@ export async function updateLavaAgendamentoStatus(formData: FormData) {
     .eq("empresa_id", current.empresaId);
 
   if (error) redirect(`${returnTo}?error=${messageParam(error.message)}`);
+  if (status === "confirmado") {
+    await ensureAgendamentoConfirmationQueue(client, current, id);
+  }
   await logAction({ appSlug: "lavagestor", acao: "status agendamento", detalhes: { id, status } });
   revalidatePath("/lavagestor/agendamentos");
   redirect(`${returnTo}?ok=${messageParam("Agendamento atualizado.")}`);
@@ -131,10 +176,10 @@ export async function converterAgendamentoEmLavagem(formData: FormData) {
     .eq("empresa_id", current.empresaId)
     .maybeSingle();
 
-  if (error || !agendamento) redirect(`/lavagestor/agendamentos?error=${messageParam(error?.message ?? "Agendamento nao encontrado.")}`);
+  if (error || !agendamento) redirect(`/lavagestor/agendamentos?error=${messageParam(error?.message ?? "Agendamento não encontrado.")}`);
   if (agendamento.lavagem_id) redirect(`/lavagestor/fila?ok=${messageParam("Agendamento ja estava convertido.")}`);
   if (!agendamento.cliente_id || !agendamento.veiculo_id || !agendamento.servico_id || !agendamento.funcionario_id) {
-    redirect(`/lavagestor/agendamentos?error=${messageParam("Agendamento precisa de cliente, veiculo, servico e funcionario para converter.")}`);
+    redirect(`/lavagestor/agendamentos?error=${messageParam("Agendamento precisa de cliente, veículo, serviço e funcionário para converter.")}`);
   }
 
   const [servicoResult, funcionarioResult] = await Promise.all([
@@ -143,7 +188,7 @@ export async function converterAgendamentoEmLavagem(formData: FormData) {
   ]);
   const servico = servicoResult.data as Row | null;
   const funcionario = funcionarioResult.data as Row | null;
-  if (!servico || !funcionario) redirect(`/lavagestor/agendamentos?error=${messageParam("Servico ou funcionario nao encontrado.")}`);
+  if (!servico || !funcionario) redirect(`/lavagestor/agendamentos?error=${messageParam("Serviço ou funcionário não encontrado.")}`);
 
   const valor = moneyNumber(servico.preco);
   const percentual = servico.percentual_comissao === null || servico.percentual_comissao === undefined ? moneyNumber(funcionario.percentual_comissao) : moneyNumber(servico.percentual_comissao);
@@ -175,14 +220,14 @@ export async function converterAgendamentoEmLavagem(formData: FormData) {
     .select("id")
     .single();
 
-  if (insertError || !lavagem?.id) redirect(`/lavagestor/agendamentos?error=${messageParam(insertError?.message ?? "Nao foi possivel criar a lavagem.")}`);
+  if (insertError || !lavagem?.id) redirect(`/lavagestor/agendamentos?error=${messageParam(insertError?.message ?? "Não foi possível criar a lavagem.")}`);
 
   await client.from("lava_lavagem_servicos").insert({
     empresa_id: current.empresaId,
     lavagem_id: lavagem.id,
     servico_id: agendamento.servico_id,
     funcionario_id: agendamento.funcionario_id,
-    descricao: servico.nome ?? "Servico",
+    descricao: servico.nome ?? "Serviço",
     valor,
     tipo_comissao: percentual > 0 ? "percentual" : "sem_comissao",
     percentual_comissao: percentual,
@@ -222,12 +267,14 @@ export async function saveLavaEstoqueProduto(formData: FormData) {
   const id = textValue(formData, "id");
   const nome = textValue(formData, "nome");
   if (!nome) redirect(`/lavagestor/estoque?error=${messageParam("Informe o nome do produto.")}`);
+  const unidadeBase = normalizeStockUnit(textValue(formData, "unidade_base") || textValue(formData, "unidade") || "un");
 
   const payload = {
     empresa_id: current.empresaId,
     nome,
     categoria: nullableTextValue(formData, "categoria"),
-    unidade: textValue(formData, "unidade") || "un",
+    unidade: unidadeBase,
+    unidade_base: unidadeBase,
     estoque_atual: numberValue(formData, "estoque_atual"),
     estoque_minimo: numberValue(formData, "estoque_minimo"),
     custo_unitario: numberValue(formData, "custo_unitario"),
@@ -254,26 +301,38 @@ export async function createLavaEstoqueMovimento(formData: FormData) {
 
   const { data: produto, error: productError } = await client
     .from("lava_estoque_produtos")
-    .select("id,estoque_atual,custo_unitario")
+    .select("id,estoque_atual,custo_unitario,unidade,unidade_base")
     .eq("id", produtoId)
     .eq("empresa_id", current.empresaId)
     .maybeSingle();
-  if (productError || !produto) redirect(`/lavagestor/estoque?error=${messageParam(productError?.message ?? "Produto nao encontrado.")}`);
+  if (productError || !produto) redirect(`/lavagestor/estoque?error=${messageParam(productError?.message ?? "Produto não encontrado.")}`);
 
-  const delta = movementDelta(tipo, quantidade);
-  const nextStock = roundMoney(moneyNumber(produto.estoque_atual) + delta);
+  const unidadeMovimento = normalizeStockUnit(textValue(formData, "unidade_movimento") || produto.unidade_base || produto.unidade || "un");
+  const unidadeBase = normalizeStockUnit(produto.unidade_base || produto.unidade || baseUnitFor(unidadeMovimento));
+  const quantidadeBase = convertToBaseQuantity(quantidade, unidadeMovimento, unidadeBase);
+  const delta = movementDelta(tipo, quantidadeBase);
+  const nextStock = roundStock(moneyNumber(produto.estoque_atual) + delta);
+  const custoTotalInput = numberValue(formData, "custo_total");
+  const custoUnitario = custoTotalInput > 0 && Math.abs(quantidadeBase) > 0
+    ? roundMoney(custoTotalInput / Math.abs(quantidadeBase))
+    : numberValue(formData, "custo_unitario", moneyNumber(produto.custo_unitario));
+  const custoTotal = custoTotalInput > 0 ? custoTotalInput : roundMoney(Math.abs(quantidadeBase) * custoUnitario);
   const { error } = await client.from("lava_estoque_movimentos").insert({
     empresa_id: current.empresaId,
     produto_id: produtoId,
     usuario_id: current.usuario.id,
     tipo,
-    quantidade: Math.abs(quantidade),
-    custo_unitario: numberValue(formData, "custo_unitario", moneyNumber(produto.custo_unitario)),
+    quantidade: Math.abs(quantidadeBase),
+    unidade_movimento: unidadeBase,
+    custo_unitario: custoUnitario,
+    custo_total: custoTotal,
     observacao: nullableTextValue(formData, "observacao")
   });
   if (error) redirect(`/lavagestor/estoque?error=${messageParam(error.message)}`);
 
-  await client.from("lava_estoque_produtos").update({ estoque_atual: nextStock }).eq("id", produtoId).eq("empresa_id", current.empresaId);
+  const productUpdate: Record<string, unknown> = { estoque_atual: nextStock };
+  if (tipo === "entrada" && custoUnitario > 0) productUpdate.custo_unitario = custoUnitario;
+  await client.from("lava_estoque_produtos").update(productUpdate).eq("id", produtoId).eq("empresa_id", current.empresaId);
   await logAction({ appSlug: "lavagestor", acao: "movimento estoque", detalhes: { produto_id: produtoId, tipo, quantidade } });
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/estoque");
@@ -287,21 +346,31 @@ export async function saveLavaServicoInsumo(formData: FormData) {
   const servicoId = textValue(formData, "servico_id");
   const produtoId = textValue(formData, "produto_id");
   const quantidade = numberValue(formData, "quantidade_por_servico");
-  if (!servicoId || !produtoId || quantidade <= 0) redirect(`/lavagestor/estoque?error=${messageParam("Informe servico, produto e quantidade.")}`);
+  if (!servicoId || !produtoId || quantidade <= 0) redirect(`/lavagestor/estoque?error=${messageParam("Informe serviço, produto e quantidade.")}`);
+  const { data: produto } = await client
+    .from("lava_estoque_produtos")
+    .select("id,unidade,unidade_base")
+    .eq("id", produtoId)
+    .eq("empresa_id", current.empresaId)
+    .maybeSingle();
+  const unidadeMovimento = normalizeStockUnit(textValue(formData, "unidade") || produto?.unidade_base || produto?.unidade || "un");
+  const unidadeBase = normalizeStockUnit(produto?.unidade_base || produto?.unidade || baseUnitFor(unidadeMovimento));
+  const quantidadeBase = convertToBaseQuantity(quantidade, unidadeMovimento, unidadeBase);
 
   const { error } = await client.from("lava_servico_insumos").upsert(
     {
       empresa_id: current.empresaId,
       servico_id: servicoId,
       produto_id: produtoId,
-      quantidade_por_servico: quantidade
+      quantidade_por_servico: quantidadeBase,
+      unidade: unidadeBase
     },
     { onConflict: "empresa_id,servico_id,produto_id" }
   );
   if (error) redirect(`/lavagestor/estoque?error=${messageParam(error.message)}`);
-  await logAction({ appSlug: "lavagestor", acao: "vincular insumo servico", detalhes: { servico_id: servicoId, produto_id: produtoId } });
+  await logAction({ appSlug: "lavagestor", acao: "vincular insumo serviço", detalhes: { servico_id: servicoId, produto_id: produtoId } });
   revalidatePath("/lavagestor/estoque");
-  redirect(`/lavagestor/estoque?ok=${messageParam("Insumo vinculado ao servico.")}`);
+  redirect(`/lavagestor/estoque?ok=${messageParam("Insumo vinculado ao serviço.")}`);
 }
 
 export async function criarProdutosPadraoLavaGestor() {
@@ -310,11 +379,12 @@ export async function criarProdutosPadraoLavaGestor() {
   const client = (await getSupabaseServer()) as any;
   const { data } = await client.from("lava_estoque_produtos").select("nome").eq("empresa_id", current.empresaId);
   const existing = new Set(((data ?? []) as Row[]).map((row) => normalizeKey(row.nome)));
-  const rows = DEFAULT_PRODUCTS.filter((nome) => !existing.has(normalizeKey(nome))).map((nome) => ({
+  const rows = DEFAULT_PRODUCTS.filter((item) => !existing.has(normalizeKey(item.nome))).map((item) => ({
     empresa_id: current.empresaId,
-    nome,
-    categoria: "Uso geral",
-    unidade: nome.toLowerCase().includes("pano") ? "un" : "l",
+    nome: item.nome,
+    categoria: item.categoria,
+    unidade: item.unidade,
+    unidade_base: item.unidade,
     estoque_atual: 0,
     estoque_minimo: 0,
     custo_unitario: 0,
@@ -336,6 +406,10 @@ export async function saveLavaPlacaLeitura(formData: FormData) {
   const file = formData.get("foto");
   let storagePath: string | null = null;
 
+  if (!placa) {
+    redirect(`/lavagestor/placa?error=${messageParam("Informe a placa manualmente para continuar.")}`);
+  }
+
   if (file instanceof File && file.size > 0) {
     if (!file.type.startsWith("image/")) redirect(`/lavagestor/placa?error=${messageParam("Envie apenas imagem da placa.")}`);
     if (file.size > MAX_PLATE_IMAGE_BYTES) redirect(`/lavagestor/placa?error=${messageParam("Foto muito grande. Envie uma imagem menor.")}`);
@@ -347,7 +421,7 @@ export async function saveLavaPlacaLeitura(formData: FormData) {
     if (upload.error) redirect(`/lavagestor/placa?error=${messageParam(upload.error.message)}`);
   }
 
-  const veiculo = placa ? await findVehicleByPlate(client, current.empresaId, placa) : null;
+  const veiculo = await findVehicleByPlate(client, current.empresaId, placa);
   const { error } = await client.from("lava_placa_leituras").insert({
     empresa_id: current.empresaId,
     usuario_id: current.usuario.id,
@@ -356,12 +430,12 @@ export async function saveLavaPlacaLeitura(formData: FormData) {
     placa_confirmada: placa || null,
     veiculo_id: veiculo?.id ?? null,
     provider: "manual",
-    status: placa ? "confirmada" : "manual",
-    erro: placa ? null : "Reconhecimento automatico ainda nao configurado. Digite a placa manualmente."
+    status: "confirmada",
+    erro: null
   });
   if (error) redirect(`/lavagestor/placa?error=${messageParam(error.message)}`);
   revalidatePath("/lavagestor/placa");
-  const suffix = veiculo?.id ? `&veiculo=${veiculo.id}` : "";
+  const suffix = buildPlateRedirectSuffix(placa, veiculo);
   redirect(`/lavagestor/placa?ok=${messageParam("Leitura de placa salva em modo manual.")}${suffix}`);
 }
 
@@ -371,7 +445,8 @@ export async function confirmarLavaPlacaLeitura(formData: FormData) {
   const client = (await getSupabaseServer()) as any;
   const id = textValue(formData, "id");
   const placa = normalizePlate(textValue(formData, "placa"));
-  const veiculo = placa ? await findVehicleByPlate(client, current.empresaId, placa) : null;
+  if (!placa) redirect(`/lavagestor/placa?error=${messageParam("Informe a placa para confirmar.")}`);
+  const veiculo = await findVehicleByPlate(client, current.empresaId, placa);
   const { error } = await client
     .from("lava_placa_leituras")
     .update({ placa_confirmada: placa, veiculo_id: veiculo?.id ?? null, status: "confirmada", updated_at: new Date().toISOString() })
@@ -379,7 +454,7 @@ export async function confirmarLavaPlacaLeitura(formData: FormData) {
     .eq("empresa_id", current.empresaId);
   if (error) redirect(`/lavagestor/placa?error=${messageParam(error.message)}`);
   revalidatePath("/lavagestor/placa");
-  redirect(`/lavagestor/placa?ok=${messageParam("Placa confirmada.")}`);
+  redirect(`/lavagestor/placa?ok=${messageParam("Placa confirmada.")}${buildPlateRedirectSuffix(placa, veiculo)}`);
 }
 
 export async function saveLavaCobranca(formData: FormData) {
@@ -404,7 +479,7 @@ export async function saveLavaCobranca(formData: FormData) {
   if (error) redirect(`/lavagestor/pagamentos-integrados?error=${messageParam(error.message)}`);
   await logAction({ appSlug: "lavagestor", acao: "criar cobranca simulada", detalhes: { provider, valor } });
   revalidatePath("/lavagestor/pagamentos-integrados");
-  redirect(`/lavagestor/pagamentos-integrados?ok=${messageParam("Cobranca simulada criada.")}`);
+  redirect(`/lavagestor/pagamentos-integrados?ok=${messageParam("Cobrança simulada criada.")}`);
 }
 
 export async function updateLavaCobrancaStatus(formData: FormData) {
@@ -420,7 +495,7 @@ export async function updateLavaCobrancaStatus(formData: FormData) {
     .eq("empresa_id", current.empresaId);
   if (error) redirect(`/lavagestor/pagamentos-integrados?error=${messageParam(error.message)}`);
   revalidatePath("/lavagestor/pagamentos-integrados");
-  redirect(`/lavagestor/pagamentos-integrados?ok=${messageParam("Cobranca atualizada.")}`);
+  redirect(`/lavagestor/pagamentos-integrados?ok=${messageParam("Cobrança atualizada.")}`);
 }
 
 export async function saveLavaNotaConfig(formData: FormData) {
@@ -506,7 +581,7 @@ export async function saveLavaAutomacao(formData: FormData) {
   if (result.error) redirect(`/lavagestor/automacoes?error=${messageParam(result.error.message)}`);
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/automacoes");
-  redirect(`/lavagestor/automacoes?ok=${messageParam("Automacao salva.")}`);
+  redirect(`/lavagestor/automacoes?ok=${messageParam("Automação salva.")}`);
 }
 
 export async function gerarFilaLavaAutomacao(formData: FormData) {
@@ -515,7 +590,7 @@ export async function gerarFilaLavaAutomacao(formData: FormData) {
   const client = (await getSupabaseServer()) as any;
   const automacaoId = textValue(formData, "automacao_id");
   const { data: automacao, error } = await client.from("lava_automacoes").select("*").eq("id", automacaoId).eq("empresa_id", current.empresaId).maybeSingle();
-  if (error || !automacao) redirect(`/lavagestor/automacoes?error=${messageParam(error?.message ?? "Automacao nao encontrada.")}`);
+  if (error || !automacao) redirect(`/lavagestor/automacoes?error=${messageParam(error?.message ?? "Automação não encontrada.")}`);
   const lavagensResult = await client
     .from("lava_lavagens")
     .select("id,cliente_id,valor_final,valor_pendente,status,status_pagamento,data_entrega,data_lavagem,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo),lava_servicos(nome)")
@@ -535,6 +610,7 @@ export async function gerarFilaLavaAutomacao(formData: FormData) {
       cliente_id: row.cliente_id,
       lavagem_id: row.id,
       canal: "whatsapp",
+      tipo: automacao.tipo,
       mensagem: buildAutomationMessage(automacao, row),
       status: "pronto",
       agendado_para: addDays(new Date(), numberValueFromUnknown(automacao.atraso_dias)).toISOString()
@@ -551,7 +627,8 @@ export async function updateLavaAutomacaoFilaStatus(formData: FormData) {
   const { current } = await requireLavaGestorAccess("/lavagestor/automacoes");
   ensureEmpresa(current, "/lavagestor/automacoes");
   const status = textValue(formData, "status");
-  const { error } = await ((await getSupabaseServer()) as any)
+  const client = (await getSupabaseServer()) as any;
+  const { data, error } = await client
     .from("lava_automacao_fila")
     .update({
       status,
@@ -559,10 +636,104 @@ export async function updateLavaAutomacaoFilaStatus(formData: FormData) {
       erro: status === "erro" ? nullableTextValue(formData, "erro") : null
     })
     .eq("id", textValue(formData, "id"))
-    .eq("empresa_id", current.empresaId);
+    .eq("empresa_id", current.empresaId)
+    .select("id,agendamento_id")
+    .maybeSingle();
   if (error) redirect(`/lavagestor/automacoes?error=${messageParam(error.message)}`);
+  if (data?.agendamento_id) {
+    await client
+      .from("lava_agendamentos")
+      .update({
+        confirmacao_status: status,
+        confirmacao_enviada_em: status === "enviado_manual" ? new Date().toISOString() : null,
+        confirmacao_erro: status === "erro" ? nullableTextValue(formData, "erro") : null
+      })
+      .eq("id", data.agendamento_id)
+      .eq("empresa_id", current.empresaId);
+    await client
+      .from("lava_whatsapp_envios")
+      .update({
+        status,
+        enviado_em: status === "enviado_manual" ? new Date().toISOString() : null,
+        erro: status === "erro" ? nullableTextValue(formData, "erro") : null
+      })
+      .eq("empresa_id", current.empresaId)
+      .eq("agendamento_id", data.agendamento_id);
+  }
   revalidatePath("/lavagestor/automacoes");
+  revalidatePath("/lavagestor/agendamentos");
   redirect(`/lavagestor/automacoes?ok=${messageParam("Fila atualizada.")}`);
+}
+
+async function getServiceName(client: any, empresaId: string, servicoId: string) {
+  const { data } = await client
+    .from("lava_servicos")
+    .select("nome")
+    .eq("id", servicoId)
+    .eq("empresa_id", empresaId)
+    .maybeSingle();
+  return String(data?.nome ?? "");
+}
+
+async function ensureAgendamentoConfirmationQueue(client: any, current: Current & { empresaId: string }, agendamentoId: string) {
+  const { data: agendamento, error } = await client
+    .from("lava_agendamentos")
+    .select("id,cliente_id,servico_id,data_inicio,lava_clientes(nome,telefone),lava_servicos(nome)")
+    .eq("id", agendamentoId)
+    .eq("empresa_id", current.empresaId)
+    .maybeSingle();
+  if (error || !agendamento) return;
+
+  const configResult = await client
+    .from("lava_configuracoes")
+    .select("nome_exibicao,mensagem_confirmacao_agendamento")
+    .eq("empresa_id", current.empresaId)
+    .maybeSingle();
+  const config = (configResult.data ?? {}) as Row;
+  const cliente = relationObject(agendamento.lava_clientes);
+  const servico = relationObject(agendamento.lava_servicos);
+  const mensagem = applyTemplate(
+    String(config.mensagem_confirmacao_agendamento || ""),
+    {
+      cliente: String(cliente?.nome ?? "cliente"),
+      empresa: String(config.nome_exibicao ?? "empresa"),
+      servico: String(servico?.nome ?? "lavagem"),
+      data: formatDateShort(agendamento.data_inicio),
+      horario: formatTimeShort(agendamento.data_inicio)
+    }
+  ) || buildAgendamentoConfirmacaoMessage({
+    cliente: cliente?.nome,
+    empresa: config.nome_exibicao,
+    servico: servico?.nome,
+    quando: `${formatDateShort(agendamento.data_inicio)} ${formatTimeShort(agendamento.data_inicio)}`.trim()
+  });
+
+  const queue = await enqueueAutomationQueue(client, {
+    empresaId: current.empresaId,
+    clienteId: String(agendamento.cliente_id ?? "") || null,
+    agendamentoId,
+    telefone: String(cliente?.telefone ?? ""),
+    mensagem,
+    tipo: "confirmacao_agendamento",
+    agendadoPara: String(agendamento.data_inicio ?? "")
+  });
+  const envio = await enqueueWhatsappMessage(client, {
+    empresaId: current.empresaId,
+    clienteId: String(agendamento.cliente_id ?? "") || null,
+    agendamentoId,
+    telefone: String(cliente?.telefone ?? ""),
+    mensagem
+  });
+  const erro = [queue, envio].map((item) => item.ok ? "" : item.error).filter(Boolean).join(" | ");
+
+  await client
+    .from("lava_agendamentos")
+    .update({
+      confirmacao_status: erro ? "erro" : "pronto",
+      confirmacao_erro: erro || null
+    })
+    .eq("id", agendamentoId)
+    .eq("empresa_id", current.empresaId);
 }
 
 function ensureEmpresa(current: Current, path: string): asserts current is Current & { empresaId: string } {
@@ -618,7 +789,7 @@ function vehicleLabel(value: unknown) {
   const relation = relationObject(value) ?? (value as Row | null);
   if (!relation || typeof relation !== "object") return "-";
   const model = [relation.marca, relation.modelo].filter(Boolean).join(" ");
-  return [relation.placa, model].filter(Boolean).join(" - ") || "Veiculo";
+  return [relation.placa, model].filter(Boolean).join(" - ") || "Veículo";
 }
 
 function extensionFromFile(file: File) {
@@ -632,12 +803,21 @@ function extensionFromFile(file: File) {
 async function findVehicleByPlate(client: any, empresaId: string | null, plate: string) {
   const { data } = await client
     .from("lava_veiculos")
-    .select("id,placa")
+    .select("id,cliente_id,placa,marca,modelo,cor,lava_clientes(nome,telefone)")
     .eq("empresa_id", empresaId)
     .ilike("placa", `%${plate}%`)
     .limit(1)
     .maybeSingle();
   return data as Row | null;
+}
+
+function buildPlateRedirectSuffix(placa: string, veiculo: Row | null) {
+  const params = new URLSearchParams({ placa });
+  if (veiculo?.id) params.set("veiculo", String(veiculo.id));
+  if (veiculo?.id) params.set("veiculo_id", String(veiculo.id));
+  if (veiculo?.cliente_id) params.set("cliente", String(veiculo.cliente_id));
+  if (veiculo?.cliente_id) params.set("cliente_id", String(veiculo.cliente_id));
+  return `&${params.toString()}`;
 }
 
 function automationMatches(automacao: Row, lavagem: Row) {
@@ -659,10 +839,15 @@ function buildAutomationMessage(automacao: Row, lavagem: Row) {
     placa: String(relationObject(lavagem.lava_veiculos)?.placa ?? ""),
     valor: Number(lavagem.valor_pendente ?? lavagem.valor_final ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
     data: formatDateShort(lavagem.data_lavagem),
-    servico: relationName(lavagem.lava_servicos) || "servico"
+    servico: relationName(lavagem.lava_servicos) || "serviço"
   };
-  const fallback = "Ola, {cliente}! Temos uma mensagem da {empresa} sobre seu veiculo {veiculo}.";
+  const fallback = "Olá, {cliente}! Temos uma mensagem da {empresa} sobre seu veículo {veiculo}.";
   return Object.entries(variables).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, value), String(automacao.mensagem ?? fallback));
+}
+
+function applyTemplate(template: string, variables: Record<string, string>) {
+  if (!template.trim()) return "";
+  return Object.entries(variables).reduce((text, [key, value]) => text.replaceAll(`{${key}}`, value), template);
 }
 
 function addDays(date: Date, days: number) {
@@ -682,4 +867,10 @@ function formatDateShort(value: unknown) {
   if (!value) return "";
   const date = new Date(String(value));
   return Number.isFinite(date.getTime()) ? date.toLocaleDateString("pt-BR") : "";
+}
+
+function formatTimeShort(value: unknown) {
+  if (!value) return "";
+  const date = new Date(String(value));
+  return Number.isFinite(date.getTime()) ? date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "";
 }

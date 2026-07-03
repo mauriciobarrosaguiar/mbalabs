@@ -77,23 +77,27 @@ export default async function AutomacoesPage({ searchParams }: { searchParams: P
           <h2 className="text-xl font-black">Fila manual</h2>
           {data.fila.length === 0 ? <p className="rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground">Nenhum item na fila.</p> : null}
           <div className="grid gap-2">
-            {data.fila.map((row) => (
-              <article className="grid gap-3 rounded-lg border border-border p-3 lg:grid-cols-[1fr_auto]" key={String(row.id)}>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <strong className="break-words">{String(row.cliente || "Cliente")}</strong>
-                    <span className="rounded-full bg-muted px-3 py-1 text-xs font-black">{String(row.status)}</span>
+            {data.fila.map((row) => {
+              const sent = row.status === "enviado_manual";
+              return (
+                <article className="grid gap-3 rounded-lg border border-border p-3 lg:grid-cols-[1fr_auto]" key={String(row.id)}>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <strong className="break-words">{String(row.cliente || "Cliente")}</strong>
+                      <span className="rounded-full bg-muted px-3 py-1 text-xs font-black">{sent ? "Enviado" : String(row.status)}</span>
+                    </div>
+                    <p className="mt-1 text-sm font-semibold text-muted-foreground">{String(row.veiculo || "-")} - {formatDateTime(row.agendado_para || row.created_at)}</p>
+                    {row.enviado_em ? <p className="mt-1 text-xs font-black uppercase tracking-[0.08em] text-emerald-700">Enviado em {formatDateTime(row.enviado_em)}</p> : null}
+                    <p className="mt-2 rounded-lg bg-muted p-3 text-sm font-semibold leading-6">{String(row.mensagem || "")}</p>
                   </div>
-                  <p className="mt-1 text-sm font-semibold text-muted-foreground">{String(row.veiculo || "-")} - {formatDateTime(row.agendado_para || row.created_at)}</p>
-                  <p className="mt-2 rounded-lg bg-muted p-3 text-sm font-semibold leading-6">{String(row.mensagem || "")}</p>
-                </div>
-                <div className="grid content-start gap-2 sm:grid-cols-3 lg:w-64 lg:grid-cols-1">
-                  {row.whatsapp_url ? <a className="button-primary justify-center text-center" href={String(row.whatsapp_url)} target="_blank" rel="noreferrer">Abrir WhatsApp</a> : null}
-                  <QueueButton id={String(row.id)} status="enviado_manual" label="Marcar enviado" />
-                  <QueueButton id={String(row.id)} status="cancelado" label="Cancelar" danger />
-                </div>
-              </article>
-            ))}
+                  <div className="grid content-start gap-2 sm:grid-cols-3 lg:w-64 lg:grid-cols-1">
+                    {row.whatsapp_url ? <a className="button-primary justify-center text-center" href={String(row.whatsapp_url)} target="_blank" rel="noreferrer">{sent ? "Enviar novamente" : "Abrir WhatsApp"}</a> : null}
+                    {sent ? <span className="button-secondary justify-center text-center opacity-70">Enviado</span> : <QueueButton id={String(row.id)} status="enviado_manual" label="Marcar enviado" />}
+                    <QueueButton id={String(row.id)} status="cancelado" label="Cancelar" danger />
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
       </section>

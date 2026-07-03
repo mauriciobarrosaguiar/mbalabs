@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
-import { BackButton, MessageBanner, PageHeader, formatDateTime, formatMoney } from "@/components/ui-kit";
-import { converterAgendamentoEmLavagem, saveLavaAgendamento, updateLavaAgendamentoStatus } from "@/lib/actions/lavagestor-agendamentos-actions";
+import { AgendamentoForm } from "@/components/lavagestor/AgendamentoForm";
+import { BackButton, MessageBanner, PageHeader, formatDateTime } from "@/components/ui-kit";
+import { converterAgendamentoEmLavagem, updateLavaAgendamentoStatus } from "@/lib/actions/lavagestor-agendamentos-actions";
 import { firstParam } from "@/lib/form-utils";
 import { LAVA_AGENDAMENTO_STATUS, getLavaAgendamentosData, whatsappUrl } from "@/lib/lavagestor-agendamentos-data";
 
@@ -11,7 +12,7 @@ const periodos = [
   { value: "hoje", label: "Hoje" },
   { value: "amanha", label: "Amanha" },
   { value: "semana", label: "Semana" },
-  { value: "mes", label: "Mes" }
+  { value: "mes", label: "Mês" }
 ];
 
 export default async function AgendamentosPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
@@ -49,53 +50,12 @@ export default async function AgendamentosPage({ searchParams }: { searchParams:
             <input name="periodo" type="hidden" value={data.filter.periodo} />
             <Select label="Status" name="status" defaultValue={data.filter.status} options={LAVA_AGENDAMENTO_STATUS} />
             <Select label="Funcionario" name="funcionario" defaultValue={data.filter.funcionario} options={data.funcionarios.map((row) => ({ value: String(row.id), label: String(row.nome) }))} />
-            <Select label="Servico" name="servico" defaultValue={data.filter.servico} options={data.servicos.map((row) => ({ value: String(row.id), label: String(row.nome) }))} />
+            <Select label="Serviço" name="servico" defaultValue={data.filter.servico} options={data.servicos.map((row) => ({ value: String(row.id), label: String(row.nome) }))} />
             <button className="button-primary self-end" type="submit">Filtrar</button>
           </form>
         </section>
 
-        <form action={saveLavaAgendamento} className="grid gap-3 rounded-xl border border-border bg-white p-4 shadow-sm">
-          <h2 className="text-xl font-black">Criar agendamento</h2>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <label className="grid gap-2">
-              <span className="text-sm font-black">Cliente</span>
-              <select className="input" name="cliente_id" required>
-                <option value="">Selecione</option>
-                {data.clientes.map((row) => <option key={String(row.id)} value={String(row.id)}>{String(row.nome)}</option>)}
-              </select>
-            </label>
-            <label className="grid gap-2">
-              <span className="text-sm font-black">Veiculo</span>
-              <select className="input" name="veiculo_id" required>
-                <option value="">Selecione</option>
-                {data.veiculos.map((row) => <option key={String(row.id)} value={String(row.id)}>{String(row.veiculo)}</option>)}
-              </select>
-            </label>
-            <label className="grid gap-2">
-              <span className="text-sm font-black">Servico</span>
-              <select className="input" name="servico_id" required>
-                <option value="">Selecione</option>
-                {data.servicos.map((row) => <option key={String(row.id)} value={String(row.id)}>{String(row.nome)} - {formatMoney(row.preco)}</option>)}
-              </select>
-            </label>
-            <label className="grid gap-2">
-              <span className="text-sm font-black">Funcionario</span>
-              <select className="input" name="funcionario_id" required>
-                <option value="">Selecione</option>
-                {data.funcionarios.map((row) => <option key={String(row.id)} value={String(row.id)}>{String(row.nome)}</option>)}
-              </select>
-            </label>
-            <Input label="Titulo" name="titulo" placeholder="Ex.: Lavagem completa" />
-            <Input label="Data" name="data" type="date" required />
-            <Input label="Hora" name="hora" type="time" required />
-            <Input label="Duracao (min)" name="duracao_min" type="number" defaultValue="60" />
-            <label className="grid gap-2 md:col-span-2 xl:col-span-4">
-              <span className="text-sm font-black">Observacao</span>
-              <textarea className="input min-h-20" name="observacao" />
-            </label>
-          </div>
-          <button className="button-primary w-fit" type="submit">Salvar agendamento</button>
-        </form>
+        <AgendamentoForm clientes={data.clientes} config={data.config} funcionarios={data.funcionarios} servicos={data.servicos} veiculos={data.veiculos} />
 
         <section className="grid gap-3">
           {data.rows.length === 0 ? <p className="rounded-xl border border-border bg-white p-4 text-sm font-semibold text-muted-foreground">Nenhum agendamento neste filtro.</p> : null}
@@ -107,7 +67,7 @@ export default async function AgendamentosPage({ searchParams }: { searchParams:
 }
 
 function AgendamentoCard({ row }: { row: Record<string, unknown> }) {
-  const confirmMessage = `Ola, ${row.cliente || "cliente"}! Confirmando seu agendamento para ${formatDateTime(row.data_inicio)}, servico: ${row.servico || "servico"}. Podemos confirmar?`;
+  const confirmMessage = `Olá, ${row.cliente || "cliente"}! Confirmando seu agendamento para ${formatDateTime(row.data_inicio)}, serviço: ${row.servico || "serviço"}. Podemos confirmar?`;
   const whats = whatsappUrl(row.whatsapp, confirmMessage);
   return (
     <article className="grid gap-3 rounded-xl border border-border bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto]">
@@ -123,15 +83,17 @@ function AgendamentoCard({ row }: { row: Record<string, unknown> }) {
           <Info label="Inicio" value={formatDateTime(row.data_inicio)} />
           <Info label="Duracao" value={`${String(row.duracao_min ?? 60)} min`} />
           <Info label="Funcionario" value={String(row.funcionario || "-")} />
-          <Info label="Origem" value={String(row.origem || "manual")} />
+          <Info label="Confirmação" value={String(row.confirmacao_label || "Pendente")} />
         </div>
+        {row.adicional_texto ? <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm font-semibold text-emerald-950">{String(row.adicional_texto)}</p> : null}
         {row.observacao ? <p className="mt-3 rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground">{String(row.observacao)}</p> : null}
+        {row.confirmacao_erro ? <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">{String(row.confirmacao_erro)}</p> : null}
       </div>
       <div className="grid content-start gap-2 sm:grid-cols-2 lg:w-80 lg:grid-cols-1">
-        {whats ? <a className="button-secondary justify-center text-center" href={whats} target="_blank" rel="noreferrer">Enviar confirmacao</a> : null}
+        {whats ? <a className="button-secondary justify-center text-center" href={whats} target="_blank" rel="noreferrer">{row.confirmacao_status === "enviado_manual" ? "Enviar novamente" : "Enviar confirmação"}</a> : null}
         <StatusButton id={String(row.id)} status="confirmado" label="Confirmar" />
         <StatusButton id={String(row.id)} status="compareceu" label="Compareceu" />
-        <StatusButton id={String(row.id)} status="nao_compareceu" label="Nao compareceu" />
+        <StatusButton id={String(row.id)} status="nao_compareceu" label="Não compareceu" />
         <form action={converterAgendamentoEmLavagem}>
           <input name="id" type="hidden" value={String(row.id)} />
           <button className="button-primary w-full" type="submit">Converter em lavagem</button>
@@ -171,8 +133,4 @@ function Select({ label, name, defaultValue, options }: { label: string; name: s
       </select>
     </label>
   );
-}
-
-function Input({ label, name, type = "text", required = false, defaultValue, placeholder }: { label: string; name: string; type?: string; required?: boolean; defaultValue?: string; placeholder?: string }) {
-  return <label className="grid gap-2"><span className="text-sm font-black">{label}</span><input className="input" name={name} type={type} required={required} defaultValue={defaultValue} placeholder={placeholder} /></label>;
 }
