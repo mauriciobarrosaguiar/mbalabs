@@ -2,7 +2,7 @@ import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { AgendamentoForm } from "@/components/lavagestor/AgendamentoForm";
 import { BackButton, MessageBanner, PageHeader, formatDateTime } from "@/components/ui-kit";
-import { converterAgendamentoEmLavagem, updateLavaAgendamentoStatus } from "@/lib/actions/lavagestor-agendamentos-actions";
+import { converterAgendamentoEmLavagem } from "@/lib/actions/lavagestor-agendamentos-actions";
 import { firstParam } from "@/lib/form-utils";
 import { LAVA_AGENDAMENTO_STATUS, getLavaAgendamentosData, whatsappUrl } from "@/lib/lavagestor-agendamentos-data";
 
@@ -118,9 +118,10 @@ function AgendamentoCard({ row }: { row: Record<string, unknown> }) {
 
 function StatusButton({ id, status, label, danger = false }: { id: string; status: string; label: string; danger?: boolean }) {
   return (
-    <form action={updateLavaAgendamentoStatus}>
+    <form action="/api/lavagestor/agendamentos/status" method="post">
       <input name="id" type="hidden" value={id} />
       <input name="status" type="hidden" value={status} />
+      <input name="return_to" type="hidden" value="/lavagestor/agendamentos" />
       <button className={`${danger ? "button-danger" : "button-secondary"} w-full`} type="submit">{label}</button>
     </form>
   );
