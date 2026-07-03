@@ -50,6 +50,7 @@ export default async function PagamentosPage({
 function PaymentCard({ row }: { row: Record<string, unknown> }) {
   const statusPagamento = String(row.status_pagamento ?? "aberto");
   const isPaid = statusPagamento === "pago";
+  const pendingValue = paymentInputValue(row);
 
   return (
     <article className="panel grid gap-4 p-5">
@@ -75,7 +76,7 @@ function PaymentCard({ row }: { row: Record<string, unknown> }) {
           <input name="return_to" type="hidden" value="/lavagestor/pagamentos" />
           <label className="grid gap-2">
             <span className="text-sm font-bold">Valor recebido</span>
-            <input className="input" name="valor_recebido" type="number" min="0" step="0.01" />
+            <input className="input" name="valor_recebido" type="number" min="0" step="0.01" defaultValue={pendingValue} />
           </label>
           <label className="grid gap-2">
             <span className="text-sm font-bold">Status</span>
@@ -111,4 +112,17 @@ function Money({ label, value }: { label: string; value: unknown }) {
       <p className="mt-2 text-lg font-black">{formatMoney(value)}</p>
     </div>
   );
+}
+
+function paymentInputValue(row: Record<string, unknown>) {
+  const pending = moneyNumber(row.valor_pendente);
+  const finalValue = moneyNumber(row.valor_final ?? row.valor);
+  const received = moneyNumber(row.valor_recebido);
+  const value = pending > 0 ? pending : Math.max(finalValue - received, 0);
+  return value > 0 ? value.toFixed(2) : "";
+}
+
+function moneyNumber(value: unknown) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? number : 0;
 }

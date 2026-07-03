@@ -27,6 +27,8 @@ import {
 import type { ModuleType, QuotationStatus } from "@/lib/types";
 
 type PageKey = "detail" | "new" | "edit" | "responses" | "analysis" | "orders";
+type MbaWhatsappAction = "send_quotation_links" | "send_winner_orders";
+type MbaWhatsappSummary = { total?: number; enviado?: number; falhou?: number; ignorado?: number };
 
 export function BackButton({
   fallbackHref,
@@ -97,17 +99,37 @@ export function QuotationPageActions({
     }
   }
 
+  async function runWhatsapp(action: MbaWhatsappAction) {
+    try {
+      const response = await fetch("/api/whatsapp-envios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, quotationId }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Falha no envio por WhatsApp.");
+      return payload.whatsapp as MbaWhatsappSummary | undefined;
+    } catch (error) {
+      toast.warning(error instanceof Error ? error.message : "WhatsApp não enviado. O fluxo foi mantido.");
+      return null;
+    }
+  }
+
   async function finish() {
     const payload = await mutate("finish");
     if (!payload) return;
     toast.success("Cotação finalizada.");
+    const whatsapp = await runWhatsapp("send_winner_orders");
+    showWhatsappResult(whatsapp, "Pedido enviado aos vendedores ganhadores.");
     router.push(`${base}/${quotationId}/analise`);
   }
 
   async function generateLinks() {
     const payload = await mutate("reopen_links");
     if (!payload) return;
-    toast.success("Links liberados para envio.");
+    const whatsapp = await runWhatsapp("send_quotation_links");
+    showWhatsappResult(whatsapp, "Cotação enviada aos vendedores.");
+    router.refresh();
   }
 
   return (
@@ -126,7 +148,7 @@ export function QuotationPageActions({
           {canGenerateLinks ? (
             <Button type="button" variant="outline" onClick={() => void generateLinks()} disabled={loadingAction === "reopen_links"}>
               <Link2 className="h-4 w-4" />
-              Gerar links
+              Enviar cotação aos vendedores
             </Button>
           ) : null}
           {currentPage !== "responses" ? (
@@ -184,4 +206,26 @@ export function QuotationPageActions({
       </AlertDialog>
     </>
   );
+}
+
+function showWhatsappResult(result: MbaWhatsappSummary | null | undefined, message: string) {
+  if (!result) return;
+  const failed = Number(result.falhou ?? 0);
+  const sent = Number(result.enviado ?? 0);
+  const ignored = Number(result.ignorado ?? 0);
+  const total = Number(result.total ?? 0);
+
+  if (failed > 0) {
+    toast.warning(`${message} ${failed} envio(s) falharam.`);
+    return;
+  }
+
+  if (sent > 0) {
+    toast.success(message);
+    return;
+  }
+
+  if (total === 0 || ignored > 0) {
+    toast.info("Nenhum novo WhatsApp foi enviado agora.");
+  }
 }

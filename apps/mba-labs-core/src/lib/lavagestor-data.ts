@@ -62,6 +62,7 @@ export async function getLavaDashboard() {
     ultimasLavagens,
     comissoesPendentes,
     valesAbertos,
+    checklists,
     empresa
   ] = await Promise.all([
     countByEmpresa(client, "lava_clientes", empresaId),
@@ -74,7 +75,7 @@ export async function getLavaDashboard() {
     scopedByEmpresa(
       client
         .from("lava_lavagens")
-        .select("id,valor,valor_final,comissao,status,status_pagamento,data_lavagem")
+        .select("id,cliente_id,valor,valor_final,valor_pendente,comissao,status,status_pagamento,data_lavagem")
         .gte("data_lavagem", todayStart)
         .lt("data_lavagem", tomorrowStart),
       empresaId
@@ -82,14 +83,14 @@ export async function getLavaDashboard() {
     scopedByEmpresa(
       client
         .from("lava_lavagens")
-        .select("id,valor,valor_final,comissao,status,status_pagamento,data_lavagem")
+        .select("id,cliente_id,valor,valor_final,valor_pendente,comissao,status,status_pagamento,data_lavagem")
         .gte("data_lavagem", monthStart),
       empresaId
     ),
     scopedByEmpresa(
       client
         .from("lava_lavagens")
-        .select("id,valor,valor_final,status,status_pagamento")
+        .select("id,valor,valor_final,valor_pendente,status,status_pagamento,data_pagamento,data_entrega")
         .in("status", [
           "aberta",
           "em_andamento",
@@ -115,6 +116,7 @@ export async function getLavaDashboard() {
     ),
     scopedByEmpresa(client.from("lava_comissoes").select("id,valor,status").eq("status", "pendente"), empresaId),
     scopedByEmpresa(client.from("lava_vales").select("id,valor,status").eq("status", "aberto"), empresaId),
+    scopedByEmpresa(client.from("lava_checklists").select("id,lavagem_id,status"), empresaId),
     empresaId
       ? client.from("core_empresas").select("nome,nome_fantasia").eq("id", empresaId).maybeSingle()
       : Promise.resolve({ data: null, error: null })
@@ -125,7 +127,35 @@ export async function getLavaDashboard() {
   const filaRows = ((filaAtual.data ?? []) as Array<Record<string, unknown>>).filter(isActiveLavagem);
   const pendingCommissions = (comissoesPendentes.data ?? []) as Array<Record<string, unknown>>;
   const openVales = (valesAbertos.data ?? []) as Array<Record<string, unknown>>;
+  const checklistRows = (checklists.data ?? []) as Array<Record<string, unknown>>;
+  const checklistWashIds = new Set(checklistRows.map((row) => String(row.lavagem_id ?? "")));
+  const monthClientCounts = countByValue(monthRows, "cliente_id");
   const company = empresa.data as Record<string, unknown> | null;
+  const aReceber = sumMoney(filaRows, "valor_pendente");
+  const fiado = sumMoney(filaRows.filter((row) => String(row.status_pagamento ?? "") === "fiado"), "valor_pendente");
+  const ticketMedio = monthRows.length > 0 ? sumLavaValues(monthRows) / monthRows.length : 0;
+  const clientesAtendidosMes = Array.from(monthClientCounts.keys()).filter(Boolean).length;
+  const retornoClientes = Array.from(monthClientCounts.values()).filter((count) => count > 1).length;
+  const lavagensSemChecklist = filaRows.filter((row) => !checklistWashIds.has(String(row.id ?? ""))).length;
+  const clientesParaPosVenda = filaRows.filter((row) => {
+    const status = normalizeLavaStatus(row.status);
+    return ["cliente_avisado", "pago", "entregue"].includes(status);
+  }).length;
+  const alertas = [
+    aReceber > 0 ? { label: "Existem pagamentos em aberto.", href: "/lavagestor/pagamentos", tone: "warning" } : null,
+    lavagensSemChecklist > 0 ? { label: "Existem lavagens sem checklist.", href: "/lavagestor/fila", tone: "warning" } : null,
+    clientesParaPosVenda > 0 ? { label: "Existem clientes para pos-venda.", href: "/lavagestor/pos-venda", tone: "info" } : null,
+    openVales.length > 0 ? { label: "Existem vales abertos.", href: "/lavagestor/vales", tone: "warning" } : null
+  ].filter(Boolean);
+
+  const phase3 = await getOptionalPremiumMetrics(client, empresaId, todayStart, tomorrowStart);
+  const recomendacoesPremium = [
+    phase3.agendamentosHoje > 0 ? { label: `${phase3.agendamentosHoje} agendamento(s) hoje.`, href: "/lavagestor/agendamentos", tone: "info" } : null,
+    phase3.estoqueBaixo > 0 ? { label: `${phase3.estoqueBaixo} produto(s) com estoque baixo.`, href: "/lavagestor/estoque", tone: "warning" } : null,
+    phase3.cobrancasPendentes > 0 ? { label: `${phase3.cobrancasPendentes} cobranca(s) simulada(s) pendente(s).`, href: "/lavagestor/pagamentos-integrados", tone: "warning" } : null,
+    phase3.automacaoPendente > 0 ? { label: `${phase3.automacaoPendente} contato(s) aguardando pos-venda.`, href: "/lavagestor/automacoes", tone: "info" } : null,
+    retornoClientes > 0 ? { label: "Clientes recorrentes: avalie pacotes e promocoes.", href: "/lavagestor/iamob", tone: "success" } : null
+  ].filter(Boolean);
 
   return {
     current,
@@ -153,6 +183,20 @@ export async function getLavaDashboard() {
       const paymentStatus = String(row.status_pagamento ?? "aberto");
       return paymentStatus === "aberto" || paymentStatus === "parcial" || paymentStatus === "fiado";
     }).length,
+    aReceber,
+    fiado,
+    ticketMedio,
+    clientesAtendidosMes,
+    retornoClientes,
+    agendamentosHoje: phase3.agendamentosHoje,
+    estoqueBaixo: phase3.estoqueBaixo,
+    cobrancasPendentes: phase3.cobrancasPendentes,
+    automacaoPendente: phase3.automacaoPendente,
+    comissoesPendentesQuantidade: pendingCommissions.length,
+    lavagensSemChecklist,
+    clientesParaPosVenda,
+    alertas,
+    recomendacoesPremium,
     totalComissoesPendentes: sumMoney(pendingCommissions, "valor"),
     totalValesAbertos: sumMoney(openVales, "valor"),
     ultimasLavagens: ((ultimasLavagens.data ?? []) as Array<Record<string, unknown>>).map((row) => ({
@@ -173,6 +217,7 @@ export async function getLavaDashboard() {
       ultimasLavagens.error?.message ??
       comissoesPendentes.error?.message ??
       valesAbertos.error?.message ??
+      checklists.error?.message ??
       empresa.error?.message ??
       null
   };
@@ -354,18 +399,82 @@ export async function listLavaComissoes(filters: { funcionario?: string; status?
 export async function listLavaVales(search = "") {
   const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
-  const { data, error } = await (supabase as any)
+  const client = supabase as any;
+  const { data, error } = await client
     .from("lava_vales")
-    .select("id,funcionario_id,valor,descricao,data_vale,status,created_at,lava_funcionarios(nome)")
+    .select("id,funcionario_id,valor,valor_descontado,descricao,data_vale,status,created_at,lava_funcionarios(nome)")
     .eq("empresa_id", current.empresaId)
     .order("data_vale", { ascending: false })
     .limit(200);
 
+  const valeIds = ((data ?? []) as Array<Record<string, unknown>>).map((row) => String(row.id));
+  const movimentosResult = valeIds.length
+    ? await client
+        .from("lava_vale_movimentos")
+        .select("id,vale_id,valor_descontado,saldo_antes,saldo_depois,tipo,observacao,created_at")
+        .eq("empresa_id", current.empresaId)
+        .in("vale_id", valeIds)
+        .order("created_at", { ascending: false })
+    : { data: [], error: null };
+  const movimentos: Array<Record<string, unknown>> = ((movimentosResult.data ?? []) as Array<Record<string, unknown>>).map<Record<string, unknown>>((row) => ({
+    ...row,
+    vale_id: row.vale_id,
+    valor_descontado: moneyNumber(row.valor_descontado),
+    saldo_antes: moneyNumber(row.saldo_antes),
+    saldo_depois: moneyNumber(row.saldo_depois)
+  }));
+
   const rows = ((data ?? []) as Array<Record<string, unknown>>)
-    .map<Record<string, unknown>>((row) => ({ ...row, funcionario: relationName(row.lava_funcionarios) }))
+    .map<Record<string, unknown>>((row) => {
+      const valor = moneyNumber(row.valor);
+      const descontado = moneyNumber(row.valor_descontado);
+      const saldo = Math.max(valor - descontado, 0);
+      const valeMovimentos = movimentos.filter((movimento) => String(movimento.vale_id) === String(row.id));
+      return {
+        ...row,
+        funcionario: relationName(row.lava_funcionarios),
+        valor,
+        valor_original: valor,
+        valor_descontado: descontado,
+        saldo_restante: saldo,
+        movimentos: valeMovimentos
+      };
+    })
     .filter((row) => includesSearch(row, ["funcionario", "descricao", "status"], search));
 
-  return { rows, error: error?.message ?? null };
+  return { rows, error: error?.message ?? movimentosResult.error?.message ?? null };
+}
+
+async function getOptionalPremiumMetrics(client: any, empresaId: string | null, todayStart: string, tomorrowStart: string) {
+  const [agendamentos, estoque, cobrancas, automacoes] = await Promise.all([
+    safeOptionalQuery(scopedByEmpresa(
+      client
+        .from("lava_agendamentos")
+        .select("id", { count: "exact", head: true })
+        .gte("data_inicio", todayStart)
+        .lt("data_inicio", tomorrowStart),
+      empresaId
+    ), { count: 0 }),
+    safeOptionalQuery(scopedByEmpresa(client.from("lava_estoque_produtos").select("id,estoque_atual,estoque_minimo").eq("ativo", true).limit(300), empresaId), { data: [] }),
+    safeOptionalQuery(scopedByEmpresa(client.from("lava_cobrancas").select("id", { count: "exact", head: true }).in("status", ["pendente", "erro"]), empresaId), { count: 0 }),
+    safeOptionalQuery(scopedByEmpresa(client.from("lava_automacao_fila").select("id", { count: "exact", head: true }).in("status", ["pendente", "pronto"]), empresaId), { count: 0 })
+  ]);
+  const estoqueRows = (estoque.data ?? []) as Array<Record<string, unknown>>;
+  return {
+    agendamentosHoje: agendamentos.count ?? 0,
+    estoqueBaixo: estoqueRows.filter((row) => Number(row.estoque_atual ?? 0) <= Number(row.estoque_minimo ?? 0)).length,
+    cobrancasPendentes: cobrancas.count ?? 0,
+    automacaoPendente: automacoes.count ?? 0
+  };
+}
+
+async function safeOptionalQuery(query: any, fallback: any) {
+  try {
+    const result = await query;
+    return result.error ? fallback : result;
+  } catch {
+    return fallback;
+  }
 }
 
 async function countByEmpresa(
@@ -397,6 +506,16 @@ function sumLavaValues(rows: Array<Record<string, unknown>>) {
 
 function countByStatus(rows: Array<Record<string, unknown>>, statuses: string[]) {
   return rows.filter((row) => statuses.includes(normalizeLavaStatus(row.status))).length;
+}
+
+function countByValue(rows: Array<Record<string, unknown>>, key: string) {
+  const map = new Map<string, number>();
+  for (const row of rows) {
+    const value = String(row[key] ?? "");
+    if (!value) continue;
+    map.set(value, (map.get(value) ?? 0) + 1);
+  }
+  return map;
 }
 
 function isActiveLavagem(row: Record<string, unknown>) {
@@ -442,4 +561,9 @@ function vehicleLabel(value: unknown) {
   const veiculo = relation as { placa?: unknown; marca?: unknown; modelo?: unknown; cor?: unknown };
   const model = [veiculo.marca, veiculo.modelo].filter(Boolean).join(" ");
   return [veiculo.placa, model, veiculo.cor].filter(Boolean).join(" - ") || "-";
+}
+
+function moneyNumber(value: unknown) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? number : 0;
 }

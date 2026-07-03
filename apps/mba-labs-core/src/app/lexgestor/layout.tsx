@@ -6,6 +6,8 @@ import "./lexgestor-mobile-compact.css";
 import "./lexgestor-mobile-compact-v2.css";
 import "./lexgestor-polish.css";
 import "./lexgestor-layout-fix.css";
+import "./lexgestor-logout.css";
+import "./lexgestor-dark-form-fix.css";
 import { HeaderLexGestor } from "@/components/lexgestor/HeaderLexGestor";
 import { MobileNavLexGestor } from "@/components/lexgestor/MobileNavLexGestor";
 import { SidebarLexGestor } from "@/components/lexgestor/SidebarLexGestor";

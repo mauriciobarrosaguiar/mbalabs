@@ -264,7 +264,7 @@ export function DemoQuotationTable({
             <TableCell>{quotation.supplierCount || quotation.responseCount || "-"} fornecedores</TableCell>
             <TableCell>
               <Badge variant="outline">
-                {quotation.source === "localStorage" ? "Demo local salvo" : "Banco Supabase"}
+                {quotation.source === "localStorage" ? "Rascunho local" : "Cotação salva"}
               </Badge>
             </TableCell>
             <TableCell className="text-right">
@@ -288,7 +288,7 @@ export function DemoQuotationTable({
                   </DropdownMenuItem>
                   {!isQuotationClosed(quotation.status) ? (
                     <DropdownMenuItem onSelect={(event) => { event.preventDefault(); void reopenLinks(quotation); }}>
-                      <Link2 className="h-4 w-4" />Gerar links
+                      <Link2 className="h-4 w-4" />Liberar envio
                     </DropdownMenuItem>
                   ) : null}
                   {quotation.status !== "draft" ? (

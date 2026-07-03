@@ -197,7 +197,11 @@ export function generateBiddingAwards(
       supplierId: responseItem.supplierId,
       supplierName:
         responses.find((response) => response.id === responseItem.responseId)
+          ?.sellerName ??
+        responses.find((response) => response.id === responseItem.responseId)
           ?.sellerCompany ??
+        responses.find((response) => response.supplierId === responseItem.supplierId)
+          ?.sellerName ??
         responses.find((response) => response.supplierId === responseItem.supplierId)
           ?.sellerCompany ??
         "Fornecedor",

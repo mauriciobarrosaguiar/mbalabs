@@ -5,7 +5,6 @@ import {
   requireActiveProfile,
   requireCompanyAccess,
 } from "@/modules/cotacoes/lib/auth/session";
-import type { CustomerType } from "@/modules/cotacoes/lib/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -20,7 +19,7 @@ export default async function CotacoesCatchAllPage({
   const [{ slug: rawSlug }, resolvedSearchParams] = await Promise.all([params, searchParams]);
   const slug = normalizeCotacoesSlug(rawSlug);
   const path = `/cotacoes/${rawSlug.join("/")}`;
-  const [section, id] = slug;
+  const [section] = slug;
   const isSystemStatusPage = section === "acesso-suspenso" || section === "sem-permissao";
   const auth = isSystemStatusPage
     ? await requireActiveProfile(path)
@@ -44,6 +43,8 @@ export default async function CotacoesCatchAllPage({
       <CompanyRoutePage
         slug={effectiveSlug}
         tenantType={auth.tenantAccess?.tenantType}
+        tenantId={auth.isSuperAdmin ? undefined : auth.tenantAccess?.tenantId}
+        isSuperAdmin={auth.isSuperAdmin}
         searchParams={resolvedSearchParams}
       />
     </AppShell>
@@ -67,12 +68,19 @@ function normalizeCotacoesSlug(slug: string[]) {
 }
 
 function getRouteModule(section?: string): "pharmacy" | "bidding" | null {
-  if (section === "cotacoes-farmacia" || section === "historico-compras") return "pharmacy";
+  if (
+    section === "cotacoes-farmacia" ||
+    section === "historico-compras" ||
+    section === "pedidos-gerados-farmacia"
+  ) {
+    return "pharmacy";
+  }
   if (
     section === "licitacoes" ||
     section === "mapa-comparativo" ||
     section === "analise-unidade" ||
-    section === "historico-precos"
+    section === "historico-precos" ||
+    section === "pedidos-gerados-licitacao"
   ) {
     return "bidding";
   }

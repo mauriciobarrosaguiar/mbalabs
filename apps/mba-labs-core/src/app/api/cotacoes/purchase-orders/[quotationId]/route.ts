@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentAuthContext } from "@/modules/cotacoes/lib/auth/session";
+import { ensureQuotationAccess } from "@/modules/cotacoes/lib/auth/quotation-access";
 import { generatePurchaseOrders } from "@/modules/cotacoes/lib/data/repository";
 
 export async function POST(
@@ -7,7 +9,11 @@ export async function POST(
 ) {
   const { quotationId } = await params;
   try {
-    const orders = await generatePurchaseOrders(quotationId);
+    const auth = await getCurrentAuthContext();
+    const access = await ensureQuotationAccess(auth, quotationId);
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+
+    const orders = await generatePurchaseOrders(quotationId, access.tenantId);
     return NextResponse.json({ orders });
   } catch (error) {
     console.error("Erro ao gerar pedidos dos vencedores", { quotationId, error });

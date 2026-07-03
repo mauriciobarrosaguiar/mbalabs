@@ -656,11 +656,13 @@ export async function CompanyRoutePage({
   slug,
   tenantType,
   tenantId,
+  isSuperAdmin = false,
   searchParams,
 }: {
   slug: string[];
   tenantType?: CustomerType;
   tenantId?: string;
+  isSuperAdmin?: boolean;
   searchParams?: AppSearchParams;
 }) {
   const [section = "dashboard", id, subpage] = slug;
@@ -699,7 +701,7 @@ export async function CompanyRoutePage({
   }
   if (section === "usuarios") return <CompanyUsersPage />;
   if (section === "configuracoes" && id === "supabase") return <SupabaseSettingsPage />;
-  if (section === "configuracoes") return <CompanySettingsPage />;
+  if (section === "configuracoes") return <CompanySettingsPage tenantId={tenantId} isSuperAdmin={isSuperAdmin} />;
   if (section === "cotacoes-farmacia") return <PharmacyQuotationPage id={id} subpage={subpage} tenantId={tenantId} />;
   if (section === "licitacoes") return <BiddingQuotationPage id={id} subpage={subpage} tenantId={tenantId} />;
 
@@ -865,7 +867,7 @@ function getSupplierResponseCountKey(response: SupplierQuoteResponse) {
 function getTenantModules(tenantType: CustomerType): Array<"pharmacy" | "bidding"> {
   if (tenantType === "pharmacy") return ["pharmacy"];
   if (tenantType === "distributor_bidding") return ["bidding"];
-  return ["bidding", "pharmacy"];
+  return ["pharmacy", "bidding"];
 }
 
 function RuntimeNotice({ tenantType = "both" }: { tenantType?: CustomerType }) {
@@ -2025,7 +2027,7 @@ function SupplierPortalPage({ section }: { section: string }) {
       <EmptyState
         icon={ListChecks}
         title={titles[section] ?? "Portal do fornecedor"}
-        description="O acesso de distribuidoras e vendedores usa links públicos por cotação. Quando houver login dedicado, esta área exibirá somente as cotações do fornecedor autenticado."
+        description="As cotações e pedidos dos vendedores são acessados pelos links enviados pela empresa."
       />
     </PageStack>
   );
@@ -2046,32 +2048,87 @@ function CompanyUsersPage() {
   );
 }
 
-function CompanySettingsPage() {
+async function CompanySettingsPage({ tenantId, isSuperAdmin = false }: { tenantId?: string; isSuperAdmin?: boolean }) {
+  let auditLogs: Collections["auditLogs"] = [];
+  try {
+    auditLogs = (await getCollections(isSuperAdmin ? undefined : tenantId)).auditLogs;
+  } catch (error) {
+    console.error("Erro ao carregar logs de configuracoes", error);
+  }
+  const whatsappLogs = auditLogs.filter((log) => {
+    const text = `${log.action} ${log.entity ?? ""}`.toLowerCase();
+    return text.includes("whatsapp") || text.includes("pedido vencedor") || text.includes("cotacao enviada");
+  });
+
   return (
     <PageStack>
       <HeaderBlock
         title="Configurações da empresa"
-        description="Preferências e permissões operacionais do tenant autenticado."
+        description="Preferências, acessos e histórico de envios da empresa."
       />
       <TwoColumn>
         <Card>
           <CardHeader><CardTitle>Perfil e tenant</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>Os acessos, papéis e vínculos com farmácia, licitação ou distribuidora são definidos pelo administrador em Usuários.</p>
+            <p>Usuários, permissões e empresas vinculadas são gerenciados pelo administrador.</p>
             <Button asChild variant="outline">
               <Link href="/cotacoes/usuarios">Ver usuários</Link>
             </Button>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle>Segurança</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Segurança dos dados</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <p>RLS por tenant habilitado nas migrations.</p>
-            <p>Links públicos têm token, validade e escopo por fornecedor.</p>
-            <p>Credenciais de portais ficam preparadas para criptografia futura.</p>
+            <p>Os links de cotação e pedido são individuais por vendedor e possuem controle de validade.</p>
+            <p>As informações da empresa ficam separadas por cliente no banco de dados.</p>
           </CardContent>
         </Card>
+        {isSuperAdmin ? (
+          <Card>
+            <CardHeader><CardTitle>Configuração de WhatsApp</CardTitle></CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              <p>Área visível para o acesso master MBA Labs. Clientes veem somente os envios registrados da própria empresa.</p>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild>
+                  <Link href="/cotacoes/configuracoes/whatsapp">Configurar WhatsApp Evolution</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/admin/logs">Ver logs gerais</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
       </TwoColumn>
+      <Card>
+        <CardHeader><CardTitle>Logs de envio WhatsApp</CardTitle></CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Data</TableHead>
+                <TableHead>Ação</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {whatsappLogs.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={3} className="h-20 text-center text-muted-foreground">
+                    Nenhum envio registrado ainda.
+                  </TableCell>
+                </TableRow>
+              ) : whatsappLogs.slice(0, 25).map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell>{formatDate(log.createdAt)}</TableCell>
+                  <TableCell>{log.action}</TableCell>
+                  <TableCell><StatusBadge status={log.severity} label={log.severity} /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </PageStack>
   );
 }
@@ -2173,7 +2230,7 @@ async function NewQuotationPage({ moduleType, tenantId }: { moduleType: "pharmac
     <PageStack>
       <HeaderBlock
         title={moduleType === "pharmacy" ? "Nova cotação farmácia" : "Nova cotação licitação"}
-        description="Versão inicial funcional com campos essenciais e preparada para importar planilhas."
+        description="Preencha os dados, adicione os itens e selecione os vendedores que receberão a cotação."
       />
       <BackButton fallbackHref={moduleType === "pharmacy" ? "/cotacoes/cotacoes-farmacia" : "/cotacoes/licitacoes"} />
       <NewQuotationForm
@@ -2412,11 +2469,12 @@ async function BiddingResponses({ quotationId, tenantId }: { quotationId: string
 }
 
 async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string; tenantId?: string }) {
-  const [analysis, { quotation, items }, orders] = await Promise.all([
+  const [analysis, { quotation, items, responses }, orders] = await Promise.all([
     getPharmacyAnalysis(quotationId),
     getQuotationBundle(quotationId, tenantId),
     getPurchaseOrdersByQuotation(quotationId, tenantId),
   ]);
+  const supplierDisplayName = buildSupplierNameResolver({ responses });
 
   const orderForAward = (award: QuotationAward) =>
     orders.find((order) => (
@@ -2526,7 +2584,7 @@ async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string
                 return (
                   <TableRow key={item.id}>
                     <TableCell>{product?.productName ?? item.quotationItemId}</TableCell>
-                    <TableCell>{supplierName(item.supplierId)}</TableCell>
+                    <TableCell>{supplierDisplayName(item.supplierId)}</TableCell>
                     <TableCell>{distributorName(item.distributorId)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
                     <TableCell className="text-right">{formatCurrency((item.unitPrice ?? 0) * (product?.requestedQuantity ?? 0))}</TableCell>
@@ -2621,7 +2679,12 @@ async function BiddingAnalysis({ quotationId, tenantId }: { quotationId: string;
 }
 
 async function ComparativeMap({ quotationId }: { quotationId: string }) {
-  const analysis = await getBiddingAnalysis(quotationId);
+  const [analysis, { responses }, sessions] = await Promise.all([
+    getBiddingAnalysis(quotationId),
+    getQuotationBundle(quotationId),
+    getSupplierSessions(quotationId),
+  ]);
+  const supplierDisplayName = buildSupplierNameResolver({ responses, sessions });
   return (
     <PageStack>
       <HeaderBlock
@@ -2648,7 +2711,7 @@ async function ComparativeMap({ quotationId }: { quotationId: string }) {
             <TableBody>
               {analysis.ranking.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell className="font-medium">{supplierName(item.supplierId)}</TableCell>
+                  <TableCell className="font-medium">{supplierDisplayName(item.supplierId)}</TableCell>
                   <TableCell>{formatCurrency(item.packagePrice)}</TableCell>
                   <TableCell>{formatNumber(item.packageQuantity)}</TableCell>
                   <TableCell>{formatCurrency(item.convertedUnitPrice)}</TableCell>
@@ -3096,11 +3159,13 @@ async function PharmacySummaryCard({ collections }: { collections: Collections }
 }
 
 async function BiddingRankingTable({ quotationId }: { quotationId: string }) {
-  const [analysis, { items }] = await Promise.all([
+  const [analysis, { items, responses }, sessions] = await Promise.all([
     getBiddingAnalysis(quotationId),
     getQuotationBundle(quotationId),
+    getSupplierSessions(quotationId),
   ]);
   const firstItem = items[0];
+  const supplierDisplayName = buildSupplierNameResolver({ responses, sessions });
   return (
     <Table>
       <TableHeader>
@@ -3124,7 +3189,7 @@ async function BiddingRankingTable({ quotationId }: { quotationId: string }) {
             <TableCell className="font-medium">{firstItem?.productName}</TableCell>
             <TableCell>{formatInteger(firstItem?.requestedQuantity)}</TableCell>
             <TableCell>{getUnitLabel(firstItem?.requestedUnit)}</TableCell>
-            <TableCell>{supplierName(item.supplierId)}</TableCell>
+            <TableCell>{supplierDisplayName(item.supplierId)}</TableCell>
             <TableCell>{item.offeredLaboratory}</TableCell>
             <TableCell>{item.offeredProductName}</TableCell>
             <TableCell>{formatCurrency(item.packagePrice)}</TableCell>
@@ -3140,11 +3205,13 @@ async function BiddingRankingTable({ quotationId }: { quotationId: string }) {
 }
 
 async function AwardsTable({ quotationId }: { quotationId: string }) {
-  const [analysis, { items, responseItems }] = await Promise.all([
+  const [analysis, { items, responseItems, responses }, sessions] = await Promise.all([
     getBiddingAnalysis(quotationId),
     getQuotationBundle(quotationId),
+    getSupplierSessions(quotationId),
   ]);
   const firstItem = items[0];
+  const supplierDisplayName = buildSupplierNameResolver({ responses, sessions });
   return (
     <Table>
       <TableHeader>
@@ -3171,7 +3238,7 @@ async function AwardsTable({ quotationId }: { quotationId: string }) {
             <TableRow key={award.id}>
               <TableCell className="font-medium">{firstItem?.productName}</TableCell>
               <TableCell>{award.rankingPosition}º</TableCell>
-              <TableCell>{award.supplierName}</TableCell>
+              <TableCell>{supplierDisplayName(award.supplierId, award.supplierName)}</TableCell>
               <TableCell>{responseItem?.offeredLaboratory ?? "-"}</TableCell>
               <TableCell>{formatCurrency(award.unitPrice)}</TableCell>
               <TableCell>{responseItem?.hasFullQuantity ? "Total" : formatInteger(responseItem?.availableQuantity)}</TableCell>
@@ -3217,6 +3284,8 @@ function ResponseItemsPage({
   quotationId: string;
   status: QuotationStatus;
 }) {
+  const supplierDisplayName = buildSupplierNameResolver({ sessions });
+
   return (
     <PageStack>
       <HeaderBlock
@@ -3247,7 +3316,7 @@ function ResponseItemsPage({
             <TableBody>
               {items.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell className="font-medium">{supplierName(item.supplierId)}</TableCell>
+                  <TableCell className="font-medium">{supplierDisplayName(item.supplierId)}</TableCell>
                   <TableCell>{item.offeredProductName ?? "-"}</TableCell>
                   <TableCell>{item.offeredLaboratory ?? "-"}</TableCell>
                   <TableCell>{item.packageQuantity ?? "-"}</TableCell>
@@ -3640,12 +3709,43 @@ export function getCompanyRouteTitle(slug: string[]) {
   return titles[section] ?? "MBA Cotações";
 }
 
-function supplierName(supplierId?: string) {
-  return supplierId ?? "Fornecedor";
+function supplierName(supplierId?: string, fallback = "Fornecedor") {
+  return fallbackName(fallback, supplierId);
 }
 
 function distributorName(distributorId?: string) {
   return distributorId ?? "-";
+}
+
+function buildSupplierNameResolver({
+  responses = [],
+  sessions = [],
+}: {
+  responses?: SupplierQuoteResponse[];
+  sessions?: SupplierQuoteSession[];
+}) {
+  return (supplierId?: string, fallback = "Fornecedor") => {
+    const response = supplierId ? responses.find((item) => item.supplierId === supplierId) : undefined;
+    const session = supplierId ? sessions.find((item) => item.supplierId === supplierId) : undefined;
+    return (
+      cleanDisplayName(response?.sellerName) ??
+      cleanDisplayName(session?.sellerName) ??
+      cleanDisplayName(response?.sellerCompany) ??
+      cleanDisplayName(session?.sellerCompany) ??
+      supplierName(supplierId, fallback)
+    );
+  };
+}
+
+function cleanDisplayName(value?: string | null) {
+  const text = String(value ?? "").trim();
+  return text.length > 0 ? text : undefined;
+}
+
+function fallbackName(fallback: string, id?: string) {
+  const value = cleanDisplayName(fallback);
+  if (value && value !== id) return value;
+  return "Fornecedor";
 }
 
 function subpageTitle(value: string) {

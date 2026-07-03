@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   BarChart3,
@@ -12,6 +14,7 @@ import {
   LayoutDashboard,
   ListChecks,
   Menu,
+  MessageCircle,
   Package,
   PlusCircle,
   ReceiptText,
@@ -54,6 +57,7 @@ const adminNav: NavItem[] = [
   { href: "/admin/mensalidades", label: "Mensalidades", icon: ReceiptText },
   { href: "/admin/pagamentos", label: "Pagamentos", icon: CreditCard },
   { href: "/admin/configuracoes/pagamentos", label: "Config. pagamentos", icon: CreditCard },
+  { href: "/admin/configuracoes/whatsapp", label: "WhatsApp MBA", icon: MessageCircle },
   { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
   { href: "/admin/logs", label: "Logs", icon: ShieldCheck },
 ];
@@ -106,7 +110,7 @@ export function AppShell({
   tenantType?: CustomerType;
   tenantName?: string;
 }) {
-  const nav = mode === "admin" ? adminNav : withReturnToMbaLabs(getAppNav(profileRole, tenantType), profileRole);
+  const nav = mode === "admin" ? adminNav : getAppNav(profileRole, tenantType);
 
   return (
     <div className="cotacoes-module min-h-screen bg-slate-50">
@@ -118,10 +122,7 @@ export function AppShell({
         <div className="border-t border-slate-200 p-4">
           <div className="rounded-md bg-slate-50 p-3">
             <p className="text-sm font-medium text-slate-900">
-              {mode === "admin" ? "Administração" : tenantName ?? "Empresa conectada"}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Sessão protegida por Supabase Auth e permissões por perfil.
+              {mode === "admin" ? "Administração" : tenantName ?? "Empresa"}
             </p>
           </div>
         </div>
@@ -159,16 +160,34 @@ export function AppShell({
   );
 }
 
-function Brand({ mode }: { mode: "admin" | "app" }) {
+function Brand({
+  mode,
+  variant = "default",
+}: {
+  mode: "admin" | "app";
+  variant?: "default" | "mobile";
+}) {
   return (
-    <div className="flex h-16 items-center gap-3 border-b border-slate-200 px-4">
+    <div
+      className={cn(
+        "flex h-16 items-center gap-3 border-b px-4",
+        "border-slate-200",
+      )}
+    >
       <div className="flex h-10 w-10 items-center justify-center rounded-md bg-teal-700 text-xs font-bold text-white">
         MBA
       </div>
       <div>
-        <p className="font-semibold text-slate-950">MBA Cotações</p>
-        <p className="text-xs text-muted-foreground">
-          {mode === "admin" ? "Painel Administrativo MBA Cotações" : "Painel da empresa"}
+        <p className={cn("font-semibold", variant === "mobile" ? "text-slate-950" : "text-slate-950")}>
+          MBA Cotações
+        </p>
+        <p
+          className={cn(
+            "text-xs",
+            variant === "mobile" ? "text-slate-600" : "text-muted-foreground",
+          )}
+        >
+          {mode === "admin" ? "Painel Administrativo" : "Painel da empresa"}
         </p>
       </div>
     </div>
@@ -191,30 +210,46 @@ function MobileNav({
           <Menu className="h-4 w-4" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-80 p-0">
+      <SheetContent
+        side="left"
+        aria-describedby={undefined}
+        className="cotacoes-mobile-menu flex h-full max-h-dvh w-[min(86vw,20rem)] max-w-[86vw] flex-col gap-0 overflow-hidden border-slate-200 !bg-white p-0 !text-slate-950"
+      >
         <SheetHeader className="sr-only">
           <SheetTitle>Menu</SheetTitle>
         </SheetHeader>
-        <Brand mode={mode} />
-        <Separator />
-        <nav className="space-y-4 p-3">
-          <GroupedNav nav={nav} currentPath={currentPath} />
+        <Brand mode={mode} variant="mobile" />
+        <Separator className="bg-slate-200" />
+        <nav className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 pt-4 pb-8 [-webkit-overflow-scrolling:touch]">
+          <GroupedNav nav={nav} currentPath={currentPath} variant="mobile" />
         </nav>
       </SheetContent>
     </Sheet>
   );
 }
 
-function NavLink({ item, active }: { item: NavItem; active: boolean }) {
+function NavLink({
+  item,
+  active,
+  variant = "default",
+}: {
+  item: NavItem;
+  active: boolean;
+  variant?: "default" | "mobile";
+}) {
   const Icon = item.icon;
+  const mobile = variant === "mobile";
 
   return (
     <Link
       aria-current={active ? "page" : undefined}
       href={item.href}
       className={cn(
-        "flex min-h-10 items-center justify-between rounded-md px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-950",
-        active && "bg-teal-50 text-teal-800",
+        "flex min-h-10 items-center justify-between rounded-md px-3 text-sm font-medium transition",
+        mobile && active && "bg-teal-50 text-teal-800 hover:bg-teal-50 hover:text-teal-800",
+        mobile && !active && "text-slate-900 hover:bg-slate-100 hover:text-slate-950",
+        !mobile && active && "bg-teal-50 text-teal-800 hover:bg-teal-50 hover:text-teal-800",
+        !mobile && !active && "text-slate-700 hover:bg-slate-100 hover:text-slate-950",
       )}
     >
       <span className="flex items-center gap-3">
@@ -228,9 +263,11 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
 function GroupedNav({
   nav,
   currentPath,
+  variant = "default",
 }: {
   nav: NavItem[];
   currentPath: string;
+  variant?: "default" | "mobile";
 }) {
   const groups = new Map<string, NavItem[]>();
   for (const item of nav) {
@@ -243,7 +280,12 @@ function GroupedNav({
       {Array.from(groups.entries()).map(([group, items]) => (
         <div key={group} className="space-y-1">
           {group !== "principal" ? (
-            <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p
+              className={cn(
+                "px-3 pb-1 text-xs font-semibold uppercase tracking-wide",
+                variant === "mobile" ? "text-slate-500" : "text-muted-foreground",
+              )}
+            >
               {group}
             </p>
           ) : null}
@@ -252,6 +294,7 @@ function GroupedNav({
               key={item.href}
               item={item}
               active={isActive(currentPath, item.href)}
+              variant={variant}
             />
           ))}
         </div>
@@ -261,29 +304,22 @@ function GroupedNav({
 }
 
 function isActive(currentPath: string, href: string) {
-  if (href === "/admin") return currentPath === href;
+  if (href === "/admin" || href === "/cotacoes") return currentPath === href;
   return currentPath === href || currentPath.startsWith(`${href}/`);
 }
 
 function getAppNav(role?: UserRole, tenantType?: CustomerType) {
-  if (role === "SUPER_ADMIN") return mergeNav(pharmacyNav, biddingNav);
+  if (role === "SUPER_ADMIN") {
+    return [
+      ...mergeNav(pharmacyNav, biddingNav),
+      { href: "/cotacoes/configuracoes/whatsapp", label: "WhatsApp MBA", icon: MessageCircle, group: "Gestão" },
+    ];
+  }
   if (role === "VENDEDOR_EXTERNO") return supplierNav;
   if (tenantType === "pharmacy") return pharmacyNav;
   if (tenantType === "distributor_bidding") return biddingNav;
   if (tenantType === "both") return mergeNav(pharmacyNav, biddingNav);
   return pharmacyNav;
-}
-
-function withReturnToMbaLabs(nav: NavItem[], role?: UserRole) {
-  return [
-    ...nav,
-    {
-      href: "/dashboard",
-      label: "Voltar ao MBA Labs",
-      icon: LayoutDashboard,
-      group: "Gestao"
-    }
-  ];
 }
 
 function mergeNav(...groups: NavItem[][]) {

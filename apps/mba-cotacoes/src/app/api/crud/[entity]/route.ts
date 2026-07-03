@@ -17,6 +17,8 @@ import {
   deleteSupplier,
   deleteTenant,
   getLaboratories,
+  getProducts,
+  getSuppliers,
   updateDistributor,
   updateLaboratory,
   updateMonthlySubscription,
@@ -116,8 +118,16 @@ function parseEntity(value: string): Entity {
 }
 
 async function createByEntity(entity: Entity, row: Row) {
-  if (entity === "products") return createProduct(await productPayload(row) as Parameters<typeof createProduct>[0]);
-  if (entity === "suppliers") return createSupplier(supplierPayload(row) as Parameters<typeof createSupplier>[0]);
+  if (entity === "products") {
+    const payload = await productPayload(row);
+    await assertProductNotDuplicate(payload);
+    return createProduct(payload as Parameters<typeof createProduct>[0]);
+  }
+  if (entity === "suppliers") {
+    const payload = supplierPayload(row);
+    await assertSupplierNotDuplicate(payload);
+    return createSupplier(payload as Parameters<typeof createSupplier>[0]);
+  }
   if (entity === "distributors") return createDistributor(distributorPayload(row) as Parameters<typeof createDistributor>[0]);
   if (entity === "laboratories") return createLaboratory(laboratoryPayload(row) as Parameters<typeof createLaboratory>[0]);
   if (entity === "tenants") {
@@ -132,8 +142,16 @@ async function createByEntity(entity: Entity, row: Row) {
 }
 
 async function updateByEntity(entity: Entity, id: string, row: Row) {
-  if (entity === "products") return updateProduct(id, await productPayload(row));
-  if (entity === "suppliers") return updateSupplier(id, supplierPayload(row));
+  if (entity === "products") {
+    const payload = await productPayload(row);
+    await assertProductNotDuplicate(payload, id);
+    return updateProduct(id, payload);
+  }
+  if (entity === "suppliers") {
+    const payload = supplierPayload(row);
+    await assertSupplierNotDuplicate(payload, id);
+    return updateSupplier(id, payload);
+  }
   if (entity === "distributors") return updateDistributor(id, distributorPayload(row));
   if (entity === "laboratories") return updateLaboratory(id, laboratoryPayload(row));
   if (entity === "tenants") return updateTenant(id, tenantPayload(row));
@@ -153,6 +171,53 @@ async function deleteByEntity(entity: Entity, id: string) {
   if (entity === "plans") return deleteSubscriptionPlan(id);
   if (entity === "monthly_subscriptions") return deleteMonthlySubscription(id);
   throw new Error("Entidade nao suportada.");
+}
+
+async function assertProductNotDuplicate(payload: Partial<Product>, currentId?: string) {
+  const nome = normalizeKey(text(payload.nome));
+  const ean = onlyDigits(text(payload.ean));
+  const laboratorioId = text(payload.laboratorioId);
+  const tenantId = text(payload.tenantId);
+
+  if (!nome || !ean || !laboratorioId) return;
+
+  const products = await getProducts();
+  const duplicated = products.find((product) => (
+    product.id !== currentId &&
+    text(product.status) !== "inativo" &&
+    normalizeKey(product.nome) === nome &&
+    onlyDigits(text(product.ean)) === ean &&
+    text(product.laboratorioId) === laboratorioId &&
+    sameTenant(product.tenantId, tenantId)
+  ));
+
+  if (duplicated) {
+    throw new Error("Produto duplicado: use outro EAN ou outro laboratorio para cadastrar o mesmo produto.");
+  }
+}
+
+async function assertSupplierNotDuplicate(payload: Partial<Supplier>, currentId?: string) {
+  const whatsapp = onlyDigits(text(payload.whatsapp));
+  const tenantId = text(payload.tenantId);
+
+  if (!whatsapp) return;
+
+  const suppliers = await getSuppliers();
+  const duplicated = suppliers.find((supplier) => (
+    supplier.id !== currentId &&
+    text(supplier.status) !== "inativo" &&
+    onlyDigits(text(supplier.whatsapp)) === whatsapp &&
+    sameTenant(supplier.tenantId, tenantId)
+  ));
+
+  if (duplicated) {
+    throw new Error("Ja existe vendedor/fornecedor ativo com este WhatsApp nesta empresa.");
+  }
+}
+
+function sameTenant(existingTenantId: string | undefined, incomingTenantId: string) {
+  if (!incomingTenantId) return true;
+  return !existingTenantId || existingTenantId === incomingTenantId;
 }
 
 async function productPayload(row: Row): Promise<Partial<Product>> {

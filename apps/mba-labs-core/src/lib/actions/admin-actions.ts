@@ -174,7 +174,7 @@ export async function saveEmpresaApp(formData: FormData) {
 
   const id = textValue(formData, "id");
   const empresaId = textValue(formData, "empresa_id");
-  const payload = {
+  const payload: Record<string, any> = {
     empresa_id: empresaId,
     app_id: textValue(formData, "app_id"),
     plano_id: nullableTextValue(formData, "plano_id"),
@@ -189,19 +189,25 @@ export async function saveEmpresaApp(formData: FormData) {
   }
 
   const supabase = await getSupabaseServer();
+  const appSlug = await getAppSlugById(supabase as any, String(payload.app_id), `/admin/empresas/${empresaId}/apps`);
+  payload.cotacoes_tipo_acesso = appSlug === "mba-cotacoes"
+    ? normalizeCotacoesAccessType(textValue(formData, "cotacoes_tipo_acesso"))
+    : null;
+
   await ensurePlanoBelongsToApp(supabase as any, payload.plano_id, payload.app_id, `/admin/empresas/${empresaId}/apps`);
 
   const query = id
     ? (supabase as any).from("core_empresa_apps").update(payload).eq("id", id)
     : (supabase as any).from("core_empresa_apps").upsert(payload, { onConflict: "empresa_id,app_id" });
 
-  const { data, error } = await query.select("id,empresa_id,app_id,plano_id,status,data_inicio,data_vencimento").single();
+  const { data, error } = await query.select("id,empresa_id,app_id,plano_id,status,data_inicio,data_vencimento,cotacoes_tipo_acesso").single();
 
   if (error) {
     redirect(`/admin/empresas/${empresaId}/apps?error=${messageParam(error.message)}`);
   }
 
   await mirrorEmpresaAppToAssinatura(data);
+  await syncCotacoesTenantAccessFromEmpresaApp(supabase as any, data, appSlug);
   await logAction({ acao: id ? "editar app da empresa" : "vincular app a empresa", detalhes: { id: data.id, empresaId } });
   revalidatePath(`/admin/empresas/${empresaId}/apps`);
   revalidatePath("/admin/empresas");
@@ -464,7 +470,7 @@ async function saveUsuario(formData: FormData, id: string) {
   redirect(`/admin/usuarios?ok=${messageParam("Usuario salvo com sucesso.")}`);
 }
 
-async function getAppSlugById(client: any, appId: string) {
+async function getAppSlugById(client: any, appId: string, redirectPath = "/admin/usuarios") {
   const { data, error } = await client
     .from("core_apps")
     .select("slug")
@@ -472,7 +478,7 @@ async function getAppSlugById(client: any, appId: string) {
     .maybeSingle();
 
   if (error) {
-    redirect(`/admin/usuarios?error=${messageParam(error.message)}`);
+    redirect(`${redirectPath}?error=${messageParam(error.message)}`);
   }
 
   return normalizeRegistrySlug(String(data?.slug ?? ""));
@@ -531,6 +537,20 @@ async function upsertUserPermission(
 
   if (error) {
     redirect(`/admin/usuarios?error=${messageParam(error.message)}`);
+  }
+}
+
+async function syncCotacoesTenantAccessFromEmpresaApp(client: any, row: any, appSlug: string) {
+  if (appSlug !== "mba-cotacoes" || !row?.empresa_id) return;
+
+  const accessType = normalizeCotacoesAccessType(String(row.cotacoes_tipo_acesso ?? ""));
+  const { error } = await client
+    .from("tenants")
+    .update({ tipo_cliente: accessType })
+    .eq("core_empresa_id", row.empresa_id);
+
+  if (error) {
+    redirect(`/admin/empresas/${row.empresa_id}/apps?error=${messageParam(error.message)}`);
   }
 }
 
@@ -622,6 +642,13 @@ function normalizeDocument(value: string) {
 function nullableString(value: unknown) {
   const normalized = String(value ?? "").trim();
   return normalized.length > 0 ? normalized : null;
+}
+
+function normalizeCotacoesAccessType(value: string) {
+  if (value === "pharmacy" || value === "distributor_bidding" || value === "both") {
+    return value;
+  }
+  return "both";
 }
 
 function mapAssinaturaStatus(status: string) {

@@ -53,7 +53,10 @@ export function generatePharmacyAwards(
       supplierId: winner.supplierId,
       supplierName:
         responses.find((response) => response.id === winner.responseId)
-          ?.sellerCompany ?? "Fornecedor",
+          ?.sellerName ??
+        responses.find((response) => response.id === winner.responseId)
+          ?.sellerCompany ??
+        "Fornecedor",
       moduleType: "pharmacy",
       rankingPosition: 1,
       awardedQuantity,

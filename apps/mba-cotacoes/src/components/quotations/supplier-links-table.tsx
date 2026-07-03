@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Copy, MessageCircle, RefreshCcw, ShieldOff } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Copy, RefreshCcw, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +13,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import { formatDateBR } from "@/lib/formatters";
 import type { ModuleType, SupplierQuoteSession } from "@/lib/types";
 
 const sessionStatusLabels: Record<string, string> = {
@@ -24,21 +23,53 @@ const sessionStatusLabels: Record<string, string> = {
   canceled: "Revogado/Cancelado",
 };
 
+const whatsappStatusLabels: Record<string, string> = {
+  pendente: "pendente",
+  enviado: "enviado",
+  falhou: "falhou",
+};
+
+type WhatsappEnvio = {
+  vendedorId: string;
+  telefone: string;
+  status: "pendente" | "enviado" | "falhou";
+  erro?: string;
+};
+
 export function SupplierLinksTable({
   moduleType,
   sessions,
-  deadlineAt,
 }: {
   moduleType: ModuleType;
   sessions: SupplierQuoteSession[];
   deadlineAt: string;
 }) {
   const [rows, setRows] = useState(sessions);
+  const [sendStatus, setSendStatus] = useState<Record<string, WhatsappEnvio>>({});
   const prefix = moduleType === "bidding" ? "licitacao" : "cotacao";
+  const quotationId = rows[0]?.quotationId;
   const baseUrl = useMemo(() => {
     if (typeof window === "undefined") return "http://localhost:3001";
     return window.location.origin;
   }, []);
+
+  useEffect(() => {
+    if (!quotationId) return;
+    let active = true;
+
+    fetch(`/api/whatsapp-envios?quotationId=${encodeURIComponent(quotationId)}&tipoEnvio=link_cotacao`)
+      .then((response) => response.json())
+      .then((payload) => {
+        if (!active) return;
+        const envios = Array.isArray(payload.envios) ? payload.envios as WhatsappEnvio[] : [];
+        setSendStatus(Object.fromEntries(envios.map((envio) => [envio.vendedorId, envio])));
+      })
+      .catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [quotationId]);
 
   function linkFor(session: SupplierQuoteSession) {
     return `${baseUrl}/${prefix}/responder/${session.publicToken}`;
@@ -49,10 +80,34 @@ export function SupplierLinksTable({
     toast.success("Link copiado.");
   }
 
-  function whatsappUrl(session: SupplierQuoteSession) {
-    const phone = session.sellerWhatsapp?.replace(/\D/g, "") ?? "";
-    const text = `Olá, estou enviando uma cotação. Acesse o link abaixo, preencha os preços disponíveis e envie sua resposta até ${formatDateBR(deadlineAt)}: ${linkFor(session)}`;
-    return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+  async function resend(session: SupplierQuoteSession) {
+    if (!quotationId) return;
+    try {
+      const vendedorId = vendorIdFor(session);
+      const response = await fetch("/api/whatsapp-envios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "resend",
+          quotationId,
+          tipoEnvio: "link_cotacao",
+          vendedorId,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Não foi possível reenviar.");
+      const result = payload.whatsapp?.results?.[0] as WhatsappEnvio | undefined;
+      if (result) {
+        setSendStatus((current) => ({ ...current, [vendedorId]: result }));
+      }
+      if (payload.whatsapp?.falhou) {
+        toast.warning("Reenvio falhou.");
+      } else {
+        toast.success("WhatsApp reenviado.");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Não foi possível reenviar WhatsApp.");
+    }
   }
 
   async function revoke(session: SupplierQuoteSession) {
@@ -96,58 +151,67 @@ export function SupplierLinksTable({
   return (
     <div className="space-y-3 p-4">
       <div className="grid gap-3 md:hidden">
-        {rows.map((session) => (
-          <div key={session.id} className="rounded-md border border-slate-200 bg-white p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-medium text-slate-950">{session.sellerCompany || session.sellerName || "-"}</p>
-                <p className="mt-1 text-sm text-muted-foreground">{session.sellerWhatsapp || "-"}</p>
+        {rows.map((session) => {
+          const status = statusFor(session, sendStatus);
+          return (
+            <div key={session.id} className="rounded-md border border-slate-200 bg-white p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-medium text-slate-950">{session.sellerCompany || session.sellerName || "-"}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{session.sellerWhatsapp || "WhatsApp não cadastrado"}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Resposta: {sessionStatusLabels[session.status] ?? session.status}</p>
+                </div>
+                <StatusBadge status={status} label={whatsappStatusLabels[status] ?? status} />
               </div>
-              <StatusBadge status={session.status} label={sessionStatusLabels[session.status] ?? session.status} />
+              <SupplierLinkActions
+                session={session}
+                status={status}
+                onCopy={copyLink}
+                onRegenerate={regenerate}
+                onResend={resend}
+                onRevoke={revoke}
+              />
             </div>
-            <SupplierLinkActions
-              session={session}
-              whatsappUrl={whatsappUrl(session)}
-              onCopy={copyLink}
-              onRegenerate={regenerate}
-              onRevoke={revoke}
-            />
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Empresa</TableHead>
+              <TableHead>Vendedor</TableHead>
               <TableHead>WhatsApp</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((session) => (
-              <TableRow key={session.id}>
-                <TableCell>
-                  <p className="font-medium">{session.sellerCompany || "-"}</p>
-                  <p className="text-xs text-muted-foreground">{session.sellerName || "Fornecedor"}</p>
-                </TableCell>
-                <TableCell>{session.sellerWhatsapp || "-"}</TableCell>
-                <TableCell>
-                  <StatusBadge status={session.status} label={sessionStatusLabels[session.status] ?? session.status} />
-                </TableCell>
-                <TableCell>
-                  <SupplierLinkActions
-                    session={session}
-                    whatsappUrl={whatsappUrl(session)}
-                    onCopy={copyLink}
-                    onRegenerate={regenerate}
-                    onRevoke={revoke}
-                    align="end"
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
+            {rows.map((session) => {
+              const status = statusFor(session, sendStatus);
+              return (
+                <TableRow key={session.id}>
+                  <TableCell>
+                    <p className="font-medium">{session.sellerCompany || "-"}</p>
+                    <p className="text-xs text-muted-foreground">{session.sellerName || "Fornecedor"}</p>
+                  </TableCell>
+                  <TableCell>{session.sellerWhatsapp || "WhatsApp não cadastrado"}</TableCell>
+                  <TableCell>
+                    <StatusBadge status={status} label={whatsappStatusLabels[status] ?? status} />
+                  </TableCell>
+                  <TableCell>
+                    <SupplierLinkActions
+                      session={session}
+                      status={status}
+                      onCopy={copyLink}
+                      onRegenerate={regenerate}
+                      onResend={resend}
+                      onRevoke={revoke}
+                      align="end"
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
@@ -157,16 +221,18 @@ export function SupplierLinksTable({
 
 function SupplierLinkActions({
   session,
-  whatsappUrl,
+  status,
   onCopy,
   onRegenerate,
+  onResend,
   onRevoke,
   align = "start",
 }: {
   session: SupplierQuoteSession;
-  whatsappUrl: string;
+  status: WhatsappEnvio["status"];
   onCopy: (session: SupplierQuoteSession) => Promise<void>;
   onRegenerate: (session: SupplierQuoteSession) => Promise<void>;
+  onResend: (session: SupplierQuoteSession) => Promise<void>;
   onRevoke: (session: SupplierQuoteSession) => Promise<void>;
   align?: "start" | "end";
 }) {
@@ -175,11 +241,11 @@ function SupplierLinkActions({
       <Button type="button" variant="outline" size="sm" onClick={() => void onCopy(session)}>
         <Copy className="h-4 w-4" />Copiar link
       </Button>
-      <Button asChild type="button" variant="outline" size="sm">
-        <a href={whatsappUrl} target="_blank" rel="noreferrer">
-          <MessageCircle className="h-4 w-4" />WhatsApp
-        </a>
-      </Button>
+      {status === "falhou" ? (
+        <Button type="button" variant="outline" size="sm" onClick={() => void onResend(session)}>
+          <RefreshCcw className="h-4 w-4" />Reenviar WhatsApp
+        </Button>
+      ) : null}
       <Button type="button" variant="outline" size="sm" onClick={() => void onRegenerate(session)} disabled={session.status === "submitted" || session.status === "canceled"}>
         <RefreshCcw className="h-4 w-4" />Novo token
       </Button>
@@ -188,6 +254,14 @@ function SupplierLinkActions({
       </Button>
     </div>
   );
+}
+
+function statusFor(session: SupplierQuoteSession, sendStatus: Record<string, WhatsappEnvio>) {
+  return sendStatus[vendorIdFor(session)]?.status ?? "pendente";
+}
+
+function vendorIdFor(session: SupplierQuoteSession) {
+  return session.supplierId || session.id;
 }
 
 async function mutateSession(body: Record<string, unknown>) {

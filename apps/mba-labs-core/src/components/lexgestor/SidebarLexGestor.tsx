@@ -14,6 +14,7 @@ import {
   Settings,
   UsersRound,
 } from "lucide-react";
+import { LogoutButtonLexGestor } from "./LogoutButtonLexGestor";
 
 const navItems = [
   { href: "/lexgestor/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -36,7 +37,7 @@ export function SidebarLexGestor({ canManageTeam = false }: { canManageTeam?: bo
       <Link href="/lexgestor" className="sidebar-brand">
         <FolderKanban size={28} aria-hidden />
         <strong>LexGestor</strong>
-        <span>Sistema jurídico para escritórios de advocacia</span>
+        <span>Sistema jurídico</span>
       </Link>
       <nav className="sidebar-nav">
         {navItems.filter((item) => !item.requiresTeamManager || canManageTeam).map((item) => {
@@ -55,6 +56,7 @@ export function SidebarLexGestor({ canManageTeam = false }: { canManageTeam?: bo
             </Link>
           );
         })}
+        <LogoutButtonLexGestor />
       </nav>
     </aside>
   );

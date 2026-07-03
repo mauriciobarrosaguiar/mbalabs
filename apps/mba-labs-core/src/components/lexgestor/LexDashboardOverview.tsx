@@ -7,50 +7,28 @@ import { DropboxStatus } from "./DropboxStatus";
 import { MiniBarChart } from "./MiniBarChart";
 
 export function LexDashboardOverview({ data }: { data: LexWorkspaceData }) {
-  const hasStorage = data.storageConnections.some((connection) => connection.connected);
-
   return (
     <>
-      {data.demoMode ? (
-        <p className="notice warning" role="status">
-          Modo demonstração ativo. Estes dados são fictícios e não se misturam aos dados reais do escritório.
-        </p>
-      ) : null}
-
-      {data.error ? (
-        <p className="notice">
-          Não foi possível carregar todas as tabelas: {data.error}
-        </p>
-      ) : null}
+      {data.error ? <p className="notice danger">{data.error}</p> : null}
 
       <DashboardCards metrics={data.metrics} />
-
-      {!hasStorage && !data.demoMode ? (
-        <p className="notice compact">
-          Armazenamento ainda não conectado. Novos documentos serão enviados automaticamente após conectar Dropbox ou Google Drive em Configurações.
-        </p>
-      ) : null}
 
       <section className="grid-wide dashboard-actions" aria-label="Atalhos do LexGestor">
         <Link className="card quick-action" href="/lexgestor/casos/novo">
           <BriefcaseBusiness size={24} color="var(--primary)" aria-hidden />
           <strong>Abrir novo caso</strong>
-          <span>Categoria, checklist, processo e prazos.</span>
         </Link>
         <Link className="card quick-action" href="/lexgestor/clientes/novo">
           <UsersRound size={24} color="var(--primary)" aria-hidden />
           <strong>Novo cliente</strong>
-          <span>Cadastrar dados, contatos e observações.</span>
         </Link>
         <Link className="card quick-action" href="/lexgestor/documentos">
           <FilePlus2 size={24} color="var(--primary)" aria-hidden />
           <strong>Anexar documento</strong>
-          <span>Upload direto para o armazenamento do escritório.</span>
         </Link>
         <Link className="card quick-action" href="/lexgestor/documentos">
           <FolderSearch size={24} color="var(--primary)" aria-hidden />
           <strong>Ver documentos</strong>
-          <span>Consultar originais, PDFs e pendências.</span>
         </Link>
       </section>
 

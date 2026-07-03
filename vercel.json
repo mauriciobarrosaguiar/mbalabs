@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cotacoes/backup/supabase",
+      "schedule": "0 8 * * *"
+    }
+  ]
+}

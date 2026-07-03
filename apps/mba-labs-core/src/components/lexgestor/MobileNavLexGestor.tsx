@@ -11,6 +11,7 @@ import {
   Settings,
   UsersRound,
 } from "lucide-react";
+import { LogoutButtonLexGestor } from "./LogoutButtonLexGestor";
 
 const items = [
   { href: "/lexgestor/dashboard", label: "Inicio", icon: LayoutDashboard },
@@ -44,6 +45,7 @@ export function MobileNavLexGestor(_props: { canManageTeam?: boolean }) {
           </Link>
         );
       })}
+      <LogoutButtonLexGestor variant="mobile" />
     </nav>
   );
 }

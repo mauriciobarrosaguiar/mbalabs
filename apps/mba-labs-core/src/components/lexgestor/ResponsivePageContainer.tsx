@@ -9,7 +9,6 @@ type ResponsivePageContainerProps = {
 
 export function ResponsivePageContainer({
   title,
-  description,
   action,
   children,
 }: ResponsivePageContainerProps) {
@@ -18,7 +17,6 @@ export function ResponsivePageContainer({
       <div className="page-heading">
         <div>
           <h1>{title}</h1>
-          {description ? <p>{description}</p> : null}
         </div>
         {action ? <div>{action}</div> : null}
       </div>
