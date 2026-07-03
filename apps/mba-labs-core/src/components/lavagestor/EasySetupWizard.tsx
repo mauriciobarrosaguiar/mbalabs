@@ -26,10 +26,11 @@ const steps = [
 
 export function EasySetupWizard({ data, initialStep }: EasySetupWizardProps) {
   const [step, setStep] = useState(normalizeStep(initialStep));
+  const [pendingForm, setPendingForm] = useState<"start" | "whatsapp" | "test" | "finish" | "">("");
   const integration = data.whatsappIntegration;
   const aiMode = data.aiMode;
   const supportMode = data.perfil === "admin_master";
-  const providerDefault = integration.provider !== "manual" ? integration.provider : data.evolutionManager.configured ? "evolution" : "manual";
+  const providerDefault = integration.provider !== "manual" ? integration.provider : data.evolutionManager.configured || data.evolutionManager.apiUrl ? "evolution" : "manual";
   const hasWhatsappSetup = integration.provider !== "manual" || Boolean(integration.instanciaId) || integration.status !== "inativo";
 
   return (
@@ -42,10 +43,10 @@ export function EasySetupWizard({ data, initialStep }: EasySetupWizardProps) {
         </div>
       ) : null}
 
-      <form action={startEasySetupAction} className="flex flex-wrap gap-2">
-        <button className="button-primary" disabled={!data.canEdit} type="submit">
+      <form action={startEasySetupAction} className="flex flex-wrap gap-2" onSubmit={() => setPendingForm("start")}>
+        <button className="button-primary" disabled={!data.canEdit || Boolean(pendingForm)} type="submit">
           <Play className="h-4 w-4" aria-hidden />
-          Iniciar configuração fácil
+          {pendingForm === "start" ? "Iniciando..." : "Iniciar configuração fácil"}
         </button>
       </form>
 
@@ -81,7 +82,7 @@ export function EasySetupWizard({ data, initialStep }: EasySetupWizardProps) {
       {step === "whatsapp" ? (
         <div className="grid gap-4">
           <EvolutionQrPanel canEdit={data.canEdit} showDiagnostics={supportMode} manager={data.evolutionManager} integration={integration} />
-          <form action={saveEasyWhatsappModeAction} className="grid gap-4 rounded-xl border border-border bg-white p-4 shadow-sm">
+          <form action={saveEasyWhatsappModeAction} className="grid gap-4 rounded-xl border border-border bg-white p-4 shadow-sm" onSubmit={() => setPendingForm("whatsapp")}>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">Modo de envio</p>
               <h2 className="text-2xl font-black">Escolher automação</h2>
@@ -135,9 +136,9 @@ export function EasySetupWizard({ data, initialStep }: EasySetupWizardProps) {
               </details>
             )}
 
-            <button className="button-primary w-full sm:w-fit" disabled={!data.canEdit} type="submit">
+            <button className="button-primary w-full sm:w-fit" disabled={!data.canEdit || Boolean(pendingForm)} type="submit">
               <CheckCircle2 className="h-4 w-4" aria-hidden />
-              Salvar modo do WhatsApp
+              {pendingForm === "whatsapp" ? "Salvando..." : "Salvar modo do WhatsApp"}
             </button>
           </form>
         </div>
@@ -150,16 +151,17 @@ export function EasySetupWizard({ data, initialStep }: EasySetupWizardProps) {
             <h2 className="text-2xl font-black">Fazer teste</h2>
             <p className="mt-1 text-sm font-semibold leading-6 text-muted-foreground">Se o WhatsApp automático estiver conectado, o envio sai pela Evolution. Caso contrário, abre o wa.me.</p>
           </div>
-          <form action={sendEasyIntegratedTestAction} className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+          <form action={sendEasyIntegratedTestAction} className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end" onSubmit={() => setPendingForm("test")}>
             <label className="grid gap-2">
               <span className="text-sm font-black">WhatsApp para teste</span>
-              <input className="input" name="telefone_teste" inputMode="tel" placeholder="Ex.: 63999999999" disabled={!data.canEdit} required />
+              <input className="input" name="telefone_teste" inputMode="tel" placeholder="Ex.: 63999999999" disabled={!data.canEdit || Boolean(pendingForm)} required />
             </label>
-            <button className="button-primary" disabled={!data.canEdit} type="submit">
+            <button className="button-primary" disabled={!data.canEdit || Boolean(pendingForm)} type="submit">
               <MessageCircle className="h-4 w-4" aria-hidden />
-              Enviar teste
+              {pendingForm === "test" ? "Enviando..." : "Enviar teste"}
             </button>
           </form>
+          {pendingForm === "test" ? <p className="rounded-xl bg-muted p-3 text-sm font-semibold text-muted-foreground">Mensagem recebida. Aguarde o envio...</p> : null}
           {data.lastWhatsappTest ? (
             <div className="rounded-xl border border-border bg-muted/40 p-3 text-sm font-semibold leading-6">
               <strong className="block">Último teste: {data.lastWhatsappTest.status}</strong>
@@ -182,8 +184,10 @@ export function EasySetupWizard({ data, initialStep }: EasySetupWizardProps) {
             <CheckItem label="Modo de envio" ok={integration.modoEnvio !== "manual"} value={data.statusCards.envio} />
             <CheckItem label="Teste integrado" ok={Boolean(data.setup.lastTestAt || data.lastWhatsappTest)} value={data.setup.lastTestAt || data.lastWhatsappTest?.createdAt || "Pendente"} />
           </div>
-          <form action={finishEasySetupAction}>
-            <button className="button-primary w-full sm:w-fit" disabled={!data.canEdit} type="submit">Finalizar setup</button>
+          <form action={finishEasySetupAction} onSubmit={() => setPendingForm("finish")}>
+            <button className="button-primary w-full sm:w-fit" disabled={!data.canEdit || Boolean(pendingForm)} type="submit">
+              {pendingForm === "finish" ? "Finalizando..." : "Finalizar setup"}
+            </button>
           </form>
         </section>
       ) : null}
