@@ -7,6 +7,7 @@ import { booleanValue, dateValue, messageParam, nullableTextValue, numberValue, 
 import { normalizeLavaStatus } from "@/lib/lavagestor-data";
 import { baixarEstoqueDaLavagem } from "@/lib/lavagestor-estoque-sync";
 import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
+import { sendLavagemReceiptWhatsapp } from "@/lib/lavagestor-recibo-whatsapp";
 import { enqueueWhatsappMessage } from "@/lib/lavagestor-whatsapp";
 import { getSupabaseServer } from "@/lib/supabase";
 
@@ -634,6 +635,8 @@ export async function registrarPagamentoLavagem(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam(updateError.message)}`);
   }
 
+  let reciboWhatsappMessage = "";
+
   if (statusPagamento === "pago" && valorLancamento > 0) {
     await enqueuePagamentoWhatsapp(client, current, id, valorLancamento, formaPagamento).catch(async (whatsappError) => {
       await insertLavaHistory(client, {
@@ -646,6 +649,27 @@ export async function registrarPagamentoLavagem(formData: FormData) {
         observacao: whatsappError instanceof Error ? whatsappError.message : "Falha ao enfileirar WhatsApp de pagamento recebido."
       });
     });
+
+    const reciboResult = await sendLavagemReceiptWhatsapp(id, "pagamento_automatico").catch(async (reciboError) => {
+      await insertLavaHistory(client, {
+        empresaId: current.empresaId,
+        lavagemId: id,
+        usuarioId: current.usuario.id,
+        acao: "whatsapp_erro_recibo_pagamento",
+        statusAnterior: normalizedStatus,
+        statusNovo: nextLavagemStatus,
+        observacao: reciboError instanceof Error ? reciboError.message : "Falha ao enviar recibo em imagem."
+      });
+
+      return {
+        ok: false,
+        error: reciboError instanceof Error ? reciboError.message : "Falha ao enviar recibo em imagem."
+      };
+    });
+
+    reciboWhatsappMessage = reciboResult.ok
+      ? " Recibo enviado ao cliente."
+      : ` Recibo não enviado: ${String(reciboResult.error ?? "erro no WhatsApp")}`;
   }
 
   await insertLavaHistory(client, {
@@ -663,7 +687,7 @@ export async function registrarPagamentoLavagem(formData: FormData) {
   revalidatePath("/lavagestor/fila");
   revalidatePath("/lavagestor/pagamentos");
   revalidatePath("/lavagestor/whatsapp");
-  redirect(`${returnTo}?ok=${messageParam("Pagamento atualizado.")}`);
+  redirect(`${returnTo}?ok=${messageParam(`Pagamento atualizado.${reciboWhatsappMessage}`)}`);
 }
 
 export async function markComissaoPaga(formData: FormData) {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 export type ReceiptImageData = {
+  id: string;
   numero: string;
   empresaNome: string;
   empresaRazao?: string;
@@ -36,6 +37,20 @@ export function ReceiptImageShareButton({ receipt }: { receipt: ReceiptImageData
     setConversationUrl(null);
 
     try {
+      const response = await fetch("/api/lavagestor/recibos/enviar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: receipt.id })
+      });
+
+      const payload = await response.json().catch(() => ({}));
+
+      if (response.ok && payload?.ok) {
+        setMessage("Recibo enviado automaticamente ao cliente pelo WhatsApp.");
+        return;
+      }
+
+      const serverMessage = payload?.error ? String(payload.error) : "";
       const file = await makeReceiptImage(receipt);
       const text = receiptMessage(receipt);
       const url = buildWhatsappUrl(receipt.whatsapp, text);
@@ -44,7 +59,7 @@ export function ReceiptImageShareButton({ receipt }: { receipt: ReceiptImageData
 
       if (url) {
         setConversationUrl(url);
-        setMessage("Imagem do recibo gerada. Abra a conversa do cliente e anexe a imagem baixada.");
+        setMessage(serverMessage ? `${serverMessage} Imagem do recibo gerada para envio manual.` : "Imagem do recibo gerada. Abra a conversa do cliente e anexe a imagem baixada.");
         return;
       }
 
