@@ -67,8 +67,17 @@ export default async function AgendamentosPage({ searchParams }: { searchParams:
 }
 
 function AgendamentoCard({ row }: { row: Record<string, unknown> }) {
+  const status = String(row.status || "");
+  const isCancelled = status === "cancelado";
+  const isConverted = status === "convertido" || Boolean(row.lavagem_id);
   const confirmMessage = `Olá, ${row.cliente || "cliente"}! Confirmando seu agendamento para ${formatDateTime(row.data_inicio)}, serviço: ${row.servico || "serviço"}. Podemos confirmar?`;
-  const whats = whatsappUrl(row.whatsapp, confirmMessage);
+  const whats = !isCancelled && !isConverted ? whatsappUrl(row.whatsapp, confirmMessage) : "";
+  const confirmationLabel = isCancelled
+    ? "Cancelada"
+    : isConverted
+      ? "Convertido em lavagem"
+      : String(row.confirmacao_label || "Pendente");
+
   return (
     <article className="grid gap-3 rounded-xl border border-border bg-white p-4 shadow-sm lg:grid-cols-[1fr_auto]">
       <div className="min-w-0">
@@ -77,28 +86,31 @@ function AgendamentoCard({ row }: { row: Record<string, unknown> }) {
             <h2 className="break-words text-xl font-black">{String(row.cliente || row.titulo || "Agendamento")}</h2>
             <p className="mt-1 text-sm font-semibold text-muted-foreground">{String(row.veiculo || "-")} - {String(row.servico || "-")}</p>
           </div>
-          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-900">{String(row.status_label)}</span>
+          <span className={`rounded-full px-3 py-1 text-xs font-black ${isCancelled ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-900"}`}>{String(row.status_label)}</span>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
           <Info label="Inicio" value={formatDateTime(row.data_inicio)} />
           <Info label="Duracao" value={`${String(row.duracao_min ?? 60)} min`} />
           <Info label="Funcionario" value={String(row.funcionario || "-")} />
-          <Info label="Confirmação" value={String(row.confirmacao_label || "Pendente")} />
+          <Info label="Confirmação" value={confirmationLabel} />
         </div>
+        {isCancelled ? <p className="mt-3 rounded-lg border border-red-100 bg-red-50 p-3 text-sm font-bold text-red-800">Agendamento cancelado. As confirmações pendentes ficam bloqueadas para não enviar WhatsApp indevido.</p> : null}
         {row.adicional_texto ? <p className="mt-3 rounded-lg bg-emerald-50 p-3 text-sm font-semibold text-emerald-950">{String(row.adicional_texto)}</p> : null}
         {row.observacao ? <p className="mt-3 rounded-lg bg-muted p-3 text-sm font-semibold text-muted-foreground">{String(row.observacao)}</p> : null}
-        {row.confirmacao_erro ? <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">{String(row.confirmacao_erro)}</p> : null}
+        {!isCancelled && row.confirmacao_erro ? <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-800">{String(row.confirmacao_erro)}</p> : null}
       </div>
       <div className="grid content-start gap-2 sm:grid-cols-2 lg:w-80 lg:grid-cols-1">
-        {whats ? <a className="button-secondary justify-center text-center" href={whats} target="_blank" rel="noreferrer">{row.confirmacao_status === "enviado_manual" ? "Enviar novamente" : "Enviar confirmação"}</a> : null}
-        <StatusButton id={String(row.id)} status="confirmado" label="Confirmar" />
-        <StatusButton id={String(row.id)} status="compareceu" label="Compareceu" />
-        <StatusButton id={String(row.id)} status="nao_compareceu" label="Não compareceu" />
-        <form action={converterAgendamentoEmLavagem}>
-          <input name="id" type="hidden" value={String(row.id)} />
-          <button className="button-primary w-full" type="submit">Converter em lavagem</button>
-        </form>
-        <StatusButton id={String(row.id)} status="cancelado" label="Cancelar" danger />
+        {!isCancelled && !isConverted && whats ? <a className="button-secondary justify-center text-center" href={whats} target="_blank" rel="noreferrer">{row.confirmacao_status === "enviado_manual" ? "Enviar novamente" : "Enviar confirmação"}</a> : null}
+        {!isCancelled && !isConverted ? <StatusButton id={String(row.id)} status="confirmado" label="Confirmar" /> : null}
+        {!isCancelled && !isConverted ? <StatusButton id={String(row.id)} status="compareceu" label="Compareceu" /> : null}
+        {!isCancelled && !isConverted ? <StatusButton id={String(row.id)} status="nao_compareceu" label="Não compareceu" /> : null}
+        {!isConverted ? (
+          <form action={converterAgendamentoEmLavagem}>
+            <input name="id" type="hidden" value={String(row.id)} />
+            <button className="button-primary w-full" type="submit">Converter em lavagem</button>
+          </form>
+        ) : null}
+        {!isCancelled && !isConverted ? <StatusButton id={String(row.id)} status="cancelado" label="Cancelar" danger /> : null}
       </div>
     </article>
   );
