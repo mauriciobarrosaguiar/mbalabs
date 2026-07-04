@@ -262,7 +262,7 @@ export async function listLavaFuncionarios(search = "") {
   const supabase = await getSupabaseServer();
   const { data, error } = await (supabase as any)
     .from("lava_funcionarios")
-    .select("id,nome,telefone,percentual_comissao,ativo,created_at")
+    .select("id,nome,telefone,email,percentual_comissao,ativo,acesso_sistema,perfil_acesso,permissoes_extras,core_usuario_id,usuario_id,created_at")
     .eq("empresa_id", current.empresaId)
     .order("nome", { ascending: true })
     .limit(200);

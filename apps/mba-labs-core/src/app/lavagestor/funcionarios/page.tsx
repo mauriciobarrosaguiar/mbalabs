@@ -6,6 +6,7 @@ import {
   DeleteButton,
   FormCheckbox,
   FormInput,
+  FormSelect,
   MessageBanner,
   PageHeader,
   ResourceForm,
@@ -20,6 +21,68 @@ import { firstParam } from "@/lib/form-utils";
 import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
+
+const PERFIL_ACESSO_OPTIONS = [
+  { value: "lavador", label: "Lavador - acesso básico à fila" },
+  { value: "operador", label: "Operador - cria e movimenta lavagens" },
+  { value: "caixa", label: "Caixa - recebe pagamentos" },
+  { value: "gerente", label: "Gerente - operação quase completa" },
+  { value: "visualizador", label: "Visualizador - apenas consulta" }
+];
+
+const PERMISSOES_EXTRAS_OPTIONS = [
+  {
+    value: "lavagem.criar",
+    label: "Criar lavagem",
+    description: "Permite abrir uma nova lavagem para cliente e veículo."
+  },
+  {
+    value: "lavagem.alterar_responsavel",
+    label: "Alterar lavador/responsável",
+    description: "Permite trocar o funcionário responsável na fila."
+  },
+  {
+    value: "pagamento.ver_valor",
+    label: "Ver valores",
+    description: "Permite visualizar preço, pendência e valores da lavagem."
+  },
+  {
+    value: "pagamento.receber",
+    label: "Receber pagamento",
+    description: "Permite registrar pagamento e enviar recibo."
+  },
+  {
+    value: "pagamento.ver_todos",
+    label: "Ver todos os pagamentos",
+    description: "Permite acessar a área de pagamentos."
+  },
+  {
+    value: "agendamento.criar",
+    label: "Criar agendamento",
+    description: "Permite criar e editar agendamentos."
+  },
+  {
+    value: "cliente.criar",
+    label: "Cadastrar cliente/veículo",
+    description: "Permite cadastrar clientes e veículos durante a operação."
+  },
+  {
+    value: "whatsapp.enviar_manual",
+    label: "Enviar WhatsApp manual",
+    description: "Permite usar botões manuais de WhatsApp."
+  },
+  {
+    value: "comissao.ver_propria",
+    label: "Ver comissão própria",
+    description: "Permite acompanhar a própria comissão."
+  },
+  {
+    value: "relatorio.ver_basico",
+    label: "Ver relatório básico",
+    description: "Permite consultar relatórios simples."
+  }
+];
+
 
 export default async function FuncionariosPage({
   searchParams
@@ -77,6 +140,7 @@ export default async function FuncionariosPage({
           >
             <FormInput label="Nome" name="nome" defaultValue={String(editing?.nome ?? "")} required />
             <FormInput label="Telefone" name="telefone" defaultValue={String(editing?.telefone ?? "")} />
+            <FormInput label="E-mail para acesso" name="email" type="email" defaultValue={String(editing?.email ?? "")} />
             <FormInput
               label="Percentual de comissão"
               name="percentual_comissao"
@@ -85,6 +149,53 @@ export default async function FuncionariosPage({
               step="0.01"
               defaultValue={String(editing?.percentual_comissao ?? 0)}
             />
+            <FormSelect
+              label="Perfil base de acesso"
+              name="perfil_acesso"
+              defaultValue={String(editing?.perfil_acesso ?? "lavador")}
+              options={PERFIL_ACESSO_OPTIONS}
+            />
+            <div className="grid gap-3 rounded-[18px] border border-emerald-200 bg-emerald-50 p-4 md:col-span-2">
+              <FormCheckbox
+                label="Liberar acesso ao sistema para este funcionário"
+                name="acesso_sistema"
+                defaultChecked={editing?.acesso_sistema === true}
+              />
+              <p className="text-sm leading-6 text-slate-600">
+                O perfil base define o acesso principal. As opções abaixo adicionam funções extras sem transformar o lavador em administrador.
+              </p>
+            </div>
+            <div className="grid gap-3 rounded-[18px] border border-white/10 bg-white p-4 md:col-span-2">
+              <div>
+                <h3 className="text-base font-black text-slate-900">Permissões extras</h3>
+                <p className="text-sm leading-6 text-slate-600">
+                  Marque somente o que o dono deseja liberar para esse funcionário.
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {PERMISSOES_EXTRAS_OPTIONS.map((option) => {
+                  const selected = toStringArray(editing?.permissoes_extras).includes(option.value);
+                  return (
+                    <label
+                      className="flex items-start gap-3 rounded-[14px] border border-slate-200 bg-slate-50 p-3 text-sm"
+                      key={option.value}
+                    >
+                      <input
+                        className="mt-1"
+                        type="checkbox"
+                        name="permissoes_extras"
+                        value={option.value}
+                        defaultChecked={selected}
+                      />
+                      <span>
+                        <strong className="block text-slate-900">{option.label}</strong>
+                        <span className="text-xs leading-5 text-slate-600">{option.description}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
             <FormCheckbox label="Funcionário ativo" name="ativo" defaultChecked={editing ? editing.ativo !== false : true} />
           </ResourceForm>
         </form>
@@ -125,4 +236,35 @@ export default async function FuncionariosPage({
       </section>
     </LavaGestorShell>
   );
+}
+
+function toStringArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item)).filter(Boolean);
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function perfilLabel(value: string) {
+  return PERFIL_ACESSO_OPTIONS.find((option) => option.value === value)?.label.split(" - ")[0] ?? value;
+}
+
+function permissoesResumo(value: unknown) {
+  const selected = toStringArray(value);
+
+  if (selected.length === 0) {
+    return "-";
+  }
+
+  return selected
+    .map((permission) => PERMISSOES_EXTRAS_OPTIONS.find((option) => option.value === permission)?.label ?? permission)
+    .join(", ");
 }
