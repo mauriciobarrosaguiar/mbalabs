@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { MessageBanner, formatDate, formatMoney } from "@/components/ui-kit";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
 import { getLavaDashboard } from "@/lib/lavagestor-data";
+import { getLavaDefaultRoute, requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +20,13 @@ type Metric = {
 
 export default async function LavaGestorPortalPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
+  const access = await requireLavaGestorAccess("/lavagestor");
+  const defaultRoute = getLavaDefaultRoute(access.perfil);
+
+  if (defaultRoute !== "/lavagestor") {
+    redirect(defaultRoute);
+  }
+
   const [dashboard, { config }] = await Promise.all([getLavaDashboard(), getLavaConfiguracoesEmpresa()]);
   const user = dashboard.current.usuario;
   const roleLabel = labelRole(dashboard.current.tipo);
