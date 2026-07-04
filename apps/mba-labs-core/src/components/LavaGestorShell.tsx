@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import {
   getEffectiveLavaPermissions,
+  getLavaGestorPermissionExtras,
   requireLavaGestorAccess,
   type LavaPerfil,
   type LavaPermission
@@ -91,7 +92,8 @@ export async function LavaGestorShell({
   roleLabel?: string;
 }) {
   const { current, perfil } = await requireLavaGestorAccess(activePath);
-  const effectivePermissions = new Set(getEffectiveLavaPermissions(perfil));
+  const permissionExtras = getLavaGestorPermissionExtras(current);
+  const effectivePermissions = new Set(getEffectiveLavaPermissions(perfil, permissionExtras));
   const visibleNavGroups = getVisibleNavGroups(effectivePermissions);
   const canSeeFila = effectivePermissions.has("fila.ver");
   const displayUserName = userName || current.usuario.nome;
