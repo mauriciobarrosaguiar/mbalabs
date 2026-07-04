@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import { logAction, requireAppAccess } from "@/lib/core-data";
 import { booleanValue, dateValue, messageParam, nullableTextValue, numberValue, textValue } from "@/lib/form-utils";
 import { normalizeLavaStatus } from "@/lib/lavagestor-data";
@@ -115,6 +116,9 @@ export async function saveFuncionario(formData: FormData) {
   const client = supabase as any;
   const id = textValue(formData, "id");
   const nome = textValue(formData, "nome");
+  const telefone = nullableTextValue(formData, "telefone");
+  const email = nullableTextValue(formData, "email");
+  const senhaProvisoria = textValue(formData, "senha_provisoria");
   const acessoSistema = booleanValue(formData, "acesso_sistema");
   const perfilAcesso = normalizeFuncionarioPerfil(textValue(formData, "perfil_acesso"));
   const permissoesExtras = selectedLavaPermissions(formData);
@@ -123,11 +127,15 @@ export async function saveFuncionario(formData: FormData) {
     redirect(`/lavagestor/funcionarios?error=${messageParam("Informe o nome do funcionário.")}`);
   }
 
+  if (acessoSistema && !email) {
+    redirect(`/lavagestor/funcionarios?error=${messageParam("Informe o e-mail para liberar acesso ao sistema.")}`);
+  }
+
   const payload = {
     empresa_id: current.empresaId,
     nome,
-    telefone: nullableTextValue(formData, "telefone"),
-    email: nullableTextValue(formData, "email"),
+    telefone,
+    email,
     percentual_comissao: numberValue(formData, "percentual_comissao"),
     ativo: booleanValue(formData, "ativo"),
     acesso_sistema: acessoSistema,
@@ -148,6 +156,10 @@ export async function saveFuncionario(formData: FormData) {
     client,
     empresaId: current.empresaId,
     funcionarioId,
+    nome,
+    telefone,
+    email,
+    senhaProvisoria,
     acessoSistema,
     perfilAcesso,
     permissoesExtras
@@ -160,11 +172,11 @@ export async function saveFuncionario(formData: FormData) {
   await logAction({
     appSlug: "lavagestor",
     acao: id ? "editar funcionário" : "criar funcionário",
-    detalhes: { nome, acessoSistema, perfilAcesso, permissoesExtras }
+    detalhes: { nome, email, acessoSistema, perfilAcesso, permissoesExtras }
   });
 
   revalidatePath("/lavagestor/funcionarios");
-  redirect(`/lavagestor/funcionarios?ok=${messageParam("Funcionário salvo com sucesso.")}`);
+  redirect(`/lavagestor/funcionarios?ok=${messageParam(acessoSistema ? "Funcionário salvo e acesso liberado." : "Funcionário salvo com sucesso.")}`);
 }
 
 function selectedLavaPermissions(formData: FormData) {
@@ -196,6 +208,10 @@ async function syncFuncionarioLavaAccess({
   client,
   empresaId,
   funcionarioId,
+  nome,
+  telefone,
+  email,
+  senhaProvisoria,
   acessoSistema,
   perfilAcesso,
   permissoesExtras
@@ -203,6 +219,10 @@ async function syncFuncionarioLavaAccess({
   client: any;
   empresaId: string | null;
   funcionarioId: string;
+  nome: string;
+  telefone: string | null;
+  email: string | null;
+  senhaProvisoria: string;
   acessoSistema: boolean;
   perfilAcesso: string;
   permissoesExtras: string[];
@@ -220,27 +240,207 @@ async function syncFuncionarioLavaAccess({
     return funcionarioResult.error.message;
   }
 
-  const usuarioId = funcionarioResult.data?.core_usuario_id ?? funcionarioResult.data?.usuario_id;
-
-  if (!usuarioId) {
-    return null;
-  }
-
   const appResult = await client.from("core_apps").select("id").eq("slug", "lavagestor").maybeSingle();
 
   if (appResult.error || !appResult.data?.id) {
     return appResult.error?.message ?? "App LavaGestor não encontrado para atualizar permissões.";
   }
 
-  const existingResult = await client
+  const linkedUsuarioId = funcionarioResult.data?.core_usuario_id ?? funcionarioResult.data?.usuario_id;
+  const normalizedEmail = sanitizeEmail(email);
+
+  if (!acessoSistema) {
+    if (linkedUsuarioId) {
+      await client
+        .from("core_usuario_app_permissoes")
+        .update({
+          status: "inativo",
+          permissoes_extras: [],
+          updated_at: new Date().toISOString()
+        })
+        .eq("usuario_id", linkedUsuarioId)
+        .eq("app_id", appResult.data.id);
+    }
+
+    return null;
+  }
+
+  if (!normalizedEmail) {
+    return "Informe o e-mail para liberar o acesso do funcionário.";
+  }
+
+  let usuarioId: string | null = linkedUsuarioId ? String(linkedUsuarioId) : null;
+  let authUserId: string | null = null;
+  let existingCoreUser: Record<string, unknown> | null = null;
+
+  if (usuarioId) {
+    const existingById = await client
+      .from("core_usuarios")
+      .select("id,auth_user_id,email,empresa_id")
+      .eq("id", usuarioId)
+      .maybeSingle();
+
+    if (existingById.error) {
+      return existingById.error.message;
+    }
+
+    existingCoreUser = existingById.data ?? null;
+  }
+
+  if (!existingCoreUser) {
+    const existingByEmail = await client
+      .from("core_usuarios")
+      .select("id,auth_user_id,email,empresa_id")
+      .ilike("email", normalizedEmail)
+      .maybeSingle();
+
+    if (existingByEmail.error) {
+      return existingByEmail.error.message;
+    }
+
+    existingCoreUser = existingByEmail.data ?? null;
+    usuarioId = existingCoreUser?.id ? String(existingCoreUser.id) : null;
+  }
+
+  if (existingCoreUser?.empresa_id && String(existingCoreUser.empresa_id) !== empresaId) {
+    return "Este e-mail já está vinculado a outra empresa.";
+  }
+
+  authUserId = existingCoreUser?.auth_user_id ? String(existingCoreUser.auth_user_id) : null;
+
+  if (!authUserId && senhaProvisoria.length < 6) {
+    return "Informe uma senha provisória com pelo menos 6 caracteres para criar o login.";
+  }
+
+  let admin: any;
+
+  try {
+    admin = createSupabaseAdminClient() as any;
+  } catch (error) {
+    return error instanceof Error ? error.message : "Não foi possível acessar o admin do Supabase.";
+  }
+
+  if (!authUserId) {
+    const createResult = await admin.auth.admin.createUser({
+      email: normalizedEmail,
+      password: senhaProvisoria,
+      email_confirm: true,
+      user_metadata: {
+        nome,
+        empresa_id: empresaId,
+        app_slug: "lavagestor",
+        perfil_app: perfilAcesso
+      }
+    });
+
+    if (createResult.error) {
+      if (!isAuthAlreadyExistsError(createResult.error.message)) {
+        return createResult.error.message;
+      }
+
+      const foundAuth = await findAuthUserByEmail(admin, normalizedEmail);
+
+      if (foundAuth.error) {
+        return foundAuth.error;
+      }
+
+      if (!foundAuth.user?.id) {
+        return "O e-mail já existe no Auth, mas não foi possível localizar o usuário para vincular.";
+      }
+
+      authUserId = String(foundAuth.user.id);
+    } else {
+      authUserId = createResult.data?.user?.id ? String(createResult.data.user.id) : null;
+    }
+
+    if (!authUserId) {
+      return "Não foi possível criar o usuário de acesso.";
+    }
+  } else {
+    const updatePayload: Record<string, unknown> = {
+      email: normalizedEmail,
+      email_confirm: true,
+      user_metadata: {
+        nome,
+        empresa_id: empresaId,
+        app_slug: "lavagestor",
+        perfil_app: perfilAcesso
+      }
+    };
+
+    if (senhaProvisoria) {
+      if (senhaProvisoria.length < 6) {
+        return "A nova senha provisória precisa ter pelo menos 6 caracteres.";
+      }
+
+      updatePayload.password = senhaProvisoria;
+    }
+
+    const updateAuth = await admin.auth.admin.updateUserById(authUserId, updatePayload);
+
+    if (updateAuth.error) {
+      return updateAuth.error.message;
+    }
+  }
+
+  const corePayload = {
+    auth_user_id: authUserId,
+    empresa_id: empresaId,
+    nome,
+    email: normalizedEmail,
+    telefone,
+    tipo: "funcionario",
+    tipo_global: "funcionario",
+    status: "ativo",
+    updated_at: new Date().toISOString()
+  };
+
+  if (usuarioId) {
+    const coreUpdate = await client.from("core_usuarios").update(corePayload).eq("id", usuarioId);
+
+    if (coreUpdate.error) {
+      return coreUpdate.error.message;
+    }
+  } else {
+    const coreInsert = await client
+      .from("core_usuarios")
+      .insert(corePayload)
+      .select("id")
+      .maybeSingle();
+
+    if (coreInsert.error || !coreInsert.data?.id) {
+      return coreInsert.error?.message ?? "Não foi possível criar o usuário interno.";
+    }
+
+    usuarioId = String(coreInsert.data.id);
+  }
+
+  const funcionarioUpdate = await client
+    .from("lava_funcionarios")
+    .update({
+      core_usuario_id: usuarioId,
+      usuario_id: usuarioId,
+      acesso_sistema: true,
+      perfil_acesso: perfilAcesso,
+      permissoes_extras: permissoesExtras,
+      email: normalizedEmail
+    })
+    .eq("id", funcionarioId)
+    .eq("empresa_id", empresaId);
+
+  if (funcionarioUpdate.error) {
+    return funcionarioUpdate.error.message;
+  }
+
+  const existingPermission = await client
     .from("core_usuario_app_permissoes")
     .select("id")
     .eq("usuario_id", usuarioId)
     .eq("app_id", appResult.data.id)
     .maybeSingle();
 
-  if (existingResult.error) {
-    return existingResult.error.message;
+  if (existingPermission.error) {
+    return existingPermission.error.message;
   }
 
   const permissionPayload = {
@@ -248,16 +448,48 @@ async function syncFuncionarioLavaAccess({
     empresa_id: empresaId,
     app_id: appResult.data.id,
     perfil_app: perfilAcesso,
-    status: acessoSistema ? "ativo" : "inativo",
-    permissoes_extras: acessoSistema ? permissoesExtras : [],
+    status: "ativo",
+    permissoes_extras: permissoesExtras,
     updated_at: new Date().toISOString()
   };
 
-  const permissionResult = existingResult.data?.id
-    ? await client.from("core_usuario_app_permissoes").update(permissionPayload).eq("id", existingResult.data.id)
+  const permissionResult = existingPermission.data?.id
+    ? await client.from("core_usuario_app_permissoes").update(permissionPayload).eq("id", existingPermission.data.id)
     : await client.from("core_usuario_app_permissoes").insert(permissionPayload);
 
   return permissionResult.error?.message ?? null;
+}
+
+async function findAuthUserByEmail(admin: any, email: string) {
+  for (let page = 1; page <= 20; page += 1) {
+    const result = await admin.auth.admin.listUsers({ page, perPage: 100 });
+
+    if (result.error) {
+      return { user: null, error: result.error.message };
+    }
+
+    const users = result.data?.users ?? [];
+    const user = users.find((item: { email?: string }) => sanitizeEmail(item.email) === email);
+
+    if (user) {
+      return { user, error: null };
+    }
+
+    if (users.length < 100) {
+      break;
+    }
+  }
+
+  return { user: null, error: null };
+}
+
+function sanitizeEmail(value: unknown) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function isAuthAlreadyExistsError(message: string) {
+  const normalized = message.toLowerCase();
+  return normalized.includes("already") || normalized.includes("registered") || normalized.includes("exists");
 }
 
 export async function inactivateFuncionario(formData: FormData) {

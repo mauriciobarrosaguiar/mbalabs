@@ -142,6 +142,12 @@ export default async function FuncionariosPage({
             <FormInput label="Telefone" name="telefone" defaultValue={String(editing?.telefone ?? "")} />
             <FormInput label="E-mail para acesso" name="email" type="email" defaultValue={String(editing?.email ?? "")} />
             <FormInput
+              label={editing?.core_usuario_id || editing?.usuario_id ? "Nova senha provisória" : "Senha provisória"}
+              name="senha_provisoria"
+              type="password"
+              placeholder={editing?.core_usuario_id || editing?.usuario_id ? "Preencha somente se quiser trocar" : "Mínimo 6 caracteres"}
+            />
+            <FormInput
               label="Percentual de comissão"
               name="percentual_comissao"
               type="number"
@@ -204,6 +210,11 @@ export default async function FuncionariosPage({
           columns={[
             { key: "nome", label: "Nome" },
             { key: "telefone", label: "Telefone" },
+            { key: "email", label: "E-mail" },
+            { key: "perfil_acesso_label", label: "Perfil" },
+            { key: "acesso_sistema_label", label: "Acesso" },
+            { key: "login_vinculado", label: "Login" },
+            { key: "permissoes_resumo", label: "Permissões extras" },
             { key: "percentual_comissao", label: "Comissão %" },
             { key: "comissoes_pendentes", label: "Comissões pendentes" },
             { key: "vales_abertos", label: "Vales em aberto" },
@@ -215,6 +226,10 @@ export default async function FuncionariosPage({
             const resumo = financeiroPorFuncionario[String(row.id)] ?? { comissoes: 0, vales: 0 };
             return {
               ...row,
+              perfil_acesso_label: perfilLabel(String(row.perfil_acesso ?? "lavador")),
+              acesso_sistema_label: row.acesso_sistema === true ? "Liberado" : "Sem acesso",
+              login_vinculado: row.core_usuario_id || row.usuario_id ? "Vinculado" : row.acesso_sistema === true ? "Pendente" : "-",
+              permissoes_resumo: permissoesResumo(row.permissoes_extras),
               comissoes_pendentes: formatMoney(resumo.comissoes),
               vales_abertos: formatMoney(resumo.vales),
               saldo_previsto: formatMoney(resumo.comissoes - resumo.vales),
