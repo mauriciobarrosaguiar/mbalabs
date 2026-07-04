@@ -206,7 +206,7 @@ export async function requireLavaGestorAccess(nextPath = "/lavagestor") {
 
 export async function requireLavaGestorFinanceAccess(nextPath: string) {
   const access = await requireLavaGestorAccess(nextPath);
-  if (!canViewFinance(access.perfil)) {
+  if (!canViewFinance(access.perfil, getLavaGestorPermissionExtras(access.current))) {
     redirect(`/lavagestor?error=${encodeURIComponent("Seu perfil nao pode acessar financeiro completo.")}`);
   }
   return access;
@@ -214,7 +214,7 @@ export async function requireLavaGestorFinanceAccess(nextPath: string) {
 
 export async function requireLavaGestorSettingsAccess(nextPath: string) {
   const access = await requireLavaGestorAccess(nextPath);
-  if (!canManageSettings(access.perfil)) {
+  if (!canManageSettings(access.perfil, getLavaGestorPermissionExtras(access.current))) {
     redirect(`/lavagestor?error=${encodeURIComponent("Seu perfil nao pode alterar configuracoes.")}`);
   }
   return access;
@@ -223,7 +223,7 @@ export async function requireLavaGestorSettingsAccess(nextPath: string) {
 export async function requireLavaPermission(permission: LavaPermission, nextPath = "/lavagestor") {
   const access = await requireLavaGestorAccess(nextPath);
 
-  if (!canLavaAccess(access.perfil, permission)) {
+  if (!canLavaAccess(access.perfil, permission, getLavaGestorPermissionExtras(access.current))) {
     redirect(`/lavagestor?error=${encodeURIComponent("Seu perfil nao tem permissao para acessar esta funcao.")}`);
   }
 
@@ -244,6 +244,11 @@ export function getLavaGestorPerfil(current: CurrentUserProfile): LavaPerfil {
   if (perfil === "funcionario") return "lavador";
   if (perfil === "atendente") return "operador";
   return "usuario";
+}
+
+export function getLavaGestorPermissionExtras(current: CurrentUserProfile) {
+  const permissao = current.permissoes.find((item) => item.appSlug === "lavagestor" && item.podeAcessar);
+  return normalizeLavaPermissions(permissao?.permissoesExtras ?? []);
 }
 
 export function getBaseLavaPermissions(perfil: LavaPerfil) {

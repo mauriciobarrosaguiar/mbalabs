@@ -23,6 +23,7 @@ export type SharedPermissao = {
   appNome: string;
   perfil: string;
   podeAcessar: boolean;
+  permissoesExtras: string[];
 };
 
 export type SharedAppAccess = {
@@ -85,7 +86,7 @@ export async function getCurrentUserProfileFromSupabase(
       .order("ordem", { ascending: true }),
     (supabase as any)
       .from("core_usuario_app_permissoes")
-      .select("status,perfil_app,empresa_id,core_apps(id,slug,nome,url_path,url_interna,descricao,status,ativo)")
+      .select("status,perfil_app,permissoes_extras,empresa_id,core_apps(id,slug,nome,url_path,url_interna,descricao,status,ativo)")
       .eq("usuario_id", usuario.id),
     usuario.empresa_id
       ? (supabase as any)
@@ -161,7 +162,8 @@ async function getUserPermissions(
         appSlug: String(app?.slug ?? ""),
         appNome: String(app?.nome ?? ""),
         perfil: String(row.perfil_app ?? "usuario"),
-        podeAcessar: String(row.status ?? "ativo") === "ativo"
+        podeAcessar: String(row.status ?? "ativo") === "ativo",
+        permissoesExtras: normalizeStringArray(row.permissoes_extras)
       };
     });
   }
@@ -177,9 +179,25 @@ async function getUserPermissions(
       appSlug: String(app?.slug ?? ""),
       appNome: String(app?.nome ?? ""),
       perfil: String(row.perfil ?? "usuario"),
-      podeAcessar: row.pode_acessar !== false
+      podeAcessar: row.pode_acessar !== false,
+      permissoesExtras: []
     };
   });
+}
+
+function normalizeStringArray(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item)).filter(Boolean);
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    return value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  return [];
 }
 
 async function getCompanyContracts(

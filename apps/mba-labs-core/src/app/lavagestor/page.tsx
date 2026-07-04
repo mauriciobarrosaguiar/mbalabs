@@ -5,7 +5,7 @@ import { MessageBanner, formatDate, formatMoney } from "@/components/ui-kit";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
 import { getLavaDashboard } from "@/lib/lavagestor-data";
-import { getLavaDefaultRoute, requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
+import { getLavaDefaultRoute, getLavaGestorPermissionExtras, requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,7 @@ type Metric = {
 export default async function LavaGestorPortalPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const access = await requireLavaGestorAccess("/lavagestor");
-  const defaultRoute = getLavaDefaultRoute(access.perfil);
+  const defaultRoute = getLavaDefaultRoute(access.perfil, getLavaGestorPermissionExtras(access.current));
 
   if (defaultRoute !== "/lavagestor") {
     redirect(defaultRoute);
