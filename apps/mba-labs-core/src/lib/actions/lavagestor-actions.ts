@@ -6,7 +6,7 @@ import { logAction, requireAppAccess } from "@/lib/core-data";
 import { booleanValue, dateValue, messageParam, nullableTextValue, numberValue, textValue } from "@/lib/form-utils";
 import { normalizeLavaStatus } from "@/lib/lavagestor-data";
 import { baixarEstoqueDaLavagem } from "@/lib/lavagestor-estoque-sync";
-import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
+import { isLavaPermission, requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
 import { sendLavagemReceiptWhatsapp } from "@/lib/lavagestor-recibo-whatsapp";
 import { enqueueWhatsappMessage } from "@/lib/lavagestor-whatsapp";
 import { getSupabaseServer } from "@/lib/supabase";
@@ -112,8 +112,12 @@ export async function saveFuncionario(formData: FormData) {
   await requireLavaGestorFinanceAccess("/lavagestor/funcionarios");
   const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
+  const client = supabase as any;
   const id = textValue(formData, "id");
   const nome = textValue(formData, "nome");
+  const acessoSistema = booleanValue(formData, "acesso_sistema");
+  const perfilAcesso = normalizeFuncionarioPerfil(textValue(formData, "perfil_acesso"));
+  const permissoesExtras = selectedLavaPermissions(formData);
 
   if (!nome) {
     redirect(`/lavagestor/funcionarios?error=${messageParam("Informe o nome do funcionário.")}`);
@@ -123,21 +127,137 @@ export async function saveFuncionario(formData: FormData) {
     empresa_id: current.empresaId,
     nome,
     telefone: nullableTextValue(formData, "telefone"),
+    email: nullableTextValue(formData, "email"),
     percentual_comissao: numberValue(formData, "percentual_comissao"),
-    ativo: booleanValue(formData, "ativo")
+    ativo: booleanValue(formData, "ativo"),
+    acesso_sistema: acessoSistema,
+    perfil_acesso: perfilAcesso,
+    permissoes_extras: permissoesExtras
   };
 
   const result = id
-    ? await (supabase as any).from("lava_funcionarios").update(payload).eq("id", id).eq("empresa_id", current.empresaId)
-    : await (supabase as any).from("lava_funcionarios").insert(payload);
+    ? await client.from("lava_funcionarios").update(payload).eq("id", id).eq("empresa_id", current.empresaId).select("id").maybeSingle()
+    : await client.from("lava_funcionarios").insert(payload).select("id").maybeSingle();
 
   if (result.error) {
     redirect(`/lavagestor/funcionarios?error=${messageParam(result.error.message)}`);
   }
 
-  await logAction({ appSlug: "lavagestor", acao: id ? "editar funcionário" : "criar funcionário", detalhes: { nome } });
+  const funcionarioId = String(result.data?.id ?? id);
+  const syncError = await syncFuncionarioLavaAccess({
+    client,
+    empresaId: current.empresaId,
+    funcionarioId,
+    acessoSistema,
+    perfilAcesso,
+    permissoesExtras
+  });
+
+  if (syncError) {
+    redirect(`/lavagestor/funcionarios?error=${messageParam(syncError)}`);
+  }
+
+  await logAction({
+    appSlug: "lavagestor",
+    acao: id ? "editar funcionário" : "criar funcionário",
+    detalhes: { nome, acessoSistema, perfilAcesso, permissoesExtras }
+  });
+
   revalidatePath("/lavagestor/funcionarios");
   redirect(`/lavagestor/funcionarios?ok=${messageParam("Funcionário salvo com sucesso.")}`);
+}
+
+function selectedLavaPermissions(formData: FormData) {
+  const values = formData
+    .getAll("permissoes_extras")
+    .map((value) => String(value).trim())
+    .filter(isLavaPermission);
+
+  return Array.from(new Set(values));
+}
+
+function normalizeFuncionarioPerfil(value: string) {
+  const normalized = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+
+  if (["lavador", "operador", "caixa", "gerente", "visualizador"].includes(normalized)) {
+    return normalized;
+  }
+
+  return "lavador";
+}
+
+async function syncFuncionarioLavaAccess({
+  client,
+  empresaId,
+  funcionarioId,
+  acessoSistema,
+  perfilAcesso,
+  permissoesExtras
+}: {
+  client: any;
+  empresaId: string | null;
+  funcionarioId: string;
+  acessoSistema: boolean;
+  perfilAcesso: string;
+  permissoesExtras: string[];
+}) {
+  if (!empresaId || !funcionarioId) return null;
+
+  const funcionarioResult = await client
+    .from("lava_funcionarios")
+    .select("id,core_usuario_id,usuario_id")
+    .eq("id", funcionarioId)
+    .eq("empresa_id", empresaId)
+    .maybeSingle();
+
+  if (funcionarioResult.error) {
+    return funcionarioResult.error.message;
+  }
+
+  const usuarioId = funcionarioResult.data?.core_usuario_id ?? funcionarioResult.data?.usuario_id;
+
+  if (!usuarioId) {
+    return null;
+  }
+
+  const appResult = await client.from("core_apps").select("id").eq("slug", "lavagestor").maybeSingle();
+
+  if (appResult.error || !appResult.data?.id) {
+    return appResult.error?.message ?? "App LavaGestor não encontrado para atualizar permissões.";
+  }
+
+  const existingResult = await client
+    .from("core_usuario_app_permissoes")
+    .select("id")
+    .eq("usuario_id", usuarioId)
+    .eq("app_id", appResult.data.id)
+    .maybeSingle();
+
+  if (existingResult.error) {
+    return existingResult.error.message;
+  }
+
+  const permissionPayload = {
+    usuario_id: usuarioId,
+    empresa_id: empresaId,
+    app_id: appResult.data.id,
+    perfil_app: perfilAcesso,
+    status: acessoSistema ? "ativo" : "inativo",
+    permissoes_extras: acessoSistema ? permissoesExtras : [],
+    updated_at: new Date().toISOString()
+  };
+
+  const permissionResult = existingResult.data?.id
+    ? await client.from("core_usuario_app_permissoes").update(permissionPayload).eq("id", existingResult.data.id)
+    : await client.from("core_usuario_app_permissoes").insert(permissionPayload);
+
+  return permissionResult.error?.message ?? null;
 }
 
 export async function inactivateFuncionario(formData: FormData) {
