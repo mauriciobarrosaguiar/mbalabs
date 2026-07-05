@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 export type DataColumn = {
   key: string;
@@ -96,7 +96,7 @@ export function DataTable({
                 {column.label}
               </th>
             ))}
-            {actions ? <th className="w-[240px] px-4 py-4 text-right font-black tracking-wide">Ações</th> : null}
+            {actions ? <th className="w-[240px] px-4 py-4 text-right font-black tracking-wide">AÃ§Ãµes</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -123,7 +123,7 @@ export function DataTable({
 
       <div className="grid gap-4 p-3 lg:hidden">
         {rows.length === 0 ? (
-          <div className="rounded-[18px] border border-white/10 bg-white p-5 text-center text-sm font-bold text-slate-300">
+          <div className="rounded-[18px] border border-slate-200 bg-white p-5 text-center text-sm font-bold text-slate-700">
             {emptyMessage}
           </div>
         ) : (
@@ -155,12 +155,12 @@ function SmartMobileCard({
     .filter((column) => !hiddenKeys.has(column.key) && column.value !== "-");
 
   return (
-    <article className="overflow-hidden rounded-[22px] border border-white/10 bg-white p-4 shadow-[0_1px_8px_rgba(15,81,50,0.08)]">
-      <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
+    <article className="overflow-hidden rounded-[22px] border border-slate-200 bg-white p-4 text-slate-900 shadow-[0_1px_8px_rgba(15,81,50,0.08)]">
+      <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
         <div className="min-w-0">
-          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">Registro #{index + 1}</p>
-          <h3 className="mt-2 break-words text-2xl font-black leading-tight text-slate-100">{title?.value ?? "Registro"}</h3>
-          {subtitle ? <p className="mt-1 break-words text-sm font-bold leading-5 text-slate-300">{subtitle.value}</p> : null}
+          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">Registro #{index + 1}</p>
+          <h3 className="mt-2 break-words text-2xl font-black leading-tight text-slate-900">{title?.value ?? "Registro"}</h3>
+          {subtitle ? <p className="mt-1 break-words text-sm font-bold leading-5 text-slate-600">{subtitle.value}</p> : null}
         </div>
         {badge ? <span className={badgeClassName(badge.value)}>{badge.value}</span> : null}
       </div>
@@ -168,9 +168,9 @@ function SmartMobileCard({
       {highlights.length ? (
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           {highlights.map((item) => (
-            <div className="rounded-[16px] border border-white/10 bg-emerald-50 p-3" key={item.key}>
-              <span className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">{item.label}</span>
-              <strong className="mt-1 block break-words text-xl font-black text-slate-100">{item.value}</strong>
+            <div className="rounded-[16px] border border-emerald-100 bg-emerald-50 p-3" key={item.key}>
+              <span className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">{item.label}</span>
+              <strong className="mt-1 block break-words text-xl font-black text-slate-900">{item.value}</strong>
             </div>
           ))}
         </div>
@@ -179,16 +179,16 @@ function SmartMobileCard({
       {details.length ? (
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           {details.map((column) => (
-            <div className="rounded-[16px] bg-slate-50 p-3" key={column.key}>
-              <span className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">{column.label}</span>
-              <strong className="mt-1 block break-words text-base font-black text-slate-100">{column.value}</strong>
+            <div className="rounded-[16px] border border-slate-100 bg-slate-50 p-3" key={column.key}>
+              <span className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-500">{column.label}</span>
+              <strong className="mt-1 block break-words text-base font-black text-slate-900">{column.value}</strong>
             </div>
           ))}
         </div>
       ) : null}
 
       {actions ? (
-        <div className="mt-4 border-t border-white/10 pt-4 [&>div]:grid [&>div]:grid-cols-2 [&>div]:gap-2 [&>div]:justify-stretch [&_a]:w-full [&_button]:w-full [&_form]:contents">
+        <div className="mt-4 border-t border-slate-200 pt-4 [&>div]:grid [&>div]:grid-cols-2 [&>div]:gap-2 [&>div]:justify-stretch [&_a]:w-full [&_button]:w-full [&_form]:contents">
           {actions(row)}
         </div>
       ) : null}
@@ -204,7 +204,7 @@ function getCardTitle(row: Record<string, unknown>, columns: DataColumn[]): Smar
 
   if (placa !== "-" || modelo !== "-" || marca !== "-") {
     const value = [placa, marca, modelo].filter((item) => item !== "-").join(" - ");
-    return { key: placa !== "-" ? "placa" : modelo !== "-" ? "modelo" : "marca", label: "Veículo", value };
+    return { key: placa !== "-" ? "placa" : modelo !== "-" ? "modelo" : "marca", label: "VeÃ­culo", value };
   }
 
   if (row.nome !== undefined) {
@@ -256,7 +256,7 @@ function getHighlightColumns(row: Record<string, unknown>, columns: DataColumn[]
 function isMetricColumn(column: SmartColumn) {
   const key = column.key.toLowerCase();
   const label = column.label.toLowerCase();
-  return ["valor", "preco", "preço", "comissao", "comissão", "vales", "saldo", "pendentes", "recebido", "total"].some(
+  return ["valor", "preco", "preÃ§o", "comissao", "comissÃ£o", "vales", "saldo", "pendentes", "recebido", "total"].some(
     (term) => key.includes(term) || label.includes(term)
   );
 }
@@ -267,7 +267,7 @@ function badgeClassName(value: string) {
     ? "bg-emerald-100 text-emerald-900 border-emerald-200"
     : normalized.includes("aberto") || normalized.includes("pendente") || normalized.includes("fiado") || normalized.includes("parcial")
       ? "bg-amber-100 text-amber-900 border-amber-200"
-      : normalized.includes("não") || normalized.includes("nao") || normalized.includes("cancel") || normalized.includes("inativo")
+      : normalized.includes("nÃ£o") || normalized.includes("nao") || normalized.includes("cancel") || normalized.includes("inativo")
         ? "bg-red-100 text-red-900 border-red-200"
         : "bg-slate-100 text-slate-700 border-slate-200";
 
@@ -423,8 +423,8 @@ export function AccessDenied({ appName = "este sistema", backHref = "/dashboard"
   return (
     <div className="panel mx-auto grid max-w-xl gap-4 p-6 text-center">
       <p className="eyebrow">Acesso bloqueado</p>
-      <h1 className="text-3xl font-black">Você não tem acesso a {appName}</h1>
-      <p className="text-sm leading-6 text-slate-300">Verifique a assinatura da empresa ou peça para um administrador liberar sua permissão.</p>
+      <h1 className="text-3xl font-black">VocÃª nÃ£o tem acesso a {appName}</h1>
+      <p className="text-sm leading-6 text-slate-300">Verifique a assinatura da empresa ou peÃ§a para um administrador liberar sua permissÃ£o.</p>
       <Link className="button-primary mx-auto" href={backHref}>
         Voltar ao dashboard
       </Link>
@@ -486,7 +486,7 @@ function formatValue(value: unknown) {
   }
 
   if (typeof value === "boolean") {
-    return value ? "Sim" : "Não";
+    return value ? "Sim" : "NÃ£o";
   }
 
   if (typeof value === "object") {
@@ -495,3 +495,4 @@ function formatValue(value: unknown) {
 
   return String(value);
 }
+
