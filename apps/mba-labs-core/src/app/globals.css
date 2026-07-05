@@ -524,3 +524,36 @@ select.input option:disabled {
 .muted {
   color: var(--muted);
 }
+
+/* Correção dos botões dentro dos cards brancos no mobile */
+@media (max-width: 1023px) {
+  .page-shell article.bg-white .button-secondary {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  }
+
+  .page-shell article.bg-white .button-secondary:hover {
+    background: #f1f5f9 !important;
+    color: #020617 !important;
+  }
+
+  .page-shell article.bg-white .button-danger {
+    background: #fee2e2 !important;
+    border: 1px solid #fca5a5 !important;
+    color: #991b1b !important;
+    box-shadow: 0 1px 2px rgba(153, 27, 27, 0.08);
+  }
+
+  .page-shell article.bg-white .button-danger:hover {
+    background: #fecaca !important;
+    color: #7f1d1d !important;
+  }
+
+  .page-shell article.bg-white .button-primary {
+    background: linear-gradient(135deg, #28d8a5, #38bdf8) !important;
+    border: 1px solid rgba(14, 165, 233, 0.45) !important;
+    color: #031111 !important;
+  }
+}
