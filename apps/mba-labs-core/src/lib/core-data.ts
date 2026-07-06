@@ -703,7 +703,7 @@ export async function getAdminOptions() {
     client.from("core_planos").select("id,nome,app_id,core_apps(nome)").order("nome"),
     client
       .from("core_assinaturas")
-      .select("id,status,core_empresas(nome,nome_fantasia),core_apps(nome)")
+      .select("id,empresa_id,status,core_empresas(nome,nome_fantasia),core_apps(nome)")
       .order("created_at", { ascending: false })
       .limit(100),
     client
@@ -1226,4 +1226,5 @@ function getAppSlugFromPath(path: string) {
 
   return null;
 }
+
 

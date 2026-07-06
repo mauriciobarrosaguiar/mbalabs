@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { AppNav } from "@/components/AppNav";
 import {
   DataTable,
@@ -168,3 +168,53 @@ function relationName(value: unknown) {
   const relation = relationObject(value);
   return String(relation.nome_fantasia ?? relation.nome ?? "");
 }
+
+const paymentSubscriptionFilterScript = `
+(function () {
+  function setupPaymentSubscriptionFilter() {
+    var companySelect = document.querySelector("[data-payment-company-select]");
+    var subscriptionSelect = document.querySelector("[data-payment-subscription-select]");
+
+    if (!companySelect || !subscriptionSelect || subscriptionSelect.dataset.filtered === "true") {
+      return;
+    }
+
+    subscriptionSelect.dataset.filtered = "true";
+
+    function applyFilter() {
+      var selectedCompany = companySelect.value;
+      var currentValue = subscriptionSelect.value;
+      var hasCurrentVisible = false;
+
+      Array.prototype.forEach.call(subscriptionSelect.options, function (option) {
+        if (!option.value) {
+          option.hidden = false;
+          option.disabled = false;
+          return;
+        }
+
+        var sameCompany = option.getAttribute("data-empresa-id") === selectedCompany;
+        option.hidden = Boolean(selectedCompany) && !sameCompany;
+        option.disabled = Boolean(selectedCompany) && !sameCompany;
+
+        if (option.value === currentValue && !option.hidden) {
+          hasCurrentVisible = true;
+        }
+      });
+
+      if (!hasCurrentVisible) {
+        subscriptionSelect.value = "";
+      }
+    }
+
+    companySelect.addEventListener("change", applyFilter);
+    applyFilter();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupPaymentSubscriptionFilter);
+  } else {
+    setupPaymentSubscriptionFilter();
+  }
+})();
+`;
