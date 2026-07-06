@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import { type CurrentUserProfile, requireAppAccess } from "./core-data";
 
 export type LavaPerfil =
@@ -352,3 +352,4 @@ function normalizePerfil(value: string) {
 function isLavaPerfil(value: string): value is LavaPerfil {
   return ["admin_master", "admin_empresa", "dono", "gerente", "operador", "caixa", "lavador", "visualizador", "usuario"].includes(value);
 }
+
