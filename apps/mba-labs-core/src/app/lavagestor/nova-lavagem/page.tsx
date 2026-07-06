@@ -1,3 +1,4 @@
+﻿import { redirect } from "next/navigation";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, EmptyState, PageHeader } from "@/components/ui-kit";
 import { NovaLavagemForm } from "@/components/lavagestor/NovaLavagemForm";
@@ -5,6 +6,7 @@ import { firstParam } from "@/lib/form-utils";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
 import { getLavaLookups } from "@/lib/lavagestor-data";
 import { listLavaServicosAvancados } from "@/lib/lavagestor-servicos-data";
+import { requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -79,3 +81,4 @@ function toText(value: unknown) {
   const text = String(value ?? "");
   return text || null;
 }
+
