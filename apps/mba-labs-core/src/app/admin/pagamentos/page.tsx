@@ -86,8 +86,12 @@ export default async function AdminPagamentosPage({ searchParams }: { searchPara
                 </>
               }
             >
-              <FormSelect label="Empresa" name="empresa_id" defaultValue={String(editing?.empresa_id ?? "")} options={options.empresas} required />
-              <FormSelect label="Assinatura" name="assinatura_id" defaultValue={String(editing?.assinatura_id ?? "")} options={options.assinaturas} required />
+              <PaymentSubscriptionFields
+                empresas={options.empresas}
+                assinaturas={options.assinaturas}
+                defaultEmpresaId={String(editing?.empresa_id ?? "")}
+                defaultAssinaturaId={String(editing?.assinatura_id ?? "")}
+              />
               <FormMoneyInput label="Valor" name="valor" defaultValue={String(editing?.valor ?? "")} required />
               <FormDateInput label="Vencimento" name="vencimento" defaultValue={editing?.vencimento ? String(editing.vencimento).slice(0, 10) : ""} />
               <FormDateInput label="Pago em" name="pagamento_em" defaultValue={editing?.pagamento_em ? String(editing.pagamento_em).slice(0, 10) : ""} />
@@ -219,4 +223,5 @@ const paymentSubscriptionFilterScript = `
   }
 })();
 `;
+
 

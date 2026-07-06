@@ -38,8 +38,8 @@ export type SystemCard = {
 export const fallbackApps: SystemCard[] = [
   {
     slug: "mba-cotacoes",
-    nome: "MBA CotaÃ§Ãµes",
-    descricao: "CotaÃ§Ãµes, vendedores, respostas e pedidos.",
+    nome: "MBA Cotações",
+    descricao: "Cotações, vendedores, respostas e pedidos.",
     url_path: "/apps/mbacotacoes",
     status: "sem_assinatura",
     canAccess: false
@@ -47,7 +47,7 @@ export const fallbackApps: SystemCard[] = [
   {
     slug: "lavagestor",
     nome: "LavaGestor",
-    descricao: "Lavagens, clientes, veÃ­culos, funcionÃ¡rios e comissÃµes.",
+    descricao: "Lavagens, clientes, veículos, funcionÃ¡rios e comissÃµes.",
     url_path: "/apps/lavagestor",
     status: "sem_assinatura",
     canAccess: false
@@ -55,7 +55,7 @@ export const fallbackApps: SystemCard[] = [
   {
     slug: "bikecomanda",
     nome: "BikeComanda",
-    descricao: "Comandas, serviÃ§os, orÃ§amentos, pagamentos e comissÃµes para bicicletarias.",
+    descricao: "Comandas, serviços, orçamentos, pagamentos e comissÃµes para bicicletarias.",
     url_path: "/apps/bikecomanda",
     status: "sem_assinatura",
     canAccess: false
@@ -71,7 +71,7 @@ export const fallbackApps: SystemCard[] = [
   {
     slug: "lexgestor",
     nome: "LexGestor",
-    descricao: "GestÃ£o jurÃ­dica inteligente para escritÃ³rios de advocacia.",
+    descricao: "GestÃ£o jurídica inteligente para escritórios de advocacia.",
     url_path: "/lexgestor",
     status: "sem_assinatura",
     canAccess: false
@@ -336,7 +336,7 @@ export const adminResources = {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
       { name: "slug", label: "Slug", type: "text", required: true },
-      { name: "descricao", label: "DescriÃ§Ã£o", type: "textarea" },
+      { name: "descricao", label: "Descrição", type: "textarea" },
       {
         name: "status",
         label: "Status",
@@ -393,7 +393,7 @@ export const adminResources = {
   },
   usuarios: {
     table: "core_usuarios",
-    title: "UsuÃ¡rios",
+    title: "Usuários",
     select: "id,nome,email,telefone,empresa_id,tipo,tipo_global,status,created_at,core_empresas(nome,nome_fantasia)",
     companyScoped: true,
     inactiveField: "status",
@@ -483,7 +483,7 @@ export const adminResources = {
     fields: [
       { name: "slug", label: "Slug", type: "select", required: true, optionSource: "internalAppSlugs" },
       { name: "nome", label: "Nome", type: "text", required: true },
-      { name: "descricao", label: "DescriÃ§Ã£o", type: "textarea" },
+      { name: "descricao", label: "Descrição", type: "textarea" },
       { name: "url_interna", label: "URL interna", type: "select", optionSource: "internalAppRoutes" },
       { name: "logo_icone", label: "Logo/icone", type: "text" },
       { name: "ordem", label: "Ordem", type: "number" },
@@ -509,16 +509,16 @@ export const adminResources = {
       { key: "app", label: "App" },
       { key: "nome", label: "Nome" },
       { key: "valor_mensal", label: "Mensalidade" },
-      { key: "limite_usuarios", label: "UsuÃ¡rios" },
+      { key: "limite_usuarios", label: "Usuários" },
       { key: "ativo", label: "Ativo" },
       { key: "created_at", label: "Criado em" }
     ],
     fields: [
       { name: "app_id", label: "App", type: "select", required: true, optionSource: "apps" },
       { name: "nome", label: "Nome", type: "text", required: true },
-      { name: "descricao", label: "DescriÃ§Ã£o", type: "textarea" },
+      { name: "descricao", label: "Descrição", type: "textarea" },
       { name: "valor_mensal", label: "Valor mensal", type: "number" },
-      { name: "limite_usuarios", label: "Limite de usuÃ¡rios", type: "number" },
+      { name: "limite_usuarios", label: "Limite de usuários", type: "number" },
       { name: "limite_registros", label: "Limite de registros", type: "number" },
       { name: "ativo", label: "Ativo", type: "boolean" }
     ]
@@ -606,7 +606,7 @@ export const adminResources = {
       { key: "empresa", label: "Empresa" },
       { key: "usuario", label: "UsuÃ¡rio" },
       { key: "app_slug", label: "App" },
-      { key: "acao", label: "AÃ§Ã£o" },
+      { key: "acao", label: "Ação" },
       { key: "created_at", label: "Criado em" }
     ],
     fields: []
@@ -788,7 +788,7 @@ export async function getAdminDashboardData() {
       { label: "Empresas em teste", value: empresasTeste },
       { label: "Empresas bloqueadas", value: empresasBloqueadas },
       { label: "Empresas canceladas", value: empresasCanceladas },
-      { label: "Total de usuÃ¡rios", value: totalUsuarios },
+      { label: "Total de usuários", value: totalUsuarios },
       { label: "Apps cadastrados", value: totalApps },
       { label: "Assinaturas ativas", value: assinaturasAtivas },
       { label: "Assinaturas vencidas", value: assinaturasVencidas },
@@ -1226,6 +1226,8 @@ function getAppSlugFromPath(path: string) {
 
   return null;
 }
+
+
 
 
 
