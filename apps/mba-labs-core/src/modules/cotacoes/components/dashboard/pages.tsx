@@ -2505,7 +2505,7 @@ async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string
                 <TableHead>Fornecedor vencedor</TableHead>
                 <TableHead className="text-right">Preco informado</TableHead>
                 <TableHead className="text-right">Total do item</TableHead>
-                <TableHead className="text-right">Acoes</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -41,7 +41,7 @@ const statusMap: Record<string, { label: string; className: string }> = {
   em_conferencia: { label: statusLabels.em_conferencia, className: "bg-amber-50 text-amber-700" },
   finalizado_pelo_vendedor: { label: "Pedido digitado", className: "bg-emerald-50 text-emerald-700" },
   parcialmente_faturado: { label: "Pedido parcial", className: "bg-amber-50 text-amber-700" },
-  nao_faturado: { label: "NÃ£o digitado", className: "bg-red-50 text-red-700" },
+  nao_faturado: { label: "Não digitado", className: "bg-red-50 text-red-700" },
   falta_parcial: { label: "Pedido parcial", className: "bg-amber-50 text-amber-700" },
   atendido_total: { label: statusLabels.atendido_total, className: "bg-emerald-50 text-emerald-700" },
   atendido_parcial: { label: statusLabels.atendido_parcial, className: "bg-amber-50 text-amber-700" },
