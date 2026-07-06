@@ -525,7 +525,7 @@ select.input option:disabled {
   color: var(--muted);
 }
 
-/* CorreÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o dos botÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âµes dentro dos cards brancos no mobile */
+/* CorreÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o dos botÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âµes dentro dos cards brancos no mobile */
 @media (max-width: 1023px) {
   .page-shell article.bg-white .button-secondary {
     background: #ffffff !important;
@@ -624,7 +624,7 @@ select.input option:disabled {
 
 /* BEGIN MBA LABS PLATFORM REDESIGN */
 /* Plataforma MBA Labs: identidade visual, logo, modo claro/escuro e contraste seguro.
-   Escopo protegido para nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o alterar sistemas internos. */
+   Escopo protegido para nÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o alterar sistemas internos. */
 
 :root[data-mba-theme="dark"] {
   color-scheme: dark;
@@ -876,7 +876,7 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
 /* END MBA DATA TABLE TOOLS */
 
 /* BEGIN MBA TABLE ALIGNMENT */
-/* PadronizaÃƒÂ§ÃƒÂ£o das listas da plataforma: maiÃƒÂºsculo, dados completos e alinhamento */
+/* PadronizaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o das listas da plataforma: maiÃƒÆ’Ã‚Âºsculo, dados completos e alinhamento */
 body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] table {
   border-spacing: 0;
 }
@@ -956,7 +956,7 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
   vertical-align: middle;
 }
 
-/* DistribuiÃ§Ã£o das colunas em listas maiores, como usuÃ¡rios */
+/* DistribuiÃƒÂ§ÃƒÂ£o das colunas em listas maiores, como usuÃƒÂ¡rios */
 body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] th:nth-child(1),
 body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] td:nth-child(1) {
   width: 17%;
@@ -1012,7 +1012,7 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
 /* BEGIN MBA RESPONSIVE LIST FIX */
 /* Listas da plataforma: sem rolagem horizontal, cards responsivos e ortografia visual correta */
 
-/* Em notebooks e telas médias, usar cards em vez de tabela espremida */
+/* Em notebooks e telas mÃ©dias, usar cards em vez de tabela espremida */
 @media (max-width: 1535px) {
   body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] table {
     display: none !important;
@@ -1023,7 +1023,7 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
   }
 }
 
-/* Em telas grandes, tabela sem scroll e melhor distribuída */
+/* Em telas grandes, tabela sem scroll e melhor distribuÃ­da */
 @media (min-width: 1536px) {
   body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] {
     overflow-x: hidden !important;
@@ -1133,3 +1133,124 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
   justify-content: flex-end;
 }
 /* END MBA RESPONSIVE LIST FIX */
+
+/* BEGIN MBA CARD RESPONSIVE POLISH */
+/* Organiza os cards das listas da plataforma em desktop/notebook/mobile */
+
+/* Cards em grade no computador, sem tabela espremida */
+@media (min-width: 900px) and (max-width: 1535px) {
+  body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] > div.grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    align-items: stretch;
+  }
+}
+
+/* Celular/tablet pequeno: 1 coluna */
+@media (max-width: 899px) {
+  body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] > div.grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Card mais compacto e alinhado */
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article {
+  min-height: 100%;
+  padding: 1rem !important;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article > div:first-child {
+  padding-bottom: 0.85rem !important;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article h3 {
+  font-size: clamp(1.1rem, 2vw, 1.45rem) !important;
+  line-height: 1.15 !important;
+  margin-top: 0.45rem !important;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article p {
+  color: #334155 !important;
+}
+
+/* Blocos internos */
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .bg-slate-50 {
+  background: #eef2f7 !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 14px !important;
+  padding: 0.85rem !important;
+}
+
+/* Área dos botões dentro do card */
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .border-t {
+  margin-top: 0.95rem !important;
+  padding-top: 0.95rem !important;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .border-t > div {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 0.65rem !important;
+  width: 100%;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .border-t form {
+  display: contents !important;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .button-secondary,
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .button-danger,
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .button-primary {
+  align-items: center !important;
+  display: inline-flex !important;
+  justify-content: center !important;
+  min-height: 46px !important;
+  padding: 0.7rem 0.9rem !important;
+  width: 100% !important;
+  white-space: nowrap !important;
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  text-transform: uppercase !important;
+}
+
+/* Botão EDITAR visível no card claro */
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .button-secondary {
+  background: #ffffff !important;
+  border: 1px solid #94a3b8 !important;
+  color: #0f172a !important;
+  box-shadow: 0 2px 5px rgba(15, 23, 42, 0.10) !important;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .button-secondary:hover {
+  background: #e2e8f0 !important;
+  border-color: #64748b !important;
+  color: #020617 !important;
+}
+
+/* Botão INATIVAR visível e sem quebrar */
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .button-danger {
+  background: #fee2e2 !important;
+  border: 1px solid #ef4444 !important;
+  color: #991b1b !important;
+  box-shadow: 0 2px 5px rgba(153, 27, 27, 0.10) !important;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .button-danger:hover {
+  background: #fecaca !important;
+  border-color: #dc2626 !important;
+  color: #7f1d1d !important;
+}
+
+/* Em celular, botões continuam lado a lado quando couber */
+@media (max-width: 420px) {
+  body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .border-t > div {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Toolbar mais encaixada */
+@media (max-width: 980px) {
+  .mba-data-table-toolbar {
+    grid-template-columns: 1fr !important;
+  }
+}
+/* END MBA CARD RESPONSIVE POLISH */
