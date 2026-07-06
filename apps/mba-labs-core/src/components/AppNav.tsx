@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { getSessionProfile, isSuperAdminType } from "@/lib/core-data";
 
 type NavLink = {
@@ -23,57 +24,69 @@ export async function AppNav() {
   const desktopLinks = groups.flatMap((group) => group.links);
 
   return (
-    <header className="border-b border-white/10 bg-black/20">
+    <header className="platform-nav border-b border-white/10 bg-black/20">
       <nav className="page-shell flex min-h-16 items-center justify-between gap-4 py-3">
-        <Link className="text-lg font-black tracking-tight" href="/">
-          MBA Labs
+        <Link className="mba-brand group flex items-center gap-3" href="/" aria-label="MBA Labs - início">
+          <span className="mba-brand-mark" aria-hidden="true">
+            MB
+          </span>
+          <span className="grid leading-none">
+            <span className="text-lg font-black tracking-tight">MBA Labs</span>
+            <span className="hidden text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:block">
+              Plataforma SaaS
+            </span>
+          </span>
         </Link>
 
         <div className="hidden flex-wrap items-center gap-2 text-sm text-slate-200 lg:flex">
           {desktopLinks.map((link) => (
-            <Link className="rounded-[8px] px-3 py-2 hover:bg-white/10" href={link.href} key={link.href}>
+            <Link className="platform-nav-link rounded-[8px] px-3 py-2 font-semibold hover:bg-white/10" href={link.href} key={link.href}>
               {link.label}
             </Link>
           ))}
+          <ThemeToggle />
           {user ? (
             <form action="/sair" method="post">
-              <button className="rounded-[8px] px-3 py-2 hover:bg-white/10" type="submit">
+              <button className="platform-nav-link rounded-[8px] px-3 py-2 font-semibold hover:bg-white/10" type="submit">
                 Sair
               </button>
             </form>
           ) : null}
         </div>
 
-        <details className="group relative lg:hidden">
-          <summary className="button-secondary min-h-10 cursor-pointer list-none px-3 py-2 text-sm">
-            Menu
-          </summary>
-          <div className="absolute right-0 z-50 mt-3 w-[min(86vw,320px)] rounded-[8px] border border-white/10 bg-[#071016] p-4 shadow-2xl">
-            <div className="grid gap-4">
-              {groups.map((group) => (
-                <div className="grid gap-1" key={group.title}>
-                  {group.title ? (
-                    <p className="px-2 text-xs font-black uppercase tracking-[0.12em] text-slate-400">
-                      {group.title}
-                    </p>
-                  ) : null}
-                  {group.links.map((link) => (
-                    <Link className="rounded-[8px] px-2 py-2 text-sm font-semibold hover:bg-white/10" href={link.href} key={link.href}>
-                      {link.label}
-                    </Link>
-                  ))}
-                </div>
-              ))}
-              {user ? (
-                <form action="/sair" className="border-t border-white/10 pt-3" method="post">
-                  <button className="w-full rounded-[8px] px-2 py-2 text-left text-sm font-semibold hover:bg-white/10" type="submit">
-                    Sair
-                  </button>
-                </form>
-              ) : null}
+        <div className="flex items-center gap-2 lg:hidden">
+          <ThemeToggle compact />
+          <details className="group relative">
+            <summary className="button-secondary min-h-10 cursor-pointer list-none px-3 py-2 text-sm">
+              Menu
+            </summary>
+            <div className="platform-mobile-menu absolute right-0 z-50 mt-3 w-[min(86vw,320px)] rounded-[14px] border border-white/10 bg-[#071016] p-4 shadow-2xl">
+              <div className="grid gap-4">
+                {groups.map((group) => (
+                  <div className="grid gap-1" key={group.title}>
+                    {group.title ? (
+                      <p className="px-2 text-xs font-black uppercase tracking-[0.12em] text-slate-400">
+                        {group.title}
+                      </p>
+                    ) : null}
+                    {group.links.map((link) => (
+                      <Link className="platform-mobile-link rounded-[8px] px-2 py-2 text-sm font-semibold hover:bg-white/10" href={link.href} key={link.href}>
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                ))}
+                {user ? (
+                  <form action="/sair" className="border-t border-white/10 pt-3" method="post">
+                    <button className="platform-mobile-link w-full rounded-[8px] px-2 py-2 text-left text-sm font-semibold hover:bg-white/10" type="submit">
+                      Sair
+                    </button>
+                  </form>
+                ) : null}
+              </div>
             </div>
-          </div>
-        </details>
+          </details>
+        </div>
       </nav>
     </header>
   );

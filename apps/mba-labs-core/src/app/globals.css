@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
@@ -621,3 +621,217 @@ select.input option:disabled {
   }
 }
 /* END MBA mobile card depth */
+
+/* BEGIN MBA LABS PLATFORM REDESIGN */
+/* Plataforma MBA Labs: identidade visual, logo, modo claro/escuro e contraste seguro.
+   Escopo protegido para não alterar sistemas internos. */
+
+:root[data-mba-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-mba-theme="light"] {
+  color-scheme: light;
+  --background: #f4f7fb;
+  --foreground: #0f172a;
+  --muted: #475569;
+  --line: #d8e0ec;
+  --panel: rgba(255, 255, 255, 0.86);
+  --panel-strong: #ffffff;
+  --accent: #10b981;
+  --accent-2: #0284c7;
+  --accent-foreground: #031111;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0f766e;
+  --primary-foreground: #ffffff;
+  --secondary: #e8eef7;
+  --secondary-foreground: #0f172a;
+  --muted-foreground: #475569;
+  --destructive: #dc2626;
+  --success: #16a34a;
+  --warning: #d97706;
+  --border: #d8e0ec;
+  --input: #cbd5e1;
+  --ring: #0f766e;
+}
+
+:root[data-mba-theme="light"] body {
+  background:
+    radial-gradient(circle at top left, rgba(16, 185, 129, 0.16), transparent 30rem),
+    radial-gradient(circle at bottom right, rgba(2, 132, 199, 0.12), transparent 32rem),
+    linear-gradient(180deg, #f8fbff 0%, #eef4f9 100%);
+  color: #0f172a;
+}
+
+.platform-nav {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+:root[data-mba-theme="dark"] .platform-nav {
+  background:
+    linear-gradient(135deg, rgba(5, 7, 10, 0.88), rgba(5, 15, 18, 0.82)) !important;
+}
+
+:root[data-mba-theme="light"] .platform-nav {
+  background: rgba(255, 255, 255, 0.82) !important;
+  border-bottom-color: #d8e0ec !important;
+  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08);
+}
+
+.mba-brand {
+  color: var(--foreground);
+}
+
+.mba-brand-mark {
+  align-items: center;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.80), transparent 22%),
+    linear-gradient(135deg, #28d8a5 0%, #38bdf8 100%);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 14px;
+  box-shadow:
+    0 10px 22px rgba(40, 216, 165, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.40);
+  color: #031111;
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 950;
+  height: 2.35rem;
+  justify-content: center;
+  letter-spacing: -0.05em;
+  width: 2.35rem;
+}
+
+.mba-theme-toggle {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--foreground);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.85rem;
+  font-weight: 800;
+  gap: 0.45rem;
+  min-height: 2.35rem;
+  padding: 0.45rem 0.75rem;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.mba-theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.13);
+  transform: translateY(-1px);
+}
+
+.mba-theme-toggle-compact {
+  height: 2.5rem;
+  justify-content: center;
+  padding: 0;
+  width: 2.5rem;
+}
+
+.mba-theme-toggle-icon {
+  align-items: center;
+  display: inline-flex;
+  font-size: 1rem;
+  justify-content: center;
+  line-height: 1;
+}
+
+:root[data-mba-theme="light"] .mba-theme-toggle {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-mba-theme="light"] .platform-nav-link,
+:root[data-mba-theme="light"] .platform-mobile-link {
+  color: #0f172a !important;
+}
+
+:root[data-mba-theme="light"] .platform-mobile-menu {
+  background: #ffffff !important;
+  border-color: #d8e0ec !important;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.18) !important;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) .panel {
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+:root[data-mba-theme="light"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) .panel {
+  background: rgba(255, 255, 255, 0.90);
+  border-color: #d8e0ec;
+  color: #0f172a;
+  box-shadow:
+    0 16px 42px rgba(15, 23, 42, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+:root[data-mba-theme="light"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) .text-slate-100 {
+  color: #0f172a !important;
+}
+
+:root[data-mba-theme="light"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) .text-slate-200 {
+  color: #1e293b !important;
+}
+
+:root[data-mba-theme="light"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) .text-slate-300 {
+  color: #475569 !important;
+}
+
+:root[data-mba-theme="light"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) .text-slate-400 {
+  color: #64748b !important;
+}
+
+:root[data-mba-theme="light"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) .button-secondary {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-mba-theme="light"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) .button-primary {
+  border-color: rgba(14, 165, 233, 0.38);
+  background: linear-gradient(135deg, #10b981, #38bdf8);
+  color: #031111;
+  box-shadow: 0 8px 18px rgba(2, 132, 199, 0.14);
+}
+
+:root[data-mba-theme="light"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) .input {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+:root[data-mba-theme="light"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) table thead {
+  background: #eef4f8;
+  color: #475569;
+}
+
+:root[data-mba-theme="light"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) table td {
+  color: #0f172a;
+}
+
+@media (max-width: 640px) {
+  body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) .page-shell {
+    width: min(100% - 24px, 1160px);
+  }
+
+  body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) h1 {
+    font-size: clamp(2.45rem, 13vw, 4rem);
+    letter-spacing: -0.06em;
+    line-height: 0.95;
+  }
+}
+/* END MBA LABS PLATFORM REDESIGN */
