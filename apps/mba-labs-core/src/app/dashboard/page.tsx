@@ -20,7 +20,7 @@ export default async function DashboardPage() {
           <p className="text-slate-300">
             Perfil: <strong>{profileLabel(profile.tipo)}</strong>
           </p>
-          {error ? <p className="text-sm text-red-200">Aviso: nÃ£o foi possÃ­vel carregar todos os dados agora. {error}</p> : null}
+          {error ? <p className="text-sm text-red-200">Aviso: não foi possÃ­vel carregar todos os dados agora. {error}</p> : null}
         </div>
 
         {visibleApps.length > 0 ? (
@@ -39,7 +39,7 @@ export default async function DashboardPage() {
                     <p className="mt-2 min-h-12 text-sm leading-6 text-slate-300">{displayAppDescription(app)}</p>
                     {!knownRoute && isAdminMaster ? (
                       <p className="mt-3 rounded-[8px] border border-amber-300/30 bg-amber-300/10 p-3 text-sm leading-6 text-amber-100">
-                        Rota nÃ£o encontrada no projeto. Verifique a implementaÃ§Ã£o.
+                        Rota não encontrada no projeto. Verifique a implementação.
                       </p>
                     ) : null}
                   </div>
@@ -97,7 +97,7 @@ function displayAppName(app: { slug: string; nome: string }) {
 
 function displayAppDescription(app: { slug: string; descricao: string }) {
   if (app.slug === "lexgestor" || app.slug === "lex-gestor") {
-    return "GestÃ£o jurÃ­dica inteligente para escritÃ³rios de advocacia.";
+    return "GestÃ£o jurídica inteligente para escritórios de advocacia.";
   }
 
   return fixEncoding(app.descricao);
@@ -106,11 +106,12 @@ function displayAppDescription(app: { slug: string; descricao: string }) {
 function fixEncoding(value: string) {
   return value
     .replaceAll("Gest\u00c3\u00a3o", "GestÃ£o")
-    .replaceAll("jur\u00c3\u00addica", "jurÃ­dica")
-    .replaceAll("escrit\u00c3\u00b3rios", "escritÃ³rios")
-    .replaceAll("Cota\u00c3\u00a7\u00c3\u00b5es", "CotaÃ§Ãµes")
-    .replaceAll("servi\u00c3\u00a7os", "serviÃ§os")
-    .replaceAll("or\u00c3\u00a7amentos", "orÃ§amentos")
+    .replaceAll("jur\u00c3\u00addica", "jurídica")
+    .replaceAll("escrit\u00c3\u00b3rios", "escritórios")
+    .replaceAll("Cota\u00c3\u00a7\u00c3\u00b5es", "Cotações")
+    .replaceAll("servi\u00c3\u00a7os", "serviços")
+    .replaceAll("or\u00c3\u00a7amentos", "orçamentos")
     .replaceAll("comiss\u00c3\u00b5es", "comissÃµes");
 }
+
 
