@@ -116,7 +116,7 @@ export function DataTable({
       </div>
 
       <div className="overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.02] shadow-sm" data-mba-table="" id={tableId}>
-        <table className="hidden w-full table-fixed border-collapse text-left text-sm lg:table">
+        <table className="hidden w-full table-fixed border-collapse text-left text-sm 2xl:table">
           <thead className="bg-white/10 text-xs uppercase text-slate-300">
             <tr>
               {columns.map((column) => (
@@ -124,7 +124,7 @@ export function DataTable({
                   {column.label}
                 </th>
               ))}
-              {actions ? <th className="w-[220px] px-4 py-4 text-right align-middle font-black tracking-wide whitespace-nowrap uppercase">AÃ‡Ã•ES</th> : null}
+              {actions ? <th className="w-[220px] px-4 py-4 text-right align-middle font-black tracking-wide whitespace-nowrap uppercase">AÃƒâ€¡Ãƒâ€¢ES</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -148,14 +148,14 @@ export function DataTable({
                       {formatValue(row[column.key])}
                     </td>
                   ))}
-                  {actions ? <td className="px-3 py-3 align-middle text-right">{actions(row)}</td> : null}
+                  {actions ? <td className="px-3 py-3 align-middle text-right whitespace-nowrap">{actions(row)}</td> : null}
                 </tr>
               ))
             )}
           </tbody>
         </table>
 
-        <div className="grid gap-4 p-3 lg:hidden">
+        <div className="grid gap-4 p-3 2xl:hidden">
           {rows.length === 0 ? (
             <div className="rounded-[18px] border border-slate-200 bg-white p-5 text-center text-sm font-bold text-slate-700">
               {emptyMessage}
@@ -464,7 +464,7 @@ function getCardTitle(row: Record<string, unknown>, columns: DataColumn[]): Smar
 
   if (placa !== "-" || modelo !== "-" || marca !== "-") {
     const value = [placa, marca, modelo].filter((item) => item !== "-").join(" - ");
-    return { key: placa !== "-" ? "placa" : modelo !== "-" ? "modelo" : "marca", label: "VeÃƒÆ’Ã‚Â­culo", value };
+    return { key: placa !== "-" ? "placa" : modelo !== "-" ? "modelo" : "marca", label: "VeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­culo", value };
   }
 
   if (row.nome !== undefined) {
@@ -516,7 +516,7 @@ function getHighlightColumns(row: Record<string, unknown>, columns: DataColumn[]
 function isMetricColumn(column: SmartColumn) {
   const key = column.key.toLowerCase();
   const label = column.label.toLowerCase();
-  return ["valor", "preco", "preÃƒÆ’Ã‚Â§o", "comissao", "comissÃƒÆ’Ã‚Â£o", "vales", "saldo", "pendentes", "recebido", "total"].some(
+  return ["valor", "preco", "preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o", "comissao", "comissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o", "vales", "saldo", "pendentes", "recebido", "total"].some(
     (term) => key.includes(term) || label.includes(term)
   );
 }
@@ -527,7 +527,7 @@ function badgeClassName(value: string) {
     ? "bg-emerald-100 text-emerald-900 border-emerald-200"
     : normalized.includes("aberto") || normalized.includes("pendente") || normalized.includes("fiado") || normalized.includes("parcial")
       ? "bg-amber-100 text-amber-900 border-amber-200"
-      : normalized.includes("nÃƒÆ’Ã‚Â£o") || normalized.includes("nao") || normalized.includes("cancel") || normalized.includes("inativo")
+      : normalized.includes("nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o") || normalized.includes("nao") || normalized.includes("cancel") || normalized.includes("inativo")
         ? "bg-red-100 text-red-900 border-red-200"
         : "bg-slate-100 text-slate-700 border-slate-200";
 
@@ -683,8 +683,8 @@ export function AccessDenied({ appName = "este sistema", backHref = "/dashboard"
   return (
     <div className="panel mx-auto grid max-w-xl gap-4 p-6 text-center">
       <p className="eyebrow">Acesso bloqueado</p>
-      <h1 className="text-3xl font-black">VocÃƒÆ’Ã‚Âª nÃƒÆ’Ã‚Â£o tem acesso a {appName}</h1>
-      <p className="text-sm leading-6 text-slate-300">Verifique a assinatura da empresa ou peÃƒÆ’Ã‚Â§a para um administrador liberar sua permissÃƒÆ’Ã‚Â£o.</p>
+      <h1 className="text-3xl font-black">VocÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âª nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o tem acesso a {appName}</h1>
+      <p className="text-sm leading-6 text-slate-300">Verifique a assinatura da empresa ou peÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a para um administrador liberar sua permissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o.</p>
       <Link className="button-primary mx-auto" href={backHref}>
         Voltar ao dashboard
       </Link>
@@ -746,7 +746,7 @@ function formatValue(value: unknown) {
   }
 
   if (typeof value === "boolean") {
-    return value ? "Sim" : "NÃƒÆ’Ã‚Â£o";
+    return value ? "Sim" : "NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o";
   }
 
   if (typeof value === "object") {
