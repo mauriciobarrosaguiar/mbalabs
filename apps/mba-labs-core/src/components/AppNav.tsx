@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { getSessionProfile, isSuperAdminType } from "@/lib/core-data";
+import { getSiteConfig } from "@/lib/site-config";
 
 type NavLink = {
   href: string;
@@ -14,6 +15,9 @@ type NavGroup = {
 
 export async function AppNav() {
   const { user, profile, appsLiberados } = await getSessionProfile();
+  const siteConfig = await getSiteConfig();
+  const brandName = siteConfig.brandName || "MBA Labs";
+  const logoUrl = siteConfig.logoUrl?.trim();
   const firstApp = appsLiberados?.find((app) => app.canAccess);
   const groups = getNavGroups({
     isLoggedIn: Boolean(user),
@@ -26,7 +30,7 @@ export async function AppNav() {
   return (
     <header className="platform-nav border-b border-white/10 bg-black/20">
       <nav className="page-shell flex min-h-16 items-center justify-between gap-4 py-3">
-        <Link className="mba-brand group flex items-center gap-3" href="/" aria-label="MBA Labs - início">
+        <Link className="mba-brand group flex items-center gap-3" href="/" aria-label="MBA Labs - inÃ­cio">
           <span className="mba-brand-mark" aria-hidden="true">
             MB
           </span>
@@ -111,10 +115,10 @@ function getNavGroups({
     return [
       { title: "Principal", links: [{ href: "/dashboard", label: "Dashboard" }] },
       {
-        title: "Gestão",
+        title: "GestÃ£o",
         links: [
           { href: "/admin/empresas", label: "Empresas" },
-          { href: "/admin/usuarios", label: "Usuários" },
+          { href: "/admin/usuarios", label: "UsuÃ¡rios" },
           { href: "/admin/apps", label: "Apps" },
           { href: "/admin/planos", label: "Planos" },
           { href: "/admin/assinaturas", label: "Assinaturas" },
@@ -124,9 +128,9 @@ function getNavGroups({
       {
         title: "Sistema",
         links: [
-          { href: "/admin/site", label: "Configurações do site" },
+          { href: "/admin/site", label: "ConfiguraÃ§Ãµes do site" },
           { href: "/admin/logs", label: "Logs" },
-          { href: "/admin/configuracoes", label: "Configurações" }
+          { href: "/admin/configuracoes", label: "ConfiguraÃ§Ãµes" }
         ]
       }
     ];
@@ -142,9 +146,9 @@ function getNavGroups({
         ]
       },
       {
-        title: "Gestão",
+        title: "GestÃ£o",
         links: [
-          { href: "/empresa/usuarios", label: "Usuários" },
+          { href: "/empresa/usuarios", label: "UsuÃ¡rios" },
           { href: "/empresa/apps", label: "Apps contratados" },
           { href: "/empresa/assinatura", label: "Assinatura" }
         ]

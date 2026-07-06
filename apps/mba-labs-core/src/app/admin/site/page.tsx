@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AppNav } from "@/components/AppNav";
+import { LogoUploadInput } from "@/components/LogoUploadInput";
 import {
   BackButton,
   FormCheckbox,
@@ -35,23 +36,23 @@ export default async function SiteConfigPage({
       <AppNav />
       <section className="page-shell grid gap-8 py-8">
         <PageHeader
-          eyebrow="Configurações do site"
+          eyebrow="ConfiguraÃ§Ãµes do site"
           title="Editor da landing MBA Labs"
-          description="Edite textos comerciais, logo, WhatsApp, cards de sistemas, benefícios e conteúdo público da página inicial."
+          description="Edite textos comerciais, logo, WhatsApp, cards de sistemas, benefÃ­cios e conteÃºdo pÃºblico da pÃ¡gina inicial."
           actions={<BackButton href="/admin/configuracoes" label="Voltar" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error)} />
 
         <form action={saveSiteConfig} className="grid gap-6">
-          <ResourceForm title="Marca e chamada principal" actions={<SubmitButton>Salvar configurações do site</SubmitButton>}>
+          <ResourceForm title="Marca e chamada principal" actions={<SubmitButton>Salvar configuraÃ§Ãµes do site</SubmitButton>}>
             <FormInput label="Nome da marca" name="brandName" defaultValue={config.brandName} required />
-            <FormInput label="URL do logo" name="logoUrl" defaultValue={config.logoUrl} placeholder="https://..." />
+            <LogoUploadInput defaultValue={config.logoUrl} />
             <FormInput label="Etiqueta do hero" name="heroEyebrow" defaultValue={config.heroEyebrow} required />
-            <FormInput label="Título principal" name="heroTitle" defaultValue={config.heroTitle} required />
+            <FormInput label="TÃ­tulo principal" name="heroTitle" defaultValue={config.heroTitle} required />
             <FormTextarea label="Texto principal" name="heroSubtitle" defaultValue={config.heroSubtitle} />
             <FormTextarea label="Texto de apoio" name="heroSupportText" defaultValue={config.heroSupportText} />
-            <FormInput label="Texto do botão principal" name="primaryButtonText" defaultValue={config.primaryButtonText} required />
-            <FormInput label="Texto do botão WhatsApp" name="whatsappButtonText" defaultValue={config.whatsappButtonText} required />
+            <FormInput label="Texto do botÃ£o principal" name="primaryButtonText" defaultValue={config.primaryButtonText} required />
+            <FormInput label="Texto do botÃ£o WhatsApp" name="whatsappButtonText" defaultValue={config.whatsappButtonText} required />
             <FormInput label="URL do WhatsApp" name="whatsappUrl" defaultValue={config.whatsappUrl} required />
             <FormInput label="Cor principal" name="primaryColor" defaultValue={config.primaryColor} type="color" />
             <FormInput label="Cor de apoio" name="secondaryColor" defaultValue={config.secondaryColor} type="color" />
@@ -59,13 +60,13 @@ export default async function SiteConfigPage({
 
           <ResourceForm title="Card comercial lateral" actions={null}>
             <FormInput label="Etiqueta" name="sideEyebrow" defaultValue={config.sideEyebrow} required />
-            <FormInput label="Título" name="sideTitle" defaultValue={config.sideTitle} required />
+            <FormInput label="TÃ­tulo" name="sideTitle" defaultValue={config.sideTitle} required />
             <FormTextarea label="Texto do card" name="sideText" defaultValue={config.sideText} />
           </ResourceForm>
 
           <section className="panel grid gap-5 p-5">
             <div className="grid gap-4 md:grid-cols-2">
-              <FormInput label="Título da área de sistemas" name="systemsTitle" defaultValue={config.systemsTitle} required />
+              <FormInput label="TÃ­tulo da Ã¡rea de sistemas" name="systemsTitle" defaultValue={config.systemsTitle} required />
             </div>
             <div className="grid gap-4 lg:grid-cols-3">
               {config.systems.map((system) => (
@@ -76,24 +77,24 @@ export default async function SiteConfigPage({
                   </div>
                   <FormCheckbox label="Mostrar este card na landing" name={`system_${system.key}_visible`} defaultChecked={system.visible} />
                   <FormInput label="Nome do card" name={`system_${system.key}_name`} defaultValue={system.name} required />
-                  <FormTextarea label="Descrição" name={`system_${system.key}_description`} defaultValue={system.description} />
-                  <FormInput label="Texto do botão" name={`system_${system.key}_cta`} defaultValue={system.cta} required />
+                  <FormTextarea label="DescriÃ§Ã£o" name={`system_${system.key}_description`} defaultValue={system.description} />
+                  <FormInput label="Texto do botÃ£o" name={`system_${system.key}_cta`} defaultValue={system.cta} required />
                 </div>
               ))}
             </div>
           </section>
 
-          <ResourceForm title="Benefícios e rodapé" actions={<SubmitButton>Salvar tudo</SubmitButton>}>
-            <FormInput label="Título dos benefícios" name="benefitsTitle" defaultValue={config.benefitsTitle} required />
+          <ResourceForm title="BenefÃ­cios e rodapÃ©" actions={<SubmitButton>Salvar tudo</SubmitButton>}>
+            <FormInput label="TÃ­tulo dos benefÃ­cios" name="benefitsTitle" defaultValue={config.benefitsTitle} required />
             {benefits.map((benefit, index) => (
               <FormInput
-                label={`Benefício ${index + 1}`}
+                label={`BenefÃ­cio ${index + 1}`}
                 name={`benefit_${index}`}
                 defaultValue={benefit}
                 key={`benefit_${index}`}
               />
             ))}
-            <FormTextarea label="Texto de rodapé" name="footerText" defaultValue={config.footerText} />
+            <FormTextarea label="Texto de rodapÃ©" name="footerText" defaultValue={config.footerText} />
           </ResourceForm>
         </form>
       </section>

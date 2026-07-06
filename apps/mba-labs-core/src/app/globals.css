@@ -525,7 +525,7 @@ select.input option:disabled {
   color: var(--muted);
 }
 
-/* CorreÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o dos botÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âµes dentro dos cards brancos no mobile */
+/* CorreÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o dos botÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Âµes dentro dos cards brancos no mobile */
 @media (max-width: 1023px) {
   .page-shell article.bg-white .button-secondary {
     background: #ffffff !important;
@@ -624,7 +624,7 @@ select.input option:disabled {
 
 /* BEGIN MBA LABS PLATFORM REDESIGN */
 /* Plataforma MBA Labs: identidade visual, logo, modo claro/escuro e contraste seguro.
-   Escopo protegido para nÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o alterar sistemas internos. */
+   Escopo protegido para nÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â£o alterar sistemas internos. */
 
 :root[data-mba-theme="dark"] {
   color-scheme: dark;
@@ -876,7 +876,7 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
 /* END MBA DATA TABLE TOOLS */
 
 /* BEGIN MBA TABLE ALIGNMENT */
-/* PadronizaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o das listas da plataforma: maiÃƒÆ’Ã‚Âºsculo, dados completos e alinhamento */
+/* PadronizaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o das listas da plataforma: maiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºsculo, dados completos e alinhamento */
 body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] table {
   border-spacing: 0;
 }
@@ -956,7 +956,7 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
   vertical-align: middle;
 }
 
-/* DistribuiÃƒÂ§ÃƒÂ£o das colunas em listas maiores, como usuÃƒÂ¡rios */
+/* DistribuiÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o das colunas em listas maiores, como usuÃƒÆ’Ã‚Â¡rios */
 body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] th:nth-child(1),
 body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] td:nth-child(1) {
   width: 17%;
@@ -1012,7 +1012,7 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
 /* BEGIN MBA RESPONSIVE LIST FIX */
 /* Listas da plataforma: sem rolagem horizontal, cards responsivos e ortografia visual correta */
 
-/* Em notebooks e telas mÃ©dias, usar cards em vez de tabela espremida */
+/* Em notebooks e telas mÃƒÂ©dias, usar cards em vez de tabela espremida */
 @media (max-width: 1535px) {
   body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] table {
     display: none !important;
@@ -1023,7 +1023,7 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
   }
 }
 
-/* Em telas grandes, tabela sem scroll e melhor distribuÃ­da */
+/* Em telas grandes, tabela sem scroll e melhor distribuÃƒÂ­da */
 @media (min-width: 1536px) {
   body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] {
     overflow-x: hidden !important;
@@ -1180,7 +1180,7 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
   padding: 0.85rem !important;
 }
 
-/* Área dos botões dentro do card */
+/* Ãrea dos botÃµes dentro do card */
 body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .border-t {
   margin-top: 0.95rem !important;
   padding-top: 0.95rem !important;
@@ -1212,7 +1212,7 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
   text-transform: uppercase !important;
 }
 
-/* Botão EDITAR visível no card claro */
+/* BotÃ£o EDITAR visÃ­vel no card claro */
 body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .button-secondary {
   background: #ffffff !important;
   border: 1px solid #94a3b8 !important;
@@ -1226,7 +1226,7 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
   color: #020617 !important;
 }
 
-/* Botão INATIVAR visível e sem quebrar */
+/* BotÃ£o INATIVAR visÃ­vel e sem quebrar */
 body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .button-danger {
   background: #fee2e2 !important;
   border: 1px solid #ef4444 !important;
@@ -1240,7 +1240,7 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
   color: #7f1d1d !important;
 }
 
-/* Em celular, botões continuam lado a lado quando couber */
+/* Em celular, botÃµes continuam lado a lado quando couber */
 @media (max-width: 420px) {
   body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] article .border-t > div {
     grid-template-columns: 1fr !important;
@@ -1254,3 +1254,162 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
   }
 }
 /* END MBA CARD RESPONSIVE POLISH */
+
+/* BEGIN MBA LOGO UPLOAD */
+/* Upload de logo e uso da marca no topo da plataforma */
+.logo-upload {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.logo-upload-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.logo-upload-clear {
+  min-height: 38px;
+  white-space: nowrap;
+}
+
+.logo-upload-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 260px);
+}
+
+.logo-upload-drop {
+  align-items: center;
+  border: 1px dashed rgba(56, 189, 248, 0.55);
+  border-radius: 14px;
+  cursor: pointer;
+  display: grid;
+  gap: 0.35rem;
+  justify-items: center;
+  min-height: 132px;
+  padding: 1rem;
+  text-align: center;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.logo-upload-drop:hover {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(40, 216, 165, 0.75);
+}
+
+.logo-upload-drop input {
+  display: none;
+}
+
+.logo-upload-drop-title {
+  color: var(--foreground);
+  font-weight: 950;
+}
+
+.logo-upload-drop-text {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.logo-upload-preview {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  display: flex;
+  justify-content: center;
+  min-height: 132px;
+  overflow: hidden;
+  padding: 1rem;
+}
+
+.logo-upload-preview img {
+  display: block;
+  max-height: 96px;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.logo-upload-placeholder {
+  align-items: center;
+  display: grid;
+  gap: 0.45rem;
+  justify-items: center;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.logo-upload-placeholder span {
+  align-items: center;
+  background: linear-gradient(135deg, #28d8a5, #38bdf8);
+  border-radius: 14px;
+  color: #031111;
+  display: inline-flex;
+  font-weight: 950;
+  height: 3rem;
+  justify-content: center;
+  width: 3rem;
+}
+
+.mba-brand-logo {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 10px 22px rgba(40, 216, 165, 0.12);
+  display: inline-flex;
+  height: 2.65rem;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0.35rem;
+  width: 2.65rem;
+}
+
+.mba-brand-logo img {
+  display: block;
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+:root[data-mba-theme="light"] .logo-upload {
+  background: #f8fafc;
+  border-color: #d8e0ec;
+}
+
+:root[data-mba-theme="light"] .logo-upload-preview {
+  background: #ffffff;
+  border-color: #d8e0ec;
+}
+
+:root[data-mba-theme="light"] .logo-upload-drop {
+  background: #ffffff;
+  border-color: #93c5fd;
+}
+
+:root[data-mba-theme="light"] .mba-brand-logo {
+  background: #ffffff;
+  border-color: #d8e0ec;
+}
+
+@media (max-width: 720px) {
+  .logo-upload-header {
+    display: grid;
+  }
+
+  .logo-upload-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .logo-upload-clear {
+    width: 100%;
+  }
+}
+/* END MBA LOGO UPLOAD */
