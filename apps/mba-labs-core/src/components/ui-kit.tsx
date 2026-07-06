@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 export type DataColumn = {
   key: string;
@@ -86,54 +86,314 @@ export function DataTable({
   emptyMessage?: string;
   actions?: (row: Record<string, unknown>) => React.ReactNode;
 }) {
+  const tableId = `mba-data-table-${columns.map((column) => column.key).join("-").replace(/[^a-z0-9_-]/gi, "-")}-${rows.length}`;
+  const systemOptions = getDataTableSystemOptions(rows, columns);
+
   return (
-    <div className="overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.02] shadow-sm">
-      <table className="hidden w-full table-fixed border-collapse text-left text-sm lg:table">
-        <thead className="bg-white/10 text-xs uppercase text-slate-300">
-          <tr>
-            {columns.map((column) => (
-              <th className="px-4 py-4 font-black tracking-wide" key={column.key}>
-                {column.label}
-              </th>
+    <div className="grid gap-3">
+      <div className="mba-data-table-toolbar">
+        <input
+          className="input mba-data-table-search"
+          data-mba-table-search={tableId}
+          placeholder="Pesquisar por nome, CPF/CNPJ, email, empresa..."
+          type="search"
+        />
+
+        {systemOptions.length ? (
+          <select className="input mba-data-table-system-filter" data-mba-table-system={tableId} defaultValue="">
+            <option value="">Todos os sistemas</option>
+            {systemOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
             ))}
-            {actions ? <th className="w-[240px] px-4 py-4 text-right font-black tracking-wide">AÃ§Ãµes</th> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
+          </select>
+        ) : null}
+
+        <button className="button-secondary mba-data-table-export" data-mba-table-export={tableId} type="button">
+          Extrair Excel
+        </button>
+      </div>
+
+      <div className="overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.02] shadow-sm" data-mba-table="" id={tableId}>
+        <table className="hidden w-full table-fixed border-collapse text-left text-sm lg:table">
+          <thead className="bg-white/10 text-xs uppercase text-slate-300">
             <tr>
-              <td className="px-4 py-10 text-center text-slate-300" colSpan={columns.length + (actions ? 1 : 0)}>
-                {emptyMessage}
-              </td>
+              {columns.map((column) => (
+                <th className="px-4 py-4 font-black tracking-wide" key={column.key}>
+                  {column.label}
+                </th>
+              ))}
+              {actions ? <th className="w-[240px] px-4 py-4 text-right font-black tracking-wide">Acoes</th> : null}
             </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td className="px-4 py-10 text-center text-slate-300" colSpan={columns.length + (actions ? 1 : 0)}>
+                  {emptyMessage}
+                </td>
+              </tr>
+            ) : (
+              rows.map((row, index) => (
+                <tr
+                  className="border-t border-white/10 transition hover:bg-white/[0.035]"
+                  data-mba-row="true"
+                  data-search={getDataTableSearchText(row)}
+                  data-system={getDataTableSystemValue(row, columns)}
+                  key={String(row.id ?? index)}
+                >
+                  {columns.map((column) => (
+                    <td className="truncate px-4 py-4 font-semibold text-slate-100" key={column.key} title={formatValue(row[column.key])}>
+                      {formatValue(row[column.key])}
+                    </td>
+                  ))}
+                  {actions ? <td className="px-4 py-4 text-right">{actions(row)}</td> : null}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+
+        <div className="grid gap-4 p-3 lg:hidden">
+          {rows.length === 0 ? (
+            <div className="rounded-[18px] border border-slate-200 bg-white p-5 text-center text-sm font-bold text-slate-700">
+              {emptyMessage}
+            </div>
           ) : (
             rows.map((row, index) => (
-              <tr className="border-t border-white/10 transition hover:bg-white/[0.035]" key={String(row.id ?? index)}>
-                {columns.map((column) => (
-                  <td className="truncate px-4 py-4 font-semibold text-slate-100" key={column.key} title={formatValue(row[column.key])}>
-                    {formatValue(row[column.key])}
-                  </td>
-                ))}
-                {actions ? <td className="px-4 py-4 text-right">{actions(row)}</td> : null}
-              </tr>
+              <div
+                data-mba-row="true"
+                data-search={getDataTableSearchText(row)}
+                data-system={getDataTableSystemValue(row, columns)}
+                key={String(row.id ?? index)}
+              >
+                <SmartMobileCard actions={actions} columns={columns} index={index} row={row} />
+              </div>
             ))
           )}
-        </tbody>
-      </table>
+        </div>
 
-      <div className="grid gap-4 p-3 lg:hidden">
-        {rows.length === 0 ? (
-          <div className="rounded-[18px] border border-slate-200 bg-white p-5 text-center text-sm font-bold text-slate-700">
-            {emptyMessage}
-          </div>
-        ) : (
-          rows.map((row, index) => <SmartMobileCard actions={actions} columns={columns} index={index} key={String(row.id ?? index)} row={row} />)
-        )}
+        <div className="hidden p-5 text-center text-sm font-black text-slate-300" data-mba-empty-filter="true">
+          Nenhum registro encontrado com esse filtro.
+        </div>
       </div>
+
+      <script dangerouslySetInnerHTML={{ __html: dataTableEnhancerScript }} />
     </div>
   );
 }
 
+const dataTableEnhancerScript = `
+(function () {
+  function normalize(value) {
+    return String(value || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\\u0300-\\u036f]/g, "");
+  }
+
+  function safeFileName(value) {
+    return String(value || "mba-labs")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\\u0300-\\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "mba-labs";
+  }
+
+  function setupTable(table) {
+    if (!table || table.dataset.mbaEnhanced === "true") return;
+    table.dataset.mbaEnhanced = "true";
+
+    var id = table.id;
+    var search = document.querySelector('[data-mba-table-search="' + id + '"]');
+    var system = document.querySelector('[data-mba-table-system="' + id + '"]');
+    var exportButton = document.querySelector('[data-mba-table-export="' + id + '"]');
+    var emptyFilter = table.querySelector('[data-mba-empty-filter="true"]');
+
+    function rows() {
+      return Array.prototype.slice.call(table.querySelectorAll('[data-mba-row="true"]'));
+    }
+
+    function applyFilters() {
+      var query = normalize(search ? search.value : "");
+      var systemValue = normalize(system ? system.value : "");
+      var visibleCount = 0;
+
+      rows().forEach(function (row) {
+        var rowSearch = normalize(row.getAttribute("data-search"));
+        var rowSystem = normalize(row.getAttribute("data-system"));
+        var matchesSearch = !query || rowSearch.indexOf(query) >= 0;
+        var matchesSystem = !systemValue || rowSystem.indexOf(systemValue) >= 0;
+        var show = matchesSearch && matchesSystem;
+
+        row.style.display = show ? "" : "none";
+
+        if (show && row.tagName.toLowerCase() === "tr") {
+          visibleCount += 1;
+        }
+      });
+
+      if (emptyFilter) {
+        emptyFilter.classList.toggle("hidden", visibleCount !== 0 || table.querySelectorAll("tbody tr[data-mba-row]").length === 0);
+      }
+    }
+
+    function exportExcel() {
+      var headerCells = Array.prototype.slice.call(table.querySelectorAll("table thead th"));
+      var dataRows = Array.prototype.slice.call(table.querySelectorAll("table tbody tr[data-mba-row]"))
+        .filter(function (row) {
+          return row.style.display !== "none";
+        });
+
+      if (!dataRows.length) {
+        alert("Nenhum registro para exportar.");
+        return;
+      }
+
+      var html = '<html><head><meta charset="UTF-8"></head><body><table border="1"><thead><tr>';
+
+      headerCells.forEach(function (cell) {
+        html += "<th>" + cell.innerText.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</th>";
+      });
+
+      html += "</tr></thead><tbody>";
+
+      dataRows.forEach(function (row) {
+        html += "<tr>";
+        Array.prototype.slice.call(row.children).forEach(function (cell) {
+          html += "<td>" + cell.innerText.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</td>";
+        });
+        html += "</tr>";
+      });
+
+      html += "</tbody></table></body></html>";
+
+      var blob = new Blob(["\\ufeff" + html], { type: "application/vnd.ms-excel;charset=utf-8" });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement("a");
+      link.href = url;
+      link.download = safeFileName(document.title || "mba-labs") + "-" + new Date().toISOString().slice(0, 10) + ".xls";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    if (search) search.addEventListener("input", applyFilters);
+    if (system) system.addEventListener("change", applyFilters);
+    if (exportButton) exportButton.addEventListener("click", exportExcel);
+
+    applyFilters();
+  }
+
+  function boot() {
+    document.querySelectorAll('[data-mba-table]').forEach(setupTable);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+`;
+
+function getDataTableSearchText(row: Record<string, unknown>) {
+  const values: string[] = [];
+  collectDataTableValues(row, values);
+  return values.join(" ");
+}
+
+function getDataTableSystemValue(row: Record<string, unknown>, columns: DataColumn[]) {
+  const values: string[] = [];
+  const keys = new Set<string>([
+    "app",
+    "apps",
+    "apps_permitidos",
+    "app_nome",
+    "nome_app",
+    "sistema",
+    "sistemas",
+    "url",
+    "urlPath"
+  ]);
+
+  columns.forEach((column) => {
+    const key = `${column.key} ${column.label}`.toLowerCase();
+
+    if (key.includes("app") || key.includes("sistema") || key.includes("permitido")) {
+      keys.add(column.key);
+    }
+  });
+
+  keys.forEach((key) => {
+    if (row[key] !== undefined) {
+      collectDataTableValues(row[key], values);
+    }
+  });
+
+  return values.join(" ");
+}
+
+function getDataTableSystemOptions(rows: Array<Record<string, unknown>>, columns: DataColumn[]) {
+  const options = new Map<string, string>();
+
+  rows.forEach((row) => {
+    const value = getDataTableSystemValue(row, columns);
+
+    value
+      .split(/[,;|]/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .forEach((item) => {
+        const cleaned = cleanSystemOption(item);
+
+        if (cleaned) {
+          options.set(cleaned.toLowerCase(), cleaned);
+        }
+      });
+  });
+
+  return Array.from(options.values()).sort((a, b) => a.localeCompare(b, "pt-BR"));
+}
+
+function cleanSystemOption(value: string) {
+  const cleaned = value
+    .replace(/\s+\(ativo\)$/i, "")
+    .replace(/\s+\(inativo\)$/i, "")
+    .split(/\s+-\s+/)[0]
+    .trim();
+
+  if (!cleaned || cleaned === "-") {
+    return "";
+  }
+
+  if (cleaned.length > 42) {
+    return "";
+  }
+
+  return cleaned;
+}
+
+function collectDataTableValues(value: unknown, values: string[]) {
+  if (value === null || value === undefined || value === "") {
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectDataTableValues(item, values));
+    return;
+  }
+
+  if (typeof value === "object") {
+    Object.values(value as Record<string, unknown>).forEach((item) => collectDataTableValues(item, values));
+    return;
+  }
+
+  values.push(String(value));
+}
 function SmartMobileCard({
   row,
   columns,

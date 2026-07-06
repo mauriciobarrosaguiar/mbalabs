@@ -525,7 +525,7 @@ select.input option:disabled {
   color: var(--muted);
 }
 
-/* CorreÃ§Ã£o dos botÃµes dentro dos cards brancos no mobile */
+/* CorreÃƒÂ§ÃƒÂ£o dos botÃƒÂµes dentro dos cards brancos no mobile */
 @media (max-width: 1023px) {
   .page-shell article.bg-white .button-secondary {
     background: #ffffff !important;
@@ -624,7 +624,7 @@ select.input option:disabled {
 
 /* BEGIN MBA LABS PLATFORM REDESIGN */
 /* Plataforma MBA Labs: identidade visual, logo, modo claro/escuro e contraste seguro.
-   Escopo protegido para não alterar sistemas internos. */
+   Escopo protegido para nÃ£o alterar sistemas internos. */
 
 :root[data-mba-theme="dark"] {
   color-scheme: dark;
@@ -835,3 +835,42 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
   }
 }
 /* END MBA LABS PLATFORM REDESIGN */
+
+/* BEGIN MBA DATA TABLE TOOLS */
+.mba-data-table-toolbar {
+  align-items: center;
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 260px) auto;
+}
+
+.mba-data-table-search,
+.mba-data-table-system-filter {
+  min-height: 46px;
+}
+
+.mba-data-table-export {
+  min-height: 46px;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .mba-data-table-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .mba-data-table-export {
+    width: 100%;
+  }
+}
+
+:root[data-mba-theme="light"] .mba-data-table-toolbar .input {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+:root[data-mba-theme="light"] .mba-data-table-toolbar .input::placeholder {
+  color: #64748b;
+}
+/* END MBA DATA TABLE TOOLS */
