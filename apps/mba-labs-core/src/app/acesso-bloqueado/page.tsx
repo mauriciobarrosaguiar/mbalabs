@@ -1,4 +1,4 @@
-import { AppNav } from "@/components/AppNav";
+﻿import { AppNav } from "@/components/AppNav";
 import { AccessDenied } from "@/components/ui-kit";
 import { requireSessionProfile } from "@/lib/core-data";
 import { safeNextPath } from "@/lib/form-utils";
@@ -11,7 +11,8 @@ const appNames: Record<string, string> = {
   lavagestor: "LavaGestor",
   bikecomanda: "BikeComanda",
   "bike-comanda": "BikeComanda",
-  "portal-associativo": "Portal Associativo"
+  "portal-associativo": "Portal Associativo",
+  lexgestor: "LexGestor"
 };
 
 const reasonNames: Record<string, string> = {
@@ -41,3 +42,6 @@ export default async function AcessoBloqueadoPage({
     </main>
   );
 }
+
+
+

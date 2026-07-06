@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -19,6 +19,7 @@ import {
 import { booleanValue, dateValue, messageParam, nullableTextValue, numberValue, textValue } from "@/lib/form-utils";
 import { getSupabaseServer } from "@/lib/supabase";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { syncPagamentoManualComAssinatura } from "@/lib/actions/payment-sync";
 
 export async function saveAdminResource(formData: FormData) {
   const current = await getCurrentUserProfile();
@@ -666,3 +667,4 @@ function mapEmpresaAppStatus(status: string) {
   if (status === "cancelado") return "cancelada";
   return status;
 }
+

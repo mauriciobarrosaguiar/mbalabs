@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getCurrentUserProfileFromSupabase, type SharedAppAccess, type SharedPermissao } from "@mba-labs/shared/auth/profile";
 import { getInternalAppBySlug, internalAppRouteOptions, internalAppSlugOptions, internalApps } from "./app-registry";
@@ -38,8 +38,8 @@ export type SystemCard = {
 export const fallbackApps: SystemCard[] = [
   {
     slug: "mba-cotacoes",
-    nome: "MBA Cotações",
-    descricao: "Cotações, vendedores, respostas e pedidos.",
+    nome: "MBA CotaÃ§Ãµes",
+    descricao: "CotaÃ§Ãµes, vendedores, respostas e pedidos.",
     url_path: "/apps/mbacotacoes",
     status: "sem_assinatura",
     canAccess: false
@@ -47,7 +47,7 @@ export const fallbackApps: SystemCard[] = [
   {
     slug: "lavagestor",
     nome: "LavaGestor",
-    descricao: "Lavagens, clientes, veículos, funcionários e comissões.",
+    descricao: "Lavagens, clientes, veÃ­culos, funcionÃ¡rios e comissÃµes.",
     url_path: "/apps/lavagestor",
     status: "sem_assinatura",
     canAccess: false
@@ -55,7 +55,7 @@ export const fallbackApps: SystemCard[] = [
   {
     slug: "bikecomanda",
     nome: "BikeComanda",
-    descricao: "Comandas, serviços, orçamentos, pagamentos e comissões para bicicletarias.",
+    descricao: "Comandas, serviÃ§os, orÃ§amentos, pagamentos e comissÃµes para bicicletarias.",
     url_path: "/apps/bikecomanda",
     status: "sem_assinatura",
     canAccess: false
@@ -71,7 +71,7 @@ export const fallbackApps: SystemCard[] = [
   {
     slug: "lexgestor",
     nome: "LexGestor",
-    descricao: "Gestão jurídica inteligente para escritórios de advocacia.",
+    descricao: "GestÃ£o jurÃ­dica inteligente para escritÃ³rios de advocacia.",
     url_path: "/lexgestor",
     status: "sem_assinatura",
     canAccess: false
@@ -293,7 +293,7 @@ export async function getDashboardData() {
 
   return {
     profile,
-    apps: systemCards.filter((app) => app.canAccess),
+    apps: systemCards,
     error: null
   };
 }
@@ -336,7 +336,7 @@ export const adminResources = {
     fields: [
       { name: "nome", label: "Nome", type: "text", required: true },
       { name: "slug", label: "Slug", type: "text", required: true },
-      { name: "descricao", label: "Descrição", type: "textarea" },
+      { name: "descricao", label: "DescriÃ§Ã£o", type: "textarea" },
       {
         name: "status",
         label: "Status",
@@ -363,7 +363,7 @@ export const adminResources = {
       { key: "cidade_uf", label: "Cidade/UF" },
       { key: "apps_contratados", label: "Apps contratados" },
       { key: "status", label: "Status" },
-      { key: "responsavel", label: "Responsável" }
+      { key: "responsavel", label: "ResponsÃ¡vel" }
     ],
     fields: [
       { name: "categoria_id", label: "Categoria", type: "select", required: true, optionSource: "categorias" },
@@ -375,7 +375,7 @@ export const adminResources = {
       { name: "email", label: "Email", type: "email" },
       { name: "cidade", label: "Cidade", type: "text" },
       { name: "estado", label: "Estado", type: "text" },
-      { name: "responsavel", label: "Responsável", type: "text" },
+      { name: "responsavel", label: "ResponsÃ¡vel", type: "text" },
       {
         name: "status",
         label: "Status",
@@ -388,12 +388,12 @@ export const adminResources = {
           { label: "Cancelada", value: "cancelada" }
         ]
       },
-      { name: "observacoes", label: "Observações", type: "textarea" }
+      { name: "observacoes", label: "ObservaÃ§Ãµes", type: "textarea" }
     ]
   },
   usuarios: {
     table: "core_usuarios",
-    title: "Usuários",
+    title: "UsuÃ¡rios",
     select: "id,nome,email,telefone,empresa_id,tipo,tipo_global,status,created_at,core_empresas(nome,nome_fantasia)",
     companyScoped: true,
     inactiveField: "status",
@@ -410,7 +410,7 @@ export const adminResources = {
       { name: "nome", label: "Nome", type: "text", required: true },
       { name: "email", label: "Email", type: "email", required: true },
       { name: "telefone", label: "Telefone", type: "text" },
-      { name: "senha_provisoria", label: "Senha provisória", type: "password", skipPayload: true },
+      { name: "senha_provisoria", label: "Senha provisÃ³ria", type: "password", skipPayload: true },
       { name: "empresa_id", label: "Empresa", type: "select", optionSource: "empresas" },
       {
         name: "tipo",
@@ -421,7 +421,7 @@ export const adminResources = {
           { label: "Super Admin MBA Labs", value: "super_admin" },
           { label: "Admin da empresa", value: "admin_empresa" },
           { label: "Operador", value: "operador" },
-          { label: "Usuário", value: "usuario" }
+          { label: "UsuÃ¡rio", value: "usuario" }
         ]
       },
       {
@@ -458,7 +458,7 @@ export const adminResources = {
           { label: "Portal Associativo - Conselho fiscal", value: "conselho_fiscal" },
           { label: "Portal Associativo - Associado", value: "associado" },
           { label: "Portal Associativo - Portaria", value: "portaria" },
-          { label: "LexGestor - Dono do escritório", value: "dono" },
+          { label: "LexGestor - Dono do escritÃ³rio", value: "dono" },
           { label: "LexGestor - Administrador", value: "administrador" },
           { label: "LexGestor - Advogado", value: "advogado" },
           { label: "LexGestor - Assistente", value: "assistente" },
@@ -483,7 +483,7 @@ export const adminResources = {
     fields: [
       { name: "slug", label: "Slug", type: "select", required: true, optionSource: "internalAppSlugs" },
       { name: "nome", label: "Nome", type: "text", required: true },
-      { name: "descricao", label: "Descrição", type: "textarea" },
+      { name: "descricao", label: "DescriÃ§Ã£o", type: "textarea" },
       { name: "url_interna", label: "URL interna", type: "select", optionSource: "internalAppRoutes" },
       { name: "logo_icone", label: "Logo/icone", type: "text" },
       { name: "ordem", label: "Ordem", type: "number" },
@@ -509,16 +509,16 @@ export const adminResources = {
       { key: "app", label: "App" },
       { key: "nome", label: "Nome" },
       { key: "valor_mensal", label: "Mensalidade" },
-      { key: "limite_usuarios", label: "Usuários" },
+      { key: "limite_usuarios", label: "UsuÃ¡rios" },
       { key: "ativo", label: "Ativo" },
       { key: "created_at", label: "Criado em" }
     ],
     fields: [
       { name: "app_id", label: "App", type: "select", required: true, optionSource: "apps" },
       { name: "nome", label: "Nome", type: "text", required: true },
-      { name: "descricao", label: "Descrição", type: "textarea" },
+      { name: "descricao", label: "DescriÃ§Ã£o", type: "textarea" },
       { name: "valor_mensal", label: "Valor mensal", type: "number" },
-      { name: "limite_usuarios", label: "Limite de usuários", type: "number" },
+      { name: "limite_usuarios", label: "Limite de usuÃ¡rios", type: "number" },
       { name: "limite_registros", label: "Limite de registros", type: "number" },
       { name: "ativo", label: "Ativo", type: "boolean" }
     ]
@@ -535,7 +535,7 @@ export const adminResources = {
       { key: "app", label: "App" },
       { key: "plano", label: "Plano" },
       { key: "status", label: "Status" },
-      { key: "inicio", label: "Início" },
+      { key: "inicio", label: "InÃ­cio" },
       { key: "vencimento", label: "Vencimento" }
     ],
     fields: [
@@ -555,7 +555,7 @@ export const adminResources = {
           { label: "Cancelada", value: "cancelada" }
         ]
       },
-      { name: "inicio", label: "Início", type: "date", required: true },
+      { name: "inicio", label: "InÃ­cio", type: "date", required: true },
       { name: "vencimento", label: "Vencimento", type: "date" }
     ]
   },
@@ -572,7 +572,7 @@ export const adminResources = {
       { key: "vencimento", label: "Vencimento" },
       { key: "pagamento_em", label: "Pago em" },
       { key: "status", label: "Status" },
-      { key: "metodo", label: "Método" }
+      { key: "metodo", label: "MÃ©todo" }
     ],
     fields: [
       { name: "empresa_id", label: "Empresa", type: "select", required: true, optionSource: "empresas" },
@@ -592,8 +592,8 @@ export const adminResources = {
           { label: "Cancelado", value: "cancelado" }
         ]
       },
-      { name: "metodo", label: "Método", type: "text" },
-      { name: "referencia_externa", label: "Referência externa", type: "text" }
+      { name: "metodo", label: "MÃ©todo", type: "text" },
+      { name: "referencia_externa", label: "ReferÃªncia externa", type: "text" }
     ]
   },
   logs: {
@@ -604,9 +604,9 @@ export const adminResources = {
     companyScoped: true,
     columns: [
       { key: "empresa", label: "Empresa" },
-      { key: "usuario", label: "Usuário" },
+      { key: "usuario", label: "UsuÃ¡rio" },
       { key: "app_slug", label: "App" },
-      { key: "acao", label: "Ação" },
+      { key: "acao", label: "AÃ§Ã£o" },
       { key: "created_at", label: "Criado em" }
     ],
     fields: []
@@ -788,7 +788,7 @@ export async function getAdminDashboardData() {
       { label: "Empresas em teste", value: empresasTeste },
       { label: "Empresas bloqueadas", value: empresasBloqueadas },
       { label: "Empresas canceladas", value: empresasCanceladas },
-      { label: "Total de usuários", value: totalUsuarios },
+      { label: "Total de usuÃ¡rios", value: totalUsuarios },
       { label: "Apps cadastrados", value: totalApps },
       { label: "Assinaturas ativas", value: assinaturasAtivas },
       { label: "Assinaturas vencidas", value: assinaturasVencidas },
@@ -1226,3 +1226,4 @@ function getAppSlugFromPath(path: string) {
 
   return null;
 }
+
