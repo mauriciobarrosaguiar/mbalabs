@@ -115,16 +115,16 @@ export function DataTable({
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.02] shadow-sm" data-mba-table="" id={tableId}>
-        <table className="hidden w-full table-fixed border-collapse text-left text-sm lg:table">
+      <div className="overflow-x-auto rounded-[22px] border border-white/10 bg-white/[0.02] shadow-sm" data-mba-table="" id={tableId}>
+        <table className="hidden min-w-[1280px] w-full table-auto border-collapse text-left text-sm lg:table">
           <thead className="bg-white/10 text-xs uppercase text-slate-300">
             <tr>
               {columns.map((column) => (
-                <th className="px-4 py-4 font-black tracking-wide" key={column.key}>
+                <th className="px-4 py-4 align-middle font-black tracking-wide whitespace-nowrap uppercase" key={column.key}>
                   {column.label}
                 </th>
               ))}
-              {actions ? <th className="w-[240px] px-4 py-4 text-right font-black tracking-wide">Acoes</th> : null}
+              {actions ? <th className="w-[220px] px-4 py-4 text-right align-middle font-black tracking-wide whitespace-nowrap uppercase">AÇÕES</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -144,11 +144,11 @@ export function DataTable({
                   key={String(row.id ?? index)}
                 >
                   {columns.map((column) => (
-                    <td className="truncate px-4 py-4 font-semibold text-slate-100" key={column.key} title={formatValue(row[column.key])}>
+                    <td className="px-4 py-4 align-middle font-semibold text-slate-100 whitespace-normal break-words uppercase leading-5" key={column.key} title={formatValue(row[column.key])}>
                       {formatValue(row[column.key])}
                     </td>
                   ))}
-                  {actions ? <td className="px-4 py-4 text-right">{actions(row)}</td> : null}
+                  {actions ? <td className="px-4 py-4 align-middle text-right whitespace-nowrap">{actions(row)}</td> : null}
                 </tr>
               ))
             )}
@@ -255,7 +255,7 @@ const dataTableEnhancerScript = `
       var html = '<html><head><meta charset="UTF-8"></head><body><table border="1"><thead><tr>';
 
       headerCells.forEach(function (cell) {
-        html += "<th>" + cell.innerText.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</th>";
+        html += "<th>" + cell.innerText.toUpperCase().replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</th>";
       });
 
       html += "</tr></thead><tbody>";
@@ -263,7 +263,7 @@ const dataTableEnhancerScript = `
       dataRows.forEach(function (row) {
         html += "<tr>";
         Array.prototype.slice.call(row.children).forEach(function (cell) {
-          html += "<td>" + cell.innerText.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</td>";
+          html += "<td>" + cell.innerText.toUpperCase().replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</td>";
         });
         html += "</tr>";
       });
@@ -464,7 +464,7 @@ function getCardTitle(row: Record<string, unknown>, columns: DataColumn[]): Smar
 
   if (placa !== "-" || modelo !== "-" || marca !== "-") {
     const value = [placa, marca, modelo].filter((item) => item !== "-").join(" - ");
-    return { key: placa !== "-" ? "placa" : modelo !== "-" ? "modelo" : "marca", label: "VeÃ­culo", value };
+    return { key: placa !== "-" ? "placa" : modelo !== "-" ? "modelo" : "marca", label: "VeÃƒÂ­culo", value };
   }
 
   if (row.nome !== undefined) {
@@ -516,7 +516,7 @@ function getHighlightColumns(row: Record<string, unknown>, columns: DataColumn[]
 function isMetricColumn(column: SmartColumn) {
   const key = column.key.toLowerCase();
   const label = column.label.toLowerCase();
-  return ["valor", "preco", "preÃ§o", "comissao", "comissÃ£o", "vales", "saldo", "pendentes", "recebido", "total"].some(
+  return ["valor", "preco", "preÃƒÂ§o", "comissao", "comissÃƒÂ£o", "vales", "saldo", "pendentes", "recebido", "total"].some(
     (term) => key.includes(term) || label.includes(term)
   );
 }
@@ -527,7 +527,7 @@ function badgeClassName(value: string) {
     ? "bg-emerald-100 text-emerald-900 border-emerald-200"
     : normalized.includes("aberto") || normalized.includes("pendente") || normalized.includes("fiado") || normalized.includes("parcial")
       ? "bg-amber-100 text-amber-900 border-amber-200"
-      : normalized.includes("nÃ£o") || normalized.includes("nao") || normalized.includes("cancel") || normalized.includes("inativo")
+      : normalized.includes("nÃƒÂ£o") || normalized.includes("nao") || normalized.includes("cancel") || normalized.includes("inativo")
         ? "bg-red-100 text-red-900 border-red-200"
         : "bg-slate-100 text-slate-700 border-slate-200";
 
@@ -683,8 +683,8 @@ export function AccessDenied({ appName = "este sistema", backHref = "/dashboard"
   return (
     <div className="panel mx-auto grid max-w-xl gap-4 p-6 text-center">
       <p className="eyebrow">Acesso bloqueado</p>
-      <h1 className="text-3xl font-black">VocÃª nÃ£o tem acesso a {appName}</h1>
-      <p className="text-sm leading-6 text-slate-300">Verifique a assinatura da empresa ou peÃ§a para um administrador liberar sua permissÃ£o.</p>
+      <h1 className="text-3xl font-black">VocÃƒÂª nÃƒÂ£o tem acesso a {appName}</h1>
+      <p className="text-sm leading-6 text-slate-300">Verifique a assinatura da empresa ou peÃƒÂ§a para um administrador liberar sua permissÃƒÂ£o.</p>
       <Link className="button-primary mx-auto" href={backHref}>
         Voltar ao dashboard
       </Link>
@@ -746,7 +746,7 @@ function formatValue(value: unknown) {
   }
 
   if (typeof value === "boolean") {
-    return value ? "Sim" : "NÃ£o";
+    return value ? "Sim" : "NÃƒÂ£o";
   }
 
   if (typeof value === "object") {

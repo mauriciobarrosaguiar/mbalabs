@@ -525,7 +525,7 @@ select.input option:disabled {
   color: var(--muted);
 }
 
-/* CorreÃƒÂ§ÃƒÂ£o dos botÃƒÂµes dentro dos cards brancos no mobile */
+/* CorreÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o dos botÃƒÆ’Ã‚Âµes dentro dos cards brancos no mobile */
 @media (max-width: 1023px) {
   .page-shell article.bg-white .button-secondary {
     background: #ffffff !important;
@@ -624,7 +624,7 @@ select.input option:disabled {
 
 /* BEGIN MBA LABS PLATFORM REDESIGN */
 /* Plataforma MBA Labs: identidade visual, logo, modo claro/escuro e contraste seguro.
-   Escopo protegido para nÃ£o alterar sistemas internos. */
+   Escopo protegido para nÃƒÂ£o alterar sistemas internos. */
 
 :root[data-mba-theme="dark"] {
   color-scheme: dark;
@@ -874,3 +874,59 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
   color: #64748b;
 }
 /* END MBA DATA TABLE TOOLS */
+
+/* BEGIN MBA TABLE ALIGNMENT */
+/* Padronização das listas da plataforma: maiúsculo, dados completos e alinhamento */
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] table {
+  border-spacing: 0;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] th {
+  font-size: 0.74rem;
+  line-height: 1rem;
+  color: #c7d2fe;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] td {
+  max-width: 280px;
+  vertical-align: middle;
+  text-transform: uppercase;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] td:nth-child(1) {
+  min-width: 220px;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] td:nth-child(2) {
+  min-width: 260px;
+  text-transform: lowercase;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] td:nth-child(5),
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] td:nth-child(6) {
+  min-width: 280px;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] td:last-child {
+  min-width: 180px;
+  text-transform: none;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] td:last-child .button-secondary,
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] td:last-child .button-danger,
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] td:last-child .button-primary {
+  text-transform: uppercase;
+}
+
+body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] tbody tr:hover {
+  background: rgba(40, 216, 165, 0.06);
+}
+
+:root[data-mba-theme="light"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] th {
+  color: #334155;
+}
+
+:root[data-mba-theme="light"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) [data-mba-table] tbody tr:hover {
+  background: #f1f5f9;
+}
+/* END MBA TABLE ALIGNMENT */
