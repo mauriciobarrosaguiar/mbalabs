@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, MessageBanner, formatDate, formatMoney } from "@/components/ui-kit";
+import { finalizarServicoOperacao } from "@/lib/actions/lavagestor-finalizar-actions";
 import { registrarSaidaOperacao } from "@/lib/actions/lavagestor-operacao-actions";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
@@ -93,8 +94,8 @@ function ServicoCard({ row }: { row: Row }) {
           </Link>
         ) : (
           <div className="grid grid-cols-2 gap-2">
-            <QuickAction lavagemId={id} tipo="finalizado" label="FINALIZAR" className="bg-emerald-500 text-white" />
-            <QuickAction lavagemId={id} tipo="cancelado" label="CANCELAR" className="bg-red-500 text-white" />
+            <FinalizarAction lavagemId={id} />
+            <CancelarAction lavagemId={id} />
           </div>
         )}
       </div>
@@ -102,14 +103,25 @@ function ServicoCard({ row }: { row: Row }) {
   );
 }
 
-function QuickAction({ lavagemId, tipo, label, className }: { lavagemId: string; tipo: string; label: string; className: string }) {
+function FinalizarAction({ lavagemId }: { lavagemId: string }) {
+  return (
+    <form action={finalizarServicoOperacao}>
+      <input type="hidden" name="lavagem_id" value={lavagemId} />
+      <button className="min-h-14 w-full rounded-2xl bg-emerald-500 px-2 text-center text-sm font-black text-white" type="submit">
+        FINALIZAR
+      </button>
+    </form>
+  );
+}
+
+function CancelarAction({ lavagemId }: { lavagemId: string }) {
   return (
     <form action={registrarSaidaOperacao}>
       <input type="hidden" name="lavagem_id" value={lavagemId} />
-      <input type="hidden" name="tipo_saida" value={tipo} />
+      <input type="hidden" name="tipo_saida" value="cancelado" />
       <input type="hidden" name="return_to" value="/lavagestor/operacao/fila" />
-      <button className={`min-h-14 w-full rounded-2xl px-2 text-center text-sm font-black ${className}`} type="submit">
-        {label}
+      <button className="min-h-14 w-full rounded-2xl bg-red-500 px-2 text-center text-sm font-black text-white" type="submit">
+        CANCELAR
       </button>
     </form>
   );
