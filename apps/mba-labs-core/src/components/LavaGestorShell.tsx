@@ -96,6 +96,7 @@ export async function LavaGestorShell({
   const visibleNavGroups = getVisibleNavGroups(effectivePermissions);
   const canSeeFila = effectivePermissions.has("fila.ver");
   const canCreateLavagem = effectivePermissions.has("lavagem.criar");
+  const isLavadorOnly = perfil === "lavador";
   const homeHref = canSeeFila ? "/lavagestor/operacao" : "/lavagestor";
   const displayUserName = userName || current.usuario.nome;
   const displayRoleLabel = roleLabel && !["funcionario", "usuario"].includes(roleLabel.toLowerCase())
@@ -104,92 +105,103 @@ export async function LavaGestorShell({
 
   return (
     <div className="lavagestor-module min-h-screen overflow-x-hidden bg-background text-foreground">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden h-screen w-72 flex-col border-r border-border bg-card px-4 py-5 lg:flex">
-        <Link className="block shrink-0" href={homeHref}>
-          <div className="text-xl font-bold tracking-tight text-primary">LavaGestor</div>
-          <div className="mt-1 truncate text-sm text-muted-foreground" title={companyName}>{companyName}</div>
-        </Link>
-
-        <nav className="mt-8 min-h-0 flex-1 space-y-4 overflow-y-auto pb-4 pr-1">
-          {visibleNavGroups.map((group) => (
-            <div className="grid gap-1" key={group.label}>
-              <p className="px-3 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">{group.label}</p>
-              {group.items.map((item) => (
-                <LavaNavLink activePath={activePath} item={item} key={item.href} />
-              ))}
-            </div>
-          ))}
-        </nav>
-
-        <div className="mt-auto shrink-0 overflow-hidden rounded-lg border border-border bg-muted/50 p-3">
-          {displayUserName ? <p className="truncate text-sm font-semibold" title={displayUserName}>{displayUserName}</p> : null}
-          {displayRoleLabel ? <p className="truncate text-xs text-muted-foreground" title={displayRoleLabel}>{displayRoleLabel}</p> : null}
-          <Link className="mt-3 flex min-h-10 items-center justify-center gap-2 rounded-lg bg-white px-3 text-sm font-semibold shadow-sm" href="/dashboard">
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Voltar ao MBA Labs
+      {!isLavadorOnly ? (
+        <aside className="fixed inset-y-0 left-0 z-20 hidden h-screen w-72 flex-col border-r border-border bg-card px-4 py-5 lg:flex">
+          <Link className="block shrink-0" href={homeHref}>
+            <div className="text-xl font-bold tracking-tight text-primary">LavaGestor</div>
+            <div className="mt-1 truncate text-sm text-muted-foreground" title={companyName}>{companyName}</div>
           </Link>
-          <form action="/sair" className="mt-2" method="post">
-            <button className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-semibold shadow-sm">
-              <LogOut className="h-4 w-4" aria-hidden />
-              Sair
-            </button>
-          </form>
-        </div>
-      </aside>
 
-      <header className="sticky top-0 z-30 border-b border-border bg-card/95 px-4 py-2 shadow-sm backdrop-blur lg:hidden">
+          <nav className="mt-8 min-h-0 flex-1 space-y-4 overflow-y-auto pb-4 pr-1">
+            {visibleNavGroups.map((group) => (
+              <div className="grid gap-1" key={group.label}>
+                <p className="px-3 text-[10px] font-black uppercase tracking-[0.16em] text-muted-foreground">{group.label}</p>
+                {group.items.map((item) => (
+                  <LavaNavLink activePath={activePath} item={item} key={item.href} />
+                ))}
+              </div>
+            ))}
+          </nav>
+
+          <div className="mt-auto shrink-0 overflow-hidden rounded-lg border border-border bg-muted/50 p-3">
+            {displayUserName ? <p className="truncate text-sm font-semibold" title={displayUserName}>{displayUserName}</p> : null}
+            {displayRoleLabel ? <p className="truncate text-xs text-muted-foreground" title={displayRoleLabel}>{displayRoleLabel}</p> : null}
+            <Link className="mt-3 flex min-h-10 items-center justify-center gap-2 rounded-lg bg-white px-3 text-sm font-semibold shadow-sm" href="/dashboard">
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              Voltar ao MBA Labs
+            </Link>
+            <form action="/sair" className="mt-2" method="post">
+              <button className="flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-white px-3 text-sm font-semibold shadow-sm">
+                <LogOut className="h-4 w-4" aria-hidden />
+                Sair
+              </button>
+            </form>
+          </div>
+        </aside>
+      ) : null}
+
+      <header className={`sticky top-0 z-30 border-b border-border bg-card/95 px-4 py-2 shadow-sm backdrop-blur ${isLavadorOnly ? "" : "lg:hidden"}`}>
         <div className="flex items-center justify-between gap-3">
           <Link className="min-w-0" href={homeHref}>
             <div className="truncate font-bold text-primary">LavaGestor</div>
             <div className="truncate text-xs text-muted-foreground" title={companyName}>{companyName}</div>
           </Link>
 
-          <div className="flex shrink-0 items-center gap-2">
-            {canCreateLavagem ? (
-              <Link className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold" href="/lavagestor/operacao/entrada">
-                Entrada
-              </Link>
-            ) : canSeeFila ? (
-              <Link className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold" href="/lavagestor/operacao/fila">
-                Fila
-              </Link>
-            ) : null}
-            <details className="group relative">
-              <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg border border-border bg-white shadow-sm [&::-webkit-details-marker]:hidden" aria-label="Abrir menu">
-                <Menu className="h-5 w-5" aria-hidden />
-              </summary>
-              <div className="absolute right-0 top-12 z-40 grid max-h-[calc(100vh-5rem)] w-72 gap-1 overflow-y-auto rounded-xl border border-border bg-white p-2 shadow-xl">
-                {visibleNavGroups.map((group, index) => (
-                  <details className="rounded-lg border border-border/70 bg-white" key={group.label} open={index === 0 || group.items.some((item) => isActivePath(activePath, item.href))}>
-                    <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between px-3 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground [&::-webkit-details-marker]:hidden">
-                      {group.label}
-                      <Boxes className="h-4 w-4 text-primary" aria-hidden />
-                    </summary>
-                    <div className="grid gap-1 border-t border-border/70 p-1">
-                      {group.items.map((item) => (
-                        <LavaNavLink activePath={activePath} item={item} key={`${item.href}-dropdown`} mobile />
-                      ))}
-                    </div>
-                  </details>
-                ))}
-                <div className="my-1 border-t border-border" />
-                <Link className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold hover:bg-muted" href="/dashboard">
-                  <ArrowLeft className="h-4 w-4 text-primary" aria-hidden />
-                  MBA Labs
+          {isLavadorOnly ? (
+            <form action="/sair" method="post">
+              <button className="flex min-h-10 items-center justify-center gap-2 rounded-lg border border-border bg-white px-4 text-sm font-black shadow-sm" type="submit">
+                <LogOut className="h-4 w-4 text-primary" aria-hidden />
+                Sair
+              </button>
+            </form>
+          ) : (
+            <div className="flex shrink-0 items-center gap-2">
+              {canCreateLavagem ? (
+                <Link className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold" href="/lavagestor/operacao/entrada">
+                  Entrada
                 </Link>
-                <form action="/sair" method="post">
-                  <button className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-semibold hover:bg-muted" type="submit">
-                    <LogOut className="h-4 w-4 text-primary" aria-hidden />
-                    Sair
-                  </button>
-                </form>
-              </div>
-            </details>
-          </div>
+              ) : canSeeFila ? (
+                <Link className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold" href="/lavagestor/operacao/fila">
+                  Fila
+                </Link>
+              ) : null}
+              <details className="group relative">
+                <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-lg border border-border bg-white shadow-sm [&::-webkit-details-marker]:hidden" aria-label="Abrir menu">
+                  <Menu className="h-5 w-5" aria-hidden />
+                </summary>
+                <div className="absolute right-0 top-12 z-40 grid max-h-[calc(100vh-5rem)] w-72 gap-1 overflow-y-auto rounded-xl border border-border bg-white p-2 shadow-xl">
+                  {visibleNavGroups.map((group, index) => (
+                    <details className="rounded-lg border border-border/70 bg-white" key={group.label} open={index === 0 || group.items.some((item) => isActivePath(activePath, item.href))}>
+                      <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between px-3 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground [&::-webkit-details-marker]:hidden">
+                        {group.label}
+                        <Boxes className="h-4 w-4 text-primary" aria-hidden />
+                      </summary>
+                      <div className="grid gap-1 border-t border-border/70 p-1">
+                        {group.items.map((item) => (
+                          <LavaNavLink activePath={activePath} item={item} key={`${item.href}-dropdown`} mobile />
+                        ))}
+                      </div>
+                    </details>
+                  ))}
+                  <div className="my-1 border-t border-border" />
+                  <Link className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold hover:bg-muted" href="/dashboard">
+                    <ArrowLeft className="h-4 w-4 text-primary" aria-hidden />
+                    MBA Labs
+                  </Link>
+                  <form action="/sair" method="post">
+                    <button className="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-semibold hover:bg-muted" type="submit">
+                      <LogOut className="h-4 w-4 text-primary" aria-hidden />
+                      Sair
+                    </button>
+                  </form>
+                </div>
+              </details>
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="px-4 py-5 lg:ml-72 lg:px-8">
+      <main className={isLavadorOnly ? "px-4 py-5" : "px-4 py-5 lg:ml-72 lg:px-8"}>
         <div className="mx-auto max-w-7xl">{children}</div>
       </main>
     </div>
