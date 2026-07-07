@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -11,6 +11,7 @@ export async function createLavagemMelhorada(formData: FormData) {
   const supabase = await getSupabaseServer();
   const client = supabase as any;
   const empresaId = current.empresaId;
+  const returnTo = safeLavaReturn(textValue(formData, "return_to") || "/lavagestor/checklists/[id]");
 
   const clienteId = await resolveCliente(client, empresaId, formData);
   const veiculoId = await resolveVeiculo(client, empresaId, clienteId, formData);
@@ -127,7 +128,8 @@ export async function createLavagemMelhorada(formData: FormData) {
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/fila");
   revalidatePath("/lavagestor/comissoes");
-  redirect(`/lavagestor/checklists/${lavagem.id}?ok=${messageParam("Lavagem registrada na fila. Complete o checklist de entrada.")}`);
+  const finalPath = returnTo.replace("[id]", String(lavagem.id));
+  redirect(`${finalPath}${finalPath.includes("?") ? "&" : "?"}ok=${messageParam("Entrada registrada com sucesso.")}`);
 }
 
 async function resolveCliente(client: any, empresaId: string | null, formData: FormData) {
@@ -202,3 +204,7 @@ function uniqueValues(values: string[]) { return Array.from(new Set(values.filte
 function roundMoney(value: number) { return Math.round(value * 100) / 100; }
 function onlyDigits(value: unknown) { return String(value ?? "").replace(/\D/g, ""); }
 function normalizeComparable(value: unknown) { return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/ç/g, "c").replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " "); }
+
+function safeLavaReturn(value: string) {
+  return value.startsWith("/lavagestor") && !value.startsWith("//") ? value : "/lavagestor/fila";
+}

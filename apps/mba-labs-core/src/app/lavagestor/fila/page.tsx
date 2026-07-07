@@ -1,10 +1,12 @@
-import Link from "next/link";
+﻿import Link from "next/link";
+import { redirect } from "next/navigation";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { FilaKanbanClient } from "@/components/lavagestor/FilaKanbanClient";
 import { LavaSyncPendingButton } from "@/components/lavagestor/LavaPhotoCard";
 import { MessageBanner, PageHeader } from "@/components/ui-kit";
 import { alterarFuncionarioLavagem } from "@/lib/actions/lavagestor-fila-actions";
 import { firstParam } from "@/lib/form-utils";
+import { requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
 import { listLavaFila } from "@/lib/lavagestor-fila-data";
 
@@ -74,3 +76,4 @@ function TrocarFuncionarioPanel({ rows, funcionarios }: { rows: Row[]; funcionar
     </section>
   );
 }
+

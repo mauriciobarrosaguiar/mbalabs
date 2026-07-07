@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { AppNav } from "@/components/AppNav";
 import { getDashboardData, isSuperAdminType } from "@/lib/core-data";
 import { getInternalAppBySlug } from "@/lib/app-registry";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const { profile, apps, error } = await getDashboardData();
   const isAdminMaster = isSuperAdminType(profile.tipo);
-  const visibleApps = isAdminMaster ? apps : apps.filter((app) => app.canAccess && Boolean(getInternalAppBySlug(app.slug)));
+  const visibleApps = isAdminMaster ? apps : apps.filter((app) => Boolean(getInternalAppBySlug(app.slug)));
 
   return (
     <main>
@@ -16,11 +16,11 @@ export default async function DashboardPage() {
       <section className="page-shell grid gap-8 py-8">
         <div className="grid gap-2">
           <p className="eyebrow">Dashboard principal</p>
-          <h1 className="text-4xl font-black">Olá, {profile.nome}</h1>
+          <h1 className="text-4xl font-black">OlÃ¡, {profile.nome}</h1>
           <p className="text-slate-300">
             Perfil: <strong>{profileLabel(profile.tipo)}</strong>
           </p>
-          {error ? <p className="text-sm text-red-200">Aviso: não foi possível carregar todos os dados agora. {error}</p> : null}
+          {error ? <p className="text-sm text-red-200">Aviso: não foi possÃ­vel carregar todos os dados agora. {error}</p> : null}
         </div>
 
         {visibleApps.length > 0 ? (
@@ -33,7 +33,7 @@ export default async function DashboardPage() {
                 <article className="panel grid gap-5 p-5" key={app.slug}>
                   <div>
                     <div className="mb-3 inline-flex rounded-full border border-white/10 px-3 py-1 text-xs font-bold uppercase text-slate-300">
-                      {statusLabel(app.canAccess ? app.status : "sem_assinatura")}
+                      {statusLabel(app.status)}
                     </div>
                     <h2 className="text-xl font-black">{displayAppName(app)}</h2>
                     <p className="mt-2 min-h-12 text-sm leading-6 text-slate-300">{displayAppDescription(app)}</p>
@@ -49,7 +49,7 @@ export default async function DashboardPage() {
                     </Link>
                   ) : (
                     <button className="button-secondary cursor-not-allowed opacity-70" type="button">
-                      {knownRoute ? "Sem assinatura ativa" : "Rota indisponível"}
+                      {knownRoute ? "Sem assinatura ativa" : "Rota indisponÃ­vel"}
                     </button>
                   )}
                 </article>
@@ -58,7 +58,7 @@ export default async function DashboardPage() {
           </div>
         ) : (
           <div className="panel p-6 text-slate-300">
-            Nenhum sistema ativo encontrado para este usuário.
+            Nenhum sistema ativo encontrado para este usuÃ¡rio.
           </div>
         )}
       </section>
@@ -72,10 +72,10 @@ function profileLabel(type: string) {
     admin_master: "Admin Master",
     admin_empresa: "Admin da empresa",
     operador: "Operador",
-    usuario: "Usuário"
+    usuario: "UsuÃ¡rio"
   };
 
-  return labels[type] ?? "Usuário";
+  return labels[type] ?? "UsuÃ¡rio";
 }
 
 function statusLabel(status: string) {
@@ -97,7 +97,7 @@ function displayAppName(app: { slug: string; nome: string }) {
 
 function displayAppDescription(app: { slug: string; descricao: string }) {
   if (app.slug === "lexgestor" || app.slug === "lex-gestor") {
-    return "Gestão jurídica inteligente para escritórios de advocacia.";
+    return "GestÃ£o jurídica inteligente para escritórios de advocacia.";
   }
 
   return fixEncoding(app.descricao);
@@ -105,11 +105,13 @@ function displayAppDescription(app: { slug: string; descricao: string }) {
 
 function fixEncoding(value: string) {
   return value
-    .replaceAll("Gest\u00c3\u00a3o", "Gestão")
+    .replaceAll("Gest\u00c3\u00a3o", "GestÃ£o")
     .replaceAll("jur\u00c3\u00addica", "jurídica")
     .replaceAll("escrit\u00c3\u00b3rios", "escritórios")
     .replaceAll("Cota\u00c3\u00a7\u00c3\u00b5es", "Cotações")
     .replaceAll("servi\u00c3\u00a7os", "serviços")
     .replaceAll("or\u00c3\u00a7amentos", "orçamentos")
-    .replaceAll("comiss\u00c3\u00b5es", "comissões");
+    .replaceAll("comiss\u00c3\u00b5es", "comissÃµes");
 }
+
+

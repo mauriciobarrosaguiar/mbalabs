@@ -1,5 +1,6 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 import { AppNav } from "@/components/AppNav";
+import { PaymentSubscriptionFields } from "@/components/admin/PaymentSubscriptionFields";
 import {
   DataTable,
   FormDateInput,
@@ -85,8 +86,12 @@ export default async function AdminPagamentosPage({ searchParams }: { searchPara
                 </>
               }
             >
-              <FormSelect label="Empresa" name="empresa_id" defaultValue={String(editing?.empresa_id ?? "")} options={options.empresas} required />
-              <FormSelect label="Assinatura" name="assinatura_id" defaultValue={String(editing?.assinatura_id ?? "")} options={options.assinaturas} required />
+              <PaymentSubscriptionFields
+                empresas={options.empresas}
+                assinaturas={options.assinaturas}
+                defaultEmpresaId={String(editing?.empresa_id ?? "")}
+                defaultAssinaturaId={String(editing?.assinatura_id ?? "")}
+              />
               <FormMoneyInput label="Valor" name="valor" defaultValue={String(editing?.valor ?? "")} required />
               <FormDateInput label="Vencimento" name="vencimento" defaultValue={editing?.vencimento ? String(editing.vencimento).slice(0, 10) : ""} />
               <FormDateInput label="Pago em" name="pagamento_em" defaultValue={editing?.pagamento_em ? String(editing.pagamento_em).slice(0, 10) : ""} />
@@ -168,3 +173,55 @@ function relationName(value: unknown) {
   const relation = relationObject(value);
   return String(relation.nome_fantasia ?? relation.nome ?? "");
 }
+
+const paymentSubscriptionFilterScript = `
+(function () {
+  function setupPaymentSubscriptionFilter() {
+    var companySelect = document.querySelector("[data-payment-company-select]");
+    var subscriptionSelect = document.querySelector("[data-payment-subscription-select]");
+
+    if (!companySelect || !subscriptionSelect || subscriptionSelect.dataset.filtered === "true") {
+      return;
+    }
+
+    subscriptionSelect.dataset.filtered = "true";
+
+    function applyFilter() {
+      var selectedCompany = companySelect.value;
+      var currentValue = subscriptionSelect.value;
+      var hasCurrentVisible = false;
+
+      Array.prototype.forEach.call(subscriptionSelect.options, function (option) {
+        if (!option.value) {
+          option.hidden = false;
+          option.disabled = false;
+          return;
+        }
+
+        var sameCompany = option.getAttribute("data-empresa-id") === selectedCompany;
+        option.hidden = Boolean(selectedCompany) && !sameCompany;
+        option.disabled = Boolean(selectedCompany) && !sameCompany;
+
+        if (option.value === currentValue && !option.hidden) {
+          hasCurrentVisible = true;
+        }
+      });
+
+      if (!hasCurrentVisible) {
+        subscriptionSelect.value = "";
+      }
+    }
+
+    companySelect.addEventListener("change", applyFilter);
+    applyFilter();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", setupPaymentSubscriptionFilter);
+  } else {
+    setupPaymentSubscriptionFilter();
+  }
+})();
+`;
+
+
