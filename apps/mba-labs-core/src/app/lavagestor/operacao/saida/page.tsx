@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, MessageBanner, formatDate, formatMoney } from "@/components/ui-kit";
-import { registrarSaidaOperacao } from "@/lib/actions/lavagestor-operacao-actions";
+import { SaidaPagamentoForm } from "@/components/lavagestor/operacao/SaidaPagamentoForm";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
 import { listLavaFila } from "@/lib/lavagestor-fila-data";
@@ -77,33 +77,12 @@ function SaidaCard({ row, funcionarios }: { row: Row; funcionarios: Row[] }) {
         </div>
       </div>
 
-      <form action={registrarSaidaOperacao} className="grid gap-3 p-3 pt-0">
-        <input type="hidden" name="lavagem_id" value={id} />
-        <input type="hidden" name="return_to" value="/lavagestor/operacao/fila" />
+      <div className="grid grid-cols-2 gap-2 px-3 pb-3 text-xs">
+        <Info label="Valor" value={formatMoney(row.valor_final ?? row.valor)} />
+        <Info label="Entrada" value={formatDate(row.data_entrada ?? row.data_lavagem)} />
+      </div>
 
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <Info label="Valor" value={formatMoney(row.valor_final ?? row.valor)} />
-          <Info label="Entrada" value={formatDate(row.data_entrada ?? row.data_lavagem)} />
-        </div>
-
-        <label className="grid gap-2">
-          <span className="text-sm font-black">Quem lavou?</span>
-          <select className="input min-h-14 text-base font-bold" name="funcionario_id" required defaultValue={String(row.funcionario_id ?? "")}>
-            <option value="">Selecione o lavador</option>
-            {funcionarios.map((funcionario) => (
-              <option key={String(funcionario.id)} value={String(funcionario.id)}>{String(funcionario.nome)}</option>
-            ))}
-          </select>
-        </label>
-
-        <div className="grid grid-cols-2 gap-2">
-          <button name="tipo_saida" value="pago" className="min-h-16 rounded-2xl bg-emerald-500 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]" type="submit">PAGO</button>
-          <button name="tipo_saida" value="convenio" className="min-h-16 rounded-2xl bg-blue-500 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]" type="submit">CONVENIO</button>
-          <button name="tipo_saida" value="fiado" className="min-h-16 rounded-2xl bg-amber-500 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]" type="submit">FIADO</button>
-          <button name="tipo_saida" value="faturar" className="min-h-16 rounded-2xl bg-slate-700 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]" type="submit">A FATURAR</button>
-          <button name="tipo_saida" value="cancelado" className="col-span-2 min-h-14 rounded-2xl bg-red-500 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]" type="submit" formNoValidate>CANCELAR</button>
-        </div>
-      </form>
+      <SaidaPagamentoForm lavagemId={id} funcionarios={funcionarios} funcionarioAtual={String(row.funcionario_id ?? "")} />
     </article>
   );
 }
