@@ -97,6 +97,7 @@ export async function LavaGestorShell({
   const canSeeFila = effectivePermissions.has("fila.ver");
   const canCreateLavagem = effectivePermissions.has("lavagem.criar");
   const isLavadorOnly = perfil === "lavador";
+  const isOperacaoHome = activePath === "/lavagestor/operacao";
   const homeHref = canSeeFila ? "/lavagestor/operacao" : "/lavagestor";
   const displayUserName = userName || current.usuario.nome;
   const displayRoleLabel = roleLabel && !["funcionario", "usuario"].includes(roleLabel.toLowerCase())
@@ -104,7 +105,7 @@ export async function LavaGestorShell({
     : labelLavaPerfil(perfil);
 
   return (
-    <div className="lavagestor-module min-h-screen overflow-x-hidden bg-background text-foreground">
+    <div className={isOperacaoHome ? "lavagestor-module h-svh overflow-hidden bg-background text-foreground" : "lavagestor-module min-h-screen overflow-x-hidden bg-background text-foreground"}>
       {!isLavadorOnly ? (
         <aside className="fixed inset-y-0 left-0 z-20 hidden h-screen w-72 flex-col border-r border-border bg-card px-4 py-5 lg:flex">
           <Link className="block shrink-0" href={homeHref}>
@@ -140,7 +141,7 @@ export async function LavaGestorShell({
         </aside>
       ) : null}
 
-      <header className={`sticky top-0 z-30 border-b border-border bg-card/95 px-4 py-2 shadow-sm backdrop-blur ${isLavadorOnly ? "" : "lg:hidden"}`}>
+      <header className={`sticky top-0 z-30 border-b border-border bg-card/95 px-4 shadow-sm backdrop-blur ${isOperacaoHome ? "py-1.5" : "py-2"} ${isLavadorOnly ? "" : "lg:hidden"}`}>
         <div className="flex items-center justify-between gap-3">
           <Link className="min-w-0" href={homeHref}>
             <div className="truncate font-bold text-primary">LavaGestor</div>
@@ -201,7 +202,7 @@ export async function LavaGestorShell({
         </div>
       </header>
 
-      <main className={isLavadorOnly ? "px-4 py-5" : "px-4 py-5 lg:ml-72 lg:px-8"}>
+      <main className={isOperacaoHome ? "px-3 py-2 lg:ml-72 lg:px-4" : isLavadorOnly ? "px-4 py-5" : "px-4 py-5 lg:ml-72 lg:px-8"}>
         <div className="mx-auto max-w-7xl">{children}</div>
       </main>
     </div>
