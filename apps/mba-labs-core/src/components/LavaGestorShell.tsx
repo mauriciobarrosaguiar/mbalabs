@@ -4,7 +4,6 @@ import {
   Banknote,
   Bot,
   Boxes,
-  CalendarDays,
   Car,
   ClipboardList,
   CreditCard,
@@ -43,11 +42,11 @@ type LavaNavItem = {
 
 const lavaNavItems: LavaNavItem[] = [
   { href: "/lavagestor", label: "Dashboard", icon: LayoutDashboard, permission: "financeiro.ver_caixa" },
+  { href: "/lavagestor/operacao/entrada", label: "Entrada", icon: Car, permission: "lavagem.criar" },
+  { href: "/lavagestor/operacao/saida", label: "Saída", icon: ReceiptText, permission: "lavagem.finalizar" },
+  { href: "/lavagestor/operacao/fila", label: "Veículos em serviço", icon: ClipboardList, permission: "fila.ver" },
   { href: "/lavagestor/busca", label: "Busca rápida", icon: Search, permission: "busca.ver" },
-  { href: "/lavagestor/nova-lavagem", label: "Nova lavagem", icon: Car, permission: "lavagem.criar" },
-  { href: "/lavagestor/fila", label: "Fila", icon: ClipboardList, permission: "fila.ver" },
   { href: "/lavagestor/lavagens", label: "Lavagens", icon: ClipboardList, permission: "lavagem.ver" },
-  { href: "/lavagestor/agendamentos", label: "Agendamentos", icon: CalendarDays, permission: "agendamento.ver" },
   { href: "/lavagestor/placa", label: "Ler placa", icon: ScanLine, permission: "placa.ler" },
   { href: "/lavagestor/clientes", label: "Clientes", icon: Users, anyOf: ["cliente.criar", "cliente.editar"] },
   { href: "/lavagestor/veiculos", label: "Veículos", icon: Car, anyOf: ["veiculo.criar", "veiculo.editar"] },
@@ -71,7 +70,7 @@ const lavaNavItems: LavaNavItem[] = [
 ];
 
 const lavaNavGroupsConfig: Array<{ label: string; hrefs: string[] }> = [
-  { label: "Operação", hrefs: ["/lavagestor", "/lavagestor/busca", "/lavagestor/nova-lavagem", "/lavagestor/fila", "/lavagestor/lavagens", "/lavagestor/agendamentos", "/lavagestor/placa"] },
+  { label: "Operação", hrefs: ["/lavagestor", "/lavagestor/operacao/entrada", "/lavagestor/operacao/saida", "/lavagestor/operacao/fila", "/lavagestor/busca", "/lavagestor/lavagens", "/lavagestor/placa"] },
   { label: "Cadastros", hrefs: ["/lavagestor/clientes", "/lavagestor/veiculos", "/lavagestor/funcionarios", "/lavagestor/servicos", "/lavagestor/estoque"] },
   { label: "Financeiro", hrefs: ["/lavagestor/pagamentos", "/lavagestor/financeiro", "/lavagestor/comissoes", "/lavagestor/vales", "/lavagestor/pagamentos-integrados", "/lavagestor/notas-fiscais"] },
   { label: "Crescimento", hrefs: ["/lavagestor/whatsapp", "/lavagestor/pos-venda", "/lavagestor/automacoes", "/lavagestor/iamob"] },
@@ -96,6 +95,8 @@ export async function LavaGestorShell({
   const effectivePermissions = new Set(getEffectiveLavaPermissions(perfil, permissionExtras));
   const visibleNavGroups = getVisibleNavGroups(effectivePermissions);
   const canSeeFila = effectivePermissions.has("fila.ver");
+  const canCreateLavagem = effectivePermissions.has("lavagem.criar");
+  const homeHref = canSeeFila ? "/lavagestor/operacao" : "/lavagestor";
   const displayUserName = userName || current.usuario.nome;
   const displayRoleLabel = roleLabel && !["funcionario", "usuario"].includes(roleLabel.toLowerCase())
     ? roleLabel
@@ -104,7 +105,7 @@ export async function LavaGestorShell({
   return (
     <div className="lavagestor-module min-h-screen overflow-x-hidden bg-background text-foreground">
       <aside className="fixed inset-y-0 left-0 z-20 hidden h-screen w-72 flex-col border-r border-border bg-card px-4 py-5 lg:flex">
-        <Link className="block shrink-0" href={canSeeFila ? "/lavagestor/fila" : "/lavagestor"}>
+        <Link className="block shrink-0" href={homeHref}>
           <div className="text-xl font-bold tracking-tight text-primary">LavaGestor</div>
           <div className="mt-1 truncate text-sm text-muted-foreground" title={companyName}>{companyName}</div>
         </Link>
@@ -138,14 +139,18 @@ export async function LavaGestorShell({
 
       <header className="sticky top-0 z-30 border-b border-border bg-card/95 px-4 py-2 shadow-sm backdrop-blur lg:hidden">
         <div className="flex items-center justify-between gap-3">
-          <Link className="min-w-0" href={canSeeFila ? "/lavagestor/fila" : "/lavagestor"}>
+          <Link className="min-w-0" href={homeHref}>
             <div className="truncate font-bold text-primary">LavaGestor</div>
             <div className="truncate text-xs text-muted-foreground" title={companyName}>{companyName}</div>
           </Link>
 
           <div className="flex shrink-0 items-center gap-2">
-            {canSeeFila ? (
-              <Link className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold" href="/lavagestor/fila">
+            {canCreateLavagem ? (
+              <Link className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold" href="/lavagestor/operacao/entrada">
+                Entrada
+              </Link>
+            ) : canSeeFila ? (
+              <Link className="rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold" href="/lavagestor/operacao/fila">
                 Fila
               </Link>
             ) : null}
