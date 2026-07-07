@@ -2,6 +2,23 @@ import { registrarSaidaOperacao } from "@/lib/actions/lavagestor-operacao-action
 
 type Row = Record<string, unknown>;
 
+const conveniosPadrao = [
+  "ANM",
+  "Alianca Auto Center (Desc. 15%)",
+  "Andar Locadora (Desc. 33%)",
+  "Ariolino",
+  "Bunge (Desc. R$ 10,00)",
+  "CAOA CHERY - NOVOS",
+  "CAOA CHERY - SEMI NOVOS",
+  "CRM",
+  "CRT - TO",
+  "Carajas (Desc. 10%)",
+  "Celebrate (Desc. 11%)",
+  "Cid - Oficina Alianca (Desc. 15%)",
+  "Claro - Ticket Log",
+  "Cref 14 (R$ 60,00)"
+];
+
 export function SaidaPagamentoForm({ lavagemId, funcionarios, funcionarioAtual = "" }: { lavagemId: string; funcionarios: Row[]; funcionarioAtual?: string }) {
   return (
     <form action={registrarSaidaOperacao} className="grid gap-3 p-3 pt-0">
@@ -25,8 +42,13 @@ export function SaidaPagamentoForm({ lavagemId, funcionarios, funcionarioAtual =
       </div>
 
       <label className="grid gap-2">
-        <span className="text-sm font-black">Convenio / empresa</span>
-        <input className="input min-h-12 text-base font-bold" name="convenio_nome" placeholder="Ex.: empresa ou convenio" />
+        <span className="text-sm font-black">Convenio</span>
+        <select className="input min-h-12 text-base font-bold" name="convenio_nome" defaultValue="">
+          <option value="">Selecione o convenio</option>
+          {conveniosPadrao.map((convenio) => (
+            <option key={convenio} value={convenio}>{convenio}</option>
+          ))}
+        </select>
       </label>
 
       <div className="grid grid-cols-2 gap-2">
