@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, MessageBanner, formatDate, formatMoney } from "@/components/ui-kit";
 import { registrarSaidaOperacao } from "@/lib/actions/lavagestor-operacao-actions";
@@ -22,7 +22,7 @@ export default async function LavaOperacaoFilaPage({ searchParams }: { searchPar
 
   return (
     <LavaGestorShell activePath="/lavagestor/operacao/fila" companyName={config.nome_exibicao}>
-      <section className="mx-auto grid w-full max-w-xl gap-4 py-4">
+      <section className="mx-auto grid w-full max-w-xl gap-3 overflow-x-hidden py-3">
         <div className="flex items-center justify-between gap-2">
           <BackButton href="/lavagestor/operacao" label="Voltar" />
           <Link className="button-primary rounded-xl px-4 py-3 text-sm font-black" href="/lavagestor/operacao/entrada">
@@ -31,8 +31,8 @@ export default async function LavaOperacaoFilaPage({ searchParams }: { searchPar
         </div>
 
         <div className="rounded-3xl border border-border bg-white p-4 shadow-sm">
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-600">Operação</p>
-          <h1 className="mt-1 text-3xl font-black">Veículos em serviço</h1>
+          <p className="text-xs font-black uppercase tracking-[0.12em] text-emerald-600">Operacao</p>
+          <h1 className="mt-1 text-3xl font-black">Veiculos em servico</h1>
           <p className="mt-1 text-sm font-bold text-muted-foreground">
             Total na fila: {fila.rows.length}
           </p>
@@ -42,7 +42,7 @@ export default async function LavaOperacaoFilaPage({ searchParams }: { searchPar
 
         {fila.rows.length === 0 ? (
           <div className="rounded-2xl border border-border bg-white p-5 text-center text-sm font-bold text-muted-foreground">
-            Nenhum veículo em serviço agora.
+            Nenhum veiculo em servico agora.
           </div>
         ) : null}
 
@@ -58,20 +58,21 @@ export default async function LavaOperacaoFilaPage({ searchParams }: { searchPar
 
 function ServicoCard({ row }: { row: Row }) {
   const id = String(row.id ?? "");
-  const foto = String(row.foto_entrada_url || row.foto_entrada_preview_url || row.checklist_foto_url || "");
+  const foto = String(row.foto_entrada_preview_url || row.foto_entrada_url || row.checklist_foto_url || "");
   const status = String(row.status ?? "");
+  const isFinalizado = ["finalizado", "cliente_avisado", "pago"].includes(status);
   const tone = cardTone(row);
 
   return (
     <article className={`overflow-hidden rounded-3xl border shadow-sm ${tone}`}>
-      <div className="grid grid-cols-[92px_1fr] gap-3 p-3">
-        <div className="h-28 overflow-hidden rounded-2xl bg-muted">
-          {foto ? <img className="h-full w-full object-cover" src={foto} alt="Foto do veículo" /> : <div className="flex h-full items-center justify-center text-xs font-black text-muted-foreground">SEM FOTO</div>}
+      <div className="grid grid-cols-[72px_1fr] gap-3 p-3">
+        <div className="h-20 overflow-hidden rounded-2xl bg-muted">
+          {foto ? <img className="h-full w-full object-cover" src={foto} alt="Foto do veiculo" loading="lazy" /> : <div className="flex h-full items-center justify-center text-[10px] font-black text-muted-foreground">SEM FOTO</div>}
         </div>
 
         <div className="min-w-0">
           <p className="text-xs font-black uppercase tracking-[0.08em] text-muted-foreground">Ticket #{id.slice(0, 8)}</p>
-          <h2 className="mt-1 truncate text-xl font-black">{String(row.veiculo || "Veículo")}</h2>
+          <h2 className="mt-1 truncate text-xl font-black">{String(row.veiculo || "Veiculo")}</h2>
           <p className="mt-1 truncate text-sm font-bold">{String(row.cliente || "Cliente")}</p>
           <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">{String(row.servico || "-")}</p>
           <p className="mt-2 text-xs font-black">Tempo: {tempoEmServico(row.data_entrada ?? row.data_lavagem)}</p>
@@ -82,16 +83,20 @@ function ServicoCard({ row }: { row: Row }) {
         <Info label="Entrada" value={formatDate(row.data_entrada ?? row.data_lavagem)} />
         <Info label="Valor" value={formatMoney(row.valor_final ?? row.valor)} />
         <Info label="Status" value={String(row.status_label || status)} />
-        <Info label="Lavador" value={String(row.funcionario || "-")} />
+        <Info label="Lavador" value={String(row.funcionario || "A definir")} />
       </div>
 
-      <div className="grid grid-cols-3 gap-2 border-t border-black/5 p-3">
-        <Link className="flex min-h-14 items-center justify-center rounded-2xl bg-sky-500 px-2 text-center text-sm font-black text-white" href={`/lavagestor/operacao/saida?q=${encodeURIComponent(id)}`}>
-          SAÍDA
-        </Link>
-
-        <QuickAction lavagemId={id} tipo="finalizado" label="FINALIZAR" className="bg-emerald-500 text-white" />
-        <QuickAction lavagemId={id} tipo="cancelado" label="CANCELAR" className="bg-red-500 text-white" />
+      <div className="grid gap-2 border-t border-black/5 p-3">
+        {isFinalizado ? (
+          <Link className="flex min-h-16 items-center justify-center rounded-2xl bg-sky-500 px-2 text-center text-lg font-black text-white" href={`/lavagestor/operacao/saida?q=${encodeURIComponent(id)}`}>
+            DAR SAIDA
+          </Link>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <QuickAction lavagemId={id} tipo="finalizado" label="FINALIZAR" className="bg-emerald-500 text-white" />
+            <QuickAction lavagemId={id} tipo="cancelado" label="CANCELAR" className="bg-red-500 text-white" />
+          </div>
+        )}
       </div>
     </article>
   );
@@ -154,4 +159,3 @@ function minutesSince(value: unknown) {
 
   return Math.max(0, Math.floor((Date.now() - date.getTime()) / 60000));
 }
-
