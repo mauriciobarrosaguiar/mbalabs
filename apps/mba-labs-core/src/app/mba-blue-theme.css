@@ -1,0 +1,464 @@
+/*
+ * Identidade visual global MBA Labs
+ * Paleta principal inspirada na referência fornecida:
+ * azul claro #E9F1FA, azul brilhante #00ABE4 e branco #FFFFFF.
+ */
+
+:root,
+:root[data-mba-theme="light"],
+:root[data-mba-theme="dark"] {
+  color-scheme: light;
+
+  --mba-blue-soft: #e9f1fa;
+  --mba-blue: #00abe4;
+  --mba-white: #ffffff;
+  --mba-ink: #12324a;
+  --mba-muted-ink: #5d7284;
+  --mba-blue-border: rgba(0, 171, 228, 0.24);
+  --mba-blue-soft-strong: rgba(0, 171, 228, 0.12);
+
+  --background: #e9f1fa;
+  --foreground: #12324a;
+  --muted: #e9f1fa;
+  --muted-foreground: #5d7284;
+  --line: rgba(0, 171, 228, 0.24);
+  --panel: #ffffff;
+  --panel-strong: #ffffff;
+  --card: #ffffff;
+  --card-foreground: #12324a;
+  --popover: #ffffff;
+  --popover-foreground: #12324a;
+  --primary: #00abe4;
+  --primary-foreground: #ffffff;
+  --secondary: #ffffff;
+  --secondary-foreground: #12324a;
+  --accent: #00abe4;
+  --accent-2: #00abe4;
+  --accent-foreground: #ffffff;
+  --border: rgba(0, 171, 228, 0.24);
+  --input: rgba(0, 171, 228, 0.28);
+  --ring: #00abe4;
+}
+
+html {
+  background: #e9f1fa !important;
+}
+
+body,
+:root[data-mba-theme="light"] body,
+:root[data-mba-theme="dark"] body {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.98), transparent 30rem),
+    radial-gradient(circle at 100% 18%, rgba(0, 171, 228, 0.15), transparent 34rem),
+    linear-gradient(180deg, #ffffff 0%, #e9f1fa 44%, #e9f1fa 100%) !important;
+  color: #12324a !important;
+}
+
+::selection {
+  background: rgba(0, 171, 228, 0.28);
+  color: #12324a;
+}
+
+*:focus-visible {
+  outline: 3px solid rgba(0, 171, 228, 0.32);
+  outline-offset: 2px;
+}
+
+a:not([class*="button-"]) {
+  text-decoration-color: rgba(0, 171, 228, 0.45);
+}
+
+a:not([class*="button-"]):hover {
+  color: #00abe4;
+}
+
+/* Estrutura principal e navegação */
+.platform-nav,
+:root[data-mba-theme="light"] .platform-nav,
+:root[data-mba-theme="dark"] .platform-nav,
+.portal-shell-top {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: rgba(0, 171, 228, 0.20) !important;
+  box-shadow: 0 10px 32px rgba(18, 50, 74, 0.08) !important;
+  color: #12324a !important;
+}
+
+.platform-nav-link,
+.platform-mobile-link,
+.portal-nav-link,
+.portal-mobile-nav-link {
+  color: #12324a !important;
+}
+
+.platform-nav-link:hover,
+.platform-mobile-link:hover,
+.portal-nav-link:hover,
+.portal-mobile-nav-link:hover {
+  background: #e9f1fa !important;
+  color: #00abe4 !important;
+}
+
+.platform-nav-link[aria-current="page"],
+.platform-mobile-link[aria-current="page"],
+.portal-nav-link[aria-current="page"],
+.portal-mobile-nav-link[aria-current="page"] {
+  background: rgba(0, 171, 228, 0.14) !important;
+  color: #00abe4 !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 171, 228, 0.18);
+}
+
+.platform-mobile-menu,
+.portal-mobile-panel {
+  background: #ffffff !important;
+  border-color: rgba(0, 171, 228, 0.22) !important;
+  color: #12324a !important;
+  box-shadow: 0 22px 55px rgba(18, 50, 74, 0.16) !important;
+}
+
+.mba-brand,
+.mba-brand strong,
+.mba-brand span {
+  color: #12324a !important;
+}
+
+.mba-brand-mark {
+  background: linear-gradient(135deg, #00abe4 0%, #ffffff 190%) !important;
+  border-color: rgba(0, 171, 228, 0.35) !important;
+  box-shadow:
+    0 10px 24px rgba(0, 171, 228, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.68) !important;
+  color: #ffffff !important;
+}
+
+.mba-theme-toggle,
+:root[data-mba-theme="light"] .mba-theme-toggle,
+:root[data-mba-theme="dark"] .mba-theme-toggle,
+.portal-icon-button,
+.portal-menu-trigger {
+  background: #ffffff !important;
+  border-color: rgba(0, 171, 228, 0.28) !important;
+  color: #12324a !important;
+  box-shadow: 0 3px 10px rgba(18, 50, 74, 0.08) !important;
+}
+
+.mba-theme-toggle:hover,
+.portal-icon-button:hover,
+.portal-menu-trigger:hover {
+  background: #e9f1fa !important;
+  color: #00abe4 !important;
+}
+
+/* Superfícies, cards e painéis */
+.panel,
+:root[data-mba-theme="light"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) .panel,
+:root[data-mba-theme="dark"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) .panel {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: rgba(0, 171, 228, 0.20) !important;
+  color: #12324a !important;
+  box-shadow:
+    0 16px 42px rgba(18, 50, 74, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92) !important;
+}
+
+.bg-white,
+article.bg-white,
+[data-mba-table] article {
+  background-color: #ffffff !important;
+  border-color: rgba(0, 171, 228, 0.20) !important;
+  color: #12324a !important;
+}
+
+.bg-slate-50,
+.bg-slate-100,
+.bg-gray-50,
+.bg-gray-100 {
+  background-color: #e9f1fa !important;
+}
+
+.border-slate-100,
+.border-slate-200,
+.border-slate-300,
+.border-gray-100,
+.border-gray-200,
+.border-gray-300 {
+  border-color: rgba(0, 171, 228, 0.20) !important;
+}
+
+.text-slate-950,
+.text-slate-900,
+.text-slate-800,
+.text-gray-950,
+.text-gray-900,
+.text-gray-800 {
+  color: #12324a !important;
+}
+
+.text-slate-700,
+.text-slate-600,
+.text-slate-500,
+.text-slate-400,
+.text-slate-300,
+.text-gray-700,
+.text-gray-600,
+.text-gray-500,
+.text-gray-400 {
+  color: #5d7284 !important;
+}
+
+.eyebrow,
+.text-primary {
+  color: #00abe4 !important;
+}
+
+/* Botões */
+.button-primary,
+button.bg-primary,
+a.bg-primary,
+[role="button"].bg-primary {
+  background: #00abe4 !important;
+  border-color: #00abe4 !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 20px rgba(0, 171, 228, 0.22) !important;
+}
+
+.button-primary:hover,
+button.bg-primary:hover,
+a.bg-primary:hover,
+[role="button"].bg-primary:hover {
+  filter: brightness(0.93);
+  color: #ffffff !important;
+}
+
+.button-secondary {
+  background: #ffffff !important;
+  border-color: rgba(0, 171, 228, 0.34) !important;
+  color: #12324a !important;
+  box-shadow: 0 3px 10px rgba(18, 50, 74, 0.07) !important;
+}
+
+.button-secondary:hover {
+  background: #e9f1fa !important;
+  border-color: #00abe4 !important;
+  color: #00abe4 !important;
+}
+
+/* Campos e formulários */
+.input,
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  background: #ffffff !important;
+  border-color: rgba(0, 171, 228, 0.28) !important;
+  color: #12324a !important;
+}
+
+.input::placeholder,
+input::placeholder,
+textarea::placeholder {
+  color: #7890a2 !important;
+  opacity: 1;
+}
+
+.input:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #00abe4 !important;
+  box-shadow: 0 0 0 3px rgba(0, 171, 228, 0.14) !important;
+}
+
+select,
+select.input,
+select.input option {
+  color-scheme: light !important;
+  background: #ffffff !important;
+  color: #12324a !important;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: #00abe4;
+}
+
+/* Tabelas */
+table {
+  color: #12324a;
+}
+
+table thead,
+:root[data-mba-theme="light"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) table thead,
+:root[data-mba-theme="dark"] body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-associativo-module)) table thead {
+  background: #e9f1fa !important;
+  color: #12324a !important;
+}
+
+table th {
+  color: #12324a !important;
+}
+
+table td {
+  border-color: rgba(0, 171, 228, 0.16) !important;
+  color: #12324a !important;
+}
+
+table tbody tr:hover,
+[data-mba-table] tbody tr:hover {
+  background: rgba(0, 171, 228, 0.07) !important;
+}
+
+/* Todos os módulos internos compartilham a mesma identidade */
+.cotacoes-module,
+.lavagestor-module,
+.portal-associativo-module,
+[class$="-module"],
+[class*="-module "] {
+  color-scheme: light;
+  background: #e9f1fa !important;
+  color: #12324a !important;
+
+  --background: #e9f1fa;
+  --foreground: #12324a;
+  --card: #ffffff;
+  --card-foreground: #12324a;
+  --popover: #ffffff;
+  --popover-foreground: #12324a;
+  --primary: #00abe4;
+  --primary-foreground: #ffffff;
+  --secondary: #ffffff;
+  --secondary-foreground: #12324a;
+  --muted: #e9f1fa;
+  --muted-foreground: #5d7284;
+  --accent: rgba(0, 171, 228, 0.14);
+  --accent-foreground: #00abe4;
+  --border: rgba(0, 171, 228, 0.22);
+  --input: rgba(0, 171, 228, 0.28);
+  --ring: #00abe4;
+  --line: rgba(0, 171, 228, 0.22);
+  --panel: #ffffff;
+  --panel-strong: #ffffff;
+}
+
+.cotacoes-module aside,
+.cotacoes-module header,
+.cotacoes-module main,
+.lavagestor-module aside,
+.lavagestor-module header,
+.lavagestor-module main,
+.portal-associativo-module aside,
+.portal-associativo-module header,
+.portal-associativo-module main,
+[class$="-module"] aside,
+[class$="-module"] header,
+[class$="-module"] main,
+[class*="-module "] aside,
+[class*="-module "] header,
+[class*="-module "] main {
+  color: #12324a !important;
+}
+
+.cotacoes-module .panel,
+.lavagestor-module .panel,
+.portal-associativo-module .panel,
+[class$="-module"] .panel,
+[class*="-module "] .panel {
+  background: #ffffff !important;
+  border-color: rgba(0, 171, 228, 0.20) !important;
+  color: #12324a !important;
+  box-shadow: 0 10px 28px rgba(18, 50, 74, 0.08) !important;
+}
+
+.cotacoes-module aside nav a,
+.lavagestor-module aside nav a,
+.portal-associativo-module aside nav a,
+[class$="-module"] aside nav a,
+[class*="-module "] aside nav a {
+  color: #12324a !important;
+}
+
+.cotacoes-module aside nav a:hover,
+.lavagestor-module aside nav a:hover,
+.lavagestor-module header nav a:hover,
+.portal-associativo-module aside nav a:hover,
+[class$="-module"] aside nav a:hover,
+[class*="-module "] aside nav a:hover {
+  background: #e9f1fa !important;
+  color: #00abe4 !important;
+}
+
+.cotacoes-module aside nav a[aria-current="page"],
+.lavagestor-module aside nav a[aria-current="page"],
+.lavagestor-module header nav a[aria-current="page"],
+.portal-associativo-module aside nav a[aria-current="page"],
+[class$="-module"] aside nav a[aria-current="page"],
+[class*="-module "] aside nav a[aria-current="page"] {
+  background: rgba(0, 171, 228, 0.14) !important;
+  color: #00abe4 !important;
+}
+
+/* Substitui os antigos verdes/azuis de destaque pela cor oficial */
+.text-emerald-300,
+.text-emerald-400,
+.text-emerald-500,
+.text-emerald-600,
+.text-emerald-700,
+.text-teal-300,
+.text-teal-400,
+.text-teal-500,
+.text-teal-600,
+.text-teal-700,
+.text-cyan-400,
+.text-cyan-500,
+.text-cyan-600,
+.text-sky-500,
+.text-sky-600,
+.text-blue-500,
+.text-blue-600,
+.text-blue-700 {
+  color: #00abe4 !important;
+}
+
+.bg-emerald-50,
+.bg-emerald-100,
+.bg-teal-50,
+.bg-teal-100,
+.bg-cyan-50,
+.bg-cyan-100,
+.bg-sky-50,
+.bg-sky-100,
+.bg-blue-50,
+.bg-blue-100 {
+  background-color: rgba(0, 171, 228, 0.12) !important;
+}
+
+.border-emerald-100,
+.border-emerald-200,
+.border-emerald-300,
+.border-teal-100,
+.border-teal-200,
+.border-teal-300,
+.border-cyan-100,
+.border-cyan-200,
+.border-sky-100,
+.border-sky-200,
+.border-blue-100,
+.border-blue-200,
+.border-blue-300 {
+  border-color: rgba(0, 171, 228, 0.28) !important;
+}
+
+/* Mantém os estados de erro, alerta e sucesso reconhecíveis por segurança. */
+
+@media (max-width: 1023px) {
+  .page-shell article.bg-white,
+  [data-mba-table] article {
+    background: #ffffff !important;
+    border-color: rgba(0, 171, 228, 0.22) !important;
+    box-shadow: 0 12px 30px rgba(18, 50, 74, 0.12) !important;
+  }
+
+  .page-shell article.bg-white .bg-slate-50,
+  [data-mba-table] article .bg-slate-50 {
+    background: #e9f1fa !important;
+    border-color: rgba(0, 171, 228, 0.18) !important;
+  }
+}
