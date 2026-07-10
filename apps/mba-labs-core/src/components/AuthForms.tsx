@@ -50,7 +50,7 @@ export function LoginForm({ nextPath = "/dashboard" }: { nextPath?: string }) {
   return (
     <form className="grid gap-4" onSubmit={handleSubmit}>
       <label className="grid gap-2">
-        <span className="text-sm font-semibold">Email</span>
+        <span className="text-sm font-semibold">E-mail</span>
         <input
           className="input"
           type="email"
@@ -120,10 +120,10 @@ export function SetupAdminForm({ setupKey }: { setupKey?: string }) {
     <form className="grid gap-4" onSubmit={handleSubmit}>
       <label className="grid gap-2">
         <span className="text-sm font-semibold">Nome do Admin Master</span>
-        <input className="input" name="nome" placeholder="Mauricio Barros" required />
+        <input className="input" name="nome" placeholder="Maurício Barros" required />
       </label>
       <label className="grid gap-2">
-        <span className="text-sm font-semibold">Email</span>
+        <span className="text-sm font-semibold">E-mail</span>
         <input className="input" name="email" type="email" placeholder="admin@mbalabs.com" required />
       </label>
       <label className="grid gap-2">
