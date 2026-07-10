@@ -1,6 +1,6 @@
 import Link from "next/link";
+import { BrandLogo } from "@/components/BrandLogo";
 import { getSessionProfile, isSuperAdminType } from "@/lib/core-data";
-import { getSiteConfig } from "@/lib/site-config";
 
 type NavLink = {
   href: string;
@@ -14,9 +14,6 @@ type NavGroup = {
 
 export async function AppNav() {
   const { user, profile, appsLiberados } = await getSessionProfile();
-  const siteConfig = await getSiteConfig();
-  const brandName = siteConfig.brandName || "MBA Labs";
-  const logoUrl = siteConfig.logoUrl?.trim();
   const firstApp = appsLiberados?.find((app) => app.canAccess);
   const groups = getNavGroups({
     isLoggedIn: Boolean(user),
@@ -29,27 +26,17 @@ export async function AppNav() {
   return (
     <header className="platform-nav border-b border-white/10 bg-black/20">
       <nav className="page-shell flex min-h-16 items-center justify-between gap-4 py-3">
-        <Link className="mba-brand group flex items-center gap-3" href="/" aria-label={`${brandName} - início`}>
-          {logoUrl ? (
-            <img className="max-h-11 max-w-[180px] object-contain" src={logoUrl} alt={brandName} />
-          ) : (
-            <>
-              <span className="mba-brand-mark" aria-hidden="true">
-                MB
-              </span>
-              <span className="grid leading-none">
-                <span className="text-lg font-black tracking-tight">{brandName}</span>
-                <span className="hidden text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:block">
-                  Plataforma SaaS
-                </span>
-              </span>
-            </>
-          )}
+        <Link className="mba-brand group flex items-center" href="/" aria-label="MBA Labs - início">
+          <BrandLogo size="md" />
         </Link>
 
         <div className="hidden flex-wrap items-center gap-2 text-sm text-slate-200 lg:flex">
           {desktopLinks.map((link) => (
-            <Link className="platform-nav-link rounded-[8px] px-3 py-2 font-semibold hover:bg-white/10" href={link.href} key={link.href}>
+            <Link
+              className="platform-nav-link rounded-[8px] px-3 py-2 font-semibold hover:bg-white/10"
+              href={link.href}
+              key={link.href}
+            >
               {link.label}
             </Link>
           ))}
@@ -77,7 +64,11 @@ export async function AppNav() {
                       </p>
                     ) : null}
                     {group.links.map((link) => (
-                      <Link className="platform-mobile-link rounded-[8px] px-2 py-2 text-sm font-semibold hover:bg-white/10" href={link.href} key={link.href}>
+                      <Link
+                        className="platform-mobile-link rounded-[8px] px-2 py-2 text-sm font-semibold hover:bg-white/10"
+                        href={link.href}
+                        key={link.href}
+                      >
                         {link.label}
                       </Link>
                     ))}
@@ -85,7 +76,10 @@ export async function AppNav() {
                 ))}
                 {user ? (
                   <form action="/sair" className="border-t border-white/10 pt-3" method="post">
-                    <button className="platform-mobile-link w-full rounded-[8px] px-2 py-2 text-left text-sm font-semibold hover:bg-white/10" type="submit">
+                    <button
+                      className="platform-mobile-link w-full rounded-[8px] px-2 py-2 text-left text-sm font-semibold hover:bg-white/10"
+                      type="submit"
+                    >
                       Sair
                     </button>
                   </form>
