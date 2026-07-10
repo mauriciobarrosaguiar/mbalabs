@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { RouteThemeController } from "@/components/RouteThemeController";
 import "./globals.css";
 import "./mba-blue-theme.css";
 
@@ -12,6 +13,35 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"]
 });
+
+const routeThemeScript = `
+(function () {
+  var systemPrefixes = [
+    "/apps",
+    "/cotacoes",
+    "/lavagestor",
+    "/bikecomanda",
+    "/lexgestor",
+    "/portal-associativo"
+  ];
+  var pathname = window.location.pathname;
+  var isSystemRoute = systemPrefixes.some(function (prefix) {
+    return pathname === prefix || pathname.indexOf(prefix + "/") === 0;
+  });
+  var isPlatformRoute = pathname !== "/" && !isSystemRoute;
+  var root = document.documentElement;
+
+  if (isPlatformRoute) {
+    root.dataset.mbaPlatform = "true";
+    root.dataset.mbaTheme = "dark";
+    root.style.colorScheme = "dark";
+  } else {
+    delete root.dataset.mbaPlatform;
+    delete root.dataset.mbaTheme;
+    root.style.removeProperty("color-scheme");
+  }
+})();
+`;
 
 const encodingFixScript = `
 (function () {
@@ -151,15 +181,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="pt-BR"
-      className={`${geistSans.variable} ${geistMono.variable}`}
-      data-mba-theme="dark"
-      style={{ colorScheme: "dark" }}
-      suppressHydrationWarning
-    >
+    <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body className="font-sans antialiased">
+        <script dangerouslySetInnerHTML={{ __html: routeThemeScript }} />
         <script dangerouslySetInnerHTML={{ __html: encodingFixScript }} />
+        <RouteThemeController />
         {children}
       </body>
     </html>
