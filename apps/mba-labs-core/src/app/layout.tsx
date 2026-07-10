@@ -13,19 +13,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"]
 });
 
-const themeScript = `
-(function () {
-  try {
-    var saved = localStorage.getItem("mba-platform-theme");
-    var theme = saved === "light" || saved === "dark" ? saved : "dark";
-    document.documentElement.dataset.mbaTheme = theme;
-    document.documentElement.style.colorScheme = theme;
-  } catch (error) {
-    document.documentElement.dataset.mbaTheme = "dark";
-  }
-})();
-`;
-
 const encodingFixScript = `
 (function () {
   var replacements = [
@@ -157,9 +144,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
+    <html
+      lang="pt-BR"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      data-mba-theme="dark"
+      style={{ colorScheme: "dark" }}
+      suppressHydrationWarning
+    >
       <body className="font-sans antialiased">
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script dangerouslySetInnerHTML={{ __html: encodingFixScript }} />
         {children}
       </body>
