@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { getSessionProfile, isSuperAdminType } from "@/lib/core-data";
 import { getSiteConfig } from "@/lib/site-config";
 
@@ -30,16 +29,22 @@ export async function AppNav() {
   return (
     <header className="platform-nav border-b border-white/10 bg-black/20">
       <nav className="page-shell flex min-h-16 items-center justify-between gap-4 py-3">
-        <Link className="mba-brand group flex items-center gap-3" href="/" aria-label="MBA Labs - início">
-          <span className="mba-brand-mark" aria-hidden="true">
-            MB
-          </span>
-          <span className="grid leading-none">
-            <span className="text-lg font-black tracking-tight">MBA Labs</span>
-            <span className="hidden text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:block">
-              Plataforma SaaS
-            </span>
-          </span>
+        <Link className="mba-brand group flex items-center gap-3" href="/" aria-label={`${brandName} - início`}>
+          {logoUrl ? (
+            <img className="max-h-11 max-w-[180px] object-contain" src={logoUrl} alt={brandName} />
+          ) : (
+            <>
+              <span className="mba-brand-mark" aria-hidden="true">
+                MB
+              </span>
+              <span className="grid leading-none">
+                <span className="text-lg font-black tracking-tight">{brandName}</span>
+                <span className="hidden text-[11px] font-bold uppercase tracking-[0.16em] text-slate-400 sm:block">
+                  Plataforma SaaS
+                </span>
+              </span>
+            </>
+          )}
         </Link>
 
         <div className="hidden flex-wrap items-center gap-2 text-sm text-slate-200 lg:flex">
@@ -48,7 +53,6 @@ export async function AppNav() {
               {link.label}
             </Link>
           ))}
-          <ThemeToggle />
           {user ? (
             <form action="/sair" method="post">
               <button className="platform-nav-link rounded-[8px] px-3 py-2 font-semibold hover:bg-white/10" type="submit">
@@ -59,7 +63,6 @@ export async function AppNav() {
         </div>
 
         <div className="flex items-center gap-2 lg:hidden">
-          <ThemeToggle compact />
           <details className="group relative">
             <summary className="button-secondary min-h-10 cursor-pointer list-none px-3 py-2 text-sm">
               Menu
