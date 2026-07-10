@@ -15,104 +15,111 @@ const geistMono = Geist_Mono({
 
 const encodingFixScript = `
 (function () {
-  var replacements = [
-    ["AÃƒâ€¡Ãƒâ€¢ES", "AÇÕES"],
-    ["AÃ‡Ã•ES", "AÇÕES"],
-    ["AÃ§Ãµes", "Ações"],
-    ["aÃ§Ãµes", "ações"],
-    ["VeÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­culo", "Veículo"],
-    ["veÃ­culo", "veículo"],
-    ["VeÃ­culo", "Veículo"],
-    ["preÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§o", "preço"],
-    ["preÃ§o", "preço"],
-    ["PreÃ§o", "Preço"],
-    ["comissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o", "comissão"],
-    ["comissÃ£o", "comissão"],
-    ["ComissÃ£o", "Comissão"],
-    ["nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o", "não"],
-    ["NÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o", "Não"],
-    ["nÃ£o", "não"],
-    ["NÃ£o", "Não"],
-    ["VocÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âª", "Você"],
-    ["VocÃª", "Você"],
-    ["vocÃª", "você"],
-    ["peÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§a", "peça"],
-    ["peÃ§a", "peça"],
-    ["permissÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o", "permissão"],
-    ["permissÃ£o", "permissão"],
-    ["ConfiguraÃ§Ãµes", "Configurações"],
-    ["configuraÃ§Ãµes", "configurações"],
-    ["UsuÃ¡rios", "Usuários"],
-    ["usuÃ¡rios", "usuários"],
-    ["botÃ£o", "botão"],
-    ["BotÃ£o", "Botão"],
-    ["Ã¡rea", "área"],
-    ["Ã�rea", "Área"],
-    ["Ãrea", "Área"],
-    ["benefÃ­cios", "benefícios"],
-    ["BenefÃ­cios", "Benefícios"],
-    ["conteÃºdo", "conteúdo"],
-    ["ConteÃºdo", "Conteúdo"],
-    ["pÃºblico", "público"],
-    ["PÃºblico", "Público"],
-    ["pÃ¡gina", "página"],
-    ["PÃ¡gina", "Página"],
-    ["rodapÃ©", "rodapé"],
-    ["RodapÃ©", "Rodapé"],
-    ["descriÃ§Ã£o", "descrição"],
-    ["DescriÃ§Ã£o", "Descrição"],
-    ["gestÃ£o", "gestão"],
-    ["GestÃ£o", "Gestão"],
-    ["operaÃ§Ã£o", "operação"],
-    ["OperaÃ§Ã£o", "Operação"],
-    ["informaÃ§Ãµes", "informações"],
-    ["InformaÃ§Ãµes", "Informações"],
-    ["serviÃ§os", "serviços"],
-    ["ServiÃ§os", "Serviços"],
-    ["relatÃ³rios", "relatórios"],
-    ["RelatÃ³rios", "Relatórios"],
-    ["cotaÃ§Ãµes", "cotações"],
-    ["CotaÃ§Ãµes", "Cotações"],
-    ["farmÃ¡cias", "farmácias"],
-    ["FarmÃ¡cias", "Farmácias"],
-    ["saÃ­das", "saídas"],
-    ["SaÃ­das", "Saídas"],
-    ["estÃ¡", "está"],
-    ["EstÃ¡", "Está"],
-    ["atÃ©", "até"],
-    ["AtÃ©", "Até"],
-    ["possÃ­vel", "possível"],
-    ["PossÃ­vel", "Possível"]
+  var windows1252 = {
+    "€": 128, "‚": 130, "ƒ": 131, "„": 132, "…": 133, "†": 134, "‡": 135,
+    "ˆ": 136, "‰": 137, "Š": 138, "‹": 139, "Œ": 140, "Ž": 142,
+    "‘": 145, "’": 146, "“": 147, "”": 148, "•": 149, "–": 150, "—": 151,
+    "˜": 152, "™": 153, "š": 154, "›": 155, "œ": 156, "ž": 158, "Ÿ": 159
+  };
+
+  var spellingCorrections = [
+    [/\\bPreco\\b/g, "Preço"], [/\\bpreco\\b/g, "preço"],
+    [/\\bAcoes\\b/g, "Ações"], [/\\bacoes\\b/g, "ações"],
+    [/\\bNao\\b/g, "Não"], [/\\bnao\\b/g, "não"],
+    [/\\bUsuario\\b/g, "Usuário"], [/\\bUsuarios\\b/g, "Usuários"],
+    [/\\busuario\\b/g, "usuário"], [/\\busuarios\\b/g, "usuários"],
+    [/\\bVeiculo\\b/g, "Veículo"], [/\\bVeiculos\\b/g, "Veículos"],
+    [/\\bveiculo\\b/g, "veículo"], [/\\bveiculos\\b/g, "veículos"],
+    [/\\bServico\\b/g, "Serviço"], [/\\bServicos\\b/g, "Serviços"],
+    [/\\bservico\\b/g, "serviço"], [/\\bservicos\\b/g, "serviços"],
+    [/\\bDescricao\\b/g, "Descrição"], [/\\bdescricao\\b/g, "descrição"],
+    [/\\bConfiguracao\\b/g, "Configuração"], [/\\bConfiguracoes\\b/g, "Configurações"],
+    [/\\bconfiguracao\\b/g, "configuração"], [/\\bconfiguracoes\\b/g, "configurações"],
+    [/\\bRelatorio\\b/g, "Relatório"], [/\\bRelatorios\\b/g, "Relatórios"],
+    [/\\brelatorio\\b/g, "relatório"], [/\\brelatorios\\b/g, "relatórios"],
+    [/\\bCotacao\\b/g, "Cotação"], [/\\bCotacoes\\b/g, "Cotações"],
+    [/\\bcotacao\\b/g, "cotação"], [/\\bcotacoes\\b/g, "cotações"],
+    [/\\bComissao\\b/g, "Comissão"], [/\\bComissoes\\b/g, "Comissões"],
+    [/\\bcomissao\\b/g, "comissão"], [/\\bcomissoes\\b/g, "comissões"],
+    [/\\bSaida\\b/g, "Saída"], [/\\bSaidas\\b/g, "Saídas"],
+    [/\\bsaida\\b/g, "saída"], [/\\bsaidas\\b/g, "saídas"],
+    [/\\bTitulo\\b/g, "Título"], [/\\btitulo\\b/g, "título"],
+    [/\\bBeneficios\\b/g, "Benefícios"], [/\\bbeneficios\\b/g, "benefícios"],
+    [/\\bPublico\\b/g, "Público"], [/\\bpublico\\b/g, "público"],
+    [/\\bPagina\\b/g, "Página"], [/\\bpagina\\b/g, "página"],
+    [/\\bRodape\\b/g, "Rodapé"], [/\\brodape\\b/g, "rodapé"],
+    [/\\bOperacao\\b/g, "Operação"], [/\\boperacao\\b/g, "operação"],
+    [/\\bInformacoes\\b/g, "Informações"], [/\\binformacoes\\b/g, "informações"],
+    [/\\bFarmacias\\b/g, "Farmácias"], [/\\bfarmacias\\b/g, "farmácias"],
+    [/\\bPossivel\\b/g, "Possível"], [/\\bpossivel\\b/g, "possível"]
   ];
 
+  function score(value) {
+    var matches = value.match(/Ã|Â|â|ð|�|Æ|ƒ|€™|™|œ|ž/g);
+    return matches ? matches.length : 0;
+  }
+
+  function decodeOnce(value) {
+    var bytes = [];
+    var characters = Array.from(value);
+
+    for (var index = 0; index < characters.length; index += 1) {
+      var character = characters[index];
+      var code = character.charCodeAt(0);
+
+      if (code <= 255) {
+        bytes.push(code);
+      } else if (Object.prototype.hasOwnProperty.call(windows1252, character)) {
+        bytes.push(windows1252[character]);
+      } else {
+        return value;
+      }
+    }
+
+    try {
+      return new TextDecoder("utf-8", { fatal: true }).decode(new Uint8Array(bytes));
+    } catch (error) {
+      return value;
+    }
+  }
+
   function fixText(value) {
-    if (!value || value.indexOf("Ã") === -1) return value;
+    if (!value) return value;
+
     var output = value;
-    replacements.forEach(function (item) {
-      output = output.split(item[0]).join(item[1]);
+    for (var attempt = 0; attempt < 4; attempt += 1) {
+      var decoded = decodeOnce(output);
+      if (decoded === output || score(decoded) >= score(output)) break;
+      output = decoded;
+    }
+
+    spellingCorrections.forEach(function (correction) {
+      output = output.replace(correction[0], correction[1]);
     });
+
     return output;
   }
 
   function fixNode(node) {
     if (!node) return;
+
     if (node.nodeType === Node.TEXT_NODE) {
-      var fixed = fixText(node.nodeValue || "");
-      if (fixed !== node.nodeValue) node.nodeValue = fixed;
+      var fixedText = fixText(node.nodeValue || "");
+      if (fixedText !== node.nodeValue) node.nodeValue = fixedText;
       return;
     }
+
     if (node.nodeType !== Node.ELEMENT_NODE) return;
+
     var element = node;
-    ["placeholder", "title", "aria-label", "alt"].forEach(function (attr) {
-      if (element.hasAttribute && element.hasAttribute(attr)) {
-        var value = element.getAttribute(attr) || "";
-        var fixed = fixText(value);
-        if (fixed !== value) element.setAttribute(attr, fixed);
-      }
+    ["placeholder", "title", "aria-label", "alt"].forEach(function (attribute) {
+      if (!element.hasAttribute || !element.hasAttribute(attribute)) return;
+      var currentValue = element.getAttribute(attribute) || "";
+      var fixedValue = fixText(currentValue);
+      if (fixedValue !== currentValue) element.setAttribute(attribute, fixedValue);
     });
-    if (element.childNodes) {
-      element.childNodes.forEach(fixNode);
-    }
+
+    if (element.childNodes) element.childNodes.forEach(fixNode);
   }
 
   function boot() {
