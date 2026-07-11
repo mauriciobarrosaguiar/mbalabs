@@ -1,4 +1,4 @@
-﻿import "server-only";
+import "server-only";
 
 import { ImageResponse } from "next/og";
 import { createElement as h } from "react";
@@ -12,11 +12,6 @@ type Row = Record<string, unknown>;
 
 export async function sendLavagemReceiptWhatsapp(lavagemId: string, origem = "manual") {
   const current = await requireAppAccess("lavagestor");
-
-  if (!current.empresaId) {
-    return { ok: false, error: "Empresa não identificada." };
-  }
-
   const { recibo, error } = await getLavaRecibo(lavagemId);
 
   if (!recibo) {
@@ -27,6 +22,12 @@ export async function sendLavagemReceiptWhatsapp(lavagemId: string, origem = "ma
     return { ok: false, error: "Recibo só pode ser enviado após pagamento confirmado." };
   }
 
+  const empresaId = String(recibo.empresaId ?? recibo.empresa?.id ?? current.empresaId ?? "");
+
+  if (!empresaId) {
+    return { ok: false, error: "Empresa do recibo não identificada." };
+  }
+
   const phone = normalizePhoneBR(recibo.whatsapp);
 
   if (!phone) {
@@ -34,7 +35,6 @@ export async function sendLavagemReceiptWhatsapp(lavagemId: string, origem = "ma
   }
 
   const client = (await getSupabaseServer()) as any;
-  const empresaId = String(current.empresaId);
   const integration = await getEvolutionIntegration(client, empresaId);
 
   if (!integration) {
@@ -68,13 +68,7 @@ export async function sendLavagemReceiptWhatsapp(lavagemId: string, origem = "ma
   const envioId = insert.data?.id ? String(insert.data.id) : "";
 
   try {
-    const sendResult = await sendReceiptImageViaEvolution({
-      integration,
-      phone,
-      png,
-      caption,
-      fileName
-    });
+    const sendResult = await sendReceiptImageViaEvolution({ integration, phone, png, caption, fileName });
 
     if (envioId) {
       await client
@@ -131,17 +125,14 @@ async function getEvolutionIntegration(client: any, empresaId: string) {
     .from("lava_whatsapp_integracoes")
     .select("*")
     .eq("empresa_id", empresaId)
-    .order("updated_at", { ascending: false });
+    .eq("provider", "evolution")
+    .eq("status", "conectado")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
-
-  const rows = (data ?? []) as Row[];
-
-  return (
-    rows.find((row) => row.provider === "evolution" && row.status === "conectado") ??
-    rows.find((row) => row.provider === "evolution") ??
-    null
-  );
+  return (data ?? null) as Row | null;
 }
 
 async function sendReceiptImageViaEvolution(params: {
@@ -179,16 +170,11 @@ async function sendReceiptImageViaEvolution(params: {
   }
 
   const json = await response.json().catch(() => ({}));
-
   return { ok: true, externalId: extractExternalId(json), response: json as Row };
 }
 
 async function renderReceiptPng(recibo: any) {
-  const response = new ImageResponse(receiptElement(recibo), {
-    width: 1080,
-    height: 1500
-  });
-
+  const response = new ImageResponse(receiptElement(recibo), { width: 1080, height: 1500 });
   const arrayBuffer = await response.arrayBuffer();
   return Buffer.from(arrayBuffer);
 }
@@ -216,12 +202,7 @@ function receiptElement(recibo: any) {
     },
     h("div", { style: { fontSize: 30, fontWeight: 900, color: primary, marginBottom: 24 } }, "RECIBO DE PAGAMENTO"),
     h("div", { style: { fontSize: 58, fontWeight: 900, marginBottom: 10 } }, String(recibo.empresa?.nome || "LavaGestor")),
-    h(
-      "div",
-      { style: { fontSize: 24, fontWeight: 700, color: "#64748b", marginBottom: 42 } },
-      [recibo.empresa?.cnpj, recibo.empresa?.telefone, recibo.empresa?.cidade_uf].filter(Boolean).join(" - ")
-    ),
-
+    h("div", { style: { fontSize: 24, fontWeight: 700, color: "#64748b", marginBottom: 42 } }, [recibo.empresa?.cnpj, recibo.empresa?.telefone, recibo.empresa?.cidade_uf].filter(Boolean).join(" - ")),
     h(
       "div",
       {
@@ -238,7 +219,6 @@ function receiptElement(recibo: any) {
       h("div", { style: { fontSize: 22, fontWeight: 900, color: primary } }, "Nº DO RECIBO"),
       h("div", { style: { fontSize: 48, fontWeight: 900, marginTop: 12 } }, String(recibo.numero || recibo.id || "-"))
     ),
-
     h(
       "div",
       { style: { display: "flex", flexWrap: "wrap", gap: 22, marginBottom: 34 } },
@@ -251,28 +231,15 @@ function receiptElement(recibo: any) {
       infoBox("DATA", formatDate(recibo.data_pagamento || recibo.data_entrada)),
       infoBox("STATUS", String(recibo.status_pagamento || "pago").toUpperCase())
     ),
-
     h(
       "div",
-      {
-        style: {
-          background: "#f8fafc",
-          borderRadius: 24,
-          padding: 36,
-          display: "flex",
-          flexDirection: "column",
-          gap: 26,
-          marginTop: 10
-        }
-      },
-      moneyLine("Total final", formatMoney(recibo.valor_final)),
-      moneyLine("Valor recebido", formatMoney(recibo.valor_recebido)),
-      moneyLine("Valor pendente", formatMoney(recibo.valor_pendente))
-    ),
-
-    h("div", { style: { flex: 1 } }),
-    h("div", { style: { borderTop: "2px solid #dbe4de", paddingTop: 44, textAlign: "center", color: "#64748b", fontSize: 26, fontWeight: 800 } }, "Obrigado pela preferência."),
-    h("div", { style: { textAlign: "center", color: "#64748b", fontSize: 22, fontWeight: 700, marginTop: 18 } }, "Recibo gerado pelo LavaGestor · MBA Labs")
+      { style: { background: "#f8fafc", borderRadius: 24, padding: 32, marginTop: "auto" } },
+      moneyLine("Total", recibo.valor_final),
+      moneyLine("Recebido", recibo.valor_recebido),
+      moneyLine("Pendente", recibo.valor_pendente),
+      h("div", { style: { height: 2, background: "#e5e7eb", margin: "28px 0" } }),
+      h("div", { style: { fontSize: 24, color: "#64748b", textAlign: "center", fontWeight: 700 } }, "Obrigado pela preferência.")
+    )
   );
 }
 
@@ -281,37 +248,42 @@ function infoBox(label: string, value: unknown) {
     "div",
     {
       style: {
-        width: "464px",
-        minHeight: "104px",
-        borderRadius: 18,
+        width: "458px",
+        minHeight: "112px",
         background: "#f8fafc",
-        padding: "20px",
+        borderRadius: 22,
+        padding: 24,
         display: "flex",
-        flexDirection: "column"
+        flexDirection: "column",
+        justifyContent: "center"
       }
     },
-    h("div", { style: { fontSize: 20, fontWeight: 900, color: "#64748b", marginBottom: 12 } }, label),
-    h("div", { style: { fontSize: 24, fontWeight: 800 } }, shortText(value, 38))
+    h("div", { style: { fontSize: 19, fontWeight: 900, color: "#64748b", letterSpacing: 2, marginBottom: 10 } }, label),
+    h("div", { style: { fontSize: 28, fontWeight: 900, lineHeight: 1.2 } }, String(value || "-"))
   );
 }
 
-function moneyLine(label: string, value: string) {
+function moneyLine(label: string, value: unknown) {
   return h(
     "div",
-    { style: { display: "flex", justifyContent: "space-between", alignItems: "center" } },
-    h("div", { style: { fontSize: 28, fontWeight: 800, color: "#475569" } }, label),
-    h("div", { style: { fontSize: 34, fontWeight: 900 } }, value)
+    { style: { display: "flex", justifyContent: "space-between", fontSize: 32, fontWeight: 900, marginBottom: 18 } },
+    h("span", { style: { color: "#64748b" } }, label),
+    h("span", null, formatMoney(value))
   );
 }
 
 function receiptCaption(recibo: any) {
-  return [
-    `Olá, ${String(recibo.cliente || "cliente")}!`,
-    `Segue o recibo de pagamento da lavagem ${String(recibo.numero || "")}.`,
-    `Veículo: ${String(recibo.veiculo || "-")}.`,
-    `Total pago: ${formatMoney(recibo.valor_recebido || recibo.valor_final)}.`,
-    "Obrigado pela preferência!"
-  ].join("\n");
+  return `Olá, ${String(recibo.cliente || "cliente")}! Segue seu recibo da lavagem ${String(recibo.numero || "")}. Veículo/item: ${String(recibo.veiculo || "-")}. Total pago: ${formatMoney(recibo.valor_recebido || recibo.valor_final)}. Obrigado pela preferência!`;
+}
+
+async function responseErrorMessage(response: Response) {
+  const text = await response.text().catch(() => "");
+  let detail = text;
+  try {
+    const json = JSON.parse(text);
+    detail = json.error_description || json.error?.message || json.error?.error_user_msg || json.error || text;
+  } catch {}
+  return redactSensitiveText(`Evolution API erro ${response.status}: ${detail || response.statusText}`);
 }
 
 function formatMoney(value: unknown) {
@@ -322,34 +294,16 @@ function formatMoney(value: unknown) {
 function formatDate(value: unknown) {
   if (!value) return "-";
   const date = new Date(String(value));
-  return Number.isFinite(date.getTime()) ? date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "-";
-}
-
-function shortText(value: unknown, max: number) {
-  const text = String(value ?? "-");
-  return text.length > max ? `${text.slice(0, max - 3)}...` : text;
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString("pt-BR");
 }
 
 function trimUrl(value: unknown) {
   return String(value ?? "").trim().replace(/\/+$/, "");
 }
 
-async function responseErrorMessage(response: Response) {
-  const text = await response.text().catch(() => "");
-  let detail = text;
-
-  try {
-    const json = JSON.parse(text);
-    detail = json.error_description || json.error?.message || json.error?.error_user_msg || json.error || text;
-  } catch {}
-
-  return redactSensitiveText(`Evolution API erro ${response.status}: ${detail || response.statusText}`);
-}
-
 function extractExternalId(json: unknown) {
   const row = json as Row;
   const messages = Array.isArray(row.messages) ? row.messages : [];
   const firstMessage = messages[0] as Row | undefined;
-
   return String(row.keyId ?? row.id ?? firstMessage?.id ?? row.messageId ?? "");
 }
