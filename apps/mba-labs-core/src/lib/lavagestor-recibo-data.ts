@@ -9,59 +9,62 @@ export async function getLavaRecibo(lavagemId: string) {
   const supabase = await getSupabaseServer();
   const client = supabase as any;
 
-  const [lavagemResult, empresaResult, configResult, servicosResult, pagamentosResult, checklistResult, fotosResult] = await Promise.all([
-    client
-      .from("lava_lavagens")
-      .select("id,empresa_id,cliente_id,veiculo_id,funcionario_id,servico_id,descricao_extra,observacoes,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,comissao,status,status_pagamento,forma_pagamento,data_entrada,data_inicio,data_finalizacao,data_cliente_avisado,data_pagamento,data_entrega,entrega_tipo,endereco_entrega,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor,tipo),lava_funcionarios(nome),lava_servicos(nome)")
-      .eq("id", lavagemId)
-      .eq("empresa_id", current.empresaId)
-      .maybeSingle(),
-    current.empresaId
-      ? client
-          .from("core_empresas")
-          .select("id,nome,nome_fantasia,razao_social,cnpj,telefone,whatsapp,email,cidade,estado")
-          .eq("id", current.empresaId)
-          .maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
-    current.empresaId
-      ? client
-          .from("lava_configuracoes")
-          .select("nome_exibicao,nome_fantasia,documento,whatsapp,telefone,endereco,cidade,estado,chave_pix,logo_url,cor_principal,mensagem_recibo,permitir_recibo_sem_checklist")
-          .eq("empresa_id", current.empresaId)
-          .maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
-    client
-      .from("lava_lavagem_servicos")
-      .select("id,descricao,valor,percentual_comissao,valor_comissao,created_at")
-      .eq("lavagem_id", lavagemId)
-      .eq("empresa_id", current.empresaId)
-      .order("created_at", { ascending: true }),
-    client
-      .from("lava_pagamentos")
-      .select("id,valor,forma_pagamento,data_pagamento,observacoes")
-      .eq("lavagem_id", lavagemId)
-      .eq("empresa_id", current.empresaId)
-      .order("data_pagamento", { ascending: true }),
-    client
-      .from("lava_checklists")
-      .select("*")
-      .eq("lavagem_id", lavagemId)
-      .eq("empresa_id", current.empresaId)
-      .maybeSingle(),
-    client
-      .from("lava_checklist_fotos")
-      .select("id,tipo,momento,storage_path,legenda,created_at")
-      .eq("lavagem_id", lavagemId)
-      .eq("empresa_id", current.empresaId)
-      .order("created_at", { ascending: false })
-      .limit(12)
-  ]);
+  const lavagemQuery = client
+    .from("lava_lavagens")
+    .select("id,empresa_id,cliente_id,veiculo_id,funcionario_id,servico_id,descricao_extra,observacoes,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,comissao,status,status_pagamento,forma_pagamento,data_entrada,data_inicio,data_finalizacao,data_cliente_avisado,data_pagamento,data_entrega,entrega_tipo,endereco_entrega,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor,tipo),lava_funcionarios(nome),lava_servicos(nome)")
+    .eq("id", lavagemId);
+
+  const lavagemResult = await (current.isAdminMaster ? lavagemQuery : lavagemQuery.eq("empresa_id", current.empresaId)).maybeSingle();
 
   if (lavagemResult.error || !lavagemResult.data) {
     return { recibo: null, error: lavagemResult.error?.message ?? "Lavagem não encontrada." };
   }
 
   const lavagem = lavagemResult.data as Row;
+  const empresaId = String(lavagem.empresa_id ?? current.empresaId ?? "");
+
+  const [empresaResult, configResult, servicosResult, pagamentosResult, checklistResult, fotosResult] = await Promise.all([
+    empresaId
+      ? client
+          .from("core_empresas")
+          .select("id,nome,nome_fantasia,razao_social,cnpj,telefone,whatsapp,email,cidade,estado")
+          .eq("id", empresaId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    empresaId
+      ? client
+          .from("lava_configuracoes")
+          .select("nome_exibicao,nome_fantasia,documento,whatsapp,telefone,endereco,cidade,estado,chave_pix,logo_url,cor_principal,mensagem_recibo,permitir_recibo_sem_checklist")
+          .eq("empresa_id", empresaId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    client
+      .from("lava_lavagem_servicos")
+      .select("id,descricao,valor,percentual_comissao,valor_comissao,created_at")
+      .eq("lavagem_id", lavagemId)
+      .eq("empresa_id", empresaId)
+      .order("created_at", { ascending: true }),
+    client
+      .from("lava_pagamentos")
+      .select("id,valor,forma_pagamento,data_pagamento,observacoes")
+      .eq("lavagem_id", lavagemId)
+      .eq("empresa_id", empresaId)
+      .order("data_pagamento", { ascending: true }),
+    client
+      .from("lava_checklists")
+      .select("*")
+      .eq("lavagem_id", lavagemId)
+      .eq("empresa_id", empresaId)
+      .maybeSingle(),
+    client
+      .from("lava_checklist_fotos")
+      .select("id,tipo,momento,storage_path,legenda,created_at")
+      .eq("lavagem_id", lavagemId)
+      .eq("empresa_id", empresaId)
+      .order("created_at", { ascending: false })
+      .limit(12)
+  ]);
+
   const empresa = (empresaResult.data ?? {}) as Row;
   const config = (configResult.data ?? {}) as Row;
   const servicos = ((servicosResult.data ?? []) as Row[]).map((row) => ({
@@ -93,8 +96,10 @@ export async function getLavaRecibo(lavagemId: string) {
   return {
     recibo: {
       id: String(lavagem.id),
+      empresaId,
       numero: String(lavagem.id).slice(0, 8).toUpperCase(),
       empresa: {
+        id: empresaId,
         nome: empresaNome,
         razao_social: String(config.nome_fantasia ?? empresa.razao_social ?? ""),
         cnpj: empresaDocumento,
