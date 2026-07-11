@@ -6,22 +6,24 @@ import { registrarIAmobLog } from "@/lib/actions/lavagestor-iamob-actions";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaAiMode } from "@/lib/lavagestor-ai";
 import { getLavaIAmobData } from "@/lib/lavagestor-iamob-data";
+import { requireLavaGestorCounterAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
 export default async function IAmobPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
+  const { current, perfil } = await requireLavaGestorCounterAccess("/lavagestor/iamob");
   const data = await getLavaIAmobData();
   const aiMode = await getLavaAiMode(data.current);
 
   return (
-    <LavaGestorShell activePath="/lavagestor/iamob" companyName={data.config.nome_exibicao}>
+    <LavaGestorShell activePath="/lavagestor/iamob" companyName={data.config.nome_exibicao} perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-5">
         <PageHeader
           eyebrow="LavaGestor"
           title="IAMob"
           description={aiMode.active ? "Inteligencia operacional com Gemini ativo e fallback por regras." : "Inteligencia operacional em modo regras, sem depender de API externa."}
-          actions={<><BackButton href="/lavagestor" /><Link className="button-secondary" href="/lavagestor/automacoes">Automacoes</Link></>}
+          actions={<><BackButton href="/lavagestor/operacao" /><Link className="button-secondary" href="/lavagestor/automacoes">Automacoes</Link></>}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 

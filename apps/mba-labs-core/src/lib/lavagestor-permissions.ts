@@ -1,4 +1,4 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { type CurrentUserProfile, requireAppAccess } from "./core-data";
 
 export type LavaPerfil =
@@ -103,41 +103,7 @@ export const LAVA_BASE_PERMISSIONS: Record<LavaPerfil, LavaPermission[]> = {
   admin_master: ALL_LAVA_PERMISSIONS,
   admin_empresa: ALL_LAVA_PERMISSIONS,
   dono: ALL_LAVA_PERMISSIONS,
-
-  gerente: [
-    "fila.ver",
-    "busca.ver",
-    "lavagem.ver",
-    "lavagem.criar",
-    "lavagem.editar",
-    "lavagem.iniciar",
-    "lavagem.finalizar",
-    "lavagem.cancelar",
-    "lavagem.alterar_responsavel",
-    "checklist.editar",
-    "foto.enviar",
-    "placa.ler",
-    "cliente.criar",
-    "cliente.editar",
-    "veiculo.criar",
-    "veiculo.editar",
-    "agendamento.ver",
-    "agendamento.criar",
-    "agendamento.editar",
-    "pagamento.ver_valor",
-    "pagamento.receber",
-    "pagamento.enviar_recibo",
-    "pagamento.ver_todos",
-    "financeiro.ver_caixa",
-    "comissao.ver_propria",
-    "comissao.ver_todas",
-    "relatorio.ver_basico",
-    "estoque.ver",
-    "estoque.editar",
-    "servico.gerenciar",
-    "funcionario.gerenciar",
-    "whatsapp.enviar_manual"
-  ],
+  gerente: ALL_LAVA_PERMISSIONS,
 
   operador: [
     "fila.ver",
@@ -175,31 +141,25 @@ export const LAVA_BASE_PERMISSIONS: Record<LavaPerfil, LavaPermission[]> = {
 
   lavador: [
     "fila.ver",
-    "busca.ver",
     "lavagem.ver",
     "lavagem.iniciar",
     "lavagem.finalizar",
     "checklist.editar",
-    "foto.enviar",
-    "placa.ler"
+    "foto.enviar"
   ],
 
   visualizador: [
     "fila.ver",
-    "busca.ver",
-    "lavagem.ver",
-    "agendamento.ver",
-    "relatorio.ver_basico"
+    "lavagem.ver"
   ],
 
   usuario: [
     "fila.ver",
-    "busca.ver",
     "lavagem.ver"
   ]
 };
 
-export async function requireLavaGestorAccess(nextPath = "/lavagestor") {
+export async function requireLavaGestorAccess(nextPath = "/lavagestor/operacao") {
   const current = await requireAppAccess("lavagestor", nextPath);
   return { current, perfil: getLavaGestorPerfil(current) };
 }
@@ -207,7 +167,7 @@ export async function requireLavaGestorAccess(nextPath = "/lavagestor") {
 export async function requireLavaGestorFinanceAccess(nextPath: string) {
   const access = await requireLavaGestorAccess(nextPath);
   if (!canViewFinance(access.perfil, getLavaGestorPermissionExtras(access.current))) {
-    redirect(`/lavagestor?error=${encodeURIComponent("Seu perfil nao pode acessar financeiro completo.")}`);
+    redirect(`/lavagestor/operacao?error=${encodeURIComponent("Seu perfil não pode acessar financeiro completo.")}`);
   }
   return access;
 }
@@ -215,16 +175,40 @@ export async function requireLavaGestorFinanceAccess(nextPath: string) {
 export async function requireLavaGestorSettingsAccess(nextPath: string) {
   const access = await requireLavaGestorAccess(nextPath);
   if (!canManageSettings(access.perfil, getLavaGestorPermissionExtras(access.current))) {
-    redirect(`/lavagestor?error=${encodeURIComponent("Seu perfil nao pode alterar configuracoes.")}`);
+    redirect(`/lavagestor/operacao?error=${encodeURIComponent("Seu perfil não pode alterar configurações.")}`);
   }
   return access;
 }
 
-export async function requireLavaPermission(permission: LavaPermission, nextPath = "/lavagestor") {
+export async function requireLavaGestorOwnerAccess(nextPath: string) {
+  const access = await requireLavaGestorAccess(nextPath);
+  if (!canViewOwnerDashboard(access.perfil, getLavaGestorPermissionExtras(access.current))) {
+    redirect(`/lavagestor/operacao?error=${encodeURIComponent("Seu perfil não pode acessar a visão de gestão.")}`);
+  }
+  return access;
+}
+
+export async function requireLavaGestorOperationAccess(nextPath: string) {
+  const access = await requireLavaGestorAccess(nextPath);
+  if (!canViewOperation(access.perfil, getLavaGestorPermissionExtras(access.current))) {
+    redirect(`/lavagestor/operacao?error=${encodeURIComponent("Seu perfil não pode acessar a operação.")}`);
+  }
+  return access;
+}
+
+export async function requireLavaGestorCounterAccess(nextPath: string) {
+  const access = await requireLavaGestorAccess(nextPath);
+  if (!canOperateCounter(access.perfil, getLavaGestorPermissionExtras(access.current))) {
+    redirect(`/lavagestor/operacao?error=${encodeURIComponent("Seu perfil não pode acessar esta área.")}`);
+  }
+  return access;
+}
+
+export async function requireLavaPermission(permission: LavaPermission, nextPath = "/lavagestor/operacao") {
   const access = await requireLavaGestorAccess(nextPath);
 
   if (!canLavaAccess(access.perfil, permission, getLavaGestorPermissionExtras(access.current))) {
-    redirect(`/lavagestor?error=${encodeURIComponent("Seu perfil nao tem permissao para acessar esta funcao.")}`);
+    redirect(`/lavagestor/operacao?error=${encodeURIComponent("Seu perfil não tem permissão para acessar esta função.")}`);
   }
 
   return access;
@@ -281,20 +265,27 @@ export function canManageSettings(perfil: LavaPerfil, extras: Array<LavaPermissi
   return canLavaAccess(perfil, "configuracao.editar", extras);
 }
 
-export function canOperateCounter(perfil: LavaPerfil, extras: Array<LavaPermission | string> = []) {
-  return canLavaAccess(perfil, "pagamento.receber", extras);
+export function canViewOwnerDashboard(perfil: LavaPerfil, extras: Array<LavaPermission | string> = []) {
+  return canViewFinance(perfil, extras);
 }
 
-export function getLavaDefaultRoute(perfil: LavaPerfil, extras: Array<LavaPermission | string> = []) {
-  if (canLavaAccess(perfil, "financeiro.ver_caixa", extras) && perfil === "caixa") {
-    return "/lavagestor/pagamentos";
-  }
+export function canViewAdminCadastros(perfil: LavaPerfil, extras: Array<LavaPermission | string> = []) {
+  return ["cliente.criar", "cliente.editar", "veiculo.criar", "veiculo.editar", "funcionario.gerenciar", "servico.gerenciar", "estoque.ver"]
+    .some((permission) => canLavaAccess(perfil, permission as LavaPermission, extras));
+}
 
-  if (["lavador", "operador", "visualizador", "usuario"].includes(perfil)) {
-    return "/lavagestor/fila";
-  }
+export function canViewOperation(perfil: LavaPerfil, extras: Array<LavaPermission | string> = []) {
+  return canLavaAccess(perfil, "fila.ver", extras) || canLavaAccess(perfil, "lavagem.ver", extras);
+}
 
-  return "/lavagestor";
+export function canOperateCounter(perfil: LavaPerfil, extras: Array<LavaPermission | string> = []) {
+  if (["lavador", "visualizador", "usuario"].includes(perfil)) return false;
+  return ["lavagem.criar", "pagamento.receber", "agendamento.criar", "placa.ler", "whatsapp.enviar_manual", "busca.ver"]
+    .some((permission) => canLavaAccess(perfil, permission as LavaPermission, extras));
+}
+
+export function getLavaDefaultRoute() {
+  return "/lavagestor/operacao";
 }
 
 export function normalizeLavaPermissions(values: Array<LavaPermission | string> = []) {
@@ -339,6 +330,45 @@ function normalizePermissionKey(value: string) {
     .replace(/^_+|_+$/g, "");
 }
 
+type LavaEmpresaAccessCurrent = Pick<CurrentUserProfile, "empresaId"> & { isAdminMaster?: boolean };
+
+export async function assertLavaEmpresaAccess(current: LavaEmpresaAccessCurrent, empresaId: string | null | undefined) {
+  if (!empresaId) {
+    throw new Error("Empresa do recurso não identificada.");
+  }
+  if (current.isAdminMaster) return String(empresaId);
+  if (current.empresaId && current.empresaId === empresaId) return String(empresaId);
+  throw new Error("Você não tem acesso a esta empresa.");
+}
+
+export function currentForLavaEmpresa(current: CurrentUserProfile, empresaId: string): CurrentUserProfile {
+  return { ...current, empresaId };
+}
+
+export async function resolveLavaEmpresaIdFromLavagem(client: any, lavagemId: string) {
+  const { data, error } = await client
+    .from("lava_lavagens")
+    .select("empresa_id")
+    .eq("id", lavagemId)
+    .maybeSingle();
+  if (error || !data?.empresa_id) {
+    throw new Error(error?.message ?? "Lavagem não encontrada.");
+  }
+  return String(data.empresa_id);
+}
+
+export async function resolveLavaEmpresaIdFromWhatsappEnvio(client: any, envioId: string) {
+  const { data, error } = await client
+    .from("lava_whatsapp_envios")
+    .select("empresa_id")
+    .eq("id", envioId)
+    .maybeSingle();
+  if (error || !data?.empresa_id) {
+    throw new Error(error?.message ?? "Mensagem de WhatsApp não encontrada.");
+  }
+  return String(data.empresa_id);
+}
+
 function normalizePerfil(value: string) {
   return value
     .normalize("NFD")
@@ -352,4 +382,3 @@ function normalizePerfil(value: string) {
 function isLavaPerfil(value: string): value is LavaPerfil {
   return ["admin_master", "admin_empresa", "dono", "gerente", "operador", "caixa", "lavador", "visualizador", "usuario"].includes(value);
 }
-

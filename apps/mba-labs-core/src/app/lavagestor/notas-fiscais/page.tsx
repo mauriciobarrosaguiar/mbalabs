@@ -3,27 +3,29 @@ import { BackButton, MessageBanner, PageHeader, formatDateTime, formatMoney } fr
 import { saveLavaNotaConfig, saveLavaNotaFiscal, updateLavaNotaFiscalStatus } from "@/lib/actions/lavagestor-notas-actions";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaNotasFiscaisData } from "@/lib/lavagestor-notas-data";
+import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
 export default async function NotasFiscaisPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
+  const { current, perfil } = await requireLavaGestorFinanceAccess("/lavagestor/notas-fiscais");
   const data = await getLavaNotasFiscaisData();
   const config = data.nfConfig ?? {};
 
   return (
-    <LavaGestorShell activePath="/lavagestor/notas-fiscais">
+    <LavaGestorShell activePath="/lavagestor/notas-fiscais" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-5">
         <PageHeader
           eyebrow="LavaGestor"
           title="Notas fiscais"
-          description="Modulo estrutural e simulado para emissao fiscal futura. Nao emite nota real nesta fase."
-          actions={<BackButton href="/lavagestor" />}
+          description="Módulo estrutural e simulado para emissão fiscal futura. Não emite nota real nesta fase."
+          actions={<BackButton href="/lavagestor/operacao" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold leading-6 text-amber-950">
-          Emissao fiscal automatica e modulo opcional e depende de configuracao fiscal da empresa e provedor homologado.
+          Emissão fiscal automática é módulo opcional e depende de configuração fiscal da empresa e provedor homologado.
         </div>
 
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
@@ -34,7 +36,7 @@ export default async function NotasFiscaisPage({ searchParams }: { searchParams:
         </div>
 
         <form action={saveLavaNotaConfig} className="grid gap-3 rounded-xl border border-border bg-white p-4 shadow-sm">
-          <h2 className="text-xl font-black">Configuracao fiscal</h2>
+          <h2 className="text-xl font-black">Configuração fiscal</h2>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <Input label="Provider" name="provider" defaultValue={String(config.provider ?? "simulado")} />
             <label className="grid gap-2">
@@ -47,12 +49,12 @@ export default async function NotasFiscaisPage({ searchParams }: { searchParams:
             </label>
             <Input label="Cidade" name="cidade" defaultValue={String(config.cidade ?? "")} />
             <Input label="UF" name="uf" defaultValue={String(config.uf ?? "")} />
-            <Input label="Inscricao municipal" name="inscricao_municipal" defaultValue={String(config.inscricao_municipal ?? "")} />
+            <Input label="Inscrição municipal" name="inscricao_municipal" defaultValue={String(config.inscricao_municipal ?? "")} />
             <Input label="CNAE" name="cnae" defaultValue={String(config.cnae ?? "")} />
-            <Input label="Aliquota ISS %" name="aliquota_iss" type="number" step="0.01" defaultValue={String(config.aliquota_iss ?? 0)} />
+            <Input label="Alíquota ISS %" name="aliquota_iss" type="number" step="0.01" defaultValue={String(config.aliquota_iss ?? 0)} />
             <Input label="Ambiente" name="ambiente" defaultValue={String(config.ambiente ?? "homologacao")} />
           </div>
-          <button className="button-primary w-fit" type="submit">Salvar configuracao</button>
+          <button className="button-primary w-fit" type="submit">Salvar configuração</button>
         </form>
 
         <form action={saveLavaNotaFiscal} className="grid gap-3 rounded-xl border border-border bg-white p-4 shadow-sm">

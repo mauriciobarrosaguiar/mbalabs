@@ -9,13 +9,12 @@ import {
   approveWhatsappMessage,
   buildWhatsappUrl,
   cancelWhatsappMessage,
-  markWhatsappAsSent,
+  markWhatsappEnvioAsSent,
   saveWhatsappIntegration,
   sendPendingWhatsappMessages,
   sendWhatsappMessage,
   testWhatsappIntegration
 } from "@/lib/lavagestor-whatsapp";
-import { getSupabaseServer } from "@/lib/supabase";
 
 export async function saveLavaWhatsappIntegrationAction(formData: FormData) {
   await requireLavaGestorSettingsAccess("/lavagestor/configuracoes");
@@ -116,8 +115,7 @@ export async function markLavaWhatsappSentAction(formData: FormData) {
   const { current } = await requireLavaGestorAccess("/lavagestor/whatsapp");
   const returnTo = safeReturn(formData);
   const id = textValue(formData, "id");
-  const client = (await getSupabaseServer()) as any;
-  const result = await markWhatsappAsSent(client, String(current.empresaId), id, "envio");
+  const result = await markWhatsappEnvioAsSent(current, id);
   revalidateWhatsappPaths();
   if (!result.ok) {
     redirect(`${returnTo}?error=${messageParam(result.error || "Falha ao marcar envio.")}`);

@@ -3,6 +3,7 @@ import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, MessageBanner, PageHeader, formatDate, formatMoney } from "@/components/ui-kit";
 import { firstParam } from "@/lib/form-utils";
 import { quickSearchLava, whatsappUrl } from "@/lib/lavagestor-phase2-data";
+import { requireLavaGestorCounterAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -10,17 +11,18 @@ type Row = Record<string, unknown>;
 
 export default async function LavaBuscaPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
+  const { current, perfil } = await requireLavaGestorCounterAccess("/lavagestor/busca");
   const q = firstParam(params.q) ?? "";
   const { rows, error } = await quickSearchLava(q);
 
   return (
-    <LavaGestorShell activePath="/lavagestor/busca">
+    <LavaGestorShell activePath="/lavagestor/busca" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-5">
         <PageHeader
           eyebrow="LavaGestor"
           title="Busca rapida"
           description="Procure por placa, cliente, telefone, modelo ou ultimas lavagens para abrir atendimento no balcao."
-          actions={<BackButton href="/lavagestor" />}
+          actions={<BackButton href="/lavagestor/operacao" />}
         />
         <MessageBanner error={error ?? undefined} />
 

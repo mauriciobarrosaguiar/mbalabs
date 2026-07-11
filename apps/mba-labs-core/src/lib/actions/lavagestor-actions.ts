@@ -7,7 +7,13 @@ import { logAction, requireAppAccess } from "@/lib/core-data";
 import { booleanValue, dateValue, messageParam, nullableTextValue, numberValue, textValue } from "@/lib/form-utils";
 import { normalizeLavaStatus } from "@/lib/lavagestor-data";
 import { baixarEstoqueDaLavagem } from "@/lib/lavagestor-estoque-sync";
-import { isLavaPermission, requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
+import {
+  assertLavaEmpresaAccess,
+  currentForLavaEmpresa,
+  isLavaPermission,
+  requireLavaGestorFinanceAccess,
+  resolveLavaEmpresaIdFromLavagem
+} from "@/lib/lavagestor-permissions";
 import { sendLavagemReceiptWhatsapp } from "@/lib/lavagestor-recibo-whatsapp";
 import { enqueueWhatsappMessage } from "@/lib/lavagestor-whatsapp";
 import { getSupabaseServer } from "@/lib/supabase";
@@ -742,12 +748,22 @@ export async function updateLavagemStatus(formData: FormData) {
   const id = textValue(formData, "id");
   const action = textValue(formData, "acao");
   const returnTo = returnPath(formData, "/lavagestor/fila");
+  let empresaId = "";
+
+  try {
+    empresaId = await resolveLavaEmpresaIdFromLavagem(client, id);
+    await assertLavaEmpresaAccess(current, empresaId);
+  } catch (accessError) {
+    redirect(`${returnTo}?error=${messageParam(accessError instanceof Error ? accessError.message : "Sem acesso a esta lavagem.")}`);
+  }
+
+  const resourceCurrent = currentForLavaEmpresa(current, empresaId);
 
   const { data: lavagem, error } = await client
     .from("lava_lavagens")
-    .select("id,status,status_pagamento")
+    .select("id,empresa_id,status,status_pagamento")
     .eq("id", id)
-    .eq("empresa_id", current.empresaId)
+    .eq("empresa_id", empresaId)
     .maybeSingle();
 
   if (error || !lavagem) {
@@ -755,30 +771,30 @@ export async function updateLavagemStatus(formData: FormData) {
   }
 
   const [configResult, checklistResult, entradaFotosResult, checkoutFotosResult] = await Promise.all([
-    current.empresaId
+    empresaId
       ? client
           .from("lava_configuracoes")
           .select("exigir_checklist_antes_finalizar,exigir_checklist_antes_entregar,exigir_foto_entrada,permitir_concluir_checklist_sem_foto,exigir_foto_checkout_antes_entrega")
-          .eq("empresa_id", current.empresaId)
+          .eq("empresa_id", empresaId)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     client
       .from("lava_checklists")
       .select("id,status")
       .eq("lavagem_id", id)
-      .eq("empresa_id", current.empresaId)
+      .eq("empresa_id", empresaId)
       .maybeSingle(),
     client
       .from("lava_checklist_fotos")
       .select("id", { count: "exact", head: true })
       .eq("lavagem_id", id)
-      .eq("empresa_id", current.empresaId)
+      .eq("empresa_id", empresaId)
       .eq("momento", "entrada"),
     client
       .from("lava_checklist_fotos")
       .select("id", { count: "exact", head: true })
       .eq("lavagem_id", id)
-      .eq("empresa_id", current.empresaId)
+      .eq("empresa_id", empresaId)
       .eq("momento", "checkout")
   ]);
   const config = (configResult.data ?? {}) as Record<string, unknown>;
@@ -851,22 +867,22 @@ export async function updateLavagemStatus(formData: FormData) {
     .from("lava_lavagens")
     .update(payload)
     .eq("id", id)
-    .eq("empresa_id", current.empresaId);
+    .eq("empresa_id", empresaId);
 
   if (updateError) {
     redirect(`${returnTo}?error=${messageParam(updateError.message)}`);
   }
 
   if (action === "cancelar") {
-    await client.from("lava_comissoes").update({ status: "cancelado" }).eq("lavagem_id", id).eq("empresa_id", current.empresaId);
+    await client.from("lava_comissoes").update({ status: "cancelado" }).eq("lavagem_id", id).eq("empresa_id", empresaId);
   }
 
   if (action === "finalizar") {
     try {
-      const estoque = await baixarEstoqueDaLavagem(client, current, id);
+      const estoque = await baixarEstoqueDaLavagem(client, resourceCurrent, id);
       if (estoque.baixados > 0 || estoque.avisos.length > 0) {
         await insertLavaHistory(client, {
-          empresaId: current.empresaId,
+          empresaId,
           lavagemId: id,
           usuarioId: current.usuario.id,
           acao: "estoque_baixa_servico",
@@ -877,7 +893,7 @@ export async function updateLavagemStatus(formData: FormData) {
       }
     } catch (error) {
       await insertLavaHistory(client, {
-        empresaId: current.empresaId,
+        empresaId,
         lavagemId: id,
         usuarioId: current.usuario.id,
         acao: "estoque_alerta",
@@ -889,9 +905,9 @@ export async function updateLavagemStatus(formData: FormData) {
   }
 
   if (["finalizar", "avisar_cliente"].includes(action)) {
-    await enqueueLavagemReadyWhatsapp(client, current, id).catch(async (error) => {
+    await enqueueLavagemReadyWhatsapp(client, resourceCurrent, id).catch(async (error) => {
       await insertLavaHistory(client, {
-        empresaId: current.empresaId,
+        empresaId,
         lavagemId: id,
         usuarioId: current.usuario.id,
         acao: "whatsapp_erro_veiculo_pronto",
@@ -903,7 +919,7 @@ export async function updateLavagemStatus(formData: FormData) {
   }
 
   await insertLavaHistory(client, {
-    empresaId: current.empresaId,
+    empresaId,
     lavagemId: id,
     usuarioId: current.usuario.id,
     acao: action,
@@ -914,6 +930,8 @@ export async function updateLavagemStatus(formData: FormData) {
 
   await logAction({ appSlug: "lavagestor", acao: `lavagem ${action}`, detalhes: { id, statusAnterior, statusNovo } });
   revalidatePath("/lavagestor");
+  revalidatePath("/lavagestor/operacao");
+  revalidatePath("/lavagestor/dashboard");
   revalidatePath("/lavagestor/fila");
   revalidatePath("/lavagestor/lavagens");
   revalidatePath("/lavagestor/pagamentos");
@@ -933,12 +951,20 @@ export async function registrarPagamentoLavagem(formData: FormData) {
   const formaPagamento = textValue(formData, "forma_pagamento");
   const statusPagamento = textValue(formData, "status_pagamento") || "pago";
   const returnTo = returnPath(formData, "/lavagestor/pagamentos");
+  let empresaId = "";
+
+  try {
+    empresaId = await resolveLavaEmpresaIdFromLavagem(client, id);
+    await assertLavaEmpresaAccess(current, empresaId);
+  } catch (accessError) {
+    redirect(`${returnTo}?error=${messageParam(accessError instanceof Error ? accessError.message : "Sem acesso a esta lavagem.")}`);
+  }
 
   const { data: lavagem, error } = await client
     .from("lava_lavagens")
-    .select("id,status,valor,valor_final,valor_recebido")
+    .select("id,empresa_id,status,valor,valor_final,valor_recebido")
     .eq("id", id)
-    .eq("empresa_id", current.empresaId)
+    .eq("empresa_id", empresaId)
     .maybeSingle();
 
   if (error || !lavagem) {
@@ -957,7 +983,7 @@ export async function registrarPagamentoLavagem(formData: FormData) {
 
   if (valorLancamento > 0) {
     const { error: paymentError } = await client.from("lava_pagamentos").insert({
-      empresa_id: current.empresaId,
+      empresa_id: empresaId,
       lavagem_id: id,
       valor: valorLancamento,
       forma_pagamento: formaPagamento || null,
@@ -981,7 +1007,7 @@ export async function registrarPagamentoLavagem(formData: FormData) {
       data_pagamento: statusPagamento === "pago" ? now : null
     })
     .eq("id", id)
-    .eq("empresa_id", current.empresaId);
+    .eq("empresa_id", empresaId);
 
   if (updateError) {
     redirect(`${returnTo}?error=${messageParam(updateError.message)}`);
@@ -992,7 +1018,7 @@ export async function registrarPagamentoLavagem(formData: FormData) {
   if (statusPagamento === "pago" && valorLancamento > 0) {
     const reciboResult = await sendLavagemReceiptWhatsapp(id, "pagamento_automatico").catch(async (reciboError) => {
       await insertLavaHistory(client, {
-        empresaId: current.empresaId,
+        empresaId,
         lavagemId: id,
         usuarioId: current.usuario.id,
         acao: "whatsapp_erro_recibo_pagamento",
@@ -1013,7 +1039,7 @@ export async function registrarPagamentoLavagem(formData: FormData) {
   }
 
   await insertLavaHistory(client, {
-    empresaId: current.empresaId,
+    empresaId,
     lavagemId: id,
     usuarioId: current.usuario.id,
     acao: "registrar_pagamento",
@@ -1024,6 +1050,8 @@ export async function registrarPagamentoLavagem(formData: FormData) {
 
   await logAction({ appSlug: "lavagestor", acao: "registrar pagamento", detalhes: { id, statusPagamento, valorLancamento } });
   revalidatePath("/lavagestor");
+  revalidatePath("/lavagestor/operacao");
+  revalidatePath("/lavagestor/dashboard");
   revalidatePath("/lavagestor/fila");
   revalidatePath("/lavagestor/pagamentos");
   revalidatePath("/lavagestor/whatsapp");
@@ -1251,41 +1279,6 @@ async function enqueueLavagemReceivedWhatsapp(client: any, current: { empresaId:
       servico: String(servico?.nome ?? "servico"),
       total: formatMoney(data.valor_final ?? data.valor ?? 0),
       valor: formatMoney(data.valor_final ?? data.valor ?? 0),
-      empresa: "LavaGestor"
-    }
-  });
-}
-
-async function enqueuePagamentoWhatsapp(
-  client: any,
-  current: { empresaId: string | null; usuario: { id: string } },
-  lavagemId: string,
-  valorPago: number,
-  formaPagamento: string
-) {
-  const { data } = await client
-    .from("lava_lavagens")
-    .select("id,cliente_id,valor_final,valor,valor_recebido,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_servicos(nome)")
-    .eq("id", lavagemId)
-    .eq("empresa_id", current.empresaId)
-    .maybeSingle();
-  if (!data) return;
-  const cliente = relationObject(data.lava_clientes);
-  const veiculo = relationObject(data.lava_veiculos);
-  const servico = relationObject(data.lava_servicos);
-  await enqueueWhatsappMessage(current, {
-    evento: "pagamento_recebido",
-    clienteId: String(data.cliente_id ?? "") || null,
-    lavagemId,
-    telefone: String(cliente?.telefone ?? ""),
-    data: {
-      cliente: String(cliente?.nome ?? "cliente"),
-      veiculo: vehicleLabel(veiculo),
-      placa: String(veiculo?.placa ?? ""),
-      servico: String(servico?.nome ?? "servico"),
-      valor: formatMoney(valorPago),
-      total: formatMoney(data.valor_final ?? data.valor ?? 0),
-      forma_pagamento: formaPagamento || "nao informada",
       empresa: "LavaGestor"
     }
   });

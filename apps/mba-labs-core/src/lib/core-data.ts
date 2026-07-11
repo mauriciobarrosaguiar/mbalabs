@@ -47,8 +47,8 @@ export const fallbackApps: SystemCard[] = [
   {
     slug: "lavagestor",
     nome: "LavaGestor",
-    descricao: "Lavagens, clientes, veículos, funcionÃ¡rios e comissÃµes.",
-    url_path: "/apps/lavagestor",
+    descricao: "Lavagens, clientes, veículos, funcionários e comissões.",
+    url_path: "/lavagestor/operacao",
     status: "sem_assinatura",
     canAccess: false
   },

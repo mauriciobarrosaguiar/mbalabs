@@ -41,10 +41,10 @@ type LavaNavItem = {
 };
 
 const lavaNavItems: LavaNavItem[] = [
-  { href: "/lavagestor", label: "Dashboard", icon: LayoutDashboard, permission: "financeiro.ver_caixa" },
   { href: "/lavagestor/operacao/entrada", label: "Entrada", icon: Car, permission: "lavagem.criar" },
   { href: "/lavagestor/operacao/saida", label: "Saída", icon: ReceiptText, permission: "lavagem.finalizar" },
   { href: "/lavagestor/operacao/fila", label: "Veículos em serviço", icon: ClipboardList, permission: "fila.ver" },
+  { href: "/lavagestor/dashboard", label: "Visão do dono", icon: LayoutDashboard, permission: "financeiro.ver_caixa" },
   { href: "/lavagestor/busca", label: "Busca rápida", icon: Search, permission: "busca.ver" },
   { href: "/lavagestor/lavagens", label: "Lavagens", icon: ClipboardList, permission: "lavagem.ver" },
   { href: "/lavagestor/placa", label: "Ler placa", icon: ScanLine, permission: "placa.ler" },
@@ -60,7 +60,7 @@ const lavaNavItems: LavaNavItem[] = [
   { href: "/lavagestor/pagamentos-integrados", label: "Pagamentos integrados", icon: WalletCards, permission: "financeiro.ver_caixa" },
   { href: "/lavagestor/notas-fiscais", label: "Notas fiscais", icon: ReceiptText, permission: "financeiro.ver_caixa" },
   { href: "/lavagestor/whatsapp", label: "WhatsApp", icon: MessageCircle, permission: "whatsapp.configurar" },
-  { href: "/lavagestor/setup-facil", label: "Configuracao Facil", icon: Sparkles, permission: "configuracao.editar" },
+  { href: "/lavagestor/setup-facil", label: "Configuração fácil", icon: Sparkles, permission: "configuracao.editar" },
   { href: "/lavagestor/pos-venda", label: "Pós-venda", icon: MessageCircle, permission: "whatsapp.enviar_manual" },
   { href: "/lavagestor/automacoes", label: "Automações", icon: Workflow, permission: "configuracao.editar" },
   { href: "/lavagestor/iamob", label: "IAMob", icon: Bot, permission: "relatorio.ver_basico" },
@@ -70,7 +70,8 @@ const lavaNavItems: LavaNavItem[] = [
 ];
 
 const lavaNavGroupsConfig: Array<{ label: string; hrefs: string[] }> = [
-  { label: "Operação", hrefs: ["/lavagestor", "/lavagestor/operacao/entrada", "/lavagestor/operacao/saida", "/lavagestor/operacao/fila", "/lavagestor/busca", "/lavagestor/lavagens", "/lavagestor/placa"] },
+  { label: "Operação", hrefs: ["/lavagestor/operacao/entrada", "/lavagestor/operacao/saida", "/lavagestor/operacao/fila", "/lavagestor/busca", "/lavagestor/lavagens", "/lavagestor/placa"] },
+  { label: "Gestão", hrefs: ["/lavagestor/dashboard"] },
   { label: "Cadastros", hrefs: ["/lavagestor/clientes", "/lavagestor/veiculos", "/lavagestor/funcionarios", "/lavagestor/servicos", "/lavagestor/estoque"] },
   { label: "Financeiro", hrefs: ["/lavagestor/pagamentos", "/lavagestor/financeiro", "/lavagestor/comissoes", "/lavagestor/vales", "/lavagestor/pagamentos-integrados", "/lavagestor/notas-fiscais"] },
   { label: "Crescimento", hrefs: ["/lavagestor/whatsapp", "/lavagestor/pos-venda", "/lavagestor/automacoes", "/lavagestor/iamob"] },
@@ -89,6 +90,7 @@ export async function LavaGestorShell({
   companyName?: string;
   userName?: string;
   roleLabel?: string;
+  perfil?: LavaPerfil;
 }) {
   const { current, perfil } = await requireLavaGestorAccess(activePath);
   const permissionExtras = getLavaGestorPermissionExtras(current);
@@ -98,7 +100,7 @@ export async function LavaGestorShell({
   const canCreateLavagem = effectivePermissions.has("lavagem.criar");
   const isLavadorOnly = perfil === "lavador";
   const isOperacaoHome = activePath === "/lavagestor/operacao";
-  const homeHref = canSeeFila ? "/lavagestor/operacao" : "/lavagestor";
+  const homeHref = canSeeFila ? "/lavagestor/operacao" : "/lavagestor/dashboard";
   const displayUserName = userName || current.usuario.nome;
   const displayRoleLabel = roleLabel && !["funcionario", "usuario"].includes(roleLabel.toLowerCase())
     ? roleLabel
@@ -265,7 +267,7 @@ function LavaNavLink({
 }
 
 function isActivePath(activePath: string, href: string) {
-  return href === "/lavagestor" ? activePath === href : activePath.startsWith(href);
+  return activePath === href || activePath.startsWith(`${href}/`);
 }
 
 function labelLavaPerfil(perfil: LavaPerfil) {

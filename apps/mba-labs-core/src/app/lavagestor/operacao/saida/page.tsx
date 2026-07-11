@@ -5,7 +5,7 @@ import { SaidaPagamentoForm } from "@/components/lavagestor/operacao/SaidaPagame
 import { firstParam } from "@/lib/form-utils";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
 import { listLavaFila } from "@/lib/lavagestor-fila-data";
-import { requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
+import { requireLavaGestorOperationAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +16,9 @@ export default async function LavaOperacaoSaidaPage({ searchParams }: { searchPa
   const q = firstParam(params.q) ?? "";
 
   const [{ config }, fila] = await Promise.all([
-    getLavaConfiguracoesEmpresa(),
+    getLavaConfiguracoesEmpresa("/lavagestor/operacao/saida"),
     listLavaFila(),
-    requireLavaGestorAccess("/lavagestor/operacao/saida")
+    requireLavaGestorOperationAccess("/lavagestor/operacao/saida")
   ]);
 
   const rows = q ? fila.rows.filter((row) => matches(row as Row, q)) : [];
@@ -66,7 +66,10 @@ function SaidaCard({ row, funcionarios }: { row: Row; funcionarios: Row[] }) {
     <article className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
       <div className="grid grid-cols-[72px_1fr] gap-3 p-3">
         <div className="h-20 overflow-hidden rounded-2xl bg-muted">
-          {foto ? <img className="h-full w-full object-cover" src={foto} alt="Foto do veiculo" loading="lazy" /> : <div className="flex h-full items-center justify-center text-[10px] font-black text-muted-foreground">SEM FOTO</div>}
+          {foto ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="h-full w-full object-cover" src={foto} alt="Foto do veiculo" loading="lazy" />
+          ) : <div className="flex h-full items-center justify-center text-[10px] font-black text-muted-foreground">SEM FOTO</div>}
         </div>
 
         <div className="min-w-0">

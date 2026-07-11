@@ -4,7 +4,6 @@ import { headers } from "next/headers";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { MessageTemplateEditor } from "@/components/lavagestor/MessageTemplateEditor";
 import { BackButton, MessageBanner, PageHeader } from "@/components/ui-kit";
-import { requireAppAccess } from "@/lib/core-data";
 import { removeLavaAiConnectionAction, saveLavaAiSettingsAction, testLavaAiConnectionAction } from "@/lib/actions/lavagestor-ai-actions";
 import { saveLavaConfiguracoesEmpresa } from "@/lib/actions/lavagestor-configuracoes-actions";
 import { saveLavaWhatsappIntegrationAction, testLavaWhatsappIntegrationAction } from "@/lib/actions/lavagestor-whatsapp-actions";
@@ -18,9 +17,8 @@ import { getWhatsappIntegration, type WhatsappIntegrationView } from "@/lib/lava
 export const dynamic = "force-dynamic";
 
 export default async function LavaConfiguracoesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  await requireLavaGestorSettingsAccess("/lavagestor/configuracoes");
+  const { current, perfil } = await requireLavaGestorSettingsAccess("/lavagestor/configuracoes");
   const params = await searchParams;
-  const current = await requireAppAccess("lavagestor", "/lavagestor/configuracoes");
   const requestOrigin = await getRequestOrigin();
   const [{ config, error }, storageOverview, aiMode, whatsappIntegration] = await Promise.all([
     getLavaConfiguracoesEmpresa(),
@@ -53,13 +51,13 @@ export default async function LavaConfiguracoesPage({ searchParams }: { searchPa
   const color = config.cor_principal || "#059669";
 
   return (
-    <LavaGestorShell activePath="/lavagestor/configuracoes" companyName={config.nome_exibicao}>
+    <LavaGestorShell activePath="/lavagestor/configuracoes" companyName={config.nome_exibicao} perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-5 pb-24">
         <PageHeader
           eyebrow="LavaGestor"
           title="Configurações"
           description="Deixe o LavaGestor com a cara da empresa: recibo, WhatsApp, relatório, comissão e regras de pagamento."
-          actions={<><BackButton href="/lavagestor" /><Link className="button-primary" href="/lavagestor/setup-facil">Configuracao Facil IA + WhatsApp</Link></>}
+          actions={<><BackButton href="/lavagestor/operacao" /><Link className="button-primary" href="/lavagestor/setup-facil">Configuracao Facil IA + WhatsApp</Link></>}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? ("error" in storageOverview ? storageOverview.error : undefined) ?? undefined} />
 

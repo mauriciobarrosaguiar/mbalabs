@@ -1,11 +1,12 @@
 import { requireAppAccess } from "./core-data";
 import { withSignedPhotoUrls } from "./lavagestor-checklists-data";
+import { getLavaGestorPerfil } from "./lavagestor-permissions";
 import { getSupabaseServer } from "./supabase";
 
 const LAVA_STATUS_LABELS: Record<string, string> = {
   na_fila: "Na fila",
   em_lavagem: "Em lavagem",
-  aguardando_finalizacao: "Aguardando finalização",
+  aguardando_finalizacao: "Aguardando finalizacao",
   finalizado: "Finalizado",
   cliente_avisado: "Cliente avisado",
   pago: "Pago",
@@ -24,16 +25,26 @@ const LAVA_PAYMENT_STATUS_LABELS: Record<string, string> = {
 export async function listLavaFila() {
   const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
+  const client = supabase as any;
+  const perfil = getLavaGestorPerfil(current);
+  const funcionarioId = perfil === "lavador" ? await resolveFuncionarioId(client, current) : null;
+
+  if (perfil === "lavador" && !funcionarioId) {
+    return { rows: [], funcionarios: [], error: "Funcionario nao vinculado ao usuario." };
+  }
+
+  let lavagensQuery = client
+    .from("lava_lavagens")
+    .select(
+      "id,cliente_id,veiculo_id,funcionario_id,servico_id,descricao_extra,observacoes,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,comissao,status,status_pagamento,forma_pagamento,data_lavagem,data_entrada,entrega_tipo,endereco_entrega,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_funcionarios(nome),lava_servicos(nome)"
+    )
+    .eq("empresa_id", current.empresaId);
+
+  if (funcionarioId) lavagensQuery = lavagensQuery.eq("funcionario_id", funcionarioId);
+
   const [lavagensResult, funcionariosResult] = await Promise.all([
-    (supabase as any)
-      .from("lava_lavagens")
-      .select(
-        "id,cliente_id,veiculo_id,funcionario_id,servico_id,descricao_extra,observacoes,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,comissao,status,status_pagamento,forma_pagamento,data_lavagem,data_entrada,entrega_tipo,endereco_entrega,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_funcionarios(nome),lava_servicos(nome)"
-      )
-      .eq("empresa_id", current.empresaId)
-      .order("data_lavagem", { ascending: false })
-      .limit(200),
-    (supabase as any)
+    lavagensQuery.order("data_lavagem", { ascending: false }).limit(200),
+    client
       .from("lava_funcionarios")
       .select("id,nome,ativo,percentual_comissao")
       .eq("empresa_id", current.empresaId)
@@ -73,11 +84,20 @@ export async function listLavaFila() {
   const lavagemIds = rows.map((row) => String(row.id ?? "")).filter(Boolean);
   const [checklistsResult, fotosResult] = lavagemIds.length
     ? await Promise.all([
-        (supabase as any).from("lava_checklists").select("id,lavagem_id,status,riscos,amassados,vidro_trincado,objetos_cliente").eq("empresa_id", current.empresaId).in("lavagem_id", lavagemIds),
-        (supabase as any).from("lava_checklist_fotos").select("id,lavagem_id,tipo,momento,storage_path,legenda,created_at").eq("empresa_id", current.empresaId).in("lavagem_id", lavagemIds).order("created_at", { ascending: false })
+        client
+          .from("lava_checklists")
+          .select("id,lavagem_id,status,riscos,amassados,vidro_trincado,objetos_cliente")
+          .eq("empresa_id", current.empresaId)
+          .in("lavagem_id", lavagemIds),
+        client
+          .from("lava_checklist_fotos")
+          .select("id,lavagem_id,tipo,momento,storage_path,legenda,created_at")
+          .eq("empresa_id", current.empresaId)
+          .in("lavagem_id", lavagemIds)
+          .order("created_at", { ascending: false })
       ])
     : [{ data: [], error: null }, { data: [], error: null }];
-  const fotos = await withSignedPhotoUrls(supabase as any, fotosResult.data ?? []);
+  const fotos = await withSignedPhotoUrls(client, fotosResult.data ?? []);
   const checklistByLavagem = new Map(((checklistsResult.data ?? []) as Array<Record<string, unknown>>).map((row) => [String(row.lavagem_id), row]));
   const fotosByLavagem = new Map<string, {
     entrada?: Record<string, unknown>;
@@ -87,6 +107,7 @@ export async function listLavaFila() {
     entradaCount: number;
     checkoutCount: number;
   }>();
+
   for (const foto of fotos) {
     const lavagemId = String(foto.lavagem_id ?? "");
     const bucket = fotosByLavagem.get(lavagemId) ?? { entradaFotos: [], checkoutFotos: [], entradaCount: 0, checkoutCount: 0 };
@@ -127,11 +148,13 @@ export async function listLavaFila() {
         checkout_label: (foto?.checkoutCount ?? 0) > 0 ? "Checkout ok" : "Checkout pendente"
       };
     }),
-    funcionarios: ((funcionariosResult.data ?? []) as Array<Record<string, unknown>>).map((row) => ({
-      id: String(row.id ?? ""),
-      nome: String(row.nome ?? ""),
-      percentual_comissao: row.percentual_comissao ?? null
-    })).filter((row) => row.id && row.nome),
+    funcionarios: ((funcionariosResult.data ?? []) as Array<Record<string, unknown>>)
+      .map((row) => ({
+        id: String(row.id ?? ""),
+        nome: String(row.nome ?? ""),
+        percentual_comissao: row.percentual_comissao ?? null
+      }))
+      .filter((row) => row.id && row.nome),
     error: error?.message ?? funcionariosResult.error?.message ?? checklistsResult.error?.message ?? fotosResult.error?.message ?? null
   };
 }
@@ -170,4 +193,15 @@ function vehicleLabel(value: unknown) {
   const veiculo = relation as { placa?: unknown; marca?: unknown; modelo?: unknown; cor?: unknown };
   const model = [veiculo.marca, veiculo.modelo].filter(Boolean).join(" ");
   return [veiculo.placa, model, veiculo.cor].filter(Boolean).join(" - ") || "-";
+}
+
+async function resolveFuncionarioId(client: any, current: { empresaId: string | null; usuario: { id: string } }) {
+  if (!current.empresaId || !current.usuario.id) return null;
+  const { data } = await client
+    .from("lava_funcionarios")
+    .select("id")
+    .eq("empresa_id", current.empresaId)
+    .eq("core_usuario_id", current.usuario.id)
+    .maybeSingle();
+  return data?.id ? String(data.id) : null;
 }

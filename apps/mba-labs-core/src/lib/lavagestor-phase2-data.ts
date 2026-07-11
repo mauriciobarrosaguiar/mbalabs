@@ -1,14 +1,20 @@
 import { formatMoney } from "@/components/ui-kit";
-import { getLavaConfiguracoesEmpresa } from "./lavagestor-configuracoes-data";
+import { getLavaConfiguracoesEmpresaById } from "./lavagestor-configuracoes-data";
 import { LAVA_PAYMENT_STATUS_LABELS, LAVA_STATUS_LABELS, normalizeLavaStatus } from "./lavagestor-data";
 import { withSignedPhotoUrls } from "./lavagestor-checklists-data";
-import { requireLavaGestorAccess } from "./lavagestor-permissions";
+import {
+  assertLavaEmpresaAccess,
+  requireLavaGestorAccess,
+  requireLavaGestorCounterAccess,
+  requireLavaGestorOwnerAccess,
+  resolveLavaEmpresaIdFromLavagem
+} from "./lavagestor-permissions";
 import { getSupabaseServer } from "./supabase";
 
 type Row = Record<string, unknown>;
 
 export async function quickSearchLava(term = "") {
-  const { current } = await requireLavaGestorAccess("/lavagestor/busca");
+  const { current } = await requireLavaGestorCounterAccess("/lavagestor/busca");
   const supabase = await getSupabaseServer();
   const client = supabase as any;
   const empresaId = current.empresaId;
@@ -67,7 +73,7 @@ export async function quickSearchLava(term = "") {
 }
 
 export async function getLavaClienteHistorico(clienteId: string) {
-  const { current } = await requireLavaGestorAccess(`/lavagestor/clientes/${clienteId}`);
+  const { current } = await requireLavaGestorOwnerAccess(`/lavagestor/clientes/${clienteId}`);
   const supabase = await getSupabaseServer();
   const client = supabase as any;
   const empresaId = current.empresaId;
@@ -100,7 +106,7 @@ export async function getLavaClienteHistorico(clienteId: string) {
 }
 
 export async function getLavaVeiculoHistorico(veiculoId: string) {
-  const { current } = await requireLavaGestorAccess(`/lavagestor/veiculos/${veiculoId}`);
+  const { current } = await requireLavaGestorOwnerAccess(`/lavagestor/veiculos/${veiculoId}`);
   const supabase = await getSupabaseServer();
   const client = supabase as any;
   const empresaId = current.empresaId;
@@ -135,9 +141,10 @@ export async function getLavaTicket(lavagemId: string) {
   const { current } = await requireLavaGestorAccess(`/lavagestor/tickets/${lavagemId}`);
   const supabase = await getSupabaseServer();
   const client = supabase as any;
-  const empresaId = current.empresaId;
+  const empresaId = await resolveLavaEmpresaIdFromLavagem(client, lavagemId);
+  await assertLavaEmpresaAccess(current, empresaId);
   const [{ config }, lavagemResult, servicosResult, checklistResult, fotosResult, pagamentosResult] = await Promise.all([
-    getLavaConfiguracoesEmpresa(),
+    getLavaConfiguracoesEmpresaById(empresaId),
     client
       .from("lava_lavagens")
       .select("id,cliente_id,veiculo_id,funcionario_id,servico_id,descricao_extra,observacoes,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,status,status_pagamento,forma_pagamento,data_entrada,data_lavagem,data_pagamento,data_finalizacao,entrega_tipo,endereco_entrega,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor,tipo),lava_funcionarios(nome),lava_servicos(nome)")
@@ -206,11 +213,11 @@ export async function getLavaTicket(lavagemId: string) {
 }
 
 export async function getLavaPosVendaData(filter = "7") {
-  const { current } = await requireLavaGestorAccess("/lavagestor/pos-venda");
+  const { current } = await requireLavaGestorCounterAccess("/lavagestor/pos-venda");
   const supabase = await getSupabaseServer();
   const client = supabase as any;
   const empresaId = current.empresaId;
-  const { config } = await getLavaConfiguracoesEmpresa();
+  const { config } = await getLavaConfiguracoesEmpresaById(empresaId);
   const [lavagensResult, contatosResult] = await Promise.all([
     client
       .from("lava_lavagens")

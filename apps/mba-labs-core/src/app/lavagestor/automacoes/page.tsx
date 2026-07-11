@@ -3,6 +3,7 @@ import { BackButton, MessageBanner, PageHeader, formatDateTime } from "@/compone
 import { gerarFilaLavaAutomacao, saveLavaAutomacao, updateLavaAutomacaoFilaStatus } from "@/lib/actions/lavagestor-automacoes-actions";
 import { firstParam } from "@/lib/form-utils";
 import { LAVA_AUTOMACAO_TIPOS, getLavaAutomacoesData } from "@/lib/lavagestor-automacoes-data";
+import { requireLavaGestorCounterAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -10,16 +11,17 @@ const defaultMessage = "Ola, {cliente}! A {empresa} tem uma mensagem para voce s
 
 export default async function AutomacoesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
+  const { current, perfil } = await requireLavaGestorCounterAccess("/lavagestor/automacoes");
   const data = await getLavaAutomacoesData();
 
   return (
-    <LavaGestorShell activePath="/lavagestor/automacoes">
+    <LavaGestorShell activePath="/lavagestor/automacoes" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-5">
         <PageHeader
           eyebrow="LavaGestor"
           title="Automacoes"
           description="Crie regras e gere uma fila manual de WhatsApp. O LavaGestor nao envia mensagens automaticamente."
-          actions={<BackButton href="/lavagestor" />}
+          actions={<BackButton href="/lavagestor/operacao" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 

@@ -26,6 +26,7 @@ import {
   listLavaServicosAvancados
 } from "@/lib/lavagestor-servicos-data";
 import { firstParam } from "@/lib/form-utils";
+import { requireLavaGestorOwnerAccess } from "@/lib/lavagestor-permissions";
 
 type ServiceRow = Record<string, unknown>;
 
@@ -37,6 +38,7 @@ export default async function ServicosPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
+  const { current, perfil } = await requireLavaGestorOwnerAccess("/lavagestor/servicos");
   const search = firstParam(params.q) ?? "";
   const editId = firstParam(params.edit);
   const result = await listLavaServicosAvancados(search);
@@ -45,13 +47,13 @@ export default async function ServicosPage({
   const editing = rows.find((row) => String(row.id) === String(editId ?? ""));
 
   return (
-    <LavaGestorShell activePath="/lavagestor/servicos">
+    <LavaGestorShell activePath="/lavagestor/servicos" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-6">
         <PageHeader
           eyebrow="LavaGestor"
           title="Serviços"
           description="Cadastre serviços principais e adicionais com tipo, aplicação, preço e comissão. Isso alimenta automaticamente a Nova Lavagem."
-          actions={<><BackButton href="/lavagestor" /><form action={criarServicosPadraoLavaGestor}><button className="button-primary" type="submit">Criar servicos padrao</button></form></>}
+          actions={<><BackButton href="/lavagestor/operacao" /><form action={criarServicosPadraoLavaGestor}><button className="button-primary" type="submit">Criar servicos padrao</button></form></>}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? undefined} />
         <SearchBox defaultValue={search} placeholder="Buscar por nome, tipo, aplicação ou descrição" />

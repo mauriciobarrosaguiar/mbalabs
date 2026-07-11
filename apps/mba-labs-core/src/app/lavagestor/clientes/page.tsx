@@ -16,6 +16,7 @@ import {
 import { deleteCliente, saveCliente } from "@/lib/actions/lavagestor-actions";
 import { listLavaClientes } from "@/lib/lavagestor-data";
 import { firstParam } from "@/lib/form-utils";
+import { requireLavaGestorOwnerAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -25,19 +26,20 @@ export default async function ClientesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
+  const { current, perfil } = await requireLavaGestorOwnerAccess("/lavagestor/clientes");
   const search = firstParam(params.q) ?? "";
   const editId = firstParam(params.edit);
   const { rows, error } = await listLavaClientes(search);
   const editing = rows.find((row) => row.id === editId);
 
   return (
-    <LavaGestorShell activePath="/lavagestor/clientes">
+    <LavaGestorShell activePath="/lavagestor/clientes" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-6">
         <PageHeader
           eyebrow="LavaGestor"
           title="Clientes"
           description="Cadastre clientes atendidos pelo lava-jato e mantenha WhatsApp, documento e observações em ordem."
-          actions={<BackButton href="/lavagestor" />}
+          actions={<BackButton href="/lavagestor/operacao" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? undefined} />
         <SearchBox defaultValue={search} placeholder="Buscar por nome, telefone, email ou documento" />

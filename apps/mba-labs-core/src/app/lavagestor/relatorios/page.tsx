@@ -12,7 +12,7 @@ type GroupRow = Record<string, unknown>;
 type AnyRow = Record<string, unknown>;
 
 export default async function RelatoriosPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  await requireLavaGestorFinanceAccess("/lavagestor/relatorios");
+  const { current, perfil } = await requireLavaGestorFinanceAccess("/lavagestor/relatorios");
   const params = await searchParams;
   const relatorio = await getLavaRelatorio({ inicio: firstParam(params.inicio), fim: firstParam(params.fim) });
   const lavagens = relatorio.lavagens as AnyRow[];
@@ -22,7 +22,7 @@ export default async function RelatoriosPage({ searchParams }: { searchParams: P
   const alertas = relatorio.alertas as AnyRow[];
 
   return (
-    <LavaGestorShell activePath="/lavagestor/relatorios" companyName={relatorio.companyName}>
+    <LavaGestorShell activePath="/lavagestor/relatorios" companyName={relatorio.companyName} perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <style dangerouslySetInnerHTML={{ __html: printCss }} />
       <section className="grid max-w-full gap-6 overflow-x-hidden">
         <div className="report-no-print">
@@ -30,7 +30,7 @@ export default async function RelatoriosPage({ searchParams }: { searchParams: P
             eyebrow="LavaGestor"
             title="Relatórios"
             description="Fechamento completo por páginas: resumo, análises, lavagens, comissões e vales. No celular, as tabelas aparecem em cards para não quebrar."
-            actions={<><BackButton href="/lavagestor" /><PrintButton label="Imprimir relatório" /><Link className="button-primary" href="/lavagestor/fila">Ver fila</Link></>}
+            actions={<><BackButton href="/lavagestor/operacao" /><PrintButton label="Imprimir relatório" /><Link className="button-primary" href="/lavagestor/fila">Ver fila</Link></>}
           />
         </div>
         <MessageBanner error={relatorio.error ?? undefined} />

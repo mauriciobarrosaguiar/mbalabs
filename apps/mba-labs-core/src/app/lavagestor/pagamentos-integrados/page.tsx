@@ -3,21 +3,23 @@ import { BackButton, MessageBanner, PageHeader, formatDateTime, formatMoney } fr
 import { saveLavaCobranca, updateLavaCobrancaStatus } from "@/lib/actions/lavagestor-integracoes-pagamento-actions";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaPagamentosIntegradosData } from "@/lib/lavagestor-integracoes-pagamento-data";
+import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
 export default async function PagamentosIntegradosPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
+  const { current, perfil } = await requireLavaGestorFinanceAccess("/lavagestor/pagamentos-integrados");
   const data = await getLavaPagamentosIntegradosData();
 
   return (
-    <LavaGestorShell activePath="/lavagestor/pagamentos-integrados">
+    <LavaGestorShell activePath="/lavagestor/pagamentos-integrados" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-5">
         <PageHeader
           eyebrow="LavaGestor"
           title="Pagamentos integrados"
           description="Estrutura simulada para Pix e cartao futuros. O pagamento manual atual continua sendo o fluxo principal."
-          actions={<BackButton href="/lavagestor" />}
+          actions={<BackButton href="/lavagestor/operacao" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 

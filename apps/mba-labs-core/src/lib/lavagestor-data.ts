@@ -1,5 +1,6 @@
 import { requireAppAccess } from "./core-data";
 import { includesSearch } from "./form-utils";
+import { getLavaGestorPerfil } from "./lavagestor-permissions";
 import { getSupabaseServer } from "./supabase";
 
 export const LAVA_STATUS_LABELS: Record<string, string> = {
@@ -39,7 +40,7 @@ export function normalizeLavaStatus(status: unknown) {
 }
 
 export async function getLavaDashboard() {
-  const current = await requireAppAccess("lavagestor", "/lavagestor");
+  const current = await requireAppAccess("lavagestor", "/lavagestor/dashboard");
   const supabase = await getSupabaseServer();
   const client = supabase as any;
   const empresaId = current.empresaId;
@@ -310,14 +311,22 @@ export async function getLavaLookups() {
 export async function listLavaLavagens(filters: { data?: string; funcionario?: string; status?: string } = {}) {
   const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
-  const { data, error } = await (supabase as any)
+  const client = supabase as any;
+  const perfil = getLavaGestorPerfil(current);
+  const funcionarioId = perfil === "lavador" ? await resolveLavaFuncionarioId(client, current) : null;
+  if (perfil === "lavador" && !funcionarioId) {
+    return { rows: [], error: "Funcionário não vinculado ao usuário." };
+  }
+
+  let query = client
     .from("lava_lavagens")
     .select(
       "id,cliente_id,veiculo_id,funcionario_id,servico_id,descricao_extra,observacoes,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,comissao,status,status_pagamento,forma_pagamento,data_lavagem,data_entrada,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_funcionarios(nome),lava_servicos(nome)"
     )
-    .eq("empresa_id", current.empresaId)
-    .order("data_lavagem", { ascending: false })
-    .limit(200);
+    .eq("empresa_id", current.empresaId);
+  if (funcionarioId) query = query.eq("funcionario_id", funcionarioId);
+
+  const { data, error } = await query.order("data_lavagem", { ascending: false }).limit(200);
 
   const rows = ((data ?? []) as Array<Record<string, unknown>>)
     .map<Record<string, unknown>>((row) => {
@@ -566,4 +575,15 @@ function vehicleLabel(value: unknown) {
 function moneyNumber(value: unknown) {
   const number = Number(value ?? 0);
   return Number.isFinite(number) ? number : 0;
+}
+
+async function resolveLavaFuncionarioId(client: any, current: { empresaId: string | null; usuario: { id: string } }) {
+  if (!current.empresaId || !current.usuario.id) return null;
+  const { data } = await client
+    .from("lava_funcionarios")
+    .select("id")
+    .eq("empresa_id", current.empresaId)
+    .eq("core_usuario_id", current.usuario.id)
+    .maybeSingle();
+  return data?.id ? String(data.id) : null;
 }
