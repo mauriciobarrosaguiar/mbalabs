@@ -6,7 +6,7 @@ import { getSupabaseServer } from "./supabase";
 
 type DbClient = any;
 type Row = Record<string, unknown>;
-type Current = { empresaId: string | null; usuario?: { id?: string | null } };
+type Current = { empresaId: string | null; usuario?: { id?: string | null }; isAdminMaster?: boolean };
 
 type QueueInput = {
   empresaId: string;
@@ -99,16 +99,8 @@ export async function getWhatsappIntegration(current: Current): Promise<Whatsapp
   if (!current.empresaId) return emptyIntegration();
   try {
     const client = (await getSupabaseServer()) as DbClient;
-    const { data, error } = await client
-      .from("lava_whatsapp_integracoes")
-      .select("*")
-      .eq("empresa_id", current.empresaId)
-      .order("updated_at", { ascending: false });
-    if (error) return { ...emptyIntegration(), ultimoErro: error.message };
-    const rows = (data ?? []) as Row[];
-    const connected = rows.find((row) => row.status === "conectado" && row.provider !== "manual");
-    const nonManual = rows.find((row) => row.provider !== "manual");
-    return normalizeIntegration(connected ?? nonManual ?? rows[0] ?? {});
+    const row = await getIntegrationRow(client, current.empresaId, { allowDraft: true });
+    return normalizeIntegration(row ?? {});
   } catch (err) {
     return { ...emptyIntegration(), ultimoErro: err instanceof Error ? err.message : "Nao foi possivel carregar WhatsApp." };
   }
@@ -169,7 +161,7 @@ export async function saveWhatsappIntegration(current: Current, input: WhatsappI
 export async function testWhatsappIntegration(current: Current) {
   if (!current.empresaId) throw new Error("Empresa nao identificada.");
   const client = (await getSupabaseServer()) as DbClient;
-  const row = await getIntegrationRow(client, current.empresaId);
+  const row = await getIntegrationRow(client, current.empresaId, { allowDraft: true });
   if (!row) throw new Error("Configure uma integracao de WhatsApp primeiro.");
   const provider = normalizeProvider(row.provider);
 
@@ -213,33 +205,34 @@ export async function enqueueWhatsappMessage(first: DbClient | Current, second: 
 }
 
 export async function approveWhatsappMessage(current: Current, envioId: string) {
-  if (!current.empresaId) throw new Error("Empresa nao identificada.");
   const client = (await getSupabaseServer()) as DbClient;
+  const envio = await getWhatsappEnvioForCurrent(client, current, envioId);
+  const empresaId = String(envio.empresa_id ?? current.empresaId ?? "");
   const { error } = await client
     .from("lava_whatsapp_envios")
     .update({ status: "aprovado", precisa_aprovacao: false, aprovado_por: current.usuario?.id ?? null, aprovado_em: new Date().toISOString(), erro: null })
     .eq("id", envioId)
-    .eq("empresa_id", current.empresaId);
+    .eq("empresa_id", empresaId);
   if (error) throw new Error(error.message);
   return { ok: true };
 }
 
 export async function cancelWhatsappMessage(current: Current, envioId: string) {
-  if (!current.empresaId) throw new Error("Empresa nao identificada.");
   const client = (await getSupabaseServer()) as DbClient;
-  const { error } = await client.from("lava_whatsapp_envios").update({ status: "cancelado", erro: null }).eq("id", envioId).eq("empresa_id", current.empresaId);
+  const envio = await getWhatsappEnvioForCurrent(client, current, envioId);
+  const empresaId = String(envio.empresa_id ?? current.empresaId ?? "");
+  const { error } = await client.from("lava_whatsapp_envios").update({ status: "cancelado", erro: null }).eq("id", envioId).eq("empresa_id", empresaId);
   if (error) throw new Error(error.message);
   return { ok: true };
 }
 
 export async function sendWhatsappMessage(current: Current, envioId: string) {
-  if (!current.empresaId) throw new Error("Empresa nao identificada.");
   const client = (await getSupabaseServer()) as DbClient;
-  const envioResult = await client.from("lava_whatsapp_envios").select("*").eq("id", envioId).eq("empresa_id", current.empresaId).maybeSingle();
-  if (envioResult.error || !envioResult.data) throw new Error(envioResult.error?.message ?? "Mensagem nao encontrada.");
+  const envio = await getWhatsappEnvioForCurrent(client, current, envioId);
+  const empresaId = String(envio.empresa_id ?? current.empresaId ?? "");
+  if (!empresaId) throw new Error("Empresa nao identificada para a mensagem.");
 
-  const envio = envioResult.data as Row;
-  const integration = await getIntegrationRow(client, current.empresaId);
+  const integration = await getIntegrationRow(client, empresaId);
   const view = normalizeIntegration(integration ?? {});
   const provider = view.provider;
   const tentativas = Number(envio.tentativas ?? 0);
@@ -247,24 +240,26 @@ export async function sendWhatsappMessage(current: Current, envioId: string) {
   if (String(envio.status) === "cancelado") return { ok: false, error: "Mensagem cancelada." };
   if (String(envio.status) === "enviado") return { ok: true, skipped: true };
   if (tentativas >= view.limiteTentativas) {
-    await setWhatsappError(client, current.empresaId, envioId, `Limite de tentativas atingido (${view.limiteTentativas}).`, tentativas);
+    await setWhatsappError(client, empresaId, envioId, `Limite de tentativas atingido (${view.limiteTentativas}).`, tentativas);
     return { ok: false, error: `Limite de tentativas atingido (${view.limiteTentativas}).` };
   }
   if (envio.precisa_aprovacao && !envio.aprovado_em) {
-    await client.from("lava_whatsapp_envios").update({ status: "aguardando_aprovacao" }).eq("id", envioId).eq("empresa_id", current.empresaId);
+    await client.from("lava_whatsapp_envios").update({ status: "aguardando_aprovacao" }).eq("id", envioId).eq("empresa_id", empresaId);
     return { ok: false, needsApproval: true, error: "Mensagem aguardando aprovacao." };
   }
 
   const phone = normalizePhoneBR(envio.telefone);
   if (!phone) {
     const error = "Telefone WhatsApp invalido ou vazio.";
-    await setWhatsappError(client, current.empresaId, envioId, error, tentativas);
+    await setWhatsappError(client, empresaId, envioId, error, tentativas);
     return { ok: false, error };
   }
 
-  if (provider === "manual") return { ok: true, provider, manual: true, url: buildWhatsappUrl(phone, String(envio.mensagem ?? "")) };
+  if (provider === "manual" || view.status !== "conectado") {
+    return { ok: true, provider: "manual", manual: true, url: buildWhatsappUrl(phone, String(envio.mensagem ?? "")) };
+  }
 
-  await client.from("lava_whatsapp_envios").update({ status: "enviando", provider, tentativas: tentativas + 1, erro: null }).eq("id", envioId).eq("empresa_id", current.empresaId);
+  await client.from("lava_whatsapp_envios").update({ status: "enviando", provider, tentativas: tentativas + 1, erro: null }).eq("id", envioId).eq("empresa_id", empresaId);
 
   try {
     const sendResult = provider === "evolution"
@@ -275,12 +270,12 @@ export async function sendWhatsappMessage(current: Current, envioId: string) {
       .from("lava_whatsapp_envios")
       .update({ status: "enviado", external_id: sendResult.externalId ?? null, resposta_provider: sendResult.response ?? {}, erro: null, enviado_em: new Date().toISOString() })
       .eq("id", envioId)
-      .eq("empresa_id", current.empresaId);
+      .eq("empresa_id", empresaId);
     return { ...sendResult, ok: true, provider };
   } catch (err) {
     const error = redactSensitiveText(err instanceof Error ? err.message : "Falha ao enviar WhatsApp.");
-    await setWhatsappError(client, current.empresaId, envioId, error, tentativas + 1);
-    await client.from("lava_whatsapp_integracoes").update({ status: "erro", ultimo_erro: error }).eq("empresa_id", current.empresaId).eq("provider", provider);
+    await setWhatsappError(client, empresaId, envioId, error, tentativas + 1);
+    await client.from("lava_whatsapp_integracoes").update({ status: "erro", ultimo_erro: error }).eq("empresa_id", empresaId).eq("provider", provider);
     return { ok: false, provider, error };
   }
 }
@@ -355,6 +350,7 @@ export function replaceTemplateVariables(template: string, data: Record<string, 
 export async function canSendAutomaticMessage(current: Current, evento: string, clienteId?: string | null) {
   if (!current.empresaId) return { ok: false, error: "Empresa nao identificada." };
   const integration = await getWhatsappIntegration(current);
+  if (integration.status !== "conectado") return { ok: false, error: "WhatsApp automatico nao conectado para esta empresa." };
   if (integration.modoEnvio === "manual" || integration.provider === "manual") return { ok: false, manual: true };
   if (integration.modoEnvio === "automatico_total" && OPERATIONAL_AUTO_EVENTS.has(evento)) return { ok: true, forced: true };
   if (!eventEnabled(integration, evento)) return { ok: false, error: "Envio automatico desativado para este evento." };
@@ -432,23 +428,27 @@ async function enqueueWhatsappMessageLegacy(client: DbClient, input: QueueInput)
 }
 
 async function enqueueWhatsappMessageForCurrent(current: Current, params: Row) {
-  if (!current.empresaId) return { ok: false, error: "Empresa nao identificada." };
   const client = (await getSupabaseServer()) as DbClient;
   const evento = String(params.evento || params.tipo || "manual");
-  const integration = await getWhatsappIntegration(current);
+  const empresaId = await resolveMessageEmpresaId(client, current, params);
+  if (!empresaId) return { ok: false, error: "Empresa nao identificada." };
+  const scopedCurrent = withEmpresa(current, empresaId);
+  const integration = await getWhatsappIntegration(scopedCurrent);
   const data = (params.data && typeof params.data === "object" ? params.data : params) as Record<string, unknown>;
   const baseMessage = String(params.mensagem || params.message || buildWhatsappMessage(evento, data));
-  const isAutomaticTotal = integration.modoEnvio === "automatico_total" && integration.provider !== "manual";
-  const duplicate = await avoidDuplicateWhatsappMessage({ empresaId: current.empresaId, evento, lavagemId: stringOrNull(params.lavagemId ?? params.lavagem_id), agendamentoId: stringOrNull(params.agendamentoId ?? params.agendamento_id), automacaoId: stringOrNull(params.automacaoId ?? params.automacao_id), clienteId: stringOrNull(params.clienteId ?? params.cliente_id) });
+  const isConnectedAutomatic = integration.status === "conectado" && integration.provider !== "manual";
+  const isAutomaticTotal = isConnectedAutomatic && integration.modoEnvio === "automatico_total";
+  const duplicate = await avoidDuplicateWhatsappMessage({ empresaId, evento, lavagemId: stringOrNull(params.lavagemId ?? params.lavagem_id), agendamentoId: stringOrNull(params.agendamentoId ?? params.agendamento_id), automacaoId: stringOrNull(params.automacaoId ?? params.automacao_id), clienteId: stringOrNull(params.clienteId ?? params.cliente_id) });
   if (duplicate.duplicate) return { ok: true, id: duplicate.id, reused: true };
 
-  const generated = integration.usarIaParaMensagens && !isAutomaticTotal ? await generateWhatsappMessageWithIa(current, evento, data, baseMessage) : { message: baseMessage, generatedBy: "modelo", error: undefined };
+  const generated = integration.usarIaParaMensagens && !isAutomaticTotal ? await generateWhatsappMessageWithIa(scopedCurrent, evento, data, baseMessage) : { message: baseMessage, generatedBy: "modelo", error: undefined };
   const phone = normalizePhoneBR(params.telefone ?? params.phone);
-  const auto = await canSendAutomaticMessage(current, evento, stringOrNull(params.clienteId ?? params.cliente_id));
+  const auto = await canSendAutomaticMessage(scopedCurrent, evento, stringOrNull(params.clienteId ?? params.cliente_id));
   const needsApproval = isAutomaticTotal ? false : integration.modoEnvio === "automatico_com_aprovacao" || integration.exigirAprovacao || generated.generatedBy === "ia" || auto.needsApproval === true;
+  const isManual = integration.modoEnvio === "manual" || integration.provider === "manual" || integration.status !== "conectado";
   const status = !phone
     ? "erro"
-    : integration.modoEnvio === "manual" || integration.provider === "manual"
+    : isManual
       ? "pronto"
       : needsApproval
         ? "aguardando_aprovacao"
@@ -458,7 +458,7 @@ async function enqueueWhatsappMessageForCurrent(current: Current, params: Row) {
   const erro = !phone ? "Telefone WhatsApp invalido ou vazio." : auto.ok || isAutomaticTotal || status === "pronto" || status === "aguardando_aprovacao" ? null : auto.error || null;
 
   const insert = await client.from("lava_whatsapp_envios").insert({
-    empresa_id: current.empresaId,
+    empresa_id: empresaId,
     cliente_id: stringOrNull(params.clienteId ?? params.cliente_id),
     lavagem_id: stringOrNull(params.lavagemId ?? params.lavagem_id),
     agendamento_id: stringOrNull(params.agendamentoId ?? params.agendamento_id),
@@ -480,10 +480,34 @@ async function enqueueWhatsappMessageForCurrent(current: Current, params: Row) {
 
   if (insert.error) return { ok: false, error: insert.error.message };
   if (status === "pendente" && isAutomaticTotal) {
-    const sent = await sendWhatsappMessage(current, String(insert.data.id));
+    const sent = await sendWhatsappMessage(scopedCurrent, String(insert.data.id));
     return { ok: true, id: String(insert.data.id), sent };
   }
   return { ok: true, id: String(insert.data.id), status };
+}
+
+async function resolveMessageEmpresaId(client: DbClient, current: Current, params: Row) {
+  const lavagemId = stringOrNull(params.lavagemId ?? params.lavagem_id);
+  if (lavagemId) {
+    const { data } = await client.from("lava_lavagens").select("empresa_id").eq("id", lavagemId).maybeSingle();
+    if (data?.empresa_id) return String(data.empresa_id);
+  }
+  const explicitEmpresaId = stringOrNull(params.empresaId ?? params.empresa_id);
+  return explicitEmpresaId ?? current.empresaId;
+}
+
+async function getWhatsappEnvioForCurrent(client: DbClient, current: Current, envioId: string) {
+  if (!envioId) throw new Error("Mensagem nao informada.");
+  const query = current.isAdminMaster
+    ? client.from("lava_whatsapp_envios").select("*").eq("id", envioId).maybeSingle()
+    : client.from("lava_whatsapp_envios").select("*").eq("id", envioId).eq("empresa_id", current.empresaId).maybeSingle();
+  const { data, error } = await query;
+  if (error || !data) throw new Error(error?.message ?? "Mensagem nao encontrada.");
+  return data as Row;
+}
+
+function withEmpresa(current: Current, empresaId: string): Current {
+  return { ...current, empresaId };
 }
 
 async function findExistingLegacyMessage(client: DbClient, input: QueueInput, evento: string) {
@@ -495,12 +519,15 @@ async function findExistingLegacyMessage(client: DbClient, input: QueueInput, ev
   return existing.data as Row | null;
 }
 
-async function getIntegrationRow(client: DbClient, empresaId: string | null) {
+async function getIntegrationRow(client: DbClient, empresaId: string | null, options: { allowDraft?: boolean } = {}) {
   if (!empresaId) return null;
   const { data, error } = await client.from("lava_whatsapp_integracoes").select("*").eq("empresa_id", empresaId).order("updated_at", { ascending: false });
   if (error) throw new Error(error.message);
   const rows = (data ?? []) as Row[];
-  return rows.find((row) => row.status === "conectado" && row.provider !== "manual") ?? rows.find((row) => row.provider !== "manual") ?? rows[0] ?? null;
+  const connectedNonManual = rows.find((row) => row.status === "conectado" && row.provider !== "manual");
+  const connectedManual = rows.find((row) => row.status === "conectado" && row.provider === "manual");
+  const draftNonManual = rows.find((row) => row.provider !== "manual");
+  return connectedNonManual ?? connectedManual ?? (options.allowDraft ? draftNonManual ?? rows[0] : null) ?? null;
 }
 
 async function testEvolution(row: Row) {
