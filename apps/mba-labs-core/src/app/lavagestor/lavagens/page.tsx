@@ -3,16 +3,18 @@ import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, DataTable, MessageBanner, PageHeader, formatDate, formatMoney } from "@/components/ui-kit";
 import { firstParam } from "@/lib/form-utils";
 import { LAVA_STATUS_OPTIONS, getLavaLookups, listLavaLavagens } from "@/lib/lavagestor-data";
+import { requireLavaGestorOperationAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
 export default async function LavagensPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
+  const { current, perfil } = await requireLavaGestorOperationAccess("/lavagestor/lavagens");
   const filters = { data: firstParam(params.data), funcionario: firstParam(params.funcionario), status: firstParam(params.status) };
   const [{ rows, error }, lookups] = await Promise.all([listLavaLavagens(filters), getLavaLookups()]);
 
   return (
-    <LavaGestorShell activePath="/lavagestor/lavagens">
+    <LavaGestorShell activePath="/lavagestor/lavagens" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-6">
         <PageHeader
           eyebrow="LavaGestor"
@@ -20,7 +22,7 @@ export default async function LavagensPage({ searchParams }: { searchParams: Pro
           description="Histórico de lavagens com valor, comissão, funcionário, status e recibo."
           actions={
             <>
-              <BackButton href="/lavagestor" />
+              <BackButton href="/lavagestor/operacao" />
               <Link className="button-primary" href="/lavagestor/nova-lavagem">Nova lavagem</Link>
             </>
           }

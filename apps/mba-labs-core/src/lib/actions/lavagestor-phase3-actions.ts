@@ -6,7 +6,13 @@ import { logAction } from "@/lib/core-data";
 import { dateValue, messageParam, nullableTextValue, numberValue, textValue } from "@/lib/form-utils";
 import { LAVA_CHECKLIST_BUCKET } from "@/lib/lavagestor-checklists-data";
 import { getLavaAiMode, recognizePlateWithGemini } from "@/lib/lavagestor-ai";
-import { requireLavaGestorAccess, requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
+import {
+  assertLavaEmpresaAccess,
+  requireLavaGestorAccess,
+  requireLavaGestorCounterAccess,
+  requireLavaGestorFinanceAccess,
+  resolveLavaEmpresaIdFromLavagem
+} from "@/lib/lavagestor-permissions";
 import { normalizePlate } from "@/lib/lavagestor-placa";
 import { baseUnitFor, convertToBaseQuantity, normalizeStockUnit, roundStock } from "@/lib/lavagestor-stock";
 import { buildAgendamentoConfirmacaoMessage, enqueueAutomationQueue, enqueueWhatsappMessage } from "@/lib/lavagestor-whatsapp";
@@ -30,7 +36,7 @@ const DEFAULT_PRODUCTS = [
 ];
 
 export async function registrarIAmobLog(formData: FormData) {
-  const { current } = await requireLavaGestorAccess("/lavagestor/iamob");
+  const { current } = await requireLavaGestorCounterAccess("/lavagestor/iamob");
   ensureEmpresa(current, "/lavagestor/iamob");
   const client = (await getSupabaseServer()) as any;
   const tipo = textValue(formData, "tipo") || "analise_manual";
@@ -59,7 +65,7 @@ export async function registrarIAmobLog(formData: FormData) {
 }
 
 export async function saveLavaAgendamento(formData: FormData) {
-  const { current } = await requireLavaGestorAccess("/lavagestor/agendamentos");
+  const { current } = await requireLavaGestorCounterAccess("/lavagestor/agendamentos");
   ensureEmpresa(current, "/lavagestor/agendamentos");
   const client = (await getSupabaseServer()) as any;
   const id = textValue(formData, "id");
@@ -505,16 +511,18 @@ export async function confirmarLavaPlacaLeitura(formData: FormData) {
 }
 
 export async function saveLavaCobranca(formData: FormData) {
-  await requireLavaGestorFinanceAccess("/lavagestor/pagamentos-integrados");
-  const { current } = await requireLavaGestorAccess("/lavagestor/pagamentos-integrados");
+  const { current } = await requireLavaGestorFinanceAccess("/lavagestor/pagamentos-integrados");
   ensureEmpresa(current, "/lavagestor/pagamentos-integrados");
   const client = (await getSupabaseServer()) as any;
   const valor = numberValue(formData, "valor");
   if (valor <= 0) redirect(`/lavagestor/pagamentos-integrados?error=${messageParam("Informe o valor da cobranca.")}`);
   const provider = textValue(formData, "provider") || "manual";
+  const lavagemId = nullableTextValue(formData, "lavagem_id");
+  const empresaId = lavagemId ? await resolveLavaEmpresaIdFromLavagem(client, lavagemId) : current.empresaId;
+  await assertLavaEmpresaAccess(current, empresaId);
   const { error } = await client.from("lava_cobrancas").insert({
-    empresa_id: current.empresaId,
-    lavagem_id: nullableTextValue(formData, "lavagem_id"),
+    empresa_id: empresaId,
+    lavagem_id: lavagemId,
     cliente_id: nullableTextValue(formData, "cliente_id"),
     provider,
     valor,
@@ -530,24 +538,28 @@ export async function saveLavaCobranca(formData: FormData) {
 }
 
 export async function updateLavaCobrancaStatus(formData: FormData) {
-  await requireLavaGestorFinanceAccess("/lavagestor/pagamentos-integrados");
-  const { current } = await requireLavaGestorAccess("/lavagestor/pagamentos-integrados");
+  const { current } = await requireLavaGestorFinanceAccess("/lavagestor/pagamentos-integrados");
   ensureEmpresa(current, "/lavagestor/pagamentos-integrados");
+  const client = (await getSupabaseServer()) as any;
   const status = textValue(formData, "status");
   const id = textValue(formData, "id");
-  const { error } = await ((await getSupabaseServer()) as any)
+  const existing = await client.from("lava_cobrancas").select("empresa_id").eq("id", id).maybeSingle();
+  if (existing.error || !existing.data?.empresa_id) {
+    redirect(`/lavagestor/pagamentos-integrados?error=${messageParam(existing.error?.message ?? "Cobrança não encontrada.")}`);
+  }
+  await assertLavaEmpresaAccess(current, String(existing.data.empresa_id));
+  const { error } = await client
     .from("lava_cobrancas")
     .update({ status, erro: status === "erro" ? nullableTextValue(formData, "erro") : null })
     .eq("id", id)
-    .eq("empresa_id", current.empresaId);
+    .eq("empresa_id", String(existing.data.empresa_id));
   if (error) redirect(`/lavagestor/pagamentos-integrados?error=${messageParam(error.message)}`);
   revalidatePath("/lavagestor/pagamentos-integrados");
   redirect(`/lavagestor/pagamentos-integrados?ok=${messageParam("Cobrança atualizada.")}`);
 }
 
 export async function saveLavaNotaConfig(formData: FormData) {
-  await requireLavaGestorFinanceAccess("/lavagestor/notas-fiscais");
-  const { current } = await requireLavaGestorAccess("/lavagestor/notas-fiscais");
+  const { current } = await requireLavaGestorFinanceAccess("/lavagestor/notas-fiscais");
   ensureEmpresa(current, "/lavagestor/notas-fiscais");
   const client = (await getSupabaseServer()) as any;
   const { error } = await client.from("lava_nf_configuracoes").upsert(
@@ -570,14 +582,16 @@ export async function saveLavaNotaConfig(formData: FormData) {
 }
 
 export async function saveLavaNotaFiscal(formData: FormData) {
-  await requireLavaGestorFinanceAccess("/lavagestor/notas-fiscais");
-  const { current } = await requireLavaGestorAccess("/lavagestor/notas-fiscais");
+  const { current } = await requireLavaGestorFinanceAccess("/lavagestor/notas-fiscais");
   ensureEmpresa(current, "/lavagestor/notas-fiscais");
   const client = (await getSupabaseServer()) as any;
   const valor = numberValue(formData, "valor");
+  const lavagemId = nullableTextValue(formData, "lavagem_id");
+  const empresaId = lavagemId ? await resolveLavaEmpresaIdFromLavagem(client, lavagemId) : current.empresaId;
+  await assertLavaEmpresaAccess(current, empresaId);
   const { error } = await client.from("lava_notas_fiscais").insert({
-    empresa_id: current.empresaId,
-    lavagem_id: nullableTextValue(formData, "lavagem_id"),
+    empresa_id: empresaId,
+    lavagem_id: lavagemId,
     cliente_id: nullableTextValue(formData, "cliente_id"),
     numero: nullableTextValue(formData, "numero"),
     serie: nullableTextValue(formData, "serie"),
@@ -591,21 +605,27 @@ export async function saveLavaNotaFiscal(formData: FormData) {
 }
 
 export async function updateLavaNotaFiscalStatus(formData: FormData) {
-  await requireLavaGestorFinanceAccess("/lavagestor/notas-fiscais");
-  const { current } = await requireLavaGestorAccess("/lavagestor/notas-fiscais");
+  const { current } = await requireLavaGestorFinanceAccess("/lavagestor/notas-fiscais");
   ensureEmpresa(current, "/lavagestor/notas-fiscais");
-  const { error } = await ((await getSupabaseServer()) as any)
+  const client = (await getSupabaseServer()) as any;
+  const id = textValue(formData, "id");
+  const existing = await client.from("lava_notas_fiscais").select("empresa_id").eq("id", id).maybeSingle();
+  if (existing.error || !existing.data?.empresa_id) {
+    redirect(`/lavagestor/notas-fiscais?error=${messageParam(existing.error?.message ?? "Nota fiscal não encontrada.")}`);
+  }
+  await assertLavaEmpresaAccess(current, String(existing.data.empresa_id));
+  const { error } = await client
     .from("lava_notas_fiscais")
     .update({ status: textValue(formData, "status"), erro: nullableTextValue(formData, "erro") })
-    .eq("id", textValue(formData, "id"))
-    .eq("empresa_id", current.empresaId);
+    .eq("id", id)
+    .eq("empresa_id", String(existing.data.empresa_id));
   if (error) redirect(`/lavagestor/notas-fiscais?error=${messageParam(error.message)}`);
   revalidatePath("/lavagestor/notas-fiscais");
   redirect(`/lavagestor/notas-fiscais?ok=${messageParam("Nota fiscal atualizada.")}`);
 }
 
 export async function saveLavaAutomacao(formData: FormData) {
-  const { current } = await requireLavaGestorAccess("/lavagestor/automacoes");
+  const { current } = await requireLavaGestorCounterAccess("/lavagestor/automacoes");
   ensureEmpresa(current, "/lavagestor/automacoes");
   const client = (await getSupabaseServer()) as any;
   const id = textValue(formData, "id");
@@ -632,7 +652,7 @@ export async function saveLavaAutomacao(formData: FormData) {
 }
 
 export async function gerarFilaLavaAutomacao(formData: FormData) {
-  const { current } = await requireLavaGestorAccess("/lavagestor/automacoes");
+  const { current } = await requireLavaGestorCounterAccess("/lavagestor/automacoes");
   ensureEmpresa(current, "/lavagestor/automacoes");
   const client = (await getSupabaseServer()) as any;
   const automacaoId = textValue(formData, "automacao_id");
@@ -671,7 +691,7 @@ export async function gerarFilaLavaAutomacao(formData: FormData) {
 }
 
 export async function updateLavaAutomacaoFilaStatus(formData: FormData) {
-  const { current } = await requireLavaGestorAccess("/lavagestor/automacoes");
+  const { current } = await requireLavaGestorCounterAccess("/lavagestor/automacoes");
   ensureEmpresa(current, "/lavagestor/automacoes");
   const status = textValue(formData, "status");
   const client = (await getSupabaseServer()) as any;

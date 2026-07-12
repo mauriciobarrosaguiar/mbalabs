@@ -5,7 +5,7 @@ import { firstParam } from "@/lib/form-utils";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
 import { getLavaLookups } from "@/lib/lavagestor-data";
 import { listLavaServicosAvancados } from "@/lib/lavagestor-servicos-data";
-import { requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
+import { requireLavaGestorOperationAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +15,8 @@ export default async function LavaOperacaoEntradaPage({ searchParams }: { search
   const [lookups, servicosResult, { config, error: configError }] = await Promise.all([
     getLavaLookups(),
     listLavaServicosAvancados(),
-    getLavaConfiguracoesEmpresa(),
-    requireLavaGestorAccess("/lavagestor/operacao/entrada")
+    getLavaConfiguracoesEmpresa("/lavagestor/operacao/entrada"),
+    requireLavaGestorOperationAccess("/lavagestor/operacao/entrada")
   ]);
 
   const servicos = servicosResult.rows

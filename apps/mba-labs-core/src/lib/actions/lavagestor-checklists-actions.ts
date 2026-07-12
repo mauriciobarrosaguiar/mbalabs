@@ -5,7 +5,12 @@ import { redirect } from "next/navigation";
 import { logAction } from "@/lib/core-data";
 import { booleanValue, messageParam, nullableTextValue, textValue } from "@/lib/form-utils";
 import { canUploadCheckoutPhoto, ensureChecklistForLavagem, LAVA_CHECKLIST_BUCKET } from "@/lib/lavagestor-checklists-data";
-import { requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
+import {
+  assertLavaEmpresaAccess,
+  currentForLavaEmpresa,
+  requireLavaGestorOperationAccess,
+  resolveLavaEmpresaIdFromLavagem
+} from "@/lib/lavagestor-permissions";
 import { ensurePendingSyncRowsForPhoto } from "@/lib/lavagestor-storage";
 import { enqueueWhatsappMessage } from "@/lib/lavagestor-whatsapp";
 import { getSupabaseServer } from "@/lib/supabase";
@@ -17,10 +22,13 @@ export async function saveLavaChecklist(formData: FormData) {
   const lavagemId = textValue(formData, "lavagem_id");
   const intent = textValue(formData, "intent") || "save";
   const returnTo = `/lavagestor/checklists/${lavagemId}`;
-  const { current } = await requireLavaGestorAccess(returnTo);
+  const { current } = await requireLavaGestorOperationAccess(returnTo);
   const supabase = await getSupabaseServer();
   const client = supabase as any;
-  const checklist = await getChecklist(client, current.empresaId, lavagemId);
+  const empresaId = await resolveLavaEmpresaIdFromLavagem(client, lavagemId);
+  await assertLavaEmpresaAccess(current, empresaId);
+  const scopedCurrent = currentForLavaEmpresa(current, empresaId);
+  const checklist = await getChecklist(client, empresaId, lavagemId);
 
   if (!checklist) {
     redirect(`${returnTo}?error=${messageParam("Checklist nao encontrado.")}`);
@@ -31,14 +39,14 @@ export async function saveLavaChecklist(formData: FormData) {
   }
 
   if (intent === "concluir") {
-    const config = await getChecklistConfig(client, current.empresaId);
+    const config = await getChecklistConfig(client, empresaId);
     if (config.exigir_foto_entrada && !config.permitir_concluir_checklist_sem_foto) {
-      const missingTypes = await missingRequiredEntryTypes(client, current.empresaId, checklist.id, config.fotos_entrada_obrigatorias);
+      const missingTypes = await missingRequiredEntryTypes(client, empresaId, checklist.id, config.fotos_entrada_obrigatorias);
       if (missingTypes.length > 0) {
         redirect(`${returnTo}?error=${messageParam(`Faltam fotos obrigatorias de entrada: ${missingTypes.join(", ")}.`)}`);
       }
 
-      const entradaCount = await countChecklistPhotos(client, current.empresaId, checklist.id, "entrada");
+      const entradaCount = await countChecklistPhotos(client, empresaId, checklist.id, "entrada");
       if (entradaCount < 1) {
         redirect(`${returnTo}?error=${messageParam("Adicione pelo menos uma foto de entrada antes de concluir o checklist.")}`);
       }
@@ -68,17 +76,17 @@ export async function saveLavaChecklist(formData: FormData) {
     .from("lava_checklists")
     .update(payload)
     .eq("id", checklist.id)
-    .eq("empresa_id", current.empresaId);
+    .eq("empresa_id", empresaId);
 
   if (error) {
     redirect(`${returnTo}?error=${messageParam(error.message)}`);
   }
 
-  await updateChecklistServicos(client, current.empresaId, checklist.id, formData);
-  await insertHistory(client, current, lavagemId, intent === "concluir" ? "checklist_entrada_concluido" : intent === "cancelar" ? "checklist_cancelado" : "checklist_salvo");
+  await updateChecklistServicos(client, empresaId, checklist.id, formData);
+  await insertHistory(client, scopedCurrent, lavagemId, intent === "concluir" ? "checklist_entrada_concluido" : intent === "cancelar" ? "checklist_cancelado" : "checklist_salvo");
   if (intent === "concluir") {
-    await enqueueChecklistWhatsapp(client, current, lavagemId).catch(async (err) => {
-      await insertHistory(client, current, lavagemId, "whatsapp_erro_checklist", err instanceof Error ? err.message : "Falha ao enfileirar WhatsApp.");
+    await enqueueChecklistWhatsapp(client, scopedCurrent, lavagemId).catch(async (err) => {
+      await insertHistory(client, scopedCurrent, lavagemId, "whatsapp_erro_checklist", err instanceof Error ? err.message : "Falha ao enfileirar WhatsApp.");
     });
   }
   await logAction({ appSlug: "lavagestor", acao: "salvar checklist", detalhes: { lavagem_id: lavagemId, status } });
@@ -89,16 +97,19 @@ export async function saveLavaChecklist(formData: FormData) {
 export async function uploadLavaChecklistFoto(formData: FormData) {
   const lavagemId = textValue(formData, "lavagem_id");
   const returnTo = `/lavagestor/checklists/${lavagemId}`;
-  const { current } = await requireLavaGestorAccess(returnTo);
+  const { current } = await requireLavaGestorOperationAccess(returnTo);
   const supabase = await getSupabaseServer();
   const client = supabase as any;
-  const lavagem = await getLavagem(client, current.empresaId, lavagemId);
+  const empresaId = await resolveLavaEmpresaIdFromLavagem(client, lavagemId);
+  await assertLavaEmpresaAccess(current, empresaId);
+  const scopedCurrent = currentForLavaEmpresa(current, empresaId);
+  const lavagem = await getLavagem(client, empresaId, lavagemId);
 
   if (!lavagem) {
     redirect(`${returnTo}?error=${messageParam("Lavagem nao encontrada.")}`);
   }
 
-  const checklist = await ensureChecklistForLavagem(client, current, lavagem);
+  const checklist = await ensureChecklistForLavagem(client, scopedCurrent, lavagem);
   const momento = normalizeMomento(textValue(formData, "momento"));
   const lavagemStatus = String(lavagem.status ?? "na_fila");
 
@@ -130,9 +141,9 @@ export async function uploadLavaChecklistFoto(formData: FormData) {
 
   const tipo = sanitizePathPart(textValue(formData, "tipo") || "outras");
   const extension = extensionFromFile(file);
-  const storagePath = `${current.empresaId}/${lavagemId}/${momento}/${tipo}/${Date.now()}-${crypto.randomUUID()}${extension}`;
+  const storagePath = `${empresaId}/${lavagemId}/${momento}/${tipo}/${Date.now()}-${crypto.randomUUID()}${extension}`;
   const bytes = Buffer.from(await file.arrayBuffer());
-  const checkoutCountBefore = momento === "checkout" ? await countChecklistPhotos(client, current.empresaId, checklist.id, "checkout") : 0;
+  const checkoutCountBefore = momento === "checkout" ? await countChecklistPhotos(client, empresaId, checklist.id, "checkout") : 0;
   const upload = await client.storage.from(LAVA_CHECKLIST_BUCKET).upload(storagePath, bytes, {
     contentType: file.type || "image/jpeg",
     upsert: false
@@ -144,7 +155,7 @@ export async function uploadLavaChecklistFoto(formData: FormData) {
 
   const publicUrl = client.storage.from(LAVA_CHECKLIST_BUCKET).getPublicUrl(storagePath).data.publicUrl;
   const { data: foto, error } = await client.from("lava_checklist_fotos").insert({
-    empresa_id: current.empresaId,
+    empresa_id: empresaId,
     checklist_id: checklist.id,
     lavagem_id: lavagemId,
     tipo,
@@ -159,14 +170,14 @@ export async function uploadLavaChecklistFoto(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam(error.message)}`);
   }
 
-  const pending = foto ? await ensurePendingSyncRowsForPhoto(current, foto).catch(() => ({ created: 0, skipped: 0, connected: 0 })) : { created: 0, skipped: 0, connected: 0 };
+  const pending = foto ? await ensurePendingSyncRowsForPhoto(scopedCurrent, foto).catch(() => ({ created: 0, skipped: 0, connected: 0 })) : { created: 0, skipped: 0, connected: 0 };
 
-  await insertHistory(client, current, lavagemId, "foto_local_salva", momento === "checkout" ? "Foto de checkout salva no Supabase." : "Foto de entrada salva no Supabase.");
+  await insertHistory(client, scopedCurrent, lavagemId, "foto_local_salva", momento === "checkout" ? "Foto de checkout salva no Supabase." : "Foto de entrada salva no Supabase.");
   if (pending.created > 0) {
-    await insertHistory(client, current, lavagemId, "backup_pendente", `${pending.created} backup(s) externo(s) pendente(s).`);
+    await insertHistory(client, scopedCurrent, lavagemId, "backup_pendente", `${pending.created} backup(s) externo(s) pendente(s).`);
   }
   if (momento === "checkout" && checkoutCountBefore === 0) {
-    await insertHistory(client, current, lavagemId, "checkout_concluido", "Primeira foto de checkout registrada.");
+    await insertHistory(client, scopedCurrent, lavagemId, "checkout_concluido", "Primeira foto de checkout registrada.");
   }
   await logAction({ appSlug: "lavagestor", acao: "adicionar foto checklist", detalhes: { lavagem_id: lavagemId, tipo, momento } });
   revalidateLavaChecklistPaths(lavagemId);
@@ -177,10 +188,13 @@ export async function deleteLavaChecklistFoto(formData: FormData) {
   const lavagemId = textValue(formData, "lavagem_id");
   const fotoId = textValue(formData, "foto_id");
   const returnTo = `/lavagestor/checklists/${lavagemId}`;
-  const { current } = await requireLavaGestorAccess(returnTo);
+  const { current } = await requireLavaGestorOperationAccess(returnTo);
   const supabase = await getSupabaseServer();
   const client = supabase as any;
-  const checklist = await getChecklist(client, current.empresaId, lavagemId);
+  const empresaId = await resolveLavaEmpresaIdFromLavagem(client, lavagemId);
+  await assertLavaEmpresaAccess(current, empresaId);
+  const scopedCurrent = currentForLavaEmpresa(current, empresaId);
+  const checklist = await getChecklist(client, empresaId, lavagemId);
 
   if (!checklist) {
     redirect(`${returnTo}?error=${messageParam("Checklist nao encontrado.")}`);
@@ -190,7 +204,7 @@ export async function deleteLavaChecklistFoto(formData: FormData) {
     .from("lava_checklist_fotos")
     .select("id,storage_path,momento")
     .eq("id", fotoId)
-    .eq("empresa_id", current.empresaId)
+    .eq("empresa_id", empresaId)
     .eq("checklist_id", checklist.id)
     .maybeSingle();
 
@@ -198,7 +212,7 @@ export async function deleteLavaChecklistFoto(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam(fotoError?.message ?? "Foto nao encontrada.")}`);
   }
 
-  const lavagem = await getLavagem(client, current.empresaId, lavagemId);
+  const lavagem = await getLavagem(client, empresaId, lavagemId);
   if (String(lavagem?.status ?? "") === "entregue") {
     redirect(`${returnTo}?error=${messageParam("Lavagem entregue fica apenas para consulta.")}`);
   }
@@ -213,13 +227,13 @@ export async function deleteLavaChecklistFoto(formData: FormData) {
     .from("lava_checklist_fotos")
     .delete()
     .eq("id", fotoId)
-    .eq("empresa_id", current.empresaId);
+    .eq("empresa_id", empresaId);
 
   if (error) {
     redirect(`${returnTo}?error=${messageParam(error.message)}`);
   }
 
-  await insertHistory(client, current, lavagemId, momento === "checkout" ? "foto_checkout_excluida" : "foto_entrada_excluida");
+  await insertHistory(client, scopedCurrent, lavagemId, momento === "checkout" ? "foto_checkout_excluida" : "foto_entrada_excluida");
   revalidateLavaChecklistPaths(lavagemId);
   redirect(`${returnTo}?ok=${messageParam("Foto removida.")}`);
 }

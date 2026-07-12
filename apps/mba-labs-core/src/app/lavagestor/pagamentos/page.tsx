@@ -4,6 +4,7 @@ import { BackButton, MessageBanner, PageHeader, formatMoney } from "@/components
 import { registrarPagamentoLavagem } from "@/lib/actions/lavagestor-actions";
 import { firstParam } from "@/lib/form-utils";
 import { LAVA_PAYMENT_STATUS_LABELS, listLavaPagamentos } from "@/lib/lavagestor-data";
+import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -13,12 +14,13 @@ export default async function PagamentosPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
+  const { current, perfil } = await requireLavaGestorFinanceAccess("/lavagestor/pagamentos");
   const selectedLavagem = firstParam(params.lavagem);
   const { rows, error } = await listLavaPagamentos();
   const visibleRows = selectedLavagem ? rows.filter((row) => row.id === selectedLavagem) : rows;
 
   return (
-    <LavaGestorShell activePath="/lavagestor/pagamentos">
+    <LavaGestorShell activePath="/lavagestor/pagamentos" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-6">
         <PageHeader
           eyebrow="LavaGestor"
@@ -26,7 +28,7 @@ export default async function PagamentosPage({
           description="Controle valores finais, recebidos, pendentes, forma de pagamento e status financeiro."
           actions={
             <>
-              <BackButton href="/lavagestor" />
+              <BackButton href="/lavagestor/operacao" />
               <Link className="button-primary" href="/lavagestor/fila">
                 Ver fila
               </Link>

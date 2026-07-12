@@ -17,6 +17,7 @@ import {
 import { deleteVeiculo, saveVeiculo } from "@/lib/actions/lavagestor-actions";
 import { getLavaLookups, listLavaVeiculos } from "@/lib/lavagestor-data";
 import { firstParam } from "@/lib/form-utils";
+import { requireLavaGestorOwnerAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,7 @@ export default async function VeiculosPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
+  const { current, perfil } = await requireLavaGestorOwnerAccess("/lavagestor/veiculos");
   const search = firstParam(params.q) ?? "";
   const editId = firstParam(params.edit);
   const [{ rows, error }, lookups] = await Promise.all([listLavaVeiculos(search), getLavaLookups()]);
@@ -33,13 +35,13 @@ export default async function VeiculosPage({
   const clientes = lookups.clientes.map((cliente) => ({ label: String(cliente.nome), value: String(cliente.id) }));
 
   return (
-    <LavaGestorShell activePath="/lavagestor/veiculos">
+    <LavaGestorShell activePath="/lavagestor/veiculos" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-6">
         <PageHeader
           eyebrow="LavaGestor"
           title="Veículos"
           description="Vincule veículos aos clientes para facilitar o atendimento."
-          actions={<BackButton href="/lavagestor" />}
+          actions={<BackButton href="/lavagestor/operacao" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? undefined} />
         <SearchBox defaultValue={search} placeholder="Buscar por placa, modelo, marca ou cliente" />

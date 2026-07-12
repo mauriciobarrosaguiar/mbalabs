@@ -12,13 +12,13 @@ export default async function LavaSetupFacilPage({ searchParams }: { searchParam
   const data = await getLavaSetupFacilPageData();
 
   return (
-    <LavaGestorShell activePath="/lavagestor/setup-facil" companyName={data.companyName}>
+    <LavaGestorShell activePath="/lavagestor/setup-facil" companyName={data.companyName} perfil={data.perfil} roleLabel={data.perfil}>
       <section className="grid gap-5 pb-24">
         <PageHeader
           eyebrow="LavaGestor"
           title="Configuração Fácil / IA + WhatsApp automático"
           description="Ative Gemini e WhatsApp automático em etapas simples. A parte técnica da Evolution fica protegida pela MBA Labs."
-          actions={<><BackButton href="/lavagestor" /><Link className="button-secondary" href="/lavagestor/configuracoes">Configurações</Link></>}
+          actions={<><BackButton href="/lavagestor/operacao" /><Link className="button-secondary" href="/lavagestor/configuracoes">Configurações</Link></>}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error)} />
         <EasySetupWizard data={data} initialStep={firstParam(params.step)} />

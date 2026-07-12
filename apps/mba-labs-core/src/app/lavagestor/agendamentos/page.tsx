@@ -4,6 +4,7 @@ import { AgendamentoForm } from "@/components/lavagestor/AgendamentoForm";
 import { BackButton, MessageBanner, PageHeader, formatDateTime } from "@/components/ui-kit";
 import { firstParam } from "@/lib/form-utils";
 import { LAVA_AGENDAMENTO_STATUS, getLavaAgendamentosData, whatsappUrl } from "@/lib/lavagestor-agendamentos-data";
+import { requireLavaGestorCounterAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -16,16 +17,17 @@ const periodos = [
 
 export default async function AgendamentosPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
+  const { current, perfil } = await requireLavaGestorCounterAccess("/lavagestor/agendamentos");
   const data = await getLavaAgendamentosData(params);
 
   return (
-    <LavaGestorShell activePath="/lavagestor/agendamentos">
+    <LavaGestorShell activePath="/lavagestor/agendamentos" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-5">
         <PageHeader
           eyebrow="LavaGestor"
           title="Agendamentos"
           description="Organize agenda interna, confirme horarios e converta em lavagem quando o cliente chegar."
-          actions={<><BackButton href="/lavagestor" /><Link className="button-secondary" href="/lavagestor/nova-lavagem">Nova lavagem</Link></>}
+          actions={<><BackButton href="/lavagestor/operacao" /><Link className="button-secondary" href="/lavagestor/nova-lavagem">Nova lavagem</Link></>}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 

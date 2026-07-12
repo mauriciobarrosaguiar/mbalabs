@@ -1,5 +1,6 @@
 import { requireAppAccess } from "./core-data";
 import { withSignedPhotoUrls } from "./lavagestor-checklists-data";
+import { assertLavaEmpresaAccess } from "./lavagestor-permissions";
 import { getSupabaseServer } from "./supabase";
 
 type Row = Record<string, unknown>;
@@ -9,35 +10,35 @@ export async function getLavaRecibo(lavagemId: string) {
   const supabase = await getSupabaseServer();
   const client = supabase as any;
 
-  const lavagemQuery = client
+  const lavagemResult = await client
     .from("lava_lavagens")
     .select("id,empresa_id,cliente_id,veiculo_id,funcionario_id,servico_id,descricao_extra,observacoes,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,comissao,status,status_pagamento,forma_pagamento,data_entrada,data_inicio,data_finalizacao,data_cliente_avisado,data_pagamento,data_entrega,entrega_tipo,endereco_entrega,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor,tipo),lava_funcionarios(nome),lava_servicos(nome)")
-    .eq("id", lavagemId);
-
-  const lavagemResult = await (current.isAdminMaster ? lavagemQuery : lavagemQuery.eq("empresa_id", current.empresaId)).maybeSingle();
+    .eq("id", lavagemId)
+    .maybeSingle();
 
   if (lavagemResult.error || !lavagemResult.data) {
-    return { recibo: null, error: lavagemResult.error?.message ?? "Lavagem não encontrada." };
+    return { recibo: null, error: lavagemResult.error?.message ?? "Lavagem nao encontrada." };
   }
 
   const lavagem = lavagemResult.data as Row;
-  const empresaId = String(lavagem.empresa_id ?? current.empresaId ?? "");
+  const empresaId = String(lavagem.empresa_id ?? "");
+  try {
+    await assertLavaEmpresaAccess(current, empresaId);
+  } catch (err) {
+    return { recibo: null, error: err instanceof Error ? err.message : "Sem acesso a esta lavagem." };
+  }
 
   const [empresaResult, configResult, servicosResult, pagamentosResult, checklistResult, fotosResult] = await Promise.all([
-    empresaId
-      ? client
-          .from("core_empresas")
-          .select("id,nome,nome_fantasia,razao_social,cnpj,telefone,whatsapp,email,cidade,estado")
-          .eq("id", empresaId)
-          .maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
-    empresaId
-      ? client
-          .from("lava_configuracoes")
-          .select("nome_exibicao,nome_fantasia,documento,whatsapp,telefone,endereco,cidade,estado,chave_pix,logo_url,cor_principal,mensagem_recibo,permitir_recibo_sem_checklist")
-          .eq("empresa_id", empresaId)
-          .maybeSingle()
-      : Promise.resolve({ data: null, error: null }),
+    client
+      .from("core_empresas")
+      .select("id,nome,nome_fantasia,razao_social,cnpj,telefone,whatsapp,email,cidade,estado")
+      .eq("id", empresaId)
+      .maybeSingle(),
+    client
+      .from("lava_configuracoes")
+      .select("nome_exibicao,nome_fantasia,documento,whatsapp,telefone,endereco,cidade,estado,chave_pix,logo_url,cor_principal,mensagem_recibo,permitir_recibo_sem_checklist")
+      .eq("empresa_id", empresaId)
+      .maybeSingle(),
     client
       .from("lava_lavagem_servicos")
       .select("id,descricao,valor,percentual_comissao,valor_comissao,created_at")
@@ -69,7 +70,7 @@ export async function getLavaRecibo(lavagemId: string) {
   const config = (configResult.data ?? {}) as Row;
   const servicos = ((servicosResult.data ?? []) as Row[]).map((row) => ({
     id: String(row.id),
-    descricao: String(row.descricao ?? "Serviço"),
+    descricao: String(row.descricao ?? "Servico"),
     valor: Number(row.valor ?? 0),
     percentual_comissao: row.percentual_comissao,
     valor_comissao: Number(row.valor_comissao ?? 0)
@@ -116,7 +117,11 @@ export async function getLavaRecibo(lavagemId: string) {
       whatsapp: relationPhone(lavagem.lava_clientes),
       veiculo: vehicleLabel(lavagem.lava_veiculos),
       funcionario: relationName(lavagem.lava_funcionarios) || "-",
-      servicos: servicos.length > 0 ? servicos : fallbackService ? [{ id: "principal", descricao: fallbackService, valor: Number(lavagem.valor_final ?? lavagem.valor ?? 0), percentual_comissao: null, valor_comissao: Number(lavagem.comissao ?? 0) }] : [],
+      servicos: servicos.length > 0
+        ? servicos
+        : fallbackService
+          ? [{ id: "principal", descricao: fallbackService, valor: Number(lavagem.valor_final ?? lavagem.valor ?? 0), percentual_comissao: null, valor_comissao: Number(lavagem.comissao ?? 0) }]
+          : [],
       pagamentos,
       status: String(lavagem.status ?? ""),
       status_pagamento: String(lavagem.status_pagamento ?? "aberto"),
@@ -156,7 +161,7 @@ function summarizeAvarias(checklist: Row | null) {
 }
 
 function defaultReceiptMessage() {
-  return "Olá, {cliente}! Segue o recibo da lavagem {recibo}. Veículo/item: {veiculo}. Total pago: {total}. Obrigado pela preferência!";
+  return "Ola, {cliente}! Segue o recibo da lavagem {recibo}. Veiculo/item: {veiculo}. Total pago: {total}. Obrigado pela preferencia!";
 }
 
 function relationName(value: unknown) {

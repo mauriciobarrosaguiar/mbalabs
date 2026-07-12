@@ -2,7 +2,7 @@ import { getCurrentUserProfile } from "@/lib/core-data";
 import { getSupabaseServer } from "@/lib/supabase";
 
 export type SiteSystemConfig = {
-  key: "mbacotacoes" | "lavagestor" | "bikecomanda";
+  key: "mbacotacoes" | "lavagestor" | "bikecomanda" | "chama-diarista";
   name: string;
   description: string;
   cta: string;
@@ -73,6 +73,14 @@ export const defaultSiteConfig: SiteConfig = {
       description: "Abra comandas de manutenção, cadastre clientes e bicicletas, monte orçamentos, acompanhe status e controle pagamentos.",
       href: "/apps/bikecomanda",
       cta: "Conhecer BikeComanda",
+      visible: true
+    },
+    {
+      key: "chama-diarista",
+      name: "ChamaDiarista",
+      description: "Receba pedidos de limpeza, acompanhe diaristas, agenda, pagamentos e avaliacoes em um painel central.",
+      href: "/chama-diarista",
+      cta: "Conhecer ChamaDiarista",
       visible: true
     }
   ],

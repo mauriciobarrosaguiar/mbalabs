@@ -30,7 +30,7 @@ export default async function ValesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireLavaGestorFinanceAccess("/lavagestor/vales");
+  const { current, perfil } = await requireLavaGestorFinanceAccess("/lavagestor/vales");
   const params = await searchParams;
   const search = firstParam(params.q) ?? "";
   const [{ rows, error }, lookups] = await Promise.all([listLavaVales(search), getLavaLookups()]);
@@ -42,13 +42,13 @@ export default async function ValesPage({
   const totalRestante = sum(rows, "saldo_restante");
 
   return (
-    <LavaGestorShell activePath="/lavagestor/vales">
+    <LavaGestorShell activePath="/lavagestor/vales" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-6">
         <PageHeader
           eyebrow="LavaGestor"
           title="Vales"
           description="Registre adiantamentos, acompanhe o que já foi descontado e veja quanto falta abater no próximo acerto."
-          actions={<BackButton href="/lavagestor" />}
+          actions={<BackButton href="/lavagestor/operacao" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? undefined} />
         <SearchBox defaultValue={search} placeholder="Buscar por funcionário, descrição ou status" />

@@ -34,9 +34,10 @@ export const internalApps: InternalAppDefinition[] = [
     slug: "lavagestor",
     name: "LavaGestor",
     description: "Sistema para lava-jatos controlarem lavagens, clientes, funcionários, pagamentos e comissões.",
-    urlPath: "/lavagestor",
+    urlPath: "/lavagestor/operacao",
     alternatePaths: [
-      { label: "App direto - /lavagestor", value: "/lavagestor" },
+      { label: "App direto - /lavagestor/operacao", value: "/lavagestor/operacao" },
+      { label: "Compatível - /lavagestor", value: "/lavagestor" },
       { label: "Entrada compatível - /apps/lavagestor", value: "/apps/lavagestor" }
     ],
     profileOptions: [
@@ -84,6 +85,23 @@ export const internalApps: InternalAppDefinition[] = [
       { label: "Conselho fiscal", value: "conselho_fiscal" },
       { label: "Associado", value: "associado" },
       { label: "Portaria", value: "portaria" }
+    ]
+  },
+  {
+    slug: "chama-diarista",
+    name: "ChamaDiarista",
+    description: "Marketplace operacional para clientes solicitarem diaristas, acompanhar agenda, pagamentos e avaliacoes.",
+    urlPath: "/chama-diarista",
+    alternatePaths: [
+      { label: "App direto - /chama-diarista", value: "/chama-diarista" },
+      { label: "Entrada compativel - /apps/chama-diarista", value: "/apps/chama-diarista" }
+    ],
+    profileOptions: [
+      { label: "Administrador", value: "administrador" },
+      { label: "Operacao", value: "operacao" },
+      { label: "Financeiro", value: "financeiro" },
+      { label: "Suporte", value: "suporte" },
+      { label: "Visualizador", value: "visualizador" }
     ]
   },
   {

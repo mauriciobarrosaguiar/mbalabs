@@ -4,12 +4,17 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { logAction } from "@/lib/core-data";
 import { messageParam, nullableTextValue, textValue } from "@/lib/form-utils";
-import { requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
+import {
+  assertLavaEmpresaAccess,
+  requireLavaGestorCounterAccess,
+  resolveLavaEmpresaIdFromLavagem
+} from "@/lib/lavagestor-permissions";
 import { getSupabaseServer } from "@/lib/supabase";
 
 export async function registrarContatoPosVenda(formData: FormData) {
-  const { current } = await requireLavaGestorAccess("/lavagestor/pos-venda");
+  const { current } = await requireLavaGestorCounterAccess("/lavagestor/pos-venda");
   const supabase = await getSupabaseServer();
+  const client = supabase as any;
   const tipo = textValue(formData, "tipo");
   const clienteId = textValue(formData, "cliente_id");
   const lavagemId = textValue(formData, "lavagem_id");
@@ -19,8 +24,11 @@ export async function registrarContatoPosVenda(formData: FormData) {
     redirect(`/lavagestor/pos-venda?f=${encodeURIComponent(filter)}&error=${messageParam("Contato incompleto.")}`);
   }
 
-  const { error } = await (supabase as any).from("lava_pos_venda_contatos").insert({
-    empresa_id: current.empresaId,
+  const empresaId = await resolveLavaEmpresaIdFromLavagem(client, lavagemId);
+  await assertLavaEmpresaAccess(current, empresaId);
+
+  const { error } = await client.from("lava_pos_venda_contatos").insert({
+    empresa_id: empresaId,
     cliente_id: clienteId,
     lavagem_id: lavagemId,
     usuario_id: current.usuario.id,
@@ -35,5 +43,5 @@ export async function registrarContatoPosVenda(formData: FormData) {
 
   await logAction({ appSlug: "lavagestor", acao: "registrar pos-venda", detalhes: { cliente_id: clienteId, lavagem_id: lavagemId, tipo } });
   revalidatePath("/lavagestor/pos-venda");
-  redirect(`/lavagestor/pos-venda?f=${encodeURIComponent(filter)}&ok=${messageParam("Contato de pos-venda registrado.")}`);
+  redirect(`/lavagestor/pos-venda?f=${encodeURIComponent(filter)}&ok=${messageParam("Contato de pós-venda registrado.")}`);
 }

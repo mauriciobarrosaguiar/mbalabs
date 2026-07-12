@@ -58,9 +58,12 @@ export type LavaConfiguracoesEmpresa = {
 
 export async function getLavaConfiguracoesEmpresa(redirectTo = "/lavagestor/configuracoes") {
   const current = await requireAppAccess("lavagestor", redirectTo);
+  return getLavaConfiguracoesEmpresaById(current.empresaId);
+}
+
+export async function getLavaConfiguracoesEmpresaById(empresaId: string | null | undefined) {
   const supabase = await getSupabaseServer();
   const client = supabase as any;
-  const empresaId = current.empresaId;
 
   if (!empresaId) {
     return { config: defaultConfig(null, "Empresa conectada"), error: "Empresa não identificada." };

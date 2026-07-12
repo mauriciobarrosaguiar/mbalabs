@@ -47,8 +47,8 @@ export const fallbackApps: SystemCard[] = [
   {
     slug: "lavagestor",
     nome: "LavaGestor",
-    descricao: "Lavagens, clientes, veículos, funcionÃ¡rios e comissÃµes.",
-    url_path: "/apps/lavagestor",
+    descricao: "Lavagens, clientes, veículos, funcionários e comissões.",
+    url_path: "/lavagestor/operacao",
     status: "sem_assinatura",
     canAccess: false
   },
@@ -65,6 +65,14 @@ export const fallbackApps: SystemCard[] = [
     nome: "Portal Associativo",
     descricao: "Gestao completa para associacoes, associados, unidades, cobrancas, reunioes, avisos, documentos e projetos.",
     url_path: "/portal-associativo",
+    status: "sem_assinatura",
+    canAccess: false
+  },
+  {
+    slug: "chama-diarista",
+    nome: "ChamaDiarista",
+    descricao: "Marketplace operacional para clientes solicitarem diaristas, agenda, pagamentos e avaliacoes.",
+    url_path: "/chama-diarista",
     status: "sem_assinatura",
     canAccess: false
   },
@@ -1179,6 +1187,7 @@ function canAccessRequestedPath(path: string, profile: CoreProfile, appsLiberado
       pathname.startsWith("/lavagestor") ||
       pathname.startsWith("/bikecomanda") ||
       pathname.startsWith("/portal-associativo") ||
+      pathname.startsWith("/chama-diarista") ||
       pathname.startsWith("/lexgestor")
     );
   }
@@ -1214,6 +1223,10 @@ function getAppSlugFromPath(path: string) {
 
   if (path === "/portal-associativo" || path.startsWith("/portal-associativo/")) {
     return "portal-associativo";
+  }
+
+  if (path === "/chama-diarista" || path.startsWith("/chama-diarista/")) {
+    return "chama-diarista";
   }
 
   if (path === "/lexgestor" || path.startsWith("/lexgestor/")) {

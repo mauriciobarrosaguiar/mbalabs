@@ -4,6 +4,7 @@ import { BackButton, MessageBanner, PageHeader, formatDate, formatMoney } from "
 import { registrarContatoPosVenda } from "@/lib/actions/lavagestor-pos-venda-actions";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaPosVendaData, whatsappUrl } from "@/lib/lavagestor-phase2-data";
+import { requireLavaGestorCounterAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -22,23 +23,24 @@ const messageTypes = [
   { label: "Agradecimento", value: "agradecimento" },
   { label: "Pesquisa", value: "pesquisa" },
   { label: "Retorno", value: "retorno" },
-  { label: "Cobranca", value: "cobranca" },
-  { label: "Promocao", value: "promocao" }
+  { label: "Cobrança", value: "cobranca" },
+  { label: "Promoção", value: "promocao" }
 ];
 
 export default async function PosVendaPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
+  const { current, perfil } = await requireLavaGestorCounterAccess("/lavagestor/pos-venda");
   const filter = firstParam(params.f) ?? "7";
   const { rows, error } = await getLavaPosVendaData(filter);
 
   return (
-    <LavaGestorShell activePath="/lavagestor/pos-venda">
+    <LavaGestorShell activePath="/lavagestor/pos-venda" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-5">
         <PageHeader
           eyebrow="LavaGestor"
           title="Pos-venda"
-          description="Gere mensagens de WhatsApp para agradecimento, pesquisa, retorno, cobranca e promocao. Sem disparo automatico."
-          actions={<BackButton href="/lavagestor" />}
+          description="Gere mensagens de WhatsApp para agradecimento, pesquisa, retorno, cobrança e promoção. Sem disparo automático."
+          actions={<BackButton href="/lavagestor/operacao" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? undefined} />
 

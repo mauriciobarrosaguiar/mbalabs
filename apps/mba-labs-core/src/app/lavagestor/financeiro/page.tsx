@@ -4,11 +4,13 @@ import { BackButton, MessageBanner, PageHeader, formatDate, formatDateTime, form
 import { fecharLavaCaixa, reabrirLavaCaixa } from "@/lib/actions/lavagestor-caixa-actions";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaCaixa } from "@/lib/lavagestor-caixa-data";
+import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
 export default async function FinanceiroPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
+  const { current, perfil } = await requireLavaGestorFinanceAccess("/lavagestor/financeiro");
   const tipo = firstParam(params.tipo) === "mes" ? "mes" : "dia";
   const caixa = await getLavaCaixa({
     tipo,
@@ -19,13 +21,13 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
   const fechado = caixa.fechamento?.status === "fechado";
 
   return (
-    <LavaGestorShell activePath="/lavagestor/financeiro" companyName={caixa.companyName}>
+    <LavaGestorShell activePath="/lavagestor/financeiro" companyName={caixa.companyName} perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-5">
         <PageHeader
           eyebrow="LavaGestor"
           title="Caixa e fechamento"
           description="Confira o dinheiro que entrou, separe por forma de pagamento e feche o caixa por dia ou por mês."
-          actions={<><BackButton href="/lavagestor" /><Link className="button-secondary" href="/lavagestor/relatorios">Relatório completo</Link></>}
+          actions={<><BackButton href="/lavagestor/operacao" /><Link className="button-secondary" href="/lavagestor/relatorios">Relatório completo</Link></>}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? caixa.error ?? undefined} />
 

@@ -2,29 +2,30 @@ import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import { BackButton, MessageBanner, PageHeader, formatDateTime } from "@/components/ui-kit";
 import { confirmarLavaPlacaLeitura, saveLavaPlacaLeitura } from "@/lib/actions/lavagestor-placa-actions";
-import { requireAppAccess } from "@/lib/core-data";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaAiMode } from "@/lib/lavagestor-ai";
 import { getLavaPlacaData } from "@/lib/lavagestor-placa-data";
+import { requireLavaGestorCounterAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlacaPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
+  const { current, perfil } = await requireLavaGestorCounterAccess("/lavagestor/placa");
   const data = await getLavaPlacaData();
-  const aiMode = await getLavaAiMode(await requireAppAccess("lavagestor", "/lavagestor/placa"));
+  const aiMode = await getLavaAiMode(current);
   const veiculoId = firstParam(params.veiculo_id) ?? firstParam(params.veiculo);
   const placa = firstParam(params.placa) ?? "";
   const foundVehicle = veiculoId ? data.veiculos.find((row) => String(row.id) === veiculoId) : null;
 
   return (
-    <LavaGestorShell activePath="/lavagestor/placa">
+    <LavaGestorShell activePath="/lavagestor/placa" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-5">
         <PageHeader
           eyebrow="LavaGestor"
           title="Ler placa"
           description={aiMode.allowPlateReading ? "Reconhecimento de placa com IAMob/Gemini ou modo manual." : "Reconhecimento de placa em modo manual com foto opcional."}
-          actions={<><BackButton href="/lavagestor" /><Link className="button-secondary" href="/lavagestor/nova-lavagem">Nova lavagem</Link></>}
+          actions={<><BackButton href="/lavagestor/operacao" /><Link className="button-secondary" href="/lavagestor/nova-lavagem">Nova lavagem</Link></>}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 

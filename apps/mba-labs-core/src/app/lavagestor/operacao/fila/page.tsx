@@ -6,7 +6,7 @@ import { registrarSaidaOperacao } from "@/lib/actions/lavagestor-operacao-action
 import { firstParam } from "@/lib/form-utils";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
 import { listLavaFila } from "@/lib/lavagestor-fila-data";
-import { requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
+import { requireLavaGestorOperationAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +16,9 @@ export default async function LavaOperacaoFilaPage({ searchParams }: { searchPar
   const params = await searchParams;
 
   const [{ config }, fila] = await Promise.all([
-    getLavaConfiguracoesEmpresa(),
+    getLavaConfiguracoesEmpresa("/lavagestor/operacao/fila"),
     listLavaFila(),
-    requireLavaGestorAccess("/lavagestor/operacao/fila")
+    requireLavaGestorOperationAccess("/lavagestor/operacao/fila")
   ]);
 
   return (
@@ -68,7 +68,10 @@ function ServicoCard({ row }: { row: Row }) {
     <article className={`overflow-hidden rounded-3xl border shadow-sm ${tone}`}>
       <div className="grid grid-cols-[72px_1fr] gap-3 p-3">
         <div className="h-20 overflow-hidden rounded-2xl bg-muted">
-          {foto ? <img className="h-full w-full object-cover" src={foto} alt="Foto do veiculo" loading="lazy" /> : <div className="flex h-full items-center justify-center text-[10px] font-black text-muted-foreground">SEM FOTO</div>}
+          {foto ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="h-full w-full object-cover" src={foto} alt="Foto do veiculo" loading="lazy" />
+          ) : <div className="flex h-full items-center justify-center text-[10px] font-black text-muted-foreground">SEM FOTO</div>}
         </div>
 
         <div className="min-w-0">

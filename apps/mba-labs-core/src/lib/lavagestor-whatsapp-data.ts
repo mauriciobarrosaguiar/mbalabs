@@ -31,14 +31,14 @@ export type LavaWhatsappFilters = {
 export async function getLavaWhatsappPageData(filters: LavaWhatsappFilters = {}) {
   const { current, perfil } = await requireLavaGestorAccess("/lavagestor/whatsapp");
   if (!canOperateCounter(perfil)) {
-    redirect("/lavagestor?error=Seu perfil nao pode acessar a fila de WhatsApp.");
+    redirect(`/lavagestor/operacao?error=${encodeURIComponent("Seu perfil não pode acessar a fila de WhatsApp.")}`);
   }
 
   const client = (await getSupabaseServer()) as any;
   const empresaId = current.empresaId;
   const integration = await getWhatsappIntegration(current);
   if (!empresaId) {
-    return { rows: [], stats: emptyStats(), filters, integration, error: "Empresa nao identificada." };
+    return { current, perfil, rows: [], stats: emptyStats(), filters, integration, error: "Empresa não identificada." };
   }
 
   let query = client
@@ -76,6 +76,8 @@ export async function getLavaWhatsappPageData(filters: LavaWhatsappFilters = {})
     stats: buildStats((countsResult.data ?? []) as Row[]),
     filters,
     integration,
+    current,
+    perfil,
     error: rowsResult.error?.message ?? countsResult.error?.message ?? null
   };
 }
@@ -84,7 +86,7 @@ export const WHATSAPP_STATUS_OPTIONS = [
   { value: "", label: "Todos" },
   { value: "pendente", label: "Pendente" },
   { value: "pronto", label: "Manual pronto" },
-  { value: "aguardando_aprovacao", label: "Aguardando aprovacao" },
+  { value: "aguardando_aprovacao", label: "Aguardando aprovação" },
   { value: "aprovado", label: "Aprovado" },
   { value: "enviando", label: "Enviando" },
   { value: "enviado", label: "Enviado" },
@@ -95,16 +97,16 @@ export const WHATSAPP_STATUS_OPTIONS = [
 
 export const WHATSAPP_EVENT_OPTIONS = [
   { value: "", label: "Todos os eventos" },
-  { value: "confirmacao_agendamento", label: "Confirmacao de agendamento" },
+  { value: "confirmacao_agendamento", label: "Confirmação de agendamento" },
   { value: "lembrete_agendamento", label: "Lembrete de agendamento" },
-  { value: "lavagem_recebida", label: "Veiculo recebido" },
+  { value: "lavagem_recebida", label: "Veículo recebido" },
   { value: "checklist_concluido", label: "Checklist concluido" },
-  { value: "veiculo_pronto", label: "Veiculo pronto" },
+  { value: "veiculo_pronto", label: "Veículo pronto" },
   { value: "pagamento_recebido", label: "Pagamento recebido" },
   { value: "pos_venda", label: "Pos-venda" },
-  { value: "cobranca_fiado", label: "Cobranca de fiado" },
+  { value: "cobranca_fiado", label: "Cobrança de fiado" },
   { value: "cliente_sem_retorno", label: "Cliente sem retorno" },
-  { value: "promocao", label: "Promocao" }
+  { value: "promocao", label: "Promoção" }
 ];
 
 export const WHATSAPP_PROVIDER_OPTIONS = [

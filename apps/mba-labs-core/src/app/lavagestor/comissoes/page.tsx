@@ -11,14 +11,14 @@ export const dynamic = "force-dynamic";
 type Row = Record<string, unknown>;
 
 export default async function ComissoesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  await requireLavaGestorFinanceAccess("/lavagestor/comissoes");
+  const { current, perfil } = await requireLavaGestorFinanceAccess("/lavagestor/comissoes");
   const params = await searchParams;
   const { rows, totals, error } = await listLavaComissoesResumo();
 
   return (
-    <LavaGestorShell activePath="/lavagestor/comissoes">
+    <LavaGestorShell activePath="/lavagestor/comissoes" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-6">
-        <PageHeader eyebrow="LavaGestor" title="Comissões" description="Acerto por funcionário. Vale só aparece quando houver saldo pendente." actions={<BackButton href="/lavagestor" />} />
+        <PageHeader eyebrow="LavaGestor" title="Comissões" description="Acerto por funcionário. Vale só aparece quando houver saldo pendente." actions={<BackButton href="/lavagestor/operacao" />} />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? error ?? undefined} />
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Comissões pendentes" value={formatMoney(totals.totalPendente)} />

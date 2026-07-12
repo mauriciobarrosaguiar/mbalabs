@@ -89,7 +89,7 @@ export default async function FuncionariosPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireLavaGestorFinanceAccess("/lavagestor/funcionarios");
+  const { current, perfil } = await requireLavaGestorFinanceAccess("/lavagestor/funcionarios");
   const params = await searchParams;
   const search = firstParam(params.q) ?? "";
   const editId = firstParam(params.edit);
@@ -113,13 +113,13 @@ export default async function FuncionariosPage({
   }, {});
 
   return (
-    <LavaGestorShell activePath="/lavagestor/funcionarios">
+    <LavaGestorShell activePath="/lavagestor/funcionarios" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-6">
         <PageHeader
           eyebrow="LavaGestor"
           title="Funcionários"
           description="Cadastre lavadores e o percentual padrão de comissão."
-          actions={<BackButton href="/lavagestor" />}
+          actions={<BackButton href="/lavagestor/operacao" />}
         />
         <MessageBanner
           ok={firstParam(params.ok)}

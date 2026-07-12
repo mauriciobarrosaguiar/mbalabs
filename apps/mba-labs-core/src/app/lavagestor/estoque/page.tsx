@@ -3,21 +3,23 @@ import { BackButton, MessageBanner, PageHeader, formatDateTime, formatMoney } fr
 import { createLavaEstoqueMovimento, criarProdutosPadraoLavaGestor, saveLavaEstoqueProduto, saveLavaServicoInsumo } from "@/lib/actions/lavagestor-estoque-actions";
 import { firstParam } from "@/lib/form-utils";
 import { LAVA_ESTOQUE_CATEGORIAS, LAVA_ESTOQUE_MOVIMENTOS, LAVA_ESTOQUE_UNIDADES, getLavaEstoqueData } from "@/lib/lavagestor-estoque-data";
+import { requireLavaGestorOwnerAccess } from "@/lib/lavagestor-permissions";
 
 export const dynamic = "force-dynamic";
 
 export default async function EstoquePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
+  const { current, perfil } = await requireLavaGestorOwnerAccess("/lavagestor/estoque");
   const data = await getLavaEstoqueData();
 
   return (
-    <LavaGestorShell activePath="/lavagestor/estoque">
+    <LavaGestorShell activePath="/lavagestor/estoque" perfil={perfil} userName={current.usuario.nome} roleLabel={perfil}>
       <section className="grid gap-5">
         <PageHeader
           eyebrow="LavaGestor"
           title="Estoque"
           description="Controle produtos, entradas, saidas e insumos por servico. A baixa automatica roda ao finalizar a lavagem e nao bloqueia a operacao."
-          actions={<><BackButton href="/lavagestor" /><form action={criarProdutosPadraoLavaGestor}><button className="button-primary" type="submit">Criar produtos padrao</button></form></>}
+          actions={<><BackButton href="/lavagestor/operacao" /><form action={criarProdutosPadraoLavaGestor}><button className="button-primary" type="submit">Criar produtos padrao</button></form></>}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 

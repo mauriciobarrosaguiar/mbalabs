@@ -31,20 +31,20 @@ export default async function LavaWhatsappPage({ searchParams }: { searchParams:
   const returnTo = buildReturn(filters);
 
   return (
-    <LavaGestorShell activePath="/lavagestor/whatsapp">
+    <LavaGestorShell activePath="/lavagestor/whatsapp" perfil={data.perfil} userName={data.current.usuario.nome} roleLabel={data.perfil}>
       <section className="grid gap-5">
         <PageHeader
           eyebrow="LavaGestor"
           title="WhatsApp"
-          description="Fila real de mensagens: manual, aprovacao e envio automatico quando houver provedor configurado."
-          actions={<><BackButton href="/lavagestor" /><Link className="button-secondary" href="/lavagestor/configuracoes">Configurar</Link></>}
+          description="Fila real de mensagens: manual, aprovação e envio automático quando houver provedor configurado."
+          actions={<><BackButton href="/lavagestor/operacao" /><Link className="button-secondary" href="/lavagestor/configuracoes">Configurar</Link></>}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
         {data.integration.provider === "manual" || data.integration.status !== "conectado" ? (
           <div className="grid gap-3 rounded-xl border border-emerald-100 bg-emerald-50 p-4 shadow-sm md:grid-cols-[1fr_auto] md:items-center">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">WhatsApp automatico</p>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-emerald-700">WhatsApp automático</p>
               <h2 className="text-xl font-black">Conecte o WhatsApp em poucos passos</h2>
               <p className="mt-1 text-sm font-semibold leading-6 text-emerald-950">Use a configuracao facil para ler o QR Code, escolher o modo de envio e fazer um teste.</p>
             </div>
@@ -54,7 +54,7 @@ export default async function LavaWhatsappPage({ searchParams }: { searchParams:
 
         <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
           <Metric label="Pendentes" value={data.stats.pendentes} />
-          <Metric label="Aguardando aprovacao" value={data.stats.aprovacao} warning />
+          <Metric label="Aguardando aprovação" value={data.stats.aprovacao} warning />
           <Metric label="Enviados hoje" value={data.stats.enviadosHoje} green />
           <Metric label="Com erro" value={data.stats.erro} danger />
           <Metric label="Cancelados" value={data.stats.cancelados} />
@@ -84,10 +84,10 @@ export default async function LavaWhatsappPage({ searchParams }: { searchParams:
               <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-start">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <strong className="break-words text-lg">{String(row.cliente || "Cliente nao informado")}</strong>
+                    <strong className="break-words text-lg">{String(row.cliente || "Cliente não informado")}</strong>
                     <span className={`rounded-full px-3 py-1 text-xs font-black ${statusTone(String(row.status))}`}>{String(row.status_label)}</span>
                   </div>
-                  <p className="mt-1 text-sm font-semibold text-muted-foreground">{String(row.telefone || "Telefone nao informado")} - {String(row.evento_label)}</p>
+                  <p className="mt-1 text-sm font-semibold text-muted-foreground">{String(row.telefone || "Telefone não informado")} - {String(row.evento_label)}</p>
                 </div>
                 <div className="grid gap-1 text-xs font-bold text-muted-foreground md:text-right">
                   <span>{String(row.provider_label)}</span>
