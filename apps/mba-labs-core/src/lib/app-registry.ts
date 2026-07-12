@@ -88,6 +88,23 @@ export const internalApps: InternalAppDefinition[] = [
     ]
   },
   {
+    slug: "chama-diarista",
+    name: "ChamaDiarista",
+    description: "Marketplace operacional para clientes solicitarem diaristas, acompanhar agenda, pagamentos e avaliacoes.",
+    urlPath: "/chama-diarista",
+    alternatePaths: [
+      { label: "App direto - /chama-diarista", value: "/chama-diarista" },
+      { label: "Entrada compativel - /apps/chama-diarista", value: "/apps/chama-diarista" }
+    ],
+    profileOptions: [
+      { label: "Administrador", value: "administrador" },
+      { label: "Operacao", value: "operacao" },
+      { label: "Financeiro", value: "financeiro" },
+      { label: "Suporte", value: "suporte" },
+      { label: "Visualizador", value: "visualizador" }
+    ]
+  },
+  {
     slug: "lexgestor",
     name: "LexGestor",
     description: "Gestão jurídica inteligente para escritórios de advocacia.",

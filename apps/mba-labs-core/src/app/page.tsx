@@ -84,6 +84,7 @@ export default async function HomePage() {
   const cotacoes = config.systems.find((system) => system.key === "mbacotacoes");
   const lavagestor = config.systems.find((system) => system.key === "lavagestor");
   const bikecomanda = config.systems.find((system) => system.key === "bikecomanda");
+  const chamaDiarista = config.systems.find((system) => system.key === "chama-diarista");
 
   const products: Product[] = [
     {
@@ -116,6 +117,16 @@ export default async function HomePage() {
       href: bikecomanda?.href || "/apps/bikecomanda",
       icon: Bike,
       tone: "toneGreen"
+    },
+    {
+      name: chamaDiarista?.name || "ChamaDiarista",
+      category: "Servicos Residenciais",
+      description:
+        chamaDiarista?.description ||
+        "Pedidos de limpeza, diaristas, agenda e pagamentos em uma operacao conectada ao login central MBA Labs.",
+      href: chamaDiarista?.href || "/chama-diarista",
+      icon: Sparkles,
+      tone: "toneAmber"
     },
     {
       name: "LexGestor",
@@ -239,7 +250,7 @@ export default async function HomePage() {
           <div className={styles.sectionHead}>
             <div>
               <span className={styles.kicker}>Nosso ecossistema</span>
-              <h2 className={styles.sectionTitle}>Cinco sistemas, cada um construído para um negócio real.</h2>
+              <h2 className={styles.sectionTitle}>Seis sistemas, cada um construído para um negócio real.</h2>
             </div>
             <p className={styles.sectionIntro}>
               Nenhum sistema genérico. Cada produto da MBA Labs nasce da rotina de um setor específico — por isso resolve

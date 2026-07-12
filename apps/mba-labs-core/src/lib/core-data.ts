@@ -69,6 +69,14 @@ export const fallbackApps: SystemCard[] = [
     canAccess: false
   },
   {
+    slug: "chama-diarista",
+    nome: "ChamaDiarista",
+    descricao: "Marketplace operacional para clientes solicitarem diaristas, agenda, pagamentos e avaliacoes.",
+    url_path: "/chama-diarista",
+    status: "sem_assinatura",
+    canAccess: false
+  },
+  {
     slug: "lexgestor",
     nome: "LexGestor",
     descricao: "GestÃ£o jurídica inteligente para escritórios de advocacia.",
@@ -1179,6 +1187,7 @@ function canAccessRequestedPath(path: string, profile: CoreProfile, appsLiberado
       pathname.startsWith("/lavagestor") ||
       pathname.startsWith("/bikecomanda") ||
       pathname.startsWith("/portal-associativo") ||
+      pathname.startsWith("/chama-diarista") ||
       pathname.startsWith("/lexgestor")
     );
   }
@@ -1214,6 +1223,10 @@ function getAppSlugFromPath(path: string) {
 
   if (path === "/portal-associativo" || path.startsWith("/portal-associativo/")) {
     return "portal-associativo";
+  }
+
+  if (path === "/chama-diarista" || path.startsWith("/chama-diarista/")) {
+    return "chama-diarista";
   }
 
   if (path === "/lexgestor" || path.startsWith("/lexgestor/")) {
