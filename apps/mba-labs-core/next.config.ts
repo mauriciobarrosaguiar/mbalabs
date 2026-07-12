@@ -25,6 +25,10 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        source: "/chama-diarista",
+        destination: `${chamaDiaristaOrigin}/chama-diarista`
+      },
+      {
         source: "/chama-diarista/:path*",
         destination: `${chamaDiaristaOrigin}/chama-diarista/:path*`
       }
