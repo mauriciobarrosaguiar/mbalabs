@@ -13,7 +13,7 @@
 
 @media (max-width: 760px) {
   .lexgestor-module .mobile-nav {
-    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
   }
 
   .lexgestor-module .mobile-nav a,
@@ -28,7 +28,7 @@
     color: inherit;
     padding: 6px 2px;
     font: inherit;
-    font-size: 0.62rem;
+    font-size: 0.6rem;
     line-height: 1.05;
   }
 
@@ -43,6 +43,6 @@
   }
 
   .lexgestor-module .lex-content {
-    padding-bottom: 128px;
+    padding-bottom: 110px;
   }
 }
