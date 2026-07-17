@@ -1,0 +1,89 @@
+.lexgestor-module .simple-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 22px;
+}
+
+.lexgestor-module .simple-hero h2 {
+  margin: 4px 0 0;
+  font-size: clamp(1.4rem, 2vw, 2rem);
+}
+
+.lexgestor-module .eyebrow {
+  color: var(--lex-muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lexgestor-module .simple-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.lexgestor-module .advanced-area {
+  gap: 16px;
+}
+
+.lexgestor-module .advanced-area > summary,
+.lexgestor-module .advanced-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  cursor: pointer;
+  color: var(--lex-text);
+  font-weight: 800;
+  list-style: none;
+}
+
+.lexgestor-module .advanced-area > summary::-webkit-details-marker,
+.lexgestor-module .advanced-summary::-webkit-details-marker {
+  display: none;
+}
+
+.lexgestor-module .advanced-area > summary::after,
+.lexgestor-module .advanced-summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  margin-left: 4px;
+}
+
+.lexgestor-module details[open] > .advanced-summary::after,
+.lexgestor-module details[open].advanced-area > summary::after {
+  transform: rotate(225deg);
+}
+
+.lexgestor-module .form-card > summary.advanced-summary {
+  margin-bottom: 8px;
+}
+
+.lexgestor-module .storage-status .section-title p,
+.lexgestor-module .dashboard-actions span,
+.lexgestor-module .document-list-toolbar .muted {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .lexgestor-module .simple-hero {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .lexgestor-module .simple-actions {
+    justify-content: stretch;
+  }
+
+  .lexgestor-module .simple-actions .button {
+    flex: 1 1 calc(50% - 8px);
+  }
+}
