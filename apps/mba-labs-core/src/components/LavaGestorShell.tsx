@@ -41,7 +41,8 @@ type LavaNavItem = {
 };
 
 const lavaNavItems: LavaNavItem[] = [
-  { href: "/lavagestor", label: "Dashboard", icon: LayoutDashboard, permission: "financeiro.ver_caixa" },
+  { href: "/lavagestor/operacao", label: "Operação", icon: LayoutDashboard, permission: "fila.ver" },
+  { href: "/lavagestor/dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "financeiro.ver_caixa" },
   { href: "/lavagestor/operacao/entrada", label: "Entrada", icon: Car, permission: "lavagem.criar" },
   { href: "/lavagestor/operacao/saida", label: "Saída", icon: ReceiptText, permission: "lavagem.finalizar" },
   { href: "/lavagestor/operacao/fila", label: "Veículos em serviço", icon: ClipboardList, permission: "fila.ver" },
@@ -70,9 +71,9 @@ const lavaNavItems: LavaNavItem[] = [
 ];
 
 const lavaNavGroupsConfig: Array<{ label: string; hrefs: string[] }> = [
-  { label: "Operação", hrefs: ["/lavagestor", "/lavagestor/operacao/entrada", "/lavagestor/operacao/saida", "/lavagestor/operacao/fila", "/lavagestor/busca", "/lavagestor/lavagens", "/lavagestor/placa"] },
+  { label: "Operação", hrefs: ["/lavagestor/operacao", "/lavagestor/operacao/entrada", "/lavagestor/operacao/saida", "/lavagestor/operacao/fila", "/lavagestor/busca", "/lavagestor/lavagens", "/lavagestor/placa"] },
   { label: "Cadastros", hrefs: ["/lavagestor/clientes", "/lavagestor/veiculos", "/lavagestor/funcionarios", "/lavagestor/servicos", "/lavagestor/estoque"] },
-  { label: "Financeiro", hrefs: ["/lavagestor/pagamentos", "/lavagestor/financeiro", "/lavagestor/comissoes", "/lavagestor/vales", "/lavagestor/pagamentos-integrados", "/lavagestor/notas-fiscais"] },
+  { label: "Financeiro", hrefs: ["/lavagestor/dashboard", "/lavagestor/pagamentos", "/lavagestor/financeiro", "/lavagestor/comissoes", "/lavagestor/vales", "/lavagestor/pagamentos-integrados", "/lavagestor/notas-fiscais"] },
   { label: "Crescimento", hrefs: ["/lavagestor/whatsapp", "/lavagestor/pos-venda", "/lavagestor/automacoes", "/lavagestor/iamob"] },
   { label: "Sistema", hrefs: ["/lavagestor/relatorios", "/lavagestor/usuarios", "/lavagestor/setup-facil", "/lavagestor/configuracoes"] }
 ];
@@ -98,7 +99,7 @@ export async function LavaGestorShell({
   const canCreateLavagem = effectivePermissions.has("lavagem.criar");
   const isLavadorOnly = perfil === "lavador";
   const isOperacaoHome = activePath === "/lavagestor/operacao";
-  const homeHref = canSeeFila ? "/lavagestor/operacao" : "/lavagestor";
+  const homeHref = canSeeFila ? "/lavagestor/operacao" : "/lavagestor/dashboard";
   const displayUserName = userName || current.usuario.nome;
   const displayRoleLabel = roleLabel && !["funcionario", "usuario"].includes(roleLabel.toLowerCase())
     ? roleLabel
@@ -265,7 +266,8 @@ function LavaNavLink({
 }
 
 function isActivePath(activePath: string, href: string) {
-  return href === "/lavagestor" ? activePath === href : activePath.startsWith(href);
+  if (href === "/lavagestor/operacao") return activePath === href;
+  return activePath === href || activePath.startsWith(`${href}/`);
 }
 
 function labelLavaPerfil(perfil: LavaPerfil) {
