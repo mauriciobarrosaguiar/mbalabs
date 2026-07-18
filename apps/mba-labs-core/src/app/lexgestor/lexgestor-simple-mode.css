@@ -31,7 +31,8 @@
 }
 
 .lexgestor-module .advanced-area > summary,
-.lexgestor-module .advanced-summary {
+.lexgestor-module .advanced-summary,
+.lexgestor-module .simple-details > summary {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -43,12 +44,14 @@
 }
 
 .lexgestor-module .advanced-area > summary::-webkit-details-marker,
-.lexgestor-module .advanced-summary::-webkit-details-marker {
+.lexgestor-module .advanced-summary::-webkit-details-marker,
+.lexgestor-module .simple-details > summary::-webkit-details-marker {
   display: none;
 }
 
 .lexgestor-module .advanced-area > summary::after,
-.lexgestor-module .advanced-summary::after {
+.lexgestor-module .advanced-summary::after,
+.lexgestor-module .simple-details > summary::after {
   content: "";
   width: 7px;
   height: 7px;
@@ -59,7 +62,8 @@
 }
 
 .lexgestor-module details[open] > .advanced-summary::after,
-.lexgestor-module details[open].advanced-area > summary::after {
+.lexgestor-module details[open].advanced-area > summary::after,
+.lexgestor-module details[open].simple-details > summary::after {
   transform: rotate(225deg);
 }
 
@@ -71,6 +75,51 @@
 .lexgestor-module .dashboard-actions span,
 .lexgestor-module .document-list-toolbar .muted {
   display: none;
+}
+
+.lexgestor-module .novo-caso-simples .form-card {
+  padding: 22px;
+}
+
+.lexgestor-module .novo-caso-simples .section-title {
+  margin-bottom: 0;
+}
+
+.lexgestor-module .novo-caso-simples .section-title h2 {
+  font-size: 1.35rem;
+}
+
+.lexgestor-module .novo-caso-simples .field-grid {
+  gap: 14px;
+}
+
+.lexgestor-module .case-essential-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.lexgestor-module .simple-details {
+  border: 1px solid var(--lex-border);
+  border-radius: 16px;
+  background: var(--lex-panel-strong);
+  padding: 14px;
+}
+
+.lexgestor-module .simple-details + .simple-details {
+  margin-top: 10px;
+}
+
+.lexgestor-module .simple-details > summary {
+  width: 100%;
+  justify-content: space-between;
+  font-size: 1rem;
+}
+
+.lexgestor-module .simple-details .details-grid {
+  margin-top: 16px;
+}
+
+.lexgestor-module .novo-caso-simples textarea {
+  min-height: 92px;
 }
 
 @media (max-width: 760px) {
@@ -85,5 +134,45 @@
 
   .lexgestor-module .simple-actions .button {
     flex: 1 1 calc(50% - 8px);
+  }
+
+  .lexgestor-module .novo-caso-simples .form-card {
+    padding: 16px;
+  }
+
+  .lexgestor-module .novo-caso-simples .section-title h2 {
+    font-size: 1.18rem;
+  }
+
+  .lexgestor-module .case-essential-grid,
+  .lexgestor-module .novo-caso-simples .field-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .lexgestor-module .novo-caso-simples label,
+  .lexgestor-module .novo-caso-simples .field {
+    gap: 7px;
+    font-size: 0.98rem;
+  }
+
+  .lexgestor-module .novo-caso-simples input,
+  .lexgestor-module .novo-caso-simples select,
+  .lexgestor-module .novo-caso-simples textarea {
+    min-height: 48px;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .lexgestor-module .simple-details {
+    padding: 13px;
+  }
+
+  .lexgestor-module .sticky-actions {
+    position: sticky;
+    bottom: 92px;
+    z-index: 35;
+    padding: 8px 0;
+    background: linear-gradient(180deg, transparent, var(--lex-bg) 30%);
   }
 }
