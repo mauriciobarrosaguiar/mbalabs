@@ -34,8 +34,10 @@ export const internalApps: InternalAppDefinition[] = [
     slug: "lavagestor",
     name: "LavaGestor",
     description: "Sistema para lava-jatos controlarem lavagens, clientes, funcionários, pagamentos e comissões.",
-    urlPath: "/lavagestor",
+    urlPath: "/lavagestor/operacao",
     alternatePaths: [
+      { label: "Entrada operacional - /lavagestor/operacao", value: "/lavagestor/operacao" },
+      { label: "Dashboard de gestão - /lavagestor/dashboard", value: "/lavagestor/dashboard" },
       { label: "App direto - /lavagestor", value: "/lavagestor" },
       { label: "Entrada compatível - /apps/lavagestor", value: "/apps/lavagestor" }
     ],
