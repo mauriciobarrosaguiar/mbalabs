@@ -1,13 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ClipboardList, FileText, Save } from "lucide-react";
+import { useState } from "react";
+import { FileText, Save } from "lucide-react";
 import { salvarCasoLexGestor } from "@/app/lexgestor/actions";
 import type { CategoriaJuridica } from "@/data/lexgestor/areas";
-import { obterChecklistPorAreaSubarea } from "@/lib/lexgestor/checklist";
 import { LEX_CASE_STATUS } from "@/lib/lexgestor/constants";
 import type { LexAdvogado, LexCliente } from "@/lib/lexgestor/data";
-import { ChecklistCaso } from "./ChecklistCaso";
 
 type NovoCasoFormProps = {
   clientes: LexCliente[];
@@ -152,32 +150,19 @@ export function NovoCasoForm({ clientes, advogados = [], categorias, defaultClie
   const [subcategoria, setSubcategoria] = useState("");
   const [uf, setUf] = useState("TO");
   const [comarca, setComarca] = useState("COMARCA DE PALMAS");
-  const checklist = useMemo(
-    () => obterChecklistPorAreaSubarea(categoria, subcategoria),
-    [categoria, subcategoria],
-  );
   const selected = categorias.find((item) => item.nome === categoria);
-  const clienteSelecionado = clientes.find((cliente) => cliente.id === clienteId);
   const comarcas = COMARCAS_POR_UF[uf] ?? [];
 
   return (
-    <form className="stack" action={salvarCasoLexGestor}>
+    <form className="stack novo-caso-simples" action={salvarCasoLexGestor}>
       <section className="form-card stack">
-        <div className="section-title">
+        <div className="section-title compact-title">
           <div>
-            <h2>1. Dados principais</h2>
-            <p>O caso pode ser aberto antes de existir número de processo.</p>
+            <h2>Dados do caso</h2>
           </div>
-          <span className="badge">Próxima ação: preencher categoria</span>
         </div>
 
-        {clienteSelecionado ? (
-          <div className="notice success">
-            Caso será vinculado ao cliente: <strong>{clienteSelecionado.nome}</strong>
-          </div>
-        ) : null}
-
-        <div className="field-grid">
+        <div className="field-grid case-essential-grid">
           <label className="field">
             Cliente
             <select
@@ -194,10 +179,12 @@ export function NovoCasoForm({ clientes, advogados = [], categorias, defaultClie
               ))}
             </select>
           </label>
+
           <label className="field">
-            Título do caso
-            <input name="titulo" placeholder="Ex.: Pedido de benefício negado" required />
+            Título
+            <input name="titulo" placeholder="Ex.: Ação de despejo" required />
           </label>
+
           <label className="field">
             Categoria
             <select
@@ -217,6 +204,7 @@ export function NovoCasoForm({ clientes, advogados = [], categorias, defaultClie
               ))}
             </select>
           </label>
+
           <label className="field">
             Subcategoria
             <select
@@ -236,6 +224,7 @@ export function NovoCasoForm({ clientes, advogados = [], categorias, defaultClie
               ))}
             </select>
           </label>
+
           <label className="field">
             Status
             <select name="status" defaultValue="Atendimento inicial">
@@ -244,6 +233,7 @@ export function NovoCasoForm({ clientes, advogados = [], categorias, defaultClie
               ))}
             </select>
           </label>
+
           <label className="field">
             Prioridade
             <select name="prioridade" defaultValue="Normal">
@@ -253,138 +243,143 @@ export function NovoCasoForm({ clientes, advogados = [], categorias, defaultClie
               <option>Urgente</option>
             </select>
           </label>
-          <label className="field-full">
-            Relato inicial
-            <textarea name="relato_inicial" placeholder="Resumo simples do atendimento, pedido do cliente e provas conhecidas." />
-          </label>
-        </div>
-      </section>
 
-      <section className="form-card stack">
-        <div className="section-title">
-          <div>
-            <h2>2. Dados do processo</h2>
-            <p>Todos os campos são opcionais. Não informe senha do eproc.</p>
-          </div>
-          <span className="badge warning">Não salvar login ou senha</span>
-        </div>
-        <div className="field-grid">
-          <Field name="numero_processo" label="Número do processo" />
-          <Field name="chave_processo" label="Chave do processo / eproc" />
-          <SelectField name="sistema_judicial" label="Sistema judicial" options={["eproc", "PJe", "Projudi", "ESAJ", "Outro"]} />
-          <SelectField name="tribunal" label="Tribunal" options={TRIBUNAIS} defaultValue="TJTO - Tribunal de Justiça do Tocantins" />
-          <label className="field">
-            Estado/UF
-            <select
-              name="uf"
-              value={uf}
-              onChange={(event) => {
-                const value = event.target.value;
-                setUf(value);
-                setComarca((COMARCAS_POR_UF[value] ?? [""])[0] ?? "");
-              }}
-            >
-              <option value="">Não informado</option>
-              {UFS.map((item) => (
-                <option value={item} key={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            Comarca/Subseção
-            {comarcas.length > 0 ? (
-              <select name="comarca" value={comarca} onChange={(event) => setComarca(event.target.value)}>
-                <option value="">Não informado</option>
-                {comarcas.map((item) => (
-                  <option value={item} key={item}>{item}</option>
-                ))}
-                <option value="OUTRA COMARCA/SUBSEÇÃO">OUTRA COMARCA/SUBSEÇÃO</option>
-              </select>
-            ) : (
-              <select name="comarca" defaultValue="">
-                <option value="">Não informado</option>
-                <option value="OUTRA COMARCA/SUBSEÇÃO">OUTRA COMARCA/SUBSEÇÃO</option>
-              </select>
-            )}
-          </label>
-          <SelectField name="vara" label="Vara" options={VARAS} />
-          <SelectField name="classe_processual" label="Classe processual" options={CLASSES_PROCESSUAIS} />
-          <SelectField name="assunto" label="Assunto" options={ASSUNTOS} />
-          <SelectField name="fase_processual" label="Fase do processo" options={FASES_PROCESSUAIS} />
-          <label className="field">
-            Grau
-            <select name="grau" defaultValue="">
-              <option value="">Não informado</option>
-              <option>1º grau</option>
-              <option>2º grau</option>
-              <option>Turma Recursal</option>
-              <option>Superior</option>
-            </select>
-          </label>
-          <Field name="polo_ativo" label="Polo ativo" />
-          <Field name="polo_passivo" label="Polo passivo" />
-          <label className="field">
-            Advogado responsável
-            <select name="advogado_responsavel_id" defaultValue="">
-              <option value="">Definir depois</option>
-              {advogados.filter((advogado) => advogado.status === "Ativo").map((advogado) => (
-                <option value={advogado.id} key={advogado.id}>
-                  {advogado.nome}{advogado.oab ? ` - OAB ${advogado.oab}/${advogado.ufOab}` : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <Field name="valor_causa" label="Valor da causa" inputMode="decimal" />
-          <label className="field">
-            Justiça gratuita
-            <select name="justica_gratuita" defaultValue="nao">
-              <option value="nao">Não</option>
-              <option value="sim">Sim</option>
-            </select>
-          </label>
-          <label className="field">
-            Segredo de justiça
-            <select name="segredo_justica" defaultValue="nao">
-              <option value="nao">Não</option>
-              <option value="sim">Sim</option>
-            </select>
-          </label>
-          <label className="field">
-            Data de distribuição
-            <input name="data_distribuicao" type="date" />
-          </label>
           <label className="field">
             Próximo prazo
             <input name="proximo_prazo" type="date" />
           </label>
+
           <SelectField name="tipo_prazo" label="Tipo de prazo" options={TIPOS_PRAZO} />
-          <Field name="link_processo" label="Link do processo" />
+
           <label className="field-full">
-            Observações do processo
-            <textarea name="observacoes_processo" placeholder="Informações processuais importantes." />
+            Relato inicial
+            <textarea name="relato_inicial" placeholder="Resumo do atendimento" />
           </label>
         </div>
       </section>
 
       <section className="form-card stack">
-        <div className="section-title">
-          <div>
-            <h2>3. Checklist automático</h2>
-            <p>Gerado conforme categoria e subcategoria escolhidas.</p>
+        <details className="simple-details">
+          <summary>Processo judicial</summary>
+          <div className="field-grid case-essential-grid details-grid">
+            <Field name="numero_processo" label="Número do processo" />
+            <Field name="chave_processo" label="Chave eproc" />
+            <SelectField name="sistema_judicial" label="Sistema" options={["eproc", "PJe", "Projudi", "ESAJ", "Outro"]} />
+            <SelectField name="tribunal" label="Tribunal" options={TRIBUNAIS} defaultValue="TJTO - Tribunal de Justiça do Tocantins" />
           </div>
-          <ClipboardList size={24} color="var(--primary)" aria-hidden />
-        </div>
-        <ChecklistCaso items={checklist} />
+        </details>
+
+        <details className="simple-details">
+          <summary>Mais informações</summary>
+          <div className="field-grid details-grid">
+            <label className="field">
+              UF
+              <select
+                name="uf"
+                value={uf}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setUf(value);
+                  setComarca((COMARCAS_POR_UF[value] ?? [""])[0] ?? "");
+                }}
+              >
+                <option value="">Não informado</option>
+                {UFS.map((item) => (
+                  <option value={item} key={item}>{item}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="field">
+              Comarca
+              {comarcas.length > 0 ? (
+                <select name="comarca" value={comarca} onChange={(event) => setComarca(event.target.value)}>
+                  <option value="">Não informado</option>
+                  {comarcas.map((item) => (
+                    <option value={item} key={item}>{item}</option>
+                  ))}
+                  <option value="OUTRA COMARCA/SUBSEÇÃO">OUTRA COMARCA/SUBSEÇÃO</option>
+                </select>
+              ) : (
+                <select name="comarca" defaultValue="">
+                  <option value="">Não informado</option>
+                  <option value="OUTRA COMARCA/SUBSEÇÃO">OUTRA COMARCA/SUBSEÇÃO</option>
+                </select>
+              )}
+            </label>
+
+            <SelectField name="vara" label="Vara" options={VARAS} />
+            <SelectField name="classe_processual" label="Classe" options={CLASSES_PROCESSUAIS} />
+            <SelectField name="assunto" label="Assunto" options={ASSUNTOS} />
+            <SelectField name="fase_processual" label="Fase" options={FASES_PROCESSUAIS} />
+
+            <label className="field">
+              Grau
+              <select name="grau" defaultValue="">
+                <option value="">Não informado</option>
+                <option>1º grau</option>
+                <option>2º grau</option>
+                <option>Turma Recursal</option>
+                <option>Superior</option>
+              </select>
+            </label>
+
+            <Field name="polo_ativo" label="Polo ativo" />
+            <Field name="polo_passivo" label="Polo passivo" />
+
+            <label className="field">
+              Responsável
+              <select name="advogado_responsavel_id" defaultValue="">
+                <option value="">Definir depois</option>
+                {advogados.filter((advogado) => advogado.status === "Ativo").map((advogado) => (
+                  <option value={advogado.id} key={advogado.id}>
+                    {advogado.nome}{advogado.oab ? ` - OAB ${advogado.oab}/${advogado.ufOab}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <Field name="valor_causa" label="Valor da causa" inputMode="decimal" />
+
+            <label className="field">
+              Justiça gratuita
+              <select name="justica_gratuita" defaultValue="nao">
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+              </select>
+            </label>
+
+            <label className="field">
+              Segredo de justiça
+              <select name="segredo_justica" defaultValue="nao">
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+              </select>
+            </label>
+
+            <label className="field">
+              Distribuição
+              <input name="data_distribuicao" type="date" />
+            </label>
+
+            <Field name="link_processo" label="Link do processo" />
+
+            <label className="field-full">
+              Observações
+              <textarea name="observacoes_processo" placeholder="Observações" />
+            </label>
+          </div>
+        </details>
       </section>
 
       <div className="button-row sticky-actions">
         <button className="button" type="submit">
           <Save size={17} aria-hidden />
-          Revisar e salvar caso
+          Salvar caso
         </button>
         <a className="button secondary" href={clienteId ? `/lexgestor/documentos?cliente=${clienteId}` : "/lexgestor/documentos"}>
           <FileText size={17} aria-hidden />
-          Anexar documentos depois
+          Documentos
         </a>
       </div>
     </form>
