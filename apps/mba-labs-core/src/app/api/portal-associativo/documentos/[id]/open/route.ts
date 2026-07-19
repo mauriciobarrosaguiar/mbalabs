@@ -5,6 +5,7 @@ import {
   getPortalStorageAccessToken,
   isPortalStorageProvider
 } from "@/lib/portal-associativo-storage";
+import { ensurePortalStorageEnvAliases } from "../../../_storage-env";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -14,6 +15,7 @@ type RouteContext = {
 };
 
 export async function GET(request: Request, { params }: RouteContext) {
+  ensurePortalStorageEnvAliases();
   const { id } = await params;
   const url = new URL(request.url);
   const download = url.searchParams.get("download") === "1";

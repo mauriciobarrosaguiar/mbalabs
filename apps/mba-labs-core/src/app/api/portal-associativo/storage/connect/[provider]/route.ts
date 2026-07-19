@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { canPortalAccess, getPortalContext } from "@/lib/portal-associativo-data";
 import { getPortalOAuthUrl, isPortalStorageProvider } from "@/lib/portal-associativo-storage";
+import { ensurePortalStorageEnvAliases } from "../../../_storage-env";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,6 +12,7 @@ type RouteContext = {
 };
 
 export async function GET(request: Request, { params }: RouteContext) {
+  ensurePortalStorageEnvAliases();
   const { provider } = await params;
   if (!isPortalStorageProvider(provider)) {
     return redirectConfig(request, "Provedor invalido.");

@@ -73,6 +73,12 @@ export async function savePortalPessoa(formData: FormData) {
 
   await recordPortalAudit(context, id ? "editar_pessoa" : "criar_pessoa", "assoc_pessoas", pessoaId, { nome });
   revalidatePortal(returnTo);
+  if (!id && textValue(formData, "proxima_acao") === "unidade") {
+    redirect(`/portal-associativo/unidades?modo=rapido&proprietario=${encodeURIComponent(pessoaId)}#cadastro`);
+  }
+  if (!id && textValue(formData, "proxima_acao") === "cobranca") {
+    redirect(`/portal-associativo/financeiro?responsavel=${encodeURIComponent(pessoaId)}#cobranca-avulsa`);
+  }
   redirectWithOk(returnTo, "Pessoa salva com sucesso.");
 }
 
@@ -241,6 +247,12 @@ export async function savePortalUnidade(formData: FormData) {
   await recordPortalAudit(context, id ? "editar_unidade" : "criar_unidade", "assoc_unidades", unidadeId, { codigo, numero });
   revalidatePortal(returnTo);
   revalidatePath("/portal-associativo/financeiro");
+  if (!id && textValue(formData, "proxima_acao") === "cobranca") {
+    redirect(`/portal-associativo/financeiro?unidade=${encodeURIComponent(unidadeId)}#cobranca-avulsa`);
+  }
+  if (!id && textValue(formData, "proxima_acao") === "documento") {
+    redirect(`/portal-associativo/documentos?unidade=${encodeURIComponent(unidadeId)}#novo-documento`);
+  }
   redirectWithOk(returnTo, "Chacara/lote salvo com sucesso.");
 }
 
@@ -1139,6 +1151,7 @@ export async function deletePortalArquivo(formData: FormData) {
   const provider = String(current.data.provedor ?? "");
   if (isPortalStorageProvider(provider)) {
     try {
+      ensurePortalStorageEnvAliases();
       await deleteFromPortalStorage({
         current: context.current,
         provider,
@@ -1485,6 +1498,13 @@ function splitCsvLine(line: string, separator: string) {
   }
   cells.push(current);
   return cells;
+}
+
+function ensurePortalStorageEnvAliases() {
+  process.env.DROPBOX_CLIENT_ID ||= process.env.DROPBOX_APP_KEY;
+  process.env.DROPBOX_CLIENT_SECRET ||= process.env.DROPBOX_APP_SECRET;
+  process.env.GOOGLE_DRIVE_CLIENT_ID ||= process.env.GOOGLE_CLIENT_ID;
+  process.env.GOOGLE_DRIVE_CLIENT_SECRET ||= process.env.GOOGLE_CLIENT_SECRET;
 }
 
 function normalizeHeader(value: string) {

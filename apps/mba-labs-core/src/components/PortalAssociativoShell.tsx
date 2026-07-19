@@ -33,22 +33,22 @@ type PortalNavItem = {
 };
 
 const navItems: PortalNavItem[] = [
-  { href: "/portal-associativo", label: "Dashboard", section: "dashboard", icon: LayoutDashboard },
-  { href: "/portal-associativo/implantacao", label: "Implantação", section: "implantacao", icon: ClipboardCheck },
+  { href: "/portal-associativo", label: "Início", section: "dashboard", icon: LayoutDashboard },
+  { href: "/portal-associativo/implantacao", label: "Começar aqui", section: "implantacao", icon: ClipboardCheck },
   { href: "/portal-associativo/loteamentos", label: "Loteamentos", section: "loteamentos", icon: MapIcon },
   { href: "/portal-associativo/pessoas", label: "Associados", section: "pessoas", icon: Users },
   { href: "/portal-associativo/unidades", label: "Chácaras/Lotes", section: "unidades", icon: Home },
-  { href: "/portal-associativo/transferencias", label: "Transferências", section: "transferencias", icon: Repeat },
-  { href: "/portal-associativo/financeiro", label: "Mensalidades", section: "financeiro", icon: Banknote },
-  { href: "/portal-associativo/inadimplentes", label: "Inadimplentes", section: "inadimplentes", icon: FileText },
+  { href: "/portal-associativo/transferencias", label: "Transferir unidade", section: "transferencias", icon: Repeat },
+  { href: "/portal-associativo/financeiro", label: "Cobranças", section: "financeiro", icon: Banknote },
+  { href: "/portal-associativo/inadimplentes", label: "Atrasados", section: "inadimplentes", icon: FileText },
   { href: "/portal-associativo/documentos", label: "Documentos", section: "documentos", icon: FolderOpen },
   { href: "/portal-associativo/importacao", label: "Importação", section: "importacao", icon: Upload },
   { href: "/portal-associativo/relatorios", label: "Relatórios", section: "relatorios", icon: FileText },
   { href: "/portal-associativo/reunioes", label: "Reuniões", section: "reunioes", icon: ClipboardList },
   { href: "/portal-associativo/avisos", label: "Avisos", section: "avisos", icon: Bell },
   { href: "/portal-associativo/projetos", label: "Projetos", section: "projetos", icon: FolderKanban },
-  { href: "/portal-associativo/painel-associado", label: "Painel", section: "painel", icon: ShieldCheck },
-  { href: "/portal-associativo/configuracoes", label: "Configurações", section: "configuracoes", icon: Settings }
+  { href: "/portal-associativo/painel-associado", label: "Painel do associado", section: "painel", icon: ShieldCheck },
+  { href: "/portal-associativo/configuracoes", label: "Ajustes", section: "configuracoes", icon: Settings }
 ];
 
 export function PortalAssociativoShell({
@@ -138,7 +138,7 @@ function SidebarContent({
         </span>
       </div>
 
-      <div className={styles.navSectionLabel}>Navegação</div>
+      <div className={styles.navSectionLabel}>Menu</div>
       <nav className="grid gap-1.5" aria-label="Menu do Portal Associativo">
         {items.map((item) => (
           <PortalNavLink activePath={activePath} item={item} key={item.href} />
@@ -178,7 +178,7 @@ function PortalNavLink({
       href={item.href}
     >
       <Icon className="h-5 w-5 shrink-0" aria-hidden />
-      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      <span className="min-w-0 flex-1 whitespace-normal leading-tight">{item.label}</span>
       {active ? <ChevronRight className="h-4 w-4 shrink-0" aria-hidden /> : null}
     </Link>
   );

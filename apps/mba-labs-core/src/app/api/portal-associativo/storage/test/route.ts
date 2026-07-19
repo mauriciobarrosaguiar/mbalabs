@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { canPortalAccess, getPortalContext } from "@/lib/portal-associativo-data";
 import { portalStorageProviderLabel, testPortalStorageConnection } from "@/lib/portal-associativo-storage";
+import { ensurePortalStorageEnvAliases } from "../../_storage-env";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  ensurePortalStorageEnvAliases();
   const context = await getPortalContext("/portal-associativo/configuracoes");
   if (!canPortalAccess(context.perfil, "configuracoes")) {
     return redirectConfig(request, "Seu perfil nao permite testar armazenamento.");

@@ -89,11 +89,17 @@ export default async function PortalFinanceiroPage({
       <section className="grid gap-6">
         <PageHeader
           eyebrow="Portal Associativo"
-          title="Mensalidades"
-          description="Crie, edite, baixe, cancele e acompanhe cobrancas com PIX manual, recibo em PDF e previa para geracao em lote."
+          title="Cobranças"
+          description="Aqui você gera mensalidades, confere pagamentos e cobra atrasados."
           actions={<BackButton href="/portal-associativo" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? preview?.error ?? undefined} />
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Link className="button-primary min-h-14 justify-center text-center" href="#mensalidades-lote">Gerar mensalidade do mês</Link>
+          <Link className="button-secondary min-h-14 justify-center text-center" href="#cobranca-avulsa">Criar cobrança avulsa</Link>
+          <Link className="button-secondary min-h-14 justify-center text-center" href="/portal-associativo/financeiro?status=aguardando_aprovacao">Ver pagamentos pendentes</Link>
+        </div>
 
         <form className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[1fr_170px_220px_170px_auto]" action="">
           <input className="input" name="q" defaultValue={filters.q} placeholder="Buscar por descricao, unidade ou responsavel" />
@@ -115,7 +121,7 @@ export default async function PortalFinanceiroPage({
 
         {canWrite ? (
           <div className="grid gap-4 xl:grid-cols-2">
-            <form action={savePortalCobranca}>
+            <form action={savePortalCobranca} id="cobranca-avulsa">
               <input name="id" type="hidden" value={String(editing?.id ?? "")} />
               <input name="return_to" type="hidden" value="/portal-associativo/financeiro" />
               <ResourceForm
@@ -127,8 +133,8 @@ export default async function PortalFinanceiroPage({
                   </>
                 }
               >
-                <FormSelect label="Unidade" name="unidade_id" defaultValue={String(editing?.unidade_id ?? "")} options={unitOptions} required />
-                <FormSelect label="Responsavel financeiro" name="pessoa_responsavel_id" defaultValue={String(editing?.pessoa_responsavel_id ?? "")} options={personOptions} />
+                <FormSelect label="Unidade" name="unidade_id" defaultValue={String(editing?.unidade_id ?? filters.unidade)} options={unitOptions} required />
+                <FormSelect label="Responsável pelo pagamento" name="pessoa_responsavel_id" defaultValue={String(editing?.pessoa_responsavel_id ?? filters.responsavel)} options={personOptions} />
                 <FormInput label="Descricao" name="descricao" defaultValue={String(editing?.descricao ?? "Mensalidade")} required />
                 <FormSelect
                   label="Tipo"
@@ -159,7 +165,7 @@ export default async function PortalFinanceiroPage({
               </ResourceForm>
             </form>
 
-            <form action="" method="get">
+            <form action="" id="mensalidades-lote" method="get">
               <ResourceForm title="Mensalidades em lote" actions={<SubmitButton>Ver previa</SubmitButton>}>
                 <FormSelect label="Loteamento" name="preview_loteamento_id" defaultValue={previewParams.loteamentoId} options={loteamentoOptions} />
                 <FormInput label="Mes inicial" name="preview_mes_inicial" type="month" defaultValue={previewParams.mesInicial} required />
@@ -190,7 +196,11 @@ export default async function PortalFinanceiroPage({
                 <input name="vencimento_dia" type="hidden" value={previewParams.vencimentoDia} />
                 <input name="descricao" type="hidden" value={previewParams.descricao} />
                 <input name="ate_dezembro" type="hidden" value={previewParams.ateDezembro ? "true" : ""} />
-                <button className="button-primary" type="submit">Confirmar geracao</button>
+                <details className="rounded-xl border border-amber-300 bg-amber-50 p-3">
+                  <summary className="cursor-pointer text-sm font-black text-amber-900">Revisar e confirmar</summary>
+                  <p className="my-2 text-sm text-amber-900">Esta ação criará as cobranças mostradas na prévia.</p>
+                  <button className="button-primary" type="submit">Confirmar geração</button>
+                </details>
               </form>
             </div>
             <DataTable

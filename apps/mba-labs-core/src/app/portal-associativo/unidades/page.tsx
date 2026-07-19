@@ -32,6 +32,8 @@ export default async function PortalUnidadesPage({
   const status = firstParam(params.status) ?? "";
   const loteamento = firstParam(params.loteamento) ?? "";
   const editId = firstParam(params.edit);
+  const quickMode = firstParam(params.modo) === "rapido";
+  const preselectedOwner = firstParam(params.proprietario) ?? "";
   const data = await listPortalUnidades(search, status, loteamento);
   if (!canPortalAccess(data.perfil, "unidades")) {
     redirect("/portal-associativo/painel-associado");
@@ -61,7 +63,7 @@ export default async function PortalUnidadesPage({
         <PageHeader
           eyebrow="Portal Associativo"
           title="Chácaras e lotes"
-          description="Cadastre cada chácara/lote dentro do loteamento, com proprietário, responsável financeiro e regra de mensalidade."
+          description="Aqui você cadastra as unidades e define quem é o dono e quem paga as mensalidades."
           actions={<BackButton href="/portal-associativo" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
@@ -85,7 +87,32 @@ export default async function PortalUnidadesPage({
           <button className="button-secondary" type="submit">Filtrar</button>
         </form>
 
+        {canWrite && !editing ? (
+          <form action={savePortalUnidade} id="cadastro">
+            <input name="status_unidade" type="hidden" value="ativa" />
+            <ResourceForm
+              title="Cadastro rápido"
+              actions={
+                <>
+                  <button className="button-primary" name="proxima_acao" type="submit" value="">Salvar</button>
+                  <button className="button-secondary" name="proxima_acao" type="submit" value="cobranca">Salvar e gerar mensalidade</button>
+                  <button className="button-secondary" name="proxima_acao" type="submit" value="documento">Salvar e adicionar documento</button>
+                </>
+              }
+            >
+              <FormInput label="Código" name="codigo_unidade" placeholder="Ex.: CH" required />
+              <FormInput label="Número da unidade" name="numero_unidade" placeholder="Ex.: 35" required />
+              <FormSelect label="Tipo" name="tipo_unidade" defaultValue="chacara" options={PORTAL_UNIDADE_OPTIONS} required />
+              <FormSelect label="Proprietário" name="proprietario_id" defaultValue={preselectedOwner} options={personOptions} required />
+              <FormSelect label="Responsável pelo pagamento" name="responsavel_financeiro_id" defaultValue={preselectedOwner} options={personOptions} required />
+              <FormSelect label="Responsável de contato" name="responsavel_contato_id" defaultValue={preselectedOwner} options={personOptions} />
+            </ResourceForm>
+          </form>
+        ) : null}
+
         {canWrite ? (
+          <details className="panel p-4" open={Boolean(editing) || !quickMode}>
+            <summary className="cursor-pointer text-lg font-black">{editing ? "Editar cadastro" : "Cadastro completo"}</summary>
           <form action={savePortalUnidade}>
             <input name="id" type="hidden" value={String(editing?.id ?? "")} />
             <ResourceForm
@@ -127,6 +154,7 @@ export default async function PortalUnidadesPage({
               <FormTextarea label="Observações" name="observacoes" defaultValue={String(editing?.observacoes ?? "")} />
             </ResourceForm>
           </form>
+          </details>
         ) : null}
 
         <DataTable
@@ -158,10 +186,13 @@ export default async function PortalUnidadesPage({
                 <Link className="button-secondary" href={`/portal-associativo/financeiro?unidade=${row.id}`}>
                   Mensalidades
                 </Link>
-                <form action={inactivatePortalUnidade}>
-                  <input name="id" type="hidden" value={String(row.id)} />
-                  <button className="button-danger" type="submit">Inativar</button>
-                </form>
+                <details className="rounded-xl border border-red-200 bg-red-50 p-2">
+                  <summary className="cursor-pointer text-sm font-bold text-red-700">Inativar</summary>
+                  <form action={inactivatePortalUnidade} className="mt-2">
+                    <input name="id" type="hidden" value={String(row.id)} />
+                    <button className="button-danger" type="submit">Confirmar inativação</button>
+                  </form>
+                </details>
               </div>
             ) : null
           }

@@ -43,13 +43,13 @@ export default async function PortalConfiguracoesPage({
       <section className="grid gap-6">
         <PageHeader
           eyebrow="Portal Associativo"
-          title="Configurações"
-          description="Configure entidade, unidade padrão, mensalidade, PIX manual, armazenamento, aparência e segurança."
+          title="Ajustes"
+          description="Aqui você ajusta os dados da associação, mensalidade, PIX e onde guardar os documentos."
           actions={<BackButton href="/portal-associativo" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
-        <form action={savePortalConfiguracoes}>
+        <form action={savePortalConfiguracoes} id="pix-manual">
           <ResourceForm title="Dados da entidade" actions={<SubmitButton>Salvar dados da entidade</SubmitButton>}>
             <FormInput label="Nome público da entidade" name="nome_publico_entidade" defaultValue={String(data.configuracoes.nome_publico_entidade ?? "")} required />
             <FormInput label="Subtítulo" name="subtitulo" defaultValue={String(data.configuracoes.subtitulo ?? "")} />
@@ -68,9 +68,9 @@ export default async function PortalConfiguracoesPage({
             <FormInput label="Cidade do recebedor" name="recebedor_cidade" defaultValue={String(data.configuracoes.recebedor_cidade ?? "")} />
             <FormTextarea label="Instruções de pagamento" name="instrucoes_pagamento" defaultValue={String(data.configuracoes.instrucoes_pagamento ?? "")} />
             <FormInput label="QR Code PIX URL (opcional)" name="qr_code_pix_url" defaultValue={String(data.configuracoes.qr_code_pix_url ?? "")} />
-            <FormCheckbox label="Usar PIX manual quando não houver gateway" name="usar_pix_manual" defaultChecked={data.configuracoes.usar_pix_manual !== false} />
+            <FormCheckbox label="Usar PIX manual quando não houver banco de pagamento conectado" name="usar_pix_manual" defaultChecked={data.configuracoes.usar_pix_manual !== false} />
             <FormSelect
-              label="Provedor de armazenamento ativo"
+              label="Onde guardar os arquivos"
               name="storage_provider_ativo"
               defaultValue={String(data.configuracoes.storage_provider_ativo ?? "nenhum")}
               options={[
@@ -80,7 +80,10 @@ export default async function PortalConfiguracoesPage({
                 { value: "manual", label: "Manual" }
               ]}
             />
-            <FormInput label="Webhook URL" name="webhook_url" defaultValue={String(data.configuracoes.webhook_url ?? "")} />
+            <details className="rounded-xl border border-border p-3">
+              <summary className="cursor-pointer text-sm font-bold">Configuração avançada</summary>
+              <div className="mt-3"><FormInput label="Endereço de integração" name="webhook_url" defaultValue={String(data.configuracoes.webhook_url ?? "")} /></div>
+            </details>
             <FormTextarea label="Assinatura/identificação da entidade para PDFs" name="assinatura_entidade" defaultValue={String(data.configuracoes.assinatura_entidade ?? "")} />
             <FormCheckbox label="Marcar implantação como concluída" name="implantacao_concluida" defaultChecked={data.configuracoes.implantacao_concluida === true} />
           </ResourceForm>
@@ -106,10 +109,10 @@ export default async function PortalConfiguracoesPage({
           </ResourceForm>
         </form>
 
-        <section className="panel grid gap-4 p-5">
+        <section className="panel grid gap-4 p-5" id="arquivos">
           <div>
             <p className="eyebrow">Dropbox / Google Drive</p>
-            <h2 className="text-xl font-black">Armazenamento da propria entidade</h2>
+            <h2 className="text-xl font-black">Arquivos da associação</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               Documentos sensíveis devem ficar na conta Dropbox ou Google Drive da associação. O MBA Labs guarda apenas metadados, vínculos e links seguros.
             </p>
@@ -145,18 +148,8 @@ export default async function PortalConfiguracoesPage({
         </section>
 
         <section className="panel p-5">
-          <h2 className="text-lg font-semibold">Segurança e segredos</h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            Client ID, client secret, refresh token, certificados e tokens não aparecem no frontend. Configure-os na Vercel/Supabase e use tabela segura criptografada.
-          </p>
-          <div className="mt-3 grid gap-2 text-sm text-muted-foreground">
-            <code>DROPBOX_CLIENT_ID</code>
-            <code>DROPBOX_CLIENT_SECRET</code>
-            <code>GOOGLE_DRIVE_CLIENT_ID</code>
-            <code>GOOGLE_DRIVE_CLIENT_SECRET</code>
-            <code>STORAGE_ENCRYPTION_KEY</code>
-            <code>NEXT_PUBLIC_APP_URL</code>
-          </div>
+          <h2 className="text-lg font-semibold">Segurança</h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">As senhas das integrações ficam protegidas e nunca aparecem nesta tela.</p>
         </section>
       </section>
     </PortalAssociativoShell>

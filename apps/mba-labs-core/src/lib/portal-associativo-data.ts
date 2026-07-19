@@ -262,12 +262,15 @@ export async function getPortalDashboard() {
       ? { title: "Existem associados sem usuário vinculado", detail: `${associadosSemUsuario.length} pessoa(s) ativa(s) ainda sem usuário MBA Labs.`, href: "/portal-associativo/pessoas", tone: "warning" }
       : null,
     configuracaoFinanceiraIncompleta
-      ? { title: "Configuração financeira incompleta", detail: "Revise mensalidade padrão, vencimento e dados PIX.", href: "/portal-associativo/configuracoes", tone: "danger" }
+      ? { title: "Configuração financeira incompleta", detail: "Revise mensalidade padrão, vencimento e dados PIX.", href: "/portal-associativo/configuracoes#pix-manual", tone: "danger", action: "Configurar PIX agora" }
       : null,
     !storageConfigured
-      ? { title: "Dropbox/Google Drive não configurado", detail: "Conecte o armazenamento da própria entidade antes de anexar documentos.", href: "/portal-associativo/configuracoes", tone: "warning" }
+      ? { title: "Arquivos ainda não conectados", detail: "Conecte o Dropbox ou Google Drive da associação antes de anexar documentos.", href: "/portal-associativo/configuracoes#arquivos", tone: "warning", action: "Conectar arquivos" }
+      : null,
+    charges.some((row) => row.status === "aguardando_aprovacao")
+      ? { title: "Existem comprovantes para conferir", detail: `${charges.filter((row) => row.status === "aguardando_aprovacao").length} pagamento(s) aguardando sua conferência.`, href: "/portal-associativo/financeiro?status=aguardando_aprovacao", tone: "warning", action: "Conferir comprovantes" }
       : null
-  ].filter(Boolean) as Array<{ title: string; detail: string; href: string; tone: string }>;
+  ].filter(Boolean) as Array<{ title: string; detail: string; href: string; tone: string; action?: string }>;
 
   const ultimosPagamentos = charges
     .filter((row) => row.status === "paga")
@@ -295,6 +298,8 @@ export async function getPortalDashboard() {
       totalEmAberto: sumMoney(openCharges, "valor_total"),
       totalVencido: sumMoney(overdueCharges, "valor_total"),
       cobrancasAguardandoPagamento: charges.filter((row) => row.status === "aguardando_pagamento").length,
+      pagamentosAguardandoAprovacao: charges.filter((row) => row.status === "aguardando_aprovacao").length,
+      comprovantesPendentes: charges.filter((row) => row.status === "aguardando_aprovacao").length,
       avisosAtivos,
       reunioesAgendadas
     },
@@ -604,6 +609,7 @@ export async function listPortalInadimplentes(filters: {
       id: key,
       pessoa_id: row.pessoa_responsavel_id,
       unidade_id: row.unidade_id,
+      cobranca_id: row.id,
       responsavel: relationName(row.assoc_pessoas) || "Sem responsavel",
       whatsapp: relationPhone(row.assoc_pessoas),
       unidade: unitLabel(row.assoc_unidades),
@@ -622,6 +628,7 @@ export async function listPortalInadimplentes(filters: {
       target.cobranca_mais_antiga = row.data_vencimento;
       target.descricao_mais_antiga = row.descricao;
       target.pix_copia_cola = row.pix_copia_cola;
+      target.cobranca_id = row.id;
     }
     target.mensagem_whatsapp = buildChargeWhatsappMessage(
       {

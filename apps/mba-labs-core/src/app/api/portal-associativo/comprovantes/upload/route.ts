@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildPortalStorageFolder, getPortalStorageConnection, isPortalStorageProvider, uploadToPortalStorage } from "@/lib/portal-associativo-storage";
+import { ensurePortalStorageEnvAliases } from "../../_storage-env";
 import { getPortalContext } from "@/lib/portal-associativo-data";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,7 @@ const ALLOWED = new Map([
 ]);
 
 export async function POST(request: Request) {
+  ensurePortalStorageEnvAliases();
   const returnTo = "/portal-associativo/painel-associado";
   try {
     const context = await getPortalContext(returnTo);

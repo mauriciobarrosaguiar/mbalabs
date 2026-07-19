@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ComponentType } from "react";
-import { ArrowDownRight, ArrowUpRight, BadgeDollarSign, TriangleAlert, UsersRound } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, BadgeDollarSign, Bell, Building2, CheckCheck, CircleDollarSign, Repeat, Settings, TriangleAlert, UserPlus, UsersRound } from "lucide-react";
 import { redirect } from "next/navigation";
 import { PortalAssociativoShell } from "@/components/PortalAssociativoShell";
 import { DataTable, MessageBanner, PageHeader, formatDate, formatMoney } from "@/components/ui-kit";
@@ -37,6 +37,8 @@ export default async function PortalAssociativoPage() {
     { label: "Total em aberto", value: formatMoney(dashboard.metrics.totalEmAberto) },
     { label: "Total vencido", value: formatMoney(dashboard.metrics.totalVencido) },
     { label: "Cobranças aguardando pagamento", value: dashboard.metrics.cobrancasAguardandoPagamento },
+    { label: "Pagamentos aguardando aprovação", value: dashboard.metrics.pagamentosAguardandoAprovacao },
+    { label: "Comprovantes pendentes", value: dashboard.metrics.comprovantesPendentes },
     { label: "Avisos ativos", value: dashboard.metrics.avisosAtivos },
     { label: "Reuniões agendadas", value: dashboard.metrics.reunioesAgendadas }
   ];
@@ -80,10 +82,27 @@ export default async function PortalAssociativoPage() {
       <section className="grid gap-6">
         <PageHeader
           eyebrow="Portal Associativo"
-          title="Dashboard"
-          description="Visão operacional de loteamentos, unidades, associados, mensalidades, inadimplência e auditoria - tudo em um só lugar."
+          title="Início"
+          description="Escolha uma tarefa para começar. Os avisos e números abaixo mostram o que precisa de atenção."
         />
         <MessageBanner error={dashboard.error ?? undefined} />
+
+        <section className="panel grid gap-4 p-5 sm:p-6">
+          <div>
+            <p className="eyebrow">Ações rápidas</p>
+            <h2 className="text-2xl font-black">O que você quer fazer hoje?</h2>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <QuickAction href="/portal-associativo/pessoas?modo=rapido#cadastro" label="Cadastrar associado" icon={UserPlus} />
+            <QuickAction href="/portal-associativo/unidades?modo=rapido#cadastro" label="Cadastrar chácara/lote" icon={Building2} />
+            <QuickAction href="/portal-associativo/financeiro#mensalidades-lote" label="Gerar mensalidades" icon={CircleDollarSign} />
+            <QuickAction href="/portal-associativo/inadimplentes" label="Ver atrasados" icon={TriangleAlert} />
+            <QuickAction href="/portal-associativo/financeiro?status=aguardando_aprovacao" label="Aprovar comprovantes" icon={CheckCheck} badge={dashboard.metrics.comprovantesPendentes} />
+            <QuickAction href="/portal-associativo/avisos" label="Enviar aviso" icon={Bell} />
+            <QuickAction href="/portal-associativo/transferencias" label="Transferir unidade" icon={Repeat} />
+            <QuickAction href="/portal-associativo/configuracoes#pix-manual" label="Configurar PIX" icon={Settings} />
+          </div>
+        </section>
 
         <div className="grid gap-6 md:grid-cols-3">
           {featuredMetrics.map((metric) => (
@@ -149,6 +168,7 @@ export default async function PortalAssociativoPage() {
                 <Link className="rounded-lg border border-border bg-muted/40 p-4 transition hover:border-primary/60" href={alerta.href} key={alerta.title}>
                   <strong className="block text-sm">{alerta.title}</strong>
                   <span className="mt-1 block text-sm leading-6 text-muted-foreground">{alerta.detail}</span>
+                  <span className="mt-3 inline-flex text-sm font-black text-primary">{alerta.action ?? "Resolver agora"} →</span>
                 </Link>
               ))}
             </div>
@@ -211,7 +231,7 @@ export default async function PortalAssociativoPage() {
           </Panel>
         </div>
 
-        <Panel title="Últimos registros de auditoria">
+        <Panel title="Últimos registros do histórico">
           <DataTable
             columns={[
               { key: "acao", label: "Ação" },
@@ -223,6 +243,16 @@ export default async function PortalAssociativoPage() {
         </Panel>
       </section>
     </PortalAssociativoShell>
+  );
+}
+
+function QuickAction({ href, icon: Icon, label, badge }: { href: string; icon: ComponentType<{ className?: string }>; label: string; badge?: number }) {
+  return (
+    <Link className="relative flex min-h-20 items-center gap-3 rounded-2xl border border-border bg-card p-4 font-black shadow-sm transition hover:border-primary hover:bg-primary/5" href={href}>
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><Icon className="h-5 w-5" aria-hidden /></span>
+      <span className="leading-tight">{label}</span>
+      {badge ? <span className="absolute right-3 top-3 grid min-h-6 min-w-6 place-items-center rounded-full bg-rose-600 px-1.5 text-xs text-white">{badge}</span> : null}
+    </Link>
   );
 }
 

@@ -33,6 +33,7 @@ export default async function PortalInadimplentesPage({
   const lookups = await getPortalLookups("/portal-associativo/inadimplentes");
   const unitOptions = lookups.unidades.map((unit: Record<string, unknown>) => ({ value: String(unit.id), label: unitOptionLabel(unit) }));
   const personOptions = lookups.pessoas.map((person: Record<string, unknown>) => ({ value: String(person.id), label: String(person.nome_completo) }));
+  const canWrite = data.perfil === "administrador" || data.perfil === "tesoureiro";
 
   return (
     <PortalAssociativoShell
@@ -45,8 +46,8 @@ export default async function PortalInadimplentesPage({
       <section className="grid gap-6">
         <PageHeader
           eyebrow="Portal Associativo"
-          title="Inadimplentes"
-          description="Acompanhe responsáveis com cobranças vencidas, gere mensagens de cobrança e exporte relatórios."
+          title="Atrasados"
+          description="Veja quem está com pagamento atrasado e envie uma cobrança educada pelo WhatsApp."
           actions={
             <>
               <Link className="button-secondary" href="/api/portal-associativo/export?tipo=inadimplencia">CSV</Link>
@@ -80,7 +81,26 @@ export default async function PortalInadimplentesPage({
           <button className="button-secondary" type="submit">Filtrar</button>
         </form>
 
-        <DataTable
+        <div className="grid gap-3 md:hidden">
+          {data.rows.length ? data.rows.map((row) => (
+            <article className="grid gap-3 rounded-2xl border border-red-200 bg-red-50 p-4" key={String(row.id)}>
+              <div><strong className="text-lg">{String(row.responsavel)}</strong><p className="text-sm text-muted-foreground">Unidade {String(row.unidade)}</p></div>
+              <div className="grid grid-cols-2 gap-3">
+                <CardInfo label="Total vencido" value={formatMoney(row.valor_total_vencido)} />
+                <CardInfo label="Cobranças" value={String(row.quantidade_cobrancas)} />
+                <CardInfo label="Mais antiga" value={formatDate(row.cobranca_mais_antiga)} />
+                <CardInfo label="Atraso" value={`${String(row.dias_atraso)} dias`} />
+              </div>
+              <div className="grid gap-2">
+                {row.whatsapp ? <Link className="button-primary justify-center" href={`https://wa.me/${String(row.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(String(row.mensagem_whatsapp ?? ""))}`} target="_blank">Cobrar no WhatsApp</Link> : <span className="rounded-xl bg-white p-3 text-sm">Este associado não tem WhatsApp cadastrado.</span>}
+                {row.cobranca_id ? <Link className="button-secondary justify-center" href={`/portal-associativo/cobrancas/${row.cobranca_id}`}>Ver cobrança</Link> : null}
+                {canWrite && row.cobranca_id ? <Link className="button-secondary justify-center" href={`/portal-associativo/cobrancas/${row.cobranca_id}#baixar`}>Marcar como pago</Link> : null}
+              </div>
+            </article>
+          )) : <p className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">Nenhum pagamento atrasado. Tudo certo por aqui.</p>}
+        </div>
+
+        <div className="hidden md:block"><DataTable
           columns={[
             { key: "responsavel", label: "Responsável" },
             { key: "whatsapp", label: "WhatsApp" },
@@ -123,8 +143,12 @@ export default async function PortalInadimplentesPage({
               </Link>
             </div>
           )}
-        />
+        /></div>
       </section>
     </PortalAssociativoShell>
   );
+}
+
+function CardInfo({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-xl bg-white p-3"><span className="block text-xs font-bold uppercase text-muted-foreground">{label}</span><strong className="mt-1 block">{value}</strong></div>;
 }

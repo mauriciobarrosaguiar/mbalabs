@@ -6,6 +6,7 @@ import {
   isPortalStorageProvider,
   uploadToPortalStorage
 } from "@/lib/portal-associativo-storage";
+import { ensurePortalStorageEnvAliases } from "../../_storage-env";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,6 +16,7 @@ const allowedExtensions = new Set(["pdf", "jpg", "jpeg", "png", "webp", "doc", "
 const blockedExtensions = new Set(["exe", "bat", "cmd", "com", "scr", "ps1", "sh", "js", "mjs", "vbs", "jar", "msi", "dll"]);
 
 export async function POST(request: Request) {
+  ensurePortalStorageEnvAliases();
   const context = await getPortalContext("/portal-associativo/documentos");
   if (!canPortalAccess(context.perfil, "documentos")) {
     return redirectDocs(request, "Seu perfil nao permite enviar documentos.");

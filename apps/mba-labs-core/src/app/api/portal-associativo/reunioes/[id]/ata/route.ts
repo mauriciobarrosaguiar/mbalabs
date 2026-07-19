@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { canPortalAccess, getPortalContext } from "@/lib/portal-associativo-data";
 import { createPortalMeetingMinutesPdf } from "@/lib/portal-associativo-pdf";
 import { buildPortalStorageFolder, getPortalStorageConnection, uploadToPortalStorage } from "@/lib/portal-associativo-storage";
+import { ensurePortalStorageEnvAliases } from "../../../_storage-env";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,6 +12,7 @@ type RouteContext = {
 };
 
 export async function GET(request: Request, { params }: RouteContext) {
+  ensurePortalStorageEnvAliases();
   const { id } = await params;
   const context = await getPortalContext("/portal-associativo/reunioes");
   if (!canPortalAccess(context.perfil, "reunioes") && context.perfil !== "associado") {

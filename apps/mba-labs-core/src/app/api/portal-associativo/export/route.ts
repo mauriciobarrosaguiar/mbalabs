@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { canPortalAccess, getPortalRelatorios } from "@/lib/portal-associativo-data";
 import { createPortalReportPdf } from "@/lib/portal-associativo-pdf";
 import { buildPortalStorageFolder, getPortalStorageConnection, uploadToPortalStorage } from "@/lib/portal-associativo-storage";
+import { ensurePortalStorageEnvAliases } from "../_storage-env";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
+  ensurePortalStorageEnvAliases();
   const url = new URL(request.url);
   const tipo = url.searchParams.get("tipo") ?? "cobrancas";
   const formato = url.searchParams.get("formato") ?? "csv";
