@@ -2,16 +2,17 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PortalAssociativoShell } from "@/components/PortalAssociativoShell";
 import { BackButton, FormInput, FormMoneyInput, FormSelect, FormTextarea, MessageBanner, PageHeader, ResourceForm, StatCard, SubmitButton } from "@/components/ui-kit";
-import { savePortalConfiguracoes } from "@/lib/actions/portal-associativo-actions";
-import { canPortalAccess, getPortalConfiguracoes, getPortalDashboard, getPortalOnboarding, PORTAL_UNIDADE_OPTIONS } from "@/lib/portal-associativo-data";
+import { fixPortalVinculoInconsistente, fixPortalVinculosDuplicados, savePortalConfiguracoes } from "@/lib/actions/portal-associativo-actions";
+import { canPortalAccess, getPortalConfiguracoes, getPortalDashboard, getPortalOnboarding, getPortalVinculoDiagnostics, PORTAL_UNIDADE_OPTIONS } from "@/lib/portal-associativo-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalImplantacaoPage() {
-  const [onboarding, dashboard, settings] = await Promise.all([
+  const [onboarding, dashboard, settings, diagnostics] = await Promise.all([
     getPortalOnboarding(),
     getPortalDashboard(),
-    getPortalConfiguracoes()
+    getPortalConfiguracoes(),
+    getPortalVinculoDiagnostics()
   ]);
   if (!canPortalAccess(onboarding.perfil, "implantacao")) {
     redirect("/portal-associativo");
@@ -100,6 +101,45 @@ export default async function PortalImplantacaoPage() {
             <Link className="button-secondary" href="/portal-associativo/painel-associado">Testar painel</Link>
           </StepPanel>
         </div>
+
+        <section className="panel grid gap-4 p-5">
+          <div>
+            <p className="eyebrow">Revisão segura</p>
+            <h2 className="text-xl font-black">Vínculos de pessoas e unidades</h2>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">O sistema apenas aponta problemas. Ao corrigir, o vínculo repetido é encerrado e continua no histórico.</p>
+          </div>
+          {diagnostics.issues.length ? (
+            <div className="grid gap-3">
+              {diagnostics.issues.map((issue) => {
+                const candidates = issue.candidatos as Array<Record<string, unknown>>;
+                const canChoose = issue.tipo === "duplicado" || issue.tipo === "multiplos_principais";
+                return (
+                  <article className="grid gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4" key={String(issue.key)}>
+                    <div><strong>{String(issue.mensagem)}</strong><p className="mt-1 text-sm">{String(issue.unidade)} · {String(issue.papel)}</p></div>
+                    {canChoose ? (
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {candidates.map((candidate) => (
+                          <form action={fixPortalVinculosDuplicados} className="rounded-xl bg-white p-3" key={String(candidate.id)}>
+                            <input name="keep_id" type="hidden" value={String(candidate.id)} />
+                            <input name="vinculo_ids" type="hidden" value={candidates.map((item) => String(item.id)).join(",")} />
+                            <p className="text-sm font-bold">{String(candidate.pessoa)}</p>
+                            <p className="text-xs text-muted-foreground">Início: {String(candidate.data_inicio ?? "não informado")}</p>
+                            <button className="button-secondary mt-2" type="submit">Manter este vínculo</button>
+                          </form>
+                        ))}
+                      </div>
+                    ) : issue.tipo !== "referencia_invalida" ? (
+                      <form action={fixPortalVinculoInconsistente}>
+                        <input name="id" type="hidden" value={String(candidates[0]?.id ?? "")} />
+                        <button className="button-secondary" type="submit">Corrigir situação</button>
+                      </form>
+                    ) : <p className="text-sm">Procure o suporte antes de alterar este registro.</p>}
+                  </article>
+                );
+              })}
+            </div>
+          ) : <p className="rounded-xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">Nenhum vínculo duplicado ou inconsistente encontrado.</p>}
+        </section>
       </section>
     </PortalAssociativoShell>
   );

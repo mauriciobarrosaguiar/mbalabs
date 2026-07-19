@@ -1,21 +1,12 @@
 import Link from "next/link";
 import type { ComponentType } from "react";
-import { ArrowDownRight, ArrowUpRight, BadgeDollarSign, Bell, Building2, CheckCheck, CircleDollarSign, Repeat, Settings, TriangleAlert, UserPlus, UsersRound } from "lucide-react";
+import { Building2, CheckCheck, CircleDollarSign, Repeat, Settings, TriangleAlert, UserPlus } from "lucide-react";
 import { redirect } from "next/navigation";
 import { PortalAssociativoShell } from "@/components/PortalAssociativoShell";
 import { DataTable, MessageBanner, PageHeader, formatDate, formatMoney } from "@/components/ui-kit";
 import { canPortalAccess, getPortalDashboard, getPortalOnboarding } from "@/lib/portal-associativo-data";
 
 export const dynamic = "force-dynamic";
-
-type FeaturedMetric = {
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  note: string;
-  tone: "positive" | "warning" | "negative";
-  trend: string;
-  value: string | number;
-};
 
 export default async function PortalAssociativoPage() {
   const dashboard = await getPortalDashboard();
@@ -24,51 +15,24 @@ export default async function PortalAssociativoPage() {
   }
   const onboarding = await getPortalOnboarding();
 
-  const metrics = [
-    { label: "Loteamentos", value: dashboard.metrics.totalLoteamentos },
-    { label: "Total de unidades", value: dashboard.metrics.totalUnidades },
-    { label: "Unidades ativas", value: dashboard.metrics.unidadesAtivas },
+  const primaryMetrics = [
     { label: "Associados ativos", value: dashboard.metrics.associadosAtivos },
-    { label: "Pessoas sem unidade", value: dashboard.metrics.pessoasSemUnidade },
-    { label: "Unidades sem responsável financeiro", value: dashboard.metrics.unidadesSemResponsavelFinanceiro },
+    { label: "Unidades ativas", value: dashboard.metrics.unidadesAtivas },
     { label: "Cobranças abertas", value: dashboard.metrics.cobrancasAbertas },
     { label: "Cobranças vencidas", value: dashboard.metrics.cobrancasVencidas },
+    { label: "Comprovantes para aprovar", value: dashboard.metrics.comprovantesPendentes },
     { label: "Recebido no mês", value: formatMoney(dashboard.metrics.recebidoMes) },
+    { label: "Total vencido", value: formatMoney(dashboard.metrics.totalVencido) }
+  ];
+  const extraMetrics = [
+    { label: "Loteamentos", value: dashboard.metrics.totalLoteamentos },
+    { label: "Total de unidades", value: dashboard.metrics.totalUnidades },
+    { label: "Pessoas sem unidade", value: dashboard.metrics.pessoasSemUnidade },
+    { label: "Unidades sem responsável financeiro", value: dashboard.metrics.unidadesSemResponsavelFinanceiro },
     { label: "Total em aberto", value: formatMoney(dashboard.metrics.totalEmAberto) },
-    { label: "Total vencido", value: formatMoney(dashboard.metrics.totalVencido) },
     { label: "Cobranças aguardando pagamento", value: dashboard.metrics.cobrancasAguardandoPagamento },
-    { label: "Pagamentos aguardando aprovação", value: dashboard.metrics.pagamentosAguardandoAprovacao },
-    { label: "Comprovantes pendentes", value: dashboard.metrics.comprovantesPendentes },
     { label: "Avisos ativos", value: dashboard.metrics.avisosAtivos },
     { label: "Reuniões agendadas", value: dashboard.metrics.reunioesAgendadas }
-  ];
-  const delinquencyBase = Number(dashboard.metrics.totalEmAberto) + Number(dashboard.metrics.recebidoMes);
-  const delinquencyRate = delinquencyBase > 0 ? `${((Number(dashboard.metrics.totalVencido) / delinquencyBase) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "0%";
-  const featuredMetrics: FeaturedMetric[] = [
-    {
-      label: "Associados ativos",
-      value: dashboard.metrics.associadosAtivos.toLocaleString("pt-BR"),
-      trend: dashboard.metrics.pessoasSemUnidade ? `${dashboard.metrics.pessoasSemUnidade} sem unidade` : "Base organizada",
-      note: `${dashboard.metrics.unidadesAtivas.toLocaleString("pt-BR")} unidades ativas`,
-      tone: dashboard.metrics.pessoasSemUnidade ? "warning" : "positive",
-      icon: UsersRound
-    },
-    {
-      label: "Arrecadação do mês",
-      value: formatMoney(dashboard.metrics.recebidoMes),
-      trend: `${formatMoney(dashboard.metrics.totalEmAberto)} em aberto`,
-      note: `${dashboard.metrics.cobrancasAguardandoPagamento.toLocaleString("pt-BR")} aguardando`,
-      tone: "positive",
-      icon: BadgeDollarSign
-    },
-    {
-      label: "Inadimplência",
-      value: delinquencyRate,
-      trend: `${dashboard.metrics.cobrancasVencidas.toLocaleString("pt-BR")} vencidas`,
-      note: formatMoney(dashboard.metrics.totalVencido),
-      tone: dashboard.metrics.cobrancasVencidas ? "negative" : "positive",
-      icon: TriangleAlert
-    }
   ];
 
   return (
@@ -90,7 +54,7 @@ export default async function PortalAssociativoPage() {
         <section className="panel grid gap-4 p-5 sm:p-6">
           <div>
             <p className="eyebrow">Ações rápidas</p>
-            <h2 className="text-2xl font-black">O que você quer fazer hoje?</h2>
+            <h2 className="text-2xl font-black">O que você quer fazer agora?</h2>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <QuickAction href="/portal-associativo/pessoas?modo=rapido#cadastro" label="Cadastrar associado" icon={UserPlus} />
@@ -98,16 +62,13 @@ export default async function PortalAssociativoPage() {
             <QuickAction href="/portal-associativo/financeiro#mensalidades-lote" label="Gerar mensalidades" icon={CircleDollarSign} />
             <QuickAction href="/portal-associativo/inadimplentes" label="Ver atrasados" icon={TriangleAlert} />
             <QuickAction href="/portal-associativo/financeiro?status=aguardando_aprovacao" label="Aprovar comprovantes" icon={CheckCheck} badge={dashboard.metrics.comprovantesPendentes} />
-            <QuickAction href="/portal-associativo/avisos" label="Enviar aviso" icon={Bell} />
             <QuickAction href="/portal-associativo/transferencias" label="Transferir unidade" icon={Repeat} />
             <QuickAction href="/portal-associativo/configuracoes#pix-manual" label="Configurar PIX" icon={Settings} />
           </div>
         </section>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          {featuredMetrics.map((metric) => (
-            <FeaturedMetricCard key={metric.label} {...metric} />
-          ))}
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {primaryMetrics.map((metric) => <CompactMetricCard key={metric.label} label={metric.label} value={metric.value} />)}
         </div>
 
         {onboarding.shouldShow && dashboard.perfil !== "portaria" ? (
@@ -143,16 +104,15 @@ export default async function PortalAssociativoPage() {
           </section>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {metrics.map((metric) => (
-            <CompactMetricCard key={metric.label} label={metric.label} value={metric.value} />
-          ))}
-        </div>
+        <details className="panel p-4">
+          <summary className="cursor-pointer text-base font-black">Ver mais indicadores</summary>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {extraMetrics.filter((metric) => metric.label !== "Loteamentos" || dashboard.metrics.totalLoteamentos > 0).map((metric) => <CompactMetricCard key={metric.label} label={metric.label} value={metric.value} />)}
+          </div>
+        </details>
 
         <div className="grid gap-4 xl:grid-cols-3">
-          <Panel title="Inadimplência por loteamento">
-            <MiniRanking rows={dashboard.inadimplenciaPorLoteamento} />
-          </Panel>
+          {dashboard.metrics.totalLoteamentos > 0 ? <Panel title="Inadimplência por grupo/condomínio"><MiniRanking rows={dashboard.inadimplenciaPorLoteamento} /></Panel> : null}
           <Panel title="Inadimplência por unidade">
             <MiniRanking rows={dashboard.inadimplenciaPorUnidade} />
           </Panel>
@@ -253,54 +213,6 @@ function QuickAction({ href, icon: Icon, label, badge }: { href: string; icon: C
       <span className="leading-tight">{label}</span>
       {badge ? <span className="absolute right-3 top-3 grid min-h-6 min-w-6 place-items-center rounded-full bg-rose-600 px-1.5 text-xs text-white">{badge}</span> : null}
     </Link>
-  );
-}
-
-function FeaturedMetricCard({
-  icon: Icon,
-  label,
-  note,
-  tone,
-  trend,
-  value
-}: {
-  icon: ComponentType<{ className?: string }>;
-  label: string;
-  note: string;
-  tone: "positive" | "warning" | "negative";
-  trend: string;
-  value: string | number;
-}) {
-  const toneClass =
-    tone === "negative"
-      ? "bg-rose-50 text-rose-900"
-      : tone === "warning"
-        ? "bg-amber-50 text-amber-900"
-        : "bg-emerald-50 text-emerald-950";
-  const TrendIcon = tone === "negative" ? ArrowDownRight : ArrowUpRight;
-
-  return (
-    <article className="relative min-h-48 overflow-hidden rounded-[30px] border border-[#dfe6f0] bg-white p-7 shadow-[0_18px_42px_rgba(8,17,31,0.08)]">
-      <div className="absolute -right-9 -top-10 h-32 w-32 rounded-full bg-[#f2f5fb]" aria-hidden />
-      <div className="relative flex h-full flex-col justify-between gap-8">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-base font-semibold text-[#687385]">{label}</p>
-            <strong className="mt-4 block text-4xl font-black tracking-tight text-[#08111f]">{value}</strong>
-          </div>
-          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#eef4ff] text-[#2f68c8]">
-            <Icon className="h-5 w-5" aria-hidden />
-          </span>
-        </div>
-        <div className="flex items-center justify-between gap-3 text-sm">
-          <span className={`inline-flex min-h-8 items-center gap-1.5 rounded-full px-3 font-black ${toneClass}`}>
-            <TrendIcon className="h-4 w-4" aria-hidden />
-            {trend}
-          </span>
-          <span className="text-right font-semibold text-[#687385]">{note}</span>
-        </div>
-      </div>
-    </article>
   );
 }
 

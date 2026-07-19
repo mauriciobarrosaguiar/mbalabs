@@ -127,7 +127,7 @@ export default async function PortalUnidadeDetailPage({ params }: PageProps) {
           ]} rows={data.transferencias.map((row: PortalRow) => ({ ...row, data_transferencia: formatDate(row.data_transferencia) }))} />
         </Panel>
 
-        <Panel title="Auditoria relacionada">
+        <Panel title="Histórico relacionado">
           <DataTable columns={[
             { key: "acao", label: "Ação" },
             { key: "entidade", label: "Entidade" },

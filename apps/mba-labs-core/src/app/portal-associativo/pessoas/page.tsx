@@ -59,6 +59,11 @@ export default async function PortalPessoasPage({
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
+        <div className="grid gap-3 sm:grid-cols-2">
+          {canWrite ? <Link className="button-primary min-h-14 justify-center" href="/portal-associativo/pessoas?modo=rapido#cadastro">Novo associado</Link> : null}
+          <Link className="button-secondary min-h-14 justify-center" href="/portal-associativo/importacao?tipo=pessoas">Importar planilha</Link>
+        </div>
+
         <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto]">
           <SearchBox defaultValue={search} placeholder="Buscar por nome, CPF/CNPJ, email, telefone ou WhatsApp" />
           <FilterLink href="/portal-associativo/pessoas" label="Todos" active={!status && !perfil} />
@@ -149,7 +154,21 @@ export default async function PortalPessoasPage({
           </details>
         ) : null}
 
-        <DataTable
+        <div className="grid gap-3 md:hidden">
+          {data.rows.length ? data.rows.map((row) => (
+            <article className="grid gap-3 rounded-2xl border border-border bg-card p-4" key={String(row.id)}>
+              <div><strong className="text-lg">{String(row.nome_completo)}</strong><p className="text-sm text-muted-foreground">{String(row.whatsapp || "WhatsApp não informado")}</p></div>
+              <div className="grid grid-cols-2 gap-2 text-sm"><span><b>{String(row.unidades_vinculadas)}</b> unidade(s)</span><span><b>{String(row.cobrancas_abertas)}</b> cobrança(s) aberta(s)</span></div>
+              <div className="grid grid-cols-2 gap-2">
+                <Link className="button-primary justify-center" href={`/portal-associativo/pessoas/${row.id}`}>Ver</Link>
+                {row.whatsapp ? <Link className="button-secondary justify-center" href={`https://wa.me/${String(row.whatsapp).replace(/\D/g, "")}`} target="_blank">WhatsApp</Link> : null}
+                {canWrite ? <Link className="button-secondary col-span-2 justify-center" href={`/portal-associativo/financeiro?responsavel=${row.id}#cobranca-avulsa`}>Criar cobrança</Link> : null}
+              </div>
+            </article>
+          )) : <p className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">Nenhum associado cadastrado. Use “Novo associado” para começar.</p>}
+        </div>
+
+        <div className="hidden md:block"><DataTable
           columns={[
             { key: "nome_completo", label: "Nome" },
             { key: "cpf_cnpj", label: "CPF/CNPJ" },
@@ -179,7 +198,7 @@ export default async function PortalPessoasPage({
               </div>
             ) : null
           }
-        />
+        /></div>
       </section>
     </PortalAssociativoShell>
   );

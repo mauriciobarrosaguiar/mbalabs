@@ -27,6 +27,14 @@ export default async function PortalAssociadoPage({ searchParams }: { searchPara
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
+        <nav className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Atalhos do painel">
+          <Link className="button-primary min-h-14 justify-center" href="#minhas-cobrancas">Minhas cobranças</Link>
+          <Link className="button-secondary min-h-14 justify-center" href="#minhas-unidades">Minhas unidades</Link>
+          <Link className="button-secondary min-h-14 justify-center" href="#meus-recibos">Meus recibos</Link>
+          <Link className="button-secondary min-h-14 justify-center" href="#documentos">Documentos</Link>
+          <Link className="button-secondary min-h-14 justify-center" href="#avisos">Avisos</Link>
+        </nav>
+
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <SummaryCard label="Minhas unidades" value={data.unidades.length} />
           <SummaryCard label="Cobrancas abertas" value={data.cobrancasAbertas.length} />
@@ -37,19 +45,20 @@ export default async function PortalAssociadoPage({ searchParams }: { searchPara
           <SummaryCard label="Documentos liberados" value={(data.documentos as Array<Record<string, unknown>>).length} />
         </div>
 
-        <Panel title="Minhas unidades">
+        <div id="minhas-unidades"><Panel title="Minhas unidades">
           <CardGrid rows={data.unidades as Array<Record<string, unknown>>} empty="Nenhuma unidade vinculada ao seu cadastro.">
             {(row) => (
               <article className="rounded-lg border border-border bg-muted/40 p-4">
-                <strong className="block text-lg">{[row.codigo_unidade, row.numero_unidade].filter(Boolean).join(" - ") || "Unidade"}</strong>
+                <strong className="block text-lg">{unitPanelLabel(row)}</strong>
                 <p className="mt-1 text-sm text-muted-foreground">{String(row.tipo_unidade ?? "-")} - {String(row.status_unidade ?? "-")}</p>
                 <p className="mt-2 text-sm">{String(row.endereco_localizacao ?? "")}</p>
+                {Array.isArray(row.papeis) && row.papeis.length ? <p className="mt-2 text-sm"><b>Papéis:</b> {row.papeis.map(String).join(", ")}</p> : null}
               </article>
             )}
           </CardGrid>
-        </Panel>
+        </Panel></div>
 
-        <Panel title="Cobrancas abertas">
+        <div id="minhas-cobrancas"><Panel title="Cobranças abertas">
           <CardGrid rows={data.cobrancasAbertas as Array<Record<string, unknown>>} empty="Nao ha cobrancas abertas para seu cadastro.">
             {(row) => {
               const overdue = isOverdue(row);
@@ -109,7 +118,7 @@ export default async function PortalAssociadoPage({ searchParams }: { searchPara
               );
             }}
           </CardGrid>
-        </Panel>
+        </Panel></div>
 
         <Panel title="Comprovantes aguardando aprovação">
           <CardGrid rows={data.cobrancasAguardandoAprovacao as Array<Record<string, unknown>>} empty="Nenhum comprovante aguardando análise.">
@@ -123,7 +132,7 @@ export default async function PortalAssociadoPage({ searchParams }: { searchPara
           </CardGrid>
         </Panel>
 
-        <Panel title="Cobrancas pagas">
+        <div id="meus-recibos"><Panel title="Cobranças pagas e recibos">
           <CardGrid rows={data.cobrancasPagas as Array<Record<string, unknown>>} empty="Nenhuma cobranca paga encontrada.">
             {(row) => (
               <article className="grid gap-3 rounded-lg border border-border bg-muted/40 p-4">
@@ -145,10 +154,10 @@ export default async function PortalAssociadoPage({ searchParams }: { searchPara
               </article>
             )}
           </CardGrid>
-        </Panel>
+        </Panel></div>
 
         <div className="grid gap-4 xl:grid-cols-2">
-          <Panel title="Documentos liberados">
+          <div id="documentos"><Panel title="Documentos liberados">
             <CardGrid rows={data.documentos as Array<Record<string, unknown>>} empty="Nenhum documento liberado.">
               {(row) => (
                 <article className="grid gap-3 rounded-lg border border-border bg-muted/40 p-4">
@@ -161,9 +170,9 @@ export default async function PortalAssociadoPage({ searchParams }: { searchPara
                 </article>
               )}
             </CardGrid>
-          </Panel>
+          </Panel></div>
 
-          <Panel title="Avisos">
+          <div id="avisos"><Panel title="Avisos">
             <CardGrid rows={data.avisos as Array<Record<string, unknown>>} empty="Nenhum aviso ativo.">
               {(row) => (
                 <article className="rounded-lg border border-border bg-muted/40 p-4">
@@ -173,7 +182,7 @@ export default async function PortalAssociadoPage({ searchParams }: { searchPara
                 </article>
               )}
             </CardGrid>
-          </Panel>
+          </Panel></div>
         </div>
 
         <div className="grid gap-4 xl:grid-cols-2">
@@ -278,4 +287,11 @@ function isOverdue(row: Record<string, unknown>) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return Number.isFinite(due.getTime()) && due < today;
+}
+
+function unitPanelLabel(row: Record<string, unknown>) {
+  const codigo = String(row.codigo_unidade ?? "").trim();
+  const numero = String(row.numero_unidade ?? "").trim();
+  if (codigo && numero && codigo === numero) return `Unidade ${numero}`;
+  return [codigo, numero].filter(Boolean).join(" - ") || "Unidade";
 }
