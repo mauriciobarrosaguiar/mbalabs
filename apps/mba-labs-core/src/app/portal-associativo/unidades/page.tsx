@@ -79,6 +79,8 @@ export default async function PortalUnidadesPage({
             <option value="ativa">Ativas</option>
             <option value="inativa">Inativas</option>
             <option value="bloqueada">Bloqueadas</option>
+            <option value="vendida">Vendidas</option>
+            <option value="em_transferencia">Em transferência</option>
           </select>
           <button className="button-secondary" type="submit">Filtrar</button>
         </form>
@@ -110,7 +112,9 @@ export default async function PortalUnidadesPage({
                 options={[
                   { value: "ativa", label: "Ativa" },
                   { value: "inativa", label: "Inativa" },
-                  { value: "bloqueada", label: "Bloqueada" }
+                  { value: "bloqueada", label: "Bloqueada" },
+                  { value: "vendida", label: "Vendida" },
+                  { value: "em_transferencia", label: "Em transferência" }
                 ]}
               />
               <FormMoneyInput label="Mensalidade específica" name="valor_mensalidade" defaultValue={String(editing?.valor_mensalidade ?? "")} />
@@ -147,6 +151,9 @@ export default async function PortalUnidadesPage({
               <div className="flex flex-wrap justify-end gap-2">
                 <Link className="button-secondary" href={`/portal-associativo/unidades?edit=${row.id}`}>
                   Editar
+                </Link>
+                <Link className="button-secondary" href={`/portal-associativo/unidades/${row.id}`}>
+                  Ficha
                 </Link>
                 <Link className="button-secondary" href={`/portal-associativo/financeiro?unidade=${row.id}`}>
                   Mensalidades

@@ -2,11 +2,14 @@ import Link from "next/link";
 import { PortalAssociativoShell } from "@/components/PortalAssociativoShell";
 import { MessageBanner, PageHeader, formatDate, formatMoney } from "@/components/ui-kit";
 import { canPortalAccess, getPortalAssociadoPanel } from "@/lib/portal-associativo-data";
+import { firstParam } from "@/lib/form-utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortalAssociadoPage() {
+export default async function PortalAssociadoPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = await searchParams;
   const data = await getPortalAssociadoPanel();
+  const cobrancasVencidas = (data.cobrancasAbertas as Array<Record<string, unknown>>).filter(isOverdue);
 
   return (
     <PortalAssociativoShell
@@ -22,11 +25,14 @@ export default async function PortalAssociadoPage() {
           title="Painel do associado"
           description="Veja suas unidades, cobrancas, recibos, documentos liberados, avisos, reunioes e projetos."
         />
-        <MessageBanner error={data.error ?? undefined} />
+        <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <SummaryCard label="Minhas unidades" value={data.unidades.length} />
           <SummaryCard label="Cobrancas abertas" value={data.cobrancasAbertas.length} />
+          <SummaryCard label="Cobranças vencidas" value={cobrancasVencidas.length} />
+          <SummaryCard label="Aguardando aprovação" value={data.cobrancasAguardandoAprovacao.length} />
+          <SummaryCard label="Comprovantes recusados" value={data.cobrancasRecusadas.length} />
           <SummaryCard label="Cobrancas pagas" value={data.cobrancasPagas.length} />
           <SummaryCard label="Documentos liberados" value={(data.documentos as Array<Record<string, unknown>>).length} />
         </div>
@@ -66,8 +72,32 @@ export default async function PortalAssociadoPage() {
                     <div className="rounded-lg border border-border bg-white p-3">
                       <span className="block text-xs font-bold uppercase text-muted-foreground">PIX copia e cola</span>
                       <code className="mt-1 block select-all break-words text-xs">{String(row.pix_copia_cola)}</code>
+                      <button className="button-secondary mt-3" data-copy-pix={String(row.pix_copia_cola)} type="button">Copiar PIX</button>
                     </div>
                   ) : null}
+                  {data.pixManual.ativo ? (
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
+                      <strong className="block">PIX manual da associação</strong>
+                      <p className="mt-1">Chave: <span className="select-all font-mono">{String(data.pixManual.chave)}</span> ({String(data.pixManual.tipo || "não informado")})</p>
+                      <p>Recebedor: {String(data.pixManual.recebedor || "-")} · {String(data.pixManual.cidade || "-")}</p>
+                      {data.pixManual.instrucoes ? <p className="mt-2">{String(data.pixManual.instrucoes)}</p> : null}
+                      <button className="button-secondary mt-3" data-copy-pix={String(data.pixManual.chave)} type="button">Copiar chave PIX</button>
+                      {data.pixManual.qrCodeUrl ? <Link className="button-secondary ml-2" href={String(data.pixManual.qrCodeUrl)} target="_blank">Ver QR Code</Link> : null}
+                    </div>
+                  ) : (
+                    <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">A forma de pagamento ainda não foi configurada pela administração.</p>
+                  )}
+                  <details className="rounded-lg border border-border bg-white p-3">
+                    <summary className="cursor-pointer font-bold">Enviar comprovante</summary>
+                    <form action="/api/portal-associativo/comprovantes/upload" className="mt-3 grid gap-3" method="post" encType="multipart/form-data">
+                      <input name="cobranca_id" type="hidden" value={String(row.id)} />
+                      <label className="grid gap-1 text-sm font-semibold">Arquivo (PDF, JPG, PNG ou WEBP; até 10 MB)<input className="input" name="arquivo" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required /></label>
+                      <label className="grid gap-1 text-sm font-semibold">Data do pagamento<input className="input" name="data_pagamento_informada" type="date" /></label>
+                      <label className="grid gap-1 text-sm font-semibold">Valor informado<input className="input" name="valor_informado" type="number" min="0.01" step="0.01" /></label>
+                      <label className="grid gap-1 text-sm font-semibold">Observação<textarea className="input min-h-20" name="observacao_associado" /></label>
+                      <button className="button-primary" type="submit">Enviar comprovante</button>
+                    </form>
+                  </details>
                   <div className="flex flex-wrap gap-2">
                     {row.mensagem_whatsapp ? (
                       <Link className="button-primary" href={`https://wa.me/?text=${encodeURIComponent(String(row.mensagem_whatsapp))}`} target="_blank">
@@ -78,6 +108,18 @@ export default async function PortalAssociadoPage() {
                 </article>
               );
             }}
+          </CardGrid>
+        </Panel>
+
+        <Panel title="Comprovantes aguardando aprovação">
+          <CardGrid rows={data.cobrancasAguardandoAprovacao as Array<Record<string, unknown>>} empty="Nenhum comprovante aguardando análise.">
+            {(row) => <article className="rounded-lg border border-amber-200 bg-amber-50 p-4"><strong>{String(row.descricao ?? "Cobrança")}</strong><p className="mt-1 text-sm">Unidade {String(row.unidade ?? "-")} · {formatMoney(row.valor_total)}</p><p className="mt-2 text-sm font-semibold">Comprovante enviado. A administração irá conferir e aprovar o pagamento.</p></article>}
+          </CardGrid>
+        </Panel>
+
+        <Panel title="Comprovantes recusados">
+          <CardGrid rows={data.cobrancasRecusadas as Array<Record<string, unknown>>} empty="Nenhum comprovante recusado.">
+            {(row) => <article className="rounded-lg border border-red-200 bg-red-50 p-4"><strong>{String(row.descricao ?? "Cobrança")}</strong><p className="mt-2 text-sm"><b>Motivo:</b> {String(row.motivo_recusa ?? "Procure a administração.")}</p></article>}
           </CardGrid>
         </Panel>
 
@@ -168,10 +210,25 @@ export default async function PortalAssociadoPage() {
             </CardGrid>
           </Panel>
         </div>
+        <script dangerouslySetInnerHTML={{ __html: copyPixScript }} />
       </section>
     </PortalAssociativoShell>
   );
 }
+
+const copyPixScript = `
+document.addEventListener("click", function (event) {
+  var target = event.target;
+  if (!target || !target.getAttribute) return;
+  var pix = target.getAttribute("data-copy-pix");
+  if (!pix) return;
+  navigator.clipboard && navigator.clipboard.writeText(pix).then(function () {
+    target.textContent = "PIX copiado";
+  }).catch(function () {
+    window.prompt("Copie o PIX:", pix);
+  });
+});
+`;
 
 function SummaryCard({ label, value }: { label: string; value: string | number }) {
   return (

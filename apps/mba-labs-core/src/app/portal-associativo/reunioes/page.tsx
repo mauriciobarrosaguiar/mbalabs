@@ -25,31 +25,31 @@ export default async function PortalReunioesPage({
   return (
     <PortalAssociativoShell activePath="/portal-associativo/reunioes" can={(section) => canPortalAccess(data.perfil, section)} companyName={data.companyName} roleLabel={data.perfilLabel} userName={data.current.usuario.nome}>
       <section className="grid gap-6">
-        <PageHeader eyebrow="Portal Associativo" title="Reunioes e atas" description="Cadastre reunioes, pauta, ata, decisoes, presenca simples e libere a ata aos associados." actions={<BackButton href="/portal-associativo" />} />
+        <PageHeader eyebrow="Portal Associativo" title="Reuniões e atas" description="Cadastre reuniões, pauta, ata, decisões, presença simples e libere a ata aos associados." actions={<BackButton href="/portal-associativo" />} />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
         {canWrite ? (
           <form action={savePortalReuniao}>
             <input name="id" type="hidden" value={String(editing?.id ?? "")} />
             <ResourceForm
-              title={editing ? "Editar reuniao" : "Nova reuniao"}
+              title={editing ? "Editar reunião" : "Nova reunião"}
               actions={
                 <>
-                  <SubmitButton>Salvar reuniao</SubmitButton>
+                  <SubmitButton>Salvar reunião</SubmitButton>
                   {editing ? <Link className="button-secondary" href="/portal-associativo/reunioes">Cancelar</Link> : null}
                 </>
               }
             >
-              <FormInput label="Titulo" name="titulo" defaultValue={String(editing?.titulo ?? "")} required />
+              <FormInput label="Título" name="titulo" defaultValue={String(editing?.titulo ?? "")} required />
               <FormInput label="Data e hora" name="data_reuniao" type="datetime-local" defaultValue={toDateTimeLocal(editing?.data_reuniao)} required />
               <FormInput label="Local" name="local" defaultValue={String(editing?.local ?? "")} />
               <FormSelect label="Status" name="status" defaultValue={String(editing?.status ?? "agendada")} options={[{ value: "agendada", label: "Agendada" }, { value: "realizada", label: "Realizada" }, { value: "cancelada", label: "Cancelada" }]} />
               <FormInput label="Ata/anexo URL" name="ata_url" defaultValue={String(editing?.ata_url ?? "")} placeholder="Link ou caminho no armazenamento" />
               <FormCheckbox label="Liberar ata para associados" name="liberado_associado" defaultChecked={editing?.liberado_associado === true} />
               <FormTextarea label="Pauta" name="pauta" defaultValue={String(editing?.pauta ?? "")} />
-              <FormTextarea label="Descricao" name="descricao" defaultValue={String(editing?.descricao ?? "")} />
+              <FormTextarea label="Descrição" name="descricao" defaultValue={String(editing?.descricao ?? "")} />
               <FormTextarea label="Texto da ata" name="ata" defaultValue={String(editing?.ata ?? "")} />
-              <FormTextarea label="Decisoes" name="decisoes" defaultValue={String(editing?.decisoes ?? "")} />
+              <FormTextarea label="Decisões" name="decisoes" defaultValue={String(editing?.decisoes ?? "")} />
             </ResourceForm>
           </form>
         ) : null}
@@ -57,7 +57,7 @@ export default async function PortalReunioesPage({
         <DataTable
           columns={[
             { key: "data_reuniao", label: "Data" },
-            { key: "titulo", label: "Titulo" },
+            { key: "titulo", label: "Título" },
             { key: "local", label: "Local" },
             { key: "status", label: "Status" },
             { key: "liberado", label: "Associado" }
