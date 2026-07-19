@@ -32,6 +32,7 @@ export default async function PortalPessoasPage({
   const cidade = firstParam(params.cidade) ?? "";
   const uf = firstParam(params.uf) ?? "";
   const editId = firstParam(params.edit);
+  const quickMode = firstParam(params.modo) === "rapido";
   const data = await listPortalPessoas(search, { status, perfil, cidade, uf });
   if (!canPortalAccess(data.perfil, "pessoas")) {
     redirect("/portal-associativo/painel-associado");
@@ -52,8 +53,8 @@ export default async function PortalPessoasPage({
       <section className="grid gap-6">
         <PageHeader
           eyebrow="Portal Associativo"
-          title="Pessoas e usuarios"
-          description="Cadastre pessoas uma unica vez, evite duplicidades e vincule ao usuario central do MBA Labs."
+          title="Associados"
+          description="Aqui você cadastra as pessoas da associação. Depois, vincule cada pessoa a uma chácara ou lote."
           actions={<BackButton href="/portal-associativo" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
@@ -64,7 +65,31 @@ export default async function PortalPessoasPage({
           <FilterLink href="/portal-associativo/pessoas?status=ativa" label="Ativos" active={status === "ativa"} />
         </div>
 
+        {canWrite && !editing ? (
+          <form action={savePortalPessoa} id="cadastro">
+            <input name="tipo_pessoa" type="hidden" value="fisica" />
+            <input name="status_pessoa" type="hidden" value="ativa" />
+            <ResourceForm
+              title="Cadastro rápido"
+              actions={
+                <>
+                  <button className="button-primary" name="proxima_acao" type="submit" value="">Salvar</button>
+                  <button className="button-secondary" name="proxima_acao" type="submit" value="unidade">Salvar e cadastrar unidade</button>
+                  <button className="button-secondary" name="proxima_acao" type="submit" value="cobranca">Salvar e gerar cobrança</button>
+                </>
+              }
+            >
+              <FormInput label="Nome" name="nome_completo" required />
+              <FormInput label="WhatsApp" name="whatsapp" placeholder="Ex.: (11) 99999-9999" />
+              <FormInput label="CPF (opcional)" name="cpf_cnpj" />
+              <FormInput label="E-mail (opcional)" name="email" type="email" />
+            </ResourceForm>
+          </form>
+        ) : null}
+
         {canWrite ? (
+          <details className="panel p-4" open={Boolean(editing) || !quickMode}>
+            <summary className="cursor-pointer text-lg font-black">{editing ? "Editar cadastro" : "Cadastro completo"}</summary>
           <form action={savePortalPessoa}>
             <input name="id" type="hidden" value={String(editing?.id ?? "")} />
             <ResourceForm
@@ -121,6 +146,7 @@ export default async function PortalPessoasPage({
               <FormTextarea label="Observacoes" name="observacoes" defaultValue={String(editing?.observacoes ?? "")} />
             </ResourceForm>
           </form>
+          </details>
         ) : null}
 
         <DataTable
@@ -143,10 +169,13 @@ export default async function PortalPessoasPage({
                 <Link className="button-secondary" href={`/portal-associativo/pessoas/${row.id}`}>
                   Ficha
                 </Link>
-                <form action={inactivatePortalPessoa}>
-                  <input name="id" type="hidden" value={String(row.id)} />
-                  <button className="button-danger" type="submit">Inativar</button>
-                </form>
+                <details className="rounded-xl border border-red-200 bg-red-50 p-2">
+                  <summary className="cursor-pointer text-sm font-bold text-red-700">Inativar</summary>
+                  <form action={inactivatePortalPessoa} className="mt-2">
+                    <input name="id" type="hidden" value={String(row.id)} />
+                    <button className="button-danger" type="submit">Confirmar inativação</button>
+                  </form>
+                </details>
               </div>
             ) : null
           }

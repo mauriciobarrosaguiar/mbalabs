@@ -46,19 +46,31 @@ export default async function PortalTransferenciasPage({
       <section className="grid gap-6">
         <PageHeader
           eyebrow="Portal Associativo"
-          title="Transferências"
-          description="Transfira unidades mantendo histórico, responsáveis, documento e responsabilidade por débitos."
+          title="Transferir unidade"
+          description="Use esta tela quando uma chácara ou lote trocar de dono. O histórico será mantido."
           actions={<BackButton href="/portal-associativo" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
         {canWrite ? (
           <form action={savePortalTransferencia}>
-            <ResourceForm title="Nova transferência" actions={<SubmitButton>Registrar transferência</SubmitButton>}>
+            <ResourceForm
+              title="Troca de dono passo a passo"
+              actions={
+                <details className="rounded-xl border border-amber-300 bg-amber-50 p-3">
+                  <summary className="cursor-pointer text-sm font-black text-amber-900">8. Revisar e confirmar</summary>
+                  <p className="my-2 max-w-md text-sm text-amber-900">Confira a unidade, o novo dono e quem ficará responsável pelos débitos. Esta ação encerra os vínculos atuais e mantém o histórico.</p>
+                  <SubmitButton>Confirmar transferência</SubmitButton>
+                </details>
+              }
+            >
+              <h3 className="col-span-full text-base font-black">1. Escolha a unidade</h3>
               <FormSelect label="Unidade" name="unidade_id" options={unitOptions} required />
+              <h3 className="col-span-full mt-2 text-base font-black">2 a 4. Defina os novos responsáveis</h3>
               <FormSelect label="Novo proprietário" name="nova_pessoa_id" options={personOptions} required />
-              <FormSelect label="Responsável financeiro" name="responsavel_financeiro_id" options={personOptions} />
+              <FormSelect label="Responsável pelo pagamento" name="responsavel_financeiro_id" options={personOptions} />
               <FormSelect label="Responsável de contato" name="responsavel_contato_id" options={personOptions} />
+              <h3 className="col-span-full mt-2 text-base font-black">5 e 6. Decida sobre os débitos</h3>
               <FormDateInput label="Data da transferência" name="data_transferencia" />
               <FormSelect
                 label="Débitos anteriores"
@@ -72,6 +84,8 @@ export default async function PortalTransferenciasPage({
                 ]}
                 required
               />
+              <p className="col-span-full rounded-xl bg-muted p-3 text-sm leading-6 text-muted-foreground">Antes de confirmar, abra a ficha da unidade em outra aba para conferir as cobranças abertas e vencidas.</p>
+              <h3 className="col-span-full mt-2 text-base font-black">7. Documento e motivo</h3>
               <FormInput label="Documento da transferência" name="documento_url" placeholder="Link ou caminho no armazenamento" />
               <FormTextarea label="Motivo" name="motivo" />
               <FormTextarea label="Observações" name="observacoes" />

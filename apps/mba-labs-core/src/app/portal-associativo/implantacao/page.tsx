@@ -24,8 +24,8 @@ export default async function PortalImplantacaoPage() {
       <section className="grid gap-6">
         <PageHeader
           eyebrow="Portal Associativo"
-          title="Implantação guiada"
-          description="Configure entidade, financeiro, cadastros, vínculos, cobranças e painel do associado em uma sequência segura."
+          title="Começar aqui"
+          description="Complete os passos principais para deixar o portal pronto."
           actions={<BackButton href="/portal-associativo" />}
         />
         <MessageBanner error={onboarding.error ?? dashboard.error ?? settings.error ?? undefined} />
@@ -36,7 +36,7 @@ export default async function PortalImplantacaoPage() {
               <p className="eyebrow">Progresso</p>
               <h2 className="text-2xl font-black">{onboarding.completed}/{onboarding.total} etapas concluídas</h2>
             </div>
-            <Link className="button-primary w-fit" href="/portal-associativo">Ver dashboard</Link>
+            <Link className="button-primary w-fit" href="/portal-associativo">Voltar ao início</Link>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {onboarding.steps.map((step) => (
@@ -81,19 +81,19 @@ export default async function PortalImplantacaoPage() {
 
         <div className="grid gap-4 lg:grid-cols-2">
           <StepPanel title="3. Cadastro de pessoas" description={`${onboarding.counts.pessoas} pessoa(s) já cadastrada(s).`}>
-            <Link className="button-primary" href="/portal-associativo/pessoas">Cadastrar pessoa manual</Link>
+            <Link className="button-primary" href="/portal-associativo/pessoas?modo=rapido#cadastro">Cadastrar associado</Link>
             <Link className="button-secondary" href="/portal-associativo/importacao?tipo=pessoas">Importar CSV/Excel</Link>
           </StepPanel>
           <StepPanel title="4. Cadastro de unidades" description={`${onboarding.counts.unidades} unidade(s) já cadastrada(s).`}>
-            <Link className="button-primary" href="/portal-associativo/unidades">Cadastrar unidade manual</Link>
+            <Link className="button-primary" href="/portal-associativo/unidades?modo=rapido#cadastro">Cadastrar unidade</Link>
             <Link className="button-secondary" href="/portal-associativo/importacao?tipo=unidades">Importar CSV/Excel</Link>
           </StepPanel>
           <StepPanel title="5. Vínculos" description={`${dashboard.metrics.unidadesSemResponsavelFinanceiro} unidade(s) sem responsável financeiro. Revise proprietário, financeiro e contato.`}>
             <Link className="button-primary" href="/portal-associativo/unidades">Corrigir vínculos</Link>
           </StepPanel>
           <StepPanel title="6. Cobranças" description={`${dashboard.metrics.cobrancasAbertas} abertas, ${dashboard.metrics.cobrancasVencidas} vencidas, ${dashboard.metrics.cobrancasAguardandoPagamento} aguardando pagamento.`}>
-            <Link className="button-primary" href="/portal-associativo/financeiro">Gerar mensalidades em lote</Link>
-            <Link className="button-secondary" href="/portal-associativo/financeiro">Criar cobrança individual</Link>
+            <Link className="button-primary" href="/portal-associativo/financeiro#mensalidades-lote">Gerar mensalidades em lote</Link>
+            <Link className="button-secondary" href="/portal-associativo/financeiro#cobranca-avulsa">Criar cobrança individual</Link>
           </StepPanel>
           <StepPanel title="7. Painel do associado" description={`${onboarding.counts.perfis} pessoa(s) vinculada(s) a usuários do MBA Labs. Quem não estiver vinculado deve procurar a administração.`}>
             <Link className="button-primary" href="/portal-associativo/pessoas">Vincular usuários</Link>
