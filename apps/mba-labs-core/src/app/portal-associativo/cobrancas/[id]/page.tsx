@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { PortalAssociativoShell } from "@/components/PortalAssociativoShell";
 import { BackButton, DataTable, MessageBanner, PageHeader, formatDate, formatMoney } from "@/components/ui-kit";
-import { baixarPortalCobranca, cancelPortalCobranca, reopenPortalCobranca } from "@/lib/actions/portal-associativo-actions";
+import { approvePortalComprovante, baixarPortalCobranca, cancelPortalCobranca, rejectPortalComprovante, reopenPortalCobranca } from "@/lib/actions/portal-associativo-actions";
 import { canPortalAccess, getPortalCobrancaDetail, PORTAL_CHARGE_STATUS_LABELS } from "@/lib/portal-associativo-data";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +24,7 @@ export default async function PortalCobrancaDetailPage({ params }: PageProps) {
   const row = data.cobranca as PortalRow;
   const canWrite = data.perfil === "administrador" || data.perfil === "tesoureiro";
   const phone = String(row.whatsapp ?? "").replace(/\D/g, "");
+  const proof = latestProof(row);
 
   return (
     <PortalAssociativoShell activePath="/portal-associativo/financeiro" can={(section) => canPortalAccess(data.perfil, section)} companyName={data.companyName} roleLabel={data.perfilLabel} userName={data.current.usuario.nome}>
@@ -85,7 +86,7 @@ export default async function PortalCobrancaDetailPage({ params }: PageProps) {
             <h2 className="text-lg font-semibold">Ações financeiras</h2>
             <div className="grid gap-3 lg:grid-cols-3">
               {row.status !== "paga" && row.status !== "cancelada" ? (
-                <form action={baixarPortalCobranca} className="grid gap-2 rounded-lg border border-border bg-muted/40 p-3">
+                <form action={baixarPortalCobranca} className="grid gap-2 rounded-lg border border-border bg-muted/40 p-3" id="baixar">
                   <input name="id" type="hidden" value={id} />
                   <input name="return_to" type="hidden" value={`/portal-associativo/cobrancas/${id}`} />
                   <input className="input" name="forma_pagamento" placeholder="Forma de pagamento" defaultValue="manual" />
@@ -95,7 +96,7 @@ export default async function PortalCobrancaDetailPage({ params }: PageProps) {
                 </form>
               ) : null}
               {row.status !== "cancelada" ? (
-                <form action={cancelPortalCobranca} className="grid gap-2 rounded-lg border border-red-200 bg-red-50 p-3">
+                <form action={cancelPortalCobranca} className="grid gap-2 rounded-lg border border-red-200 bg-red-50 p-3" id="cancelar">
                   <input name="id" type="hidden" value={id} />
                   <input name="return_to" type="hidden" value={`/portal-associativo/cobrancas/${id}`} />
                   <input className="input" name="motivo_cancelamento" placeholder="Motivo do cancelamento" required />
@@ -110,6 +111,24 @@ export default async function PortalCobrancaDetailPage({ params }: PageProps) {
                 </form>
               )}
             </div>
+            {row.status === "aguardando_aprovacao" && proof ? (
+              <section className="grid gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4" id="comprovante">
+                <div><h3 className="font-black">Comprovante aguardando conferência</h3><p className="text-sm">Valor informado: {formatMoney(proof.valor_informado)} · Data: {formatDate(proof.data_pagamento_informada)}</p></div>
+                {proof.arquivo_id ? <Link className="button-secondary w-fit" href={`/api/portal-associativo/documentos/${proof.arquivo_id}/open`} target="_blank">Ver comprovante</Link> : null}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <form action={approvePortalComprovante} className="grid gap-2 rounded-xl bg-white p-3">
+                    <input name="cobranca_id" type="hidden" value={id} /><input name="return_to" type="hidden" value={`/portal-associativo/cobrancas/${id}`} />
+                    <input className="input" name="data_pagamento" type="date" defaultValue={String(proof.data_pagamento_informada ?? "")} />
+                    <button className="button-primary" type="submit">Aprovar pagamento</button>
+                  </form>
+                  <form action={rejectPortalComprovante} className="grid gap-2 rounded-xl bg-white p-3">
+                    <input name="cobranca_id" type="hidden" value={id} /><input name="return_to" type="hidden" value={`/portal-associativo/cobrancas/${id}`} />
+                    <input className="input" name="motivo_recusa" placeholder="Informe o motivo" required />
+                    <button className="button-danger" type="submit">Recusar comprovante</button>
+                  </form>
+                </div>
+              </section>
+            ) : null}
           </section>
         ) : null}
 
@@ -122,7 +141,7 @@ export default async function PortalCobrancaDetailPage({ params }: PageProps) {
           ]} rows={data.documentos.map((doc: PortalRow) => ({ ...doc, criado_em: formatDate(doc.criado_em), liberado_associado: doc.liberado_associado ? "Sim" : "Não" }))} actions={(doc) => <Link className="button-secondary" href={`/api/portal-associativo/documentos/${doc.id}/open`} target="_blank">Abrir</Link>} />
         </Panel>
 
-        <Panel title="Auditoria">
+        <Panel title="Histórico">
           <DataTable columns={[
             { key: "acao", label: "Ação" },
             { key: "entidade", label: "Entidade" },
@@ -132,6 +151,11 @@ export default async function PortalCobrancaDetailPage({ params }: PageProps) {
       </section>
     </PortalAssociativoShell>
   );
+}
+
+function latestProof(row: PortalRow) {
+  const proofs = Array.isArray(row.assoc_comprovantes_pagamento) ? row.assoc_comprovantes_pagamento as PortalRow[] : [];
+  return [...proofs].sort((a, b) => String(b.enviado_em ?? "").localeCompare(String(a.enviado_em ?? "")))[0];
 }
 
 function InfoCard({ title, rows }: { title: string; rows: Array<[string, string]> }) {

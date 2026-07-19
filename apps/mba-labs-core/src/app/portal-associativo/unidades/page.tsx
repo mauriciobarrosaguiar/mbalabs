@@ -157,7 +157,21 @@ export default async function PortalUnidadesPage({
           </details>
         ) : null}
 
-        <DataTable
+        <div className="grid gap-3 md:hidden">
+          {data.rows.length ? data.rows.map((row) => (
+            <article className="grid gap-3 rounded-2xl border border-border bg-card p-4" key={String(row.id)}>
+              <div><strong className="text-lg">{unitCardLabel(row)}</strong><p className="text-sm text-muted-foreground">{String(row.status_unidade)} · {String(row.tipo_unidade)}</p></div>
+              <div className="grid gap-1 text-sm"><p><b>Proprietário:</b> {String(row.proprietario || "Não informado")}</p><p><b>Responsável pelo pagamento:</b> {String(row.responsavel_financeiro || "Não informado")}</p><p><b>Cobranças:</b> {String(row.cobrancas_abertas)} aberta(s), {String(row.cobrancas_vencidas)} vencida(s)</p></div>
+              <div className="grid grid-cols-2 gap-2">
+                <Link className="button-primary justify-center" href={`/portal-associativo/unidades/${row.id}`}>Ver</Link>
+                <Link className="button-secondary justify-center" href={`/portal-associativo/financeiro?unidade=${row.id}`}>Cobranças</Link>
+                {canWrite ? <Link className="button-secondary col-span-2 justify-center" href={`/portal-associativo/transferencias?unidade=${row.id}`}>Transferir</Link> : null}
+              </div>
+            </article>
+          )) : <p className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">Nenhuma unidade cadastrada. Use o cadastro rápido para começar.</p>}
+        </div>
+
+        <div className="hidden md:block"><DataTable
           columns={[
             { key: "loteamento", label: "Loteamento" },
             { key: "codigo_unidade", label: "Código" },
@@ -196,8 +210,15 @@ export default async function PortalUnidadesPage({
               </div>
             ) : null
           }
-        />
+        /></div>
       </section>
     </PortalAssociativoShell>
   );
+}
+
+function unitCardLabel(row: Record<string, unknown>) {
+  const codigo = String(row.codigo_unidade ?? "").trim();
+  const numero = String(row.numero_unidade ?? "").trim();
+  if (codigo && numero && codigo === numero) return `Unidade ${numero}`;
+  return [codigo, numero].filter(Boolean).join(" - ") || "Unidade";
 }

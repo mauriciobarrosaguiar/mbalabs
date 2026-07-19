@@ -231,7 +231,23 @@ export default async function PortalFinanceiroPage({
           </section>
         ) : null}
 
-        <DataTable
+        <div className="grid gap-3 md:hidden">
+          {data.rows.length ? data.rows.map((row) => (
+            <article className="grid gap-3 rounded-2xl border border-border bg-card p-4" key={String(row.id)}>
+              <div className="flex items-start justify-between gap-3"><div><strong className="text-lg">{String(row.descricao)}</strong><p className="text-sm text-muted-foreground">{String(row.unidade)} · {String(row.responsavel || "Sem responsável")}</p></div><span className="rounded-full bg-muted px-2 py-1 text-xs font-bold">{PORTAL_CHARGE_STATUS_LABELS[String(row.status_calculado)] ?? String(row.status_calculado)}</span></div>
+              <div className="grid grid-cols-2 gap-2 text-sm"><span><b>Valor</b><br />{formatMoney(row.valor_total)}</span><span><b>Vencimento</b><br />{formatDate(row.data_vencimento)}</span></div>
+              <div className="grid grid-cols-2 gap-2">
+                <Link className="button-primary justify-center" href={`/portal-associativo/cobrancas/${row.id}`}>Ver</Link>
+                {row.whatsapp ? <Link className="button-secondary justify-center" href={`https://wa.me/${String(row.whatsapp).replace(/\D/g, "")}?text=${encodeURIComponent(String(row.mensagem_whatsapp ?? ""))}`} target="_blank">WhatsApp</Link> : null}
+                {canWrite && row.status !== "paga" && row.status !== "cancelada" ? <Link className="button-secondary justify-center" href={`/portal-associativo/cobrancas/${row.id}#baixar`}>Baixar</Link> : null}
+                {canWrite && row.status !== "cancelada" ? <Link className="button-secondary justify-center" href={`/portal-associativo/cobrancas/${row.id}#cancelar`}>Cancelar</Link> : null}
+                {row.status === "aguardando_aprovacao" ? <Link className="button-primary col-span-2 justify-center" href={`/portal-associativo/cobrancas/${row.id}#comprovante`}>Aprovar comprovante</Link> : null}
+              </div>
+            </article>
+          )) : <p className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">Nenhuma cobrança encontrada para estes filtros.</p>}
+        </div>
+
+        <div className="hidden md:block"><DataTable
           columns={[
             { key: "descricao", label: "Descricao" },
             { key: "loteamento", label: "Loteamento" },
@@ -327,7 +343,7 @@ export default async function PortalFinanceiroPage({
               ) : null}
             </div>
           )}
-        />
+        /></div>
       </section>
     </PortalAssociativoShell>
   );

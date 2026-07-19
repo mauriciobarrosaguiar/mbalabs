@@ -49,6 +49,7 @@ export const PORTAL_CHARGE_STATUS_LABELS: Record<string, string> = {
 };
 
 const OPEN_CHARGE_STATUSES = new Set(["aberta", "aguardando_pagamento", "vencida", "negociada"]);
+const OUTSTANDING_CHARGE_STATUSES = new Set([...OPEN_CHARGE_STATUSES, "aguardando_aprovacao"]);
 
 const roleSections: Record<PortalPerfil, Set<string>> = {
   administrador: new Set(["dashboard", "implantacao", "loteamentos", "pessoas", "unidades", "transferencias", "financeiro", "inadimplentes", "documentos", "importacao", "relatorios", "reunioes", "avisos", "projetos", "painel", "configuracoes"]),
@@ -207,9 +208,9 @@ export async function getPortalDashboard() {
     scopedByEmpresa(client.from("assoc_configuracoes").select("*"), empresaId).maybeSingle()
   ]);
 
-  const pessoas = ((pessoasResult.data ?? []) as Array<Record<string, unknown>>);
-  const unidades = ((unidadesResult.data ?? []) as Array<Record<string, unknown>>);
-  const vinculos = ((vinculosResult.data ?? []) as Array<Record<string, unknown>>);
+  const pessoas = uniqueById((pessoasResult.data ?? []) as Array<Record<string, unknown>>);
+  const unidades = uniqueById((unidadesResult.data ?? []) as Array<Record<string, unknown>>);
+  const vinculos = uniqueById((vinculosResult.data ?? []) as Array<Record<string, unknown>>);
   const pessoasComUnidade = new Set(vinculos.map((row) => String(row.pessoa_id ?? "")).filter(Boolean));
   const unidadesComFinanceiro = new Set(
     vinculos
@@ -224,8 +225,8 @@ export async function getPortalDashboard() {
       .filter(Boolean)
   );
 
-  const charges: Array<Record<string, unknown>> = ((chargesResult.data ?? []) as Array<Record<string, unknown>>).map(normalizeChargeRow);
-  const openCharges = charges.filter((row) => OPEN_CHARGE_STATUSES.has(String(row.status)));
+  const charges = uniqueCharges(((chargesResult.data ?? []) as Array<Record<string, unknown>>).map(normalizeChargeRow));
+  const openCharges = charges.filter((row) => OUTSTANDING_CHARGE_STATUSES.has(String(row.status)));
   const overdueCharges = charges.filter(isOverdueCharge);
   const paidThisMonth = charges.filter((row) => {
     if (String(row.status) !== "paga" || !row.data_pagamento) return false;
@@ -247,19 +248,19 @@ export async function getPortalDashboard() {
 
   const alertas = [
     unidadesSemResponsavelFinanceiro.length
-      ? { title: "Existem unidades sem responsável financeiro", detail: `${unidadesSemResponsavelFinanceiro.length} unidade(s) ativa(s) precisam de responsável.`, href: "/portal-associativo/unidades", tone: "warning" }
+      ? { title: "Existem unidades sem responsável pelo pagamento", detail: `${unidadesSemResponsavelFinanceiro.length} unidade(s) ativa(s) precisam de responsável.`, href: "/portal-associativo/unidades", tone: "warning", action: "Corrigir unidades" }
       : null,
     pessoasSemWhatsApp.length
-      ? { title: "Existem pessoas sem WhatsApp", detail: `${pessoasSemWhatsApp.length} cadastro(s) sem WhatsApp.`, href: "/portal-associativo/pessoas", tone: "warning" }
+      ? { title: "Existem pessoas sem WhatsApp", detail: `${pessoasSemWhatsApp.length} cadastro(s) sem WhatsApp.`, href: "/portal-associativo/pessoas", tone: "warning", action: "Ver associados" }
       : null,
     overdueCharges.length
-      ? { title: "Existem cobranças vencidas", detail: `${overdueCharges.length} cobrança(s) vencida(s).`, href: "/portal-associativo/inadimplentes", tone: "danger" }
+      ? { title: "Existem cobranças vencidas", detail: `${overdueCharges.length} cobrança(s) vencida(s).`, href: "/portal-associativo/inadimplentes", tone: "danger", action: "Ver atrasados" }
       : null,
     documentosInternos
-      ? { title: "Existem documentos pendentes", detail: `${documentosInternos} documento(s) internos ou não liberados.`, href: "/portal-associativo/documentos", tone: "info" }
+      ? { title: "Existem documentos pendentes", detail: `${documentosInternos} documento(s) internos ou não liberados.`, href: "/portal-associativo/documentos", tone: "info", action: "Revisar documentos" }
       : null,
     associadosSemUsuario.length
-      ? { title: "Existem associados sem usuário vinculado", detail: `${associadosSemUsuario.length} pessoa(s) ativa(s) ainda sem usuário MBA Labs.`, href: "/portal-associativo/pessoas", tone: "warning" }
+      ? { title: "Existem associados sem usuário vinculado", detail: `${associadosSemUsuario.length} pessoa(s) ativa(s) ainda sem usuário MBA Labs.`, href: "/portal-associativo/pessoas", tone: "warning", action: "Vincular usuários" }
       : null,
     configuracaoFinanceiraIncompleta
       ? { title: "Configuração financeira incompleta", detail: "Revise mensalidade padrão, vencimento e dados PIX.", href: "/portal-associativo/configuracoes#pix-manual", tone: "danger", action: "Configurar PIX agora" }
@@ -268,7 +269,7 @@ export async function getPortalDashboard() {
       ? { title: "Arquivos ainda não conectados", detail: "Conecte o Dropbox ou Google Drive da associação antes de anexar documentos.", href: "/portal-associativo/configuracoes#arquivos", tone: "warning", action: "Conectar arquivos" }
       : null,
     charges.some((row) => row.status === "aguardando_aprovacao")
-      ? { title: "Existem comprovantes para conferir", detail: `${charges.filter((row) => row.status === "aguardando_aprovacao").length} pagamento(s) aguardando sua conferência.`, href: "/portal-associativo/financeiro?status=aguardando_aprovacao", tone: "warning", action: "Conferir comprovantes" }
+      ? { title: "Existem comprovantes para conferir", detail: `${charges.filter((row) => row.status === "aguardando_aprovacao").length} pagamento(s) aguardando sua conferência.`, href: "/portal-associativo/financeiro?status=aguardando_aprovacao", tone: "warning", action: "Aprovar agora" }
       : null
   ].filter(Boolean) as Array<{ title: string; detail: string; href: string; tone: string; action?: string }>;
 
@@ -306,7 +307,7 @@ export async function getPortalDashboard() {
     inadimplenciaPorLoteamento: groupMoney(overdueCharges, (row) => loteamentoLabel(row.assoc_loteamentos)),
     inadimplenciaPorUnidade: groupMoney(overdueCharges, (row) => unitLabel(row.assoc_unidades)),
     inadimplenciaPorResponsavel: groupMoney(overdueCharges, (row) => relationName(row.assoc_pessoas) || "Sem responsável"),
-    ultimasCobrancas: ((recentCharges.data ?? []) as Array<Record<string, unknown>>).map(normalizeChargeRow),
+    ultimasCobrancas: uniqueCharges(((recentCharges.data ?? []) as Array<Record<string, unknown>>).map(normalizeChargeRow)),
     ultimosPagamentos,
     ultimosCadastros,
     ultimosLogs: (latestAudits.data ?? []) as Array<Record<string, unknown>>,
@@ -469,17 +470,37 @@ export async function listPortalPessoas(search = "", filters: { status?: string;
     query = query.ilike("uf", `%${filters.uf}%`);
   }
 
-  const { data, error } = await query;
-  const rows = ((data ?? []) as Array<Record<string, unknown>>)
+  const [{ data, error }, vinculosResult, cobrancasResult] = await Promise.all([
+    query,
+    scopedByEmpresa(client.from("assoc_vinculos_unidade_pessoa").select("id,pessoa_id,unidade_id,status_vinculo,data_fim").eq("status_vinculo", "ativo").is("data_fim", null), empresaId),
+    scopedByEmpresa(client.from("assoc_cobrancas").select("id,pessoa_responsavel_id,status").in("status", Array.from(OUTSTANDING_CHARGE_STATUSES)), empresaId)
+  ]);
+  const unidadesPorPessoa = new Map<string, Set<string>>();
+  for (const vinculo of uniqueById((vinculosResult.data ?? []) as Array<Record<string, unknown>>)) {
+    const pessoa = String(vinculo.pessoa_id ?? "");
+    const unidade = String(vinculo.unidade_id ?? "");
+    if (!pessoa || !unidade) continue;
+    const ids = unidadesPorPessoa.get(pessoa) ?? new Set<string>();
+    ids.add(unidade);
+    unidadesPorPessoa.set(pessoa, ids);
+  }
+  const cobrancasPorPessoa = new Map<string, number>();
+  for (const cobranca of uniqueCharges((cobrancasResult.data ?? []) as Array<Record<string, unknown>>)) {
+    const pessoa = String(cobranca.pessoa_responsavel_id ?? "");
+    if (pessoa) cobrancasPorPessoa.set(pessoa, (cobrancasPorPessoa.get(pessoa) ?? 0) + 1);
+  }
+  const rows = uniqueById(((data ?? []) as Array<Record<string, unknown>>)
     .map<Record<string, unknown>>((row) => ({
       ...row,
       perfil: relationObject(row.assoc_perfis_usuarios)?.perfil ?? "",
-      perfil_status: relationObject(row.assoc_perfis_usuarios)?.status ?? ""
+      perfil_status: relationObject(row.assoc_perfis_usuarios)?.status ?? "",
+      unidades_vinculadas: unidadesPorPessoa.get(String(row.id))?.size ?? 0,
+      cobrancas_abertas: cobrancasPorPessoa.get(String(row.id)) ?? 0
     }))
     .filter((row) => !filters.perfil || row.perfil === filters.perfil)
-    .filter((row) => includesSearch(row, ["nome_completo", "cpf_cnpj", "email", "telefone", "whatsapp"], search));
+    .filter((row) => includesSearch(row, ["nome_completo", "cpf_cnpj", "email", "telefone", "whatsapp"], search)));
 
-  return { ...context, rows, error: context.error ?? error?.message ?? null };
+  return { ...context, rows, error: context.error ?? error?.message ?? vinculosResult.error?.message ?? cobrancasResult.error?.message ?? null };
 }
 
 export async function listPortalUnidades(search = "", status = "", loteamento = "") {
@@ -488,7 +509,7 @@ export async function listPortalUnidades(search = "", status = "", loteamento = 
   let query = scopedByEmpresa(
     client
       .from("assoc_unidades")
-      .select("id,loteamento_id,codigo_unidade,numero_unidade,quadra_setor,tipo_unidade,status_unidade,endereco_localizacao,area_m2,possui_construcao,valor_mensalidade,vencimento_dia,isento_mensalidade,criado_em,assoc_loteamentos(nome,codigo),assoc_vinculos_unidade_pessoa(tipo_vinculo,status_vinculo,data_fim,assoc_pessoas(nome_completo))")
+      .select("id,loteamento_id,codigo_unidade,numero_unidade,quadra_setor,tipo_unidade,status_unidade,endereco_localizacao,area_m2,possui_construcao,valor_mensalidade,vencimento_dia,isento_mensalidade,criado_em,assoc_loteamentos(nome,codigo),assoc_vinculos_unidade_pessoa(tipo_vinculo,status_vinculo,data_fim,assoc_pessoas(nome_completo)),assoc_cobrancas(id,status,data_vencimento)")
       .order("numero_unidade", { ascending: true })
       .limit(300),
     context.empresaId
@@ -508,7 +529,9 @@ export async function listPortalUnidades(search = "", status = "", loteamento = 
       loteamento: loteamentoLabel(row.assoc_loteamentos),
       proprietario: vinculoName(row.assoc_vinculos_unidade_pessoa, "proprietario"),
       responsavel_financeiro: vinculoName(row.assoc_vinculos_unidade_pessoa, "responsavel_financeiro"),
-      responsavel_contato: vinculoName(row.assoc_vinculos_unidade_pessoa, "responsavel_contato")
+      responsavel_contato: vinculoName(row.assoc_vinculos_unidade_pessoa, "responsavel_contato"),
+      cobrancas_abertas: uniqueCharges(Array.isArray(row.assoc_cobrancas) ? row.assoc_cobrancas as Array<Record<string, unknown>> : []).filter((charge) => OUTSTANDING_CHARGE_STATUSES.has(String(charge.status))).length,
+      cobrancas_vencidas: uniqueCharges(Array.isArray(row.assoc_cobrancas) ? row.assoc_cobrancas as Array<Record<string, unknown>> : []).filter(isOverdueCharge).length
     }))
     .filter((row) => includesSearch(row, ["codigo_unidade", "numero_unidade", "quadra_setor", "loteamento", "proprietario", "responsavel_financeiro"], search));
 
@@ -537,7 +560,7 @@ export async function listPortalCobrancas(filters: { status?: string; q?: string
   }
 
   const { data, error } = await query;
-  const rows = ((data ?? []) as Array<Record<string, unknown>>)
+  const rows = uniqueCharges(((data ?? []) as Array<Record<string, unknown>>)
     .map(normalizeChargeRow)
     .map<Record<string, unknown>>((row) => ({
       ...row,
@@ -548,7 +571,7 @@ export async function listPortalCobrancas(filters: { status?: string; q?: string
       whatsapp: relationPhone(row.assoc_pessoas),
       mensagem_whatsapp: buildChargeWhatsappMessage(row, context.companyName)
     }))
-    .filter((row) => includesSearch(row, ["descricao", "loteamento", "unidade", "responsavel"], filters.q ?? ""));
+    .filter((row) => includesSearch(row, ["descricao", "loteamento", "unidade", "responsavel"], filters.q ?? "")));
 
   return { ...context, rows, error: context.error ?? error?.message ?? null };
 }
@@ -591,13 +614,13 @@ export async function listPortalInadimplentes(filters: {
   const max = moneyFilter(filters.valorMax);
   const minDays = moneyFilter(filters.diasMin);
   const maxDays = moneyFilter(filters.diasMax);
-  const overdue = ((data ?? []) as Array<Record<string, unknown>>)
+  const overdue = uniqueCharges(((data ?? []) as Array<Record<string, unknown>>)
     .map(normalizeChargeRow)
     .filter((row) => {
       if (!isOverdueCharge(row)) return false;
       const value = Number(row.valor_total ?? 0);
       return (min === null || value >= min) && (max === null || value <= max);
-    });
+    }));
 
   const grouped = new Map<string, Record<string, unknown>>();
   for (const row of overdue) {
@@ -819,7 +842,7 @@ export async function listPortalReunioes() {
     context.client.from("assoc_reunioes").select("*").order("data_reuniao", { ascending: false }).limit(200),
     context.empresaId
   );
-  return { ...context, rows: data ?? [], error: context.error ?? error?.message ?? null };
+  return { ...context, rows: uniqueById((data ?? []) as Array<Record<string, unknown>>), error: context.error ?? error?.message ?? null };
 }
 
 export async function listPortalAvisos(activeOnly = false) {
@@ -832,7 +855,7 @@ export async function listPortalAvisos(activeOnly = false) {
     query = query.eq("status", "ativo").eq("mostrar_painel", true);
   }
   const { data, error } = await query;
-  return { ...context, rows: (data ?? []).filter((row: Record<string, unknown>) => !activeOnly || isVisibleNotice(row)), error: context.error ?? error?.message ?? null };
+  return { ...context, rows: uniqueById(((data ?? []) as Array<Record<string, unknown>>).filter((row) => !activeOnly || isVisibleNotice(row))), error: context.error ?? error?.message ?? null };
 }
 
 export async function listPortalProjetos() {
@@ -841,7 +864,7 @@ export async function listPortalProjetos() {
     context.client.from("assoc_projetos").select("*").order("criado_em", { ascending: false }).limit(200),
     context.empresaId
   );
-  return { ...context, rows: data ?? [], error: context.error ?? error?.message ?? null };
+  return { ...context, rows: uniqueById((data ?? []) as Array<Record<string, unknown>>), error: context.error ?? error?.message ?? null };
 }
 
 export async function listPortalArquivos(filters: {
@@ -874,7 +897,7 @@ export async function listPortalArquivos(filters: {
   if (filters.liberado === "nao") query = query.eq("liberado_associado", false);
 
   const { data, error } = await query;
-  const rows = ((data ?? []) as Array<Record<string, unknown>>)
+  const rows = uniqueFiles(((data ?? []) as Array<Record<string, unknown>>)
     .map<Record<string, unknown>>((row) => ({
       ...row,
       titulo: row.file_name,
@@ -885,7 +908,7 @@ export async function listPortalArquivos(filters: {
       projeto: relationObject(row.assoc_projetos)?.nome ?? "",
       local_armazenamento: [portalStorageProviderLabel(String(row.provedor ?? "")), row.path].filter(Boolean).join(" - ")
     }))
-    .filter((row) => includesSearch(row, ["file_name", "descricao", "categoria", "pessoa", "unidade", "cobranca", "reuniao", "projeto"], filters.q ?? ""));
+    .filter((row) => includesSearch(row, ["file_name", "descricao", "categoria", "pessoa", "unidade", "cobranca", "reuniao", "projeto"], filters.q ?? "")));
 
   return { ...context, rows, error: context.error ?? error?.message ?? null };
 }
@@ -942,7 +965,8 @@ export async function getPortalAssociadoPanel() {
         .from("assoc_vinculos_unidade_pessoa")
         .select("tipo_vinculo,status_vinculo,assoc_unidades(id,codigo_unidade,numero_unidade,tipo_unidade,status_unidade,endereco_localizacao)")
         .eq("pessoa_id", pessoaId)
-        .eq("status_vinculo", "ativo"),
+        .eq("status_vinculo", "ativo")
+        .is("data_fim", null),
       context.empresaId
     ),
     scopedByEmpresa(
@@ -975,28 +999,25 @@ export async function getPortalAssociadoPanel() {
     scopedByEmpresa(client.from("assoc_configuracoes_pagamento").select("provedor_pix_ativo,gerar_pix_automatico,status_configuracao"), context.empresaId).maybeSingle()
   ]);
 
-  const unidades = ((vinculos.data ?? []) as Array<Record<string, unknown>>).map<Record<string, unknown>>((row) => ({
-    ...relationObject(row.assoc_unidades),
-    tipo_vinculo: row.tipo_vinculo
-  }));
-  const unidadeIds = new Set(unidades.map((row) => String(row.id ?? "")));
-  const chargeRows = ((cobrancas.data ?? []) as Array<Record<string, unknown>>)
+  const unidades = uniqueUnidadesFromVinculos((vinculos.data ?? []) as Array<Record<string, unknown>>);
+  const unidadeIds = new Set(unidades.map((row) => String(row.id ?? "")).filter(Boolean));
+  const chargeRows = uniqueCharges(((cobrancas.data ?? []) as Array<Record<string, unknown>>)
     .map(normalizeChargeRow)
     .map<Record<string, unknown>>((row) => ({
       ...row,
       unidade: unitLabel(row.assoc_unidades),
       mensagem_whatsapp: buildChargeWhatsappMessage({ ...row, pix_copia_cola: row.pix_copia_cola || config.data?.pix_chave }, context.companyName)
     }))
-    .filter((row) => String(row.pessoa_responsavel_id ?? "") === pessoaId || unidadeIds.has(String(row.unidade_id ?? "")));
-  const avisosRows = (avisos.rows as Array<Record<string, unknown>>).filter((row) => noticeMatchesAssociatedAudience(row, context.perfil, unidadeIds, chargeRows));
-  const documentosRows = ((documentos.data ?? []) as Array<Record<string, unknown>>)
+    .filter((row) => String(row.pessoa_responsavel_id ?? "") === pessoaId || unidadeIds.has(String(row.unidade_id ?? ""))));
+  const avisosRows = uniqueById((avisos.rows as Array<Record<string, unknown>>).filter((row) => noticeMatchesAssociatedAudience(row, context.perfil, unidadeIds, chargeRows)));
+  const documentosRows = uniqueFiles(((documentos.data ?? []) as Array<Record<string, unknown>>)
     .filter((row) => String(row.pessoa_id ?? "") === pessoaId || unidadeIds.has(String(row.unidade_id ?? "")) || chargeRows.some((charge) => String(charge.id) === String(row.cobranca_id ?? "")))
     .map<Record<string, unknown>>((row) => ({
       ...row,
       titulo: row.file_name,
       unidade: unitLabel(row.assoc_unidades),
       local_armazenamento: [portalStorageProviderLabel(String(row.provedor ?? "")), row.path].filter(Boolean).join(" - ")
-    }));
+    })));
 
   return {
     ...context,
@@ -1016,8 +1037,8 @@ export async function getPortalAssociadoPanel() {
       qrCodeUrl: config.data?.qr_code_pix_url ?? ""
     },
     avisos: avisosRows,
-    reunioes: reunioes.data ?? [],
-    projetos: projetos.data ?? [],
+    reunioes: uniqueById((reunioes.data ?? []) as Array<Record<string, unknown>>),
+    projetos: uniqueById((projetos.data ?? []) as Array<Record<string, unknown>>),
     documentos: documentosRows,
     error: context.error ?? pessoa.error?.message ?? vinculos.error?.message ?? cobrancas.error?.message ?? reunioes.error?.message ?? projetos.error?.message ?? documentos.error?.message ?? config.error?.message ?? pagamento.error?.message ?? null
   };
@@ -1277,7 +1298,7 @@ export async function getPortalCobrancaDetail(id: string) {
   const [cobranca, documentos, auditoria] = await Promise.all([
     context.client
       .from("assoc_cobrancas")
-      .select("id,loteamento_id,unidade_id,pessoa_responsavel_id,tipo_cobranca,descricao,mes_referencia,ano_referencia,data_vencimento,valor_original,valor_juros,valor_multa,valor_desconto,valor_total,valor_pago,status,forma_pagamento,data_pagamento,pix_copia_cola,comprovante_url,observacoes,motivo_cancelamento,recibo_url,recibo_file_id,recibo_emitido_em,criado_em,atualizado_em,assoc_loteamentos(nome),assoc_unidades(codigo_unidade,numero_unidade),assoc_pessoas(nome_completo,whatsapp,email)")
+      .select("id,loteamento_id,unidade_id,pessoa_responsavel_id,tipo_cobranca,descricao,mes_referencia,ano_referencia,data_vencimento,valor_original,valor_juros,valor_multa,valor_desconto,valor_total,valor_pago,status,forma_pagamento,data_pagamento,pix_copia_cola,comprovante_url,observacoes,motivo_cancelamento,recibo_url,recibo_file_id,recibo_emitido_em,criado_em,atualizado_em,assoc_loteamentos(nome),assoc_unidades(codigo_unidade,numero_unidade),assoc_pessoas(nome_completo,whatsapp,email),assoc_comprovantes_pagamento(id,arquivo_id,status,comprovante_url,valor_informado,data_pagamento_informada,observacao_associado,motivo_recusa,enviado_em)")
       .eq("empresa_id", context.empresaId)
       .eq("id", cobrancaId)
       .maybeSingle(),
@@ -1341,7 +1362,49 @@ export function normalizePortalPerfil(value: unknown): PortalPerfil {
 }
 
 export function unitOptionLabel(row: Record<string, unknown>) {
-  return [row.codigo_unidade, row.numero_unidade].filter(Boolean).join(" - ") || String(row.id ?? "");
+  const codigo = String(row.codigo_unidade ?? "").trim();
+  const numero = String(row.numero_unidade ?? "").trim();
+  if (codigo && numero && codigo === numero) return `Unidade ${numero}`;
+  return [codigo, numero].filter(Boolean).join(" - ") || String(row.id ?? "");
+}
+
+export async function getPortalVinculoDiagnostics() {
+  const context = await getPortalContext("/portal-associativo/implantacao");
+  const { data, error } = await scopedByEmpresa(
+    context.client
+      .from("assoc_vinculos_unidade_pessoa")
+      .select("id,unidade_id,pessoa_id,tipo_vinculo,status_vinculo,data_inicio,data_fim,assoc_unidades(id,codigo_unidade,numero_unidade),assoc_pessoas(id,nome_completo)")
+      .order("criado_em", { ascending: true })
+      .limit(5000),
+    context.empresaId
+  );
+  const rows = (data ?? []) as Array<Record<string, unknown>>;
+  const issues: Array<Record<string, unknown>> = [];
+  const activeRows = rows.filter((row) => row.status_vinculo === "ativo" && !row.data_fim);
+  const duplicateGroups = groupBy(activeRows, (row) => `${row.unidade_id}|${row.pessoa_id}|${row.tipo_vinculo}`);
+  for (const group of duplicateGroups.values()) {
+    if (group.length < 2) continue;
+    issues.push(buildVinculoIssue("duplicado", "Esta pessoa aparece repetida no mesmo papel.", group));
+  }
+  for (const tipo of ["proprietario", "responsavel_financeiro", "responsavel_contato"]) {
+    const principalGroups = groupBy(activeRows.filter((row) => row.tipo_vinculo === tipo), (row) => String(row.unidade_id));
+    for (const group of principalGroups.values()) {
+      if (group.length < 2) continue;
+      issues.push(buildVinculoIssue("multiplos_principais", `Esta unidade possui mais de um ${portalVinculoLabel(tipo).toLowerCase()}.`, group));
+    }
+  }
+  for (const row of rows) {
+    if (row.status_vinculo === "ativo" && row.data_fim) {
+      issues.push(buildVinculoIssue("ativo_com_fim", "Vínculo ativo com data de encerramento preenchida.", [row]));
+    }
+    if (row.status_vinculo === "encerrado" && !row.data_fim) {
+      issues.push(buildVinculoIssue("encerrado_sem_fim", "Vínculo encerrado sem data de encerramento.", [row]));
+    }
+    if (!relationObject(row.assoc_unidades) || !relationObject(row.assoc_pessoas)) {
+      issues.push(buildVinculoIssue("referencia_invalida", "Vínculo aponta para pessoa ou unidade inexistente.", [row]));
+    }
+  }
+  return { ...context, issues: uniqueByKey(issues, "key"), error: context.error ?? error?.message ?? null };
 }
 
 export function loteamentoOptionLabel(row: Record<string, unknown>) {
@@ -1388,6 +1451,84 @@ async function resolvePessoaIdByUsuario(client: any, empresaId: string | null, u
     .eq("core_usuario_id", usuarioId)
     .maybeSingle();
   return String(data?.id ?? "");
+}
+
+export function uniqueByKey<T extends Record<string, unknown>>(rows: T[], key: keyof T | string): T[] {
+  const unique = new Map<string, T>();
+  for (const row of rows) {
+    const value = String(row[String(key)] ?? "").trim();
+    if (!value || unique.has(value)) continue;
+    unique.set(value, row);
+  }
+  return Array.from(unique.values());
+}
+
+export function uniqueById<T extends Record<string, unknown>>(rows: T[]): T[] {
+  return uniqueByKey(rows, "id");
+}
+
+export function uniqueCharges<T extends Record<string, unknown>>(rows: T[]): T[] {
+  return uniqueById(rows);
+}
+
+export function uniqueFiles<T extends Record<string, unknown>>(rows: T[]): T[] {
+  return uniqueById(rows);
+}
+
+export function uniqueUnidadesFromVinculos(vinculos: Array<Record<string, unknown>>): Array<Record<string, unknown>> {
+  const unidadesMap = new Map<string, Record<string, unknown>>();
+  for (const vinculo of vinculos) {
+    const unidade = relationObject(vinculo.assoc_unidades);
+    const unidadeId = String(unidade?.id ?? "").trim();
+    if (!unidade || !unidadeId) continue;
+    const papel = String(vinculo.tipo_vinculo ?? "").trim();
+    const existing = unidadesMap.get(unidadeId) ?? { ...unidade, tipo_vinculos: [], papeis: [] };
+    const tipos = new Set(Array.isArray(existing.tipo_vinculos) ? existing.tipo_vinculos.map(String) : []);
+    if (papel) tipos.add(papel);
+    existing.tipo_vinculos = Array.from(tipos);
+    existing.papeis = Array.from(tipos).map(portalVinculoLabel);
+    unidadesMap.set(unidadeId, existing);
+  }
+  return Array.from(unidadesMap.values());
+}
+
+function portalVinculoLabel(tipo: string) {
+  const labels: Record<string, string> = {
+    proprietario: "Proprietário",
+    responsavel_financeiro: "Responsável pelo pagamento",
+    responsavel_contato: "Responsável de contato",
+    morador: "Morador",
+    ocupante: "Ocupante",
+    antigo_proprietario: "Antigo proprietário"
+  };
+  return labels[tipo] ?? tipo.replaceAll("_", " ");
+}
+
+function groupBy(rows: Array<Record<string, unknown>>, keyFor: (row: Record<string, unknown>) => string) {
+  const groups = new Map<string, Array<Record<string, unknown>>>();
+  for (const row of rows) {
+    const key = keyFor(row);
+    groups.set(key, [...(groups.get(key) ?? []), row]);
+  }
+  return groups;
+}
+
+function buildVinculoIssue(tipo: string, mensagem: string, rows: Array<Record<string, unknown>>) {
+  const first = rows[0] ?? {};
+  return {
+    key: `${tipo}:${rows.map((row) => String(row.id)).sort().join(",")}`,
+    tipo,
+    mensagem,
+    unidade: unitLabel(first.assoc_unidades),
+    papel: portalVinculoLabel(String(first.tipo_vinculo ?? "")),
+    candidatos: rows.map((row) => ({
+      id: String(row.id ?? ""),
+      pessoa: relationName(row.assoc_pessoas) || "Pessoa não encontrada",
+      data_inicio: row.data_inicio,
+      status_vinculo: row.status_vinculo,
+      data_fim: row.data_fim
+    }))
+  };
 }
 
 function normalizeChargeRow(row: Record<string, unknown>): Record<string, unknown> {
@@ -1457,13 +1598,16 @@ function groupMoney(rows: Array<Record<string, unknown>>, labeler: (row: Record<
 function unitLabel(value: unknown) {
   const unit = relationObject(value);
   if (!unit) return "-";
-  return [unit.codigo_unidade, unit.numero_unidade].filter(Boolean).join(" - ") || "-";
+  const codigo = String(unit.codigo_unidade ?? "").trim();
+  const numero = String(unit.numero_unidade ?? "").trim();
+  if (codigo && numero && codigo === numero) return `Unidade ${numero}`;
+  return [codigo, numero].filter(Boolean).join(" - ") || "-";
 }
 
 function loteamentoLabel(value: unknown) {
   const loteamento = relationObject(value);
-  if (!loteamento) return "-";
-  return String(loteamento.nome ?? loteamento.codigo ?? "-");
+  if (!loteamento) return "Sem grupo/condomínio";
+  return String(loteamento.nome ?? loteamento.codigo ?? "Sem grupo/condomínio");
 }
 
 function vinculoName(value: unknown, tipo: string) {

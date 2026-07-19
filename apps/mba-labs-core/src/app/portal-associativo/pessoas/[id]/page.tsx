@@ -148,7 +148,7 @@ function ChargesPanel({ title, rows }: { title: string; rows: Array<Record<strin
 
 function AuditTable({ rows }: { rows: Array<Record<string, unknown>> }) {
   return (
-    <Panel title="Auditoria relacionada">
+    <Panel title="Histórico relacionado">
       <DataTable columns={[
         { key: "acao", label: "Ação" },
         { key: "entidade", label: "Entidade" },

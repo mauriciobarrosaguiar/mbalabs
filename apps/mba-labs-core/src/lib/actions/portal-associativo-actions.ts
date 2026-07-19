@@ -314,6 +314,63 @@ export async function deletePortalUnidade(formData: FormData) {
   redirectWithOk("/portal-associativo/unidades", "Unidade excluída.");
 }
 
+export async function fixPortalVinculosDuplicados(formData: FormData) {
+  const context = await requirePortalWrite("unidades", "/portal-associativo/implantacao");
+  const keepId = textValue(formData, "keep_id");
+  const ids = splitCsv(textValue(formData, "vinculo_ids")).filter((id) => id !== keepId);
+  const allIds = [keepId, ...ids].filter(Boolean);
+  if (!keepId || allIds.length < 2) redirectWithError("/portal-associativo/implantacao", "Escolha qual vínculo deve ser mantido.");
+
+  const current = await context.client
+    .from("assoc_vinculos_unidade_pessoa")
+    .select("id,unidade_id,pessoa_id,tipo_vinculo,status_vinculo,data_fim")
+    .eq("empresa_id", context.empresaId)
+    .in("id", allIds);
+  const rows = (current.data ?? []) as Array<Record<string, unknown>>;
+  if (current.error || rows.length !== allIds.length) redirectWithError("/portal-associativo/implantacao", current.error?.message ?? "Os vínculos mudaram. Atualize a página e tente novamente.");
+  const unidades = new Set(rows.map((row) => String(row.unidade_id)));
+  const tipos = new Set(rows.map((row) => String(row.tipo_vinculo)));
+  const tipo = String(rows[0]?.tipo_vinculo ?? "");
+  const pessoas = new Set(rows.map((row) => String(row.pessoa_id)));
+  const principal = ["proprietario", "responsavel_financeiro", "responsavel_contato"].includes(tipo);
+  if (unidades.size !== 1 || tipos.size !== 1 || (!principal && pessoas.size !== 1)) {
+    redirectWithError("/portal-associativo/implantacao", "Esses vínculos não pertencem ao mesmo grupo de correção.");
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const result = await context.client
+    .from("assoc_vinculos_unidade_pessoa")
+    .update({ status_vinculo: "encerrado", data_fim: today, motivo_encerramento: "Duplicidade corrigida pela administração", atualizado_em: new Date().toISOString() })
+    .eq("empresa_id", context.empresaId)
+    .in("id", ids)
+    .eq("status_vinculo", "ativo")
+    .is("data_fim", null);
+  if (result.error) redirectWithError("/portal-associativo/implantacao", result.error.message);
+  await recordPortalAudit(context, "corrigir_vinculos_duplicados", "assoc_vinculos_unidade_pessoa", keepId, { mantido: keepId, encerrados: ids });
+  revalidatePortal("/portal-associativo/implantacao");
+  revalidatePath("/portal-associativo/painel-associado");
+  redirectWithOk("/portal-associativo/implantacao", "Vínculos corrigidos sem apagar o histórico.");
+}
+
+export async function fixPortalVinculoInconsistente(formData: FormData) {
+  const context = await requirePortalWrite("unidades", "/portal-associativo/implantacao");
+  const id = textValue(formData, "id");
+  const current = await context.client.from("assoc_vinculos_unidade_pessoa").select("id,status_vinculo,data_fim").eq("empresa_id", context.empresaId).eq("id", id).maybeSingle();
+  if (current.error || !current.data) redirectWithError("/portal-associativo/implantacao", current.error?.message ?? "Vínculo não encontrado.");
+  const today = new Date().toISOString().slice(0, 10);
+  const patch = current.data.status_vinculo === "ativo" && current.data.data_fim
+    ? { status_vinculo: "encerrado", atualizado_em: new Date().toISOString() }
+    : current.data.status_vinculo === "encerrado" && !current.data.data_fim
+      ? { data_fim: today, atualizado_em: new Date().toISOString() }
+      : null;
+  if (!patch) redirectWithError("/portal-associativo/implantacao", "Este vínculo já está consistente.");
+  const result = await context.client.from("assoc_vinculos_unidade_pessoa").update(patch).eq("empresa_id", context.empresaId).eq("id", id);
+  if (result.error) redirectWithError("/portal-associativo/implantacao", result.error.message);
+  await recordPortalAudit(context, "corrigir_vinculo_inconsistente", "assoc_vinculos_unidade_pessoa", id, patch);
+  revalidatePortal("/portal-associativo/implantacao");
+  redirectWithOk("/portal-associativo/implantacao", "Vínculo corrigido e histórico preservado.");
+}
+
 export async function savePortalTransferencia(formData: FormData) {
   const context = await requirePortalWrite("transferencias", "/portal-associativo/transferencias");
   const returnTo = "/portal-associativo/transferencias";
