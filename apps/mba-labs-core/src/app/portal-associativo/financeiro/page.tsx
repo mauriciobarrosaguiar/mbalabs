@@ -18,9 +18,12 @@ import {
   formatMoney
 } from "@/components/ui-kit";
 import {
+  approvePortalComprovante,
   baixarPortalCobranca,
   cancelPortalCobranca,
   gerarPortalMensalidadesLote,
+  reopenPortalCobranca,
+  rejectPortalComprovante,
   savePortalCobranca
 } from "@/lib/actions/portal-associativo-actions";
 import { firstParam } from "@/lib/form-utils";
@@ -114,6 +117,7 @@ export default async function PortalFinanceiroPage({
           <div className="grid gap-4 xl:grid-cols-2">
             <form action={savePortalCobranca}>
               <input name="id" type="hidden" value={String(editing?.id ?? "")} />
+              <input name="return_to" type="hidden" value="/portal-associativo/financeiro" />
               <ResourceForm
                 title={editing ? "Editar cobranca" : "Cobranca individual"}
                 actions={
@@ -134,6 +138,8 @@ export default async function PortalFinanceiroPage({
                     { value: "mensalidade", label: "Mensalidade" },
                     { value: "taxa", label: "Taxa" },
                     { value: "projeto", label: "Projeto" },
+                    { value: "multa", label: "Multa" },
+                    { value: "acordo", label: "Acordo" },
                     { value: "outro", label: "Outro" }
                   ]}
                 />
@@ -202,6 +208,16 @@ export default async function PortalFinanceiroPage({
               }))}
               emptyMessage="Nenhuma cobranca nova sera criada."
             />
+            {Array.isArray(preview.preview.problemas) && preview.preview.problemas.length ? (
+              <DataTable
+                columns={[
+                  { key: "unidade", label: "Unidade" },
+                  { key: "motivo", label: "Problema" }
+                ]}
+                rows={preview.preview.problemas as Array<Record<string, unknown>>}
+                emptyMessage="Nenhum problema encontrado."
+              />
+            ) : null}
           </section>
         ) : null}
 
@@ -229,6 +245,9 @@ export default async function PortalFinanceiroPage({
                   WhatsApp
                 </Link>
               ) : null}
+              <Link className="button-secondary" href={`/portal-associativo/cobrancas/${row.id}`}>
+                Ver detalhes
+              </Link>
               {row.status === "paga" ? (
                 <Link className="button-secondary" href={`/api/portal-associativo/recibos/${row.id}`} target="_blank">
                   Recibo PDF
@@ -238,6 +257,31 @@ export default async function PortalFinanceiroPage({
                 <Link className="button-secondary" href={`/portal-associativo/financeiro?edit=${row.id}`}>
                   Editar
                 </Link>
+              ) : null}
+              {row.status === "aguardando_aprovacao" ? (
+                <details className="w-full rounded-lg border border-amber-200 bg-amber-50 p-2 lg:w-auto">
+                  <summary className="cursor-pointer text-sm font-bold">Analisar comprovante</summary>
+                  <div className="mt-2 grid gap-2 text-sm">
+                    <span>Valor informado: {formatMoney(latestProof(row)?.valor_informado)}</span>
+                    <span>Data informada: {formatDate(latestProof(row)?.data_pagamento_informada)}</span>
+                    <span>Enviado em: {formatDate(latestProof(row)?.enviado_em)}</span>
+                    {latestProof(row)?.arquivo_id ? <Link className="button-secondary" href={`/api/portal-associativo/documentos/${latestProof(row)?.arquivo_id}/open`} target="_blank">Ver comprovante</Link> : null}
+                    {canWrite ? <>
+                      <form action={approvePortalComprovante} className="grid gap-2">
+                        <input name="cobranca_id" type="hidden" value={String(row.id)} />
+                        <input name="return_to" type="hidden" value="/portal-associativo/financeiro?status=aguardando_aprovacao" />
+                        <input className="input" name="data_pagamento" type="date" defaultValue={String(latestProof(row)?.data_pagamento_informada ?? "")} />
+                        <button className="button-primary" type="submit">Aprovar pagamento</button>
+                      </form>
+                      <form action={rejectPortalComprovante} className="grid gap-2">
+                        <input name="cobranca_id" type="hidden" value={String(row.id)} />
+                        <input name="return_to" type="hidden" value="/portal-associativo/financeiro?status=aguardando_aprovacao" />
+                        <input className="input" name="motivo_recusa" placeholder="Motivo obrigatório" required />
+                        <button className="button-danger" type="submit">Recusar comprovante</button>
+                      </form>
+                    </> : null}
+                  </div>
+                </details>
               ) : null}
               {canWrite && row.status !== "paga" && row.status !== "cancelada" ? (
                 <details className="w-full rounded-lg border border-border bg-muted/40 p-2 lg:w-auto">
@@ -264,10 +308,22 @@ export default async function PortalFinanceiroPage({
                   </form>
                 </details>
               ) : null}
+              {canWrite && row.status === "cancelada" ? (
+                <form action={reopenPortalCobranca}>
+                  <input name="id" type="hidden" value={String(row.id)} />
+                  <input name="return_to" type="hidden" value="/portal-associativo/financeiro" />
+                  <button className="button-primary" type="submit">Reabrir</button>
+                </form>
+              ) : null}
             </div>
           )}
         />
       </section>
     </PortalAssociativoShell>
   );
+}
+
+function latestProof(row: Record<string, unknown>) {
+  const proofs = Array.isArray(row.assoc_comprovantes_pagamento) ? row.assoc_comprovantes_pagamento as Array<Record<string, unknown>> : [];
+  return [...proofs].sort((a, b) => String(b.enviado_em ?? "").localeCompare(String(a.enviado_em ?? "")))[0];
 }

@@ -10,17 +10,19 @@ export async function savePortalPessoa(formData: FormData) {
   const context = await requirePortalWrite("pessoas", "/portal-associativo/pessoas");
   const id = textValue(formData, "id");
   const nome = textValue(formData, "nome_completo");
-  const returnTo = "/portal-associativo/pessoas";
+  const returnTo = textValue(formData, "return_to") || "/portal-associativo/pessoas";
 
   if (!nome) {
     redirectWithError(returnTo, "Informe o nome da pessoa.");
   }
 
+  const telefone = normalizePhone(nullableTextValue(formData, "telefone"));
+  const whatsapp = normalizePhone(nullableTextValue(formData, "whatsapp"));
   await assertNoDuplicatePessoa(context.client, context.empresaId, id, {
     cpf_cnpj: nullableTextValue(formData, "cpf_cnpj"),
     email: nullableTextValue(formData, "email"),
-    telefone: nullableTextValue(formData, "telefone"),
-    whatsapp: nullableTextValue(formData, "whatsapp")
+    telefone,
+    whatsapp
   });
 
   const payload = {
@@ -30,9 +32,11 @@ export async function savePortalPessoa(formData: FormData) {
     tipo_pessoa: textValue(formData, "tipo_pessoa") || "fisica",
     cpf_cnpj: nullableTextValue(formData, "cpf_cnpj"),
     rg_ie: nullableTextValue(formData, "rg_ie"),
-    telefone: nullableTextValue(formData, "telefone"),
-    whatsapp: nullableTextValue(formData, "whatsapp"),
+    data_nascimento: dateValue(formData, "data_nascimento"),
+    telefone,
+    whatsapp,
     email: nullableTextValue(formData, "email")?.toLowerCase() ?? null,
+    endereco: nullableTextValue(formData, "endereco") ?? nullableTextValue(formData, "endereco_residencial"),
     endereco_residencial: nullableTextValue(formData, "endereco_residencial"),
     cidade: nullableTextValue(formData, "cidade"),
     uf: nullableTextValue(formData, "uf"),
@@ -75,16 +79,58 @@ export async function savePortalPessoa(formData: FormData) {
 export async function inactivatePortalPessoa(formData: FormData) {
   const context = await requirePortalWrite("pessoas", "/portal-associativo/pessoas");
   const id = textValue(formData, "id");
+  const returnTo = textValue(formData, "return_to") || "/portal-associativo/pessoas";
   const { error } = await context.client
     .from("assoc_pessoas")
     .update({ status_pessoa: "inativa", atualizado_em: new Date().toISOString() })
     .eq("id", id)
     .eq("empresa_id", context.empresaId);
 
-  if (error) redirectWithError("/portal-associativo/pessoas", error.message);
+  if (error) redirectWithError(returnTo, error.message);
   await recordPortalAudit(context, "inativar_pessoa", "assoc_pessoas", id);
+  revalidatePortal(returnTo);
+  redirectWithOk(returnTo, "Pessoa inativada.");
+}
+
+export async function reactivatePortalPessoa(formData: FormData) {
+  const context = await requirePortalWrite("pessoas", "/portal-associativo/pessoas");
+  const id = textValue(formData, "id");
+  const returnTo = textValue(formData, "return_to") || "/portal-associativo/pessoas";
+  const { error } = await context.client
+    .from("assoc_pessoas")
+    .update({ status_pessoa: "ativa", atualizado_em: new Date().toISOString() })
+    .eq("id", id)
+    .eq("empresa_id", context.empresaId);
+
+  if (error) redirectWithError(returnTo, error.message);
+  await recordPortalAudit(context, "reativar_pessoa", "assoc_pessoas", id);
+  revalidatePortal(returnTo);
+  redirectWithOk(returnTo, "Pessoa reativada.");
+}
+
+export async function deletePortalPessoa(formData: FormData) {
+  const context = await requirePortalWrite("pessoas", "/portal-associativo/pessoas");
+  const id = textValue(formData, "id");
+  const returnTo = textValue(formData, "return_to") || "/portal-associativo/pessoas";
+  const confirmacao = textValue(formData, "confirmacao");
+  if (confirmacao !== "EXCLUIR") {
+    redirectWithError(returnTo, "Digite EXCLUIR para confirmar a exclusão.");
+  }
+
+  const [vinculos, cobrancas, arquivos] = await Promise.all([
+    countByEmpresa(context.client, "assoc_vinculos_unidade_pessoa", context.empresaId, { pessoa_id: id }),
+    countByEmpresa(context.client, "assoc_cobrancas", context.empresaId, { pessoa_responsavel_id: id }),
+    countByEmpresa(context.client, "assoc_arquivos", context.empresaId, { pessoa_id: id })
+  ]);
+  if (vinculos + cobrancas + arquivos > 0) {
+    redirectWithError(returnTo, "Não é possível excluir pessoa com vínculo, cobrança ou documento. Inative o cadastro.");
+  }
+
+  const { error } = await context.client.from("assoc_pessoas").delete().eq("id", id).eq("empresa_id", context.empresaId);
+  if (error) redirectWithError(returnTo, error.message);
+  await recordPortalAudit(context, "excluir_pessoa", "assoc_pessoas", id);
   revalidatePortal("/portal-associativo/pessoas");
-  redirectWithOk("/portal-associativo/pessoas", "Pessoa inativada.");
+  redirectWithOk("/portal-associativo/pessoas", "Pessoa excluída.");
 }
 
 export async function savePortalLoteamento(formData: FormData) {
@@ -148,7 +194,7 @@ export async function savePortalUnidade(formData: FormData) {
   const id = textValue(formData, "id");
   const codigo = textValue(formData, "codigo_unidade");
   const numero = textValue(formData, "numero_unidade");
-  const returnTo = "/portal-associativo/unidades";
+  const returnTo = textValue(formData, "return_to") || "/portal-associativo/unidades";
 
   if (!codigo || !numero) {
     redirectWithError(returnTo, "Informe codigo e numero da chacara/lote.");
@@ -159,6 +205,7 @@ export async function savePortalUnidade(formData: FormData) {
   if (loteamentoId) {
     await assertRecordBelongsToEmpresa(context, "assoc_loteamentos", loteamentoId, returnTo, "Loteamento invalido para esta empresa.");
   }
+  await assertNoDuplicateUnidade(context.client, empresaId, id, codigo, numero, loteamentoId, returnTo);
 
   const payload = {
     empresa_id: empresaId,
@@ -200,16 +247,59 @@ export async function savePortalUnidade(formData: FormData) {
 export async function inactivatePortalUnidade(formData: FormData) {
   const context = await requirePortalWrite("unidades", "/portal-associativo/unidades");
   const id = textValue(formData, "id");
+  const returnTo = textValue(formData, "return_to") || "/portal-associativo/unidades";
   const { error } = await context.client
     .from("assoc_unidades")
     .update({ status_unidade: "inativa", atualizado_em: new Date().toISOString() })
     .eq("id", id)
     .eq("empresa_id", context.empresaId);
 
-  if (error) redirectWithError("/portal-associativo/unidades", error.message);
+  if (error) redirectWithError(returnTo, error.message);
   await recordPortalAudit(context, "inativar_unidade", "assoc_unidades", id);
+  revalidatePortal(returnTo);
+  redirectWithOk(returnTo, "Unidade inativada.");
+}
+
+export async function reactivatePortalUnidade(formData: FormData) {
+  const context = await requirePortalWrite("unidades", "/portal-associativo/unidades");
+  const id = textValue(formData, "id");
+  const returnTo = textValue(formData, "return_to") || "/portal-associativo/unidades";
+  const { error } = await context.client
+    .from("assoc_unidades")
+    .update({ status_unidade: "ativa", atualizado_em: new Date().toISOString() })
+    .eq("id", id)
+    .eq("empresa_id", context.empresaId);
+
+  if (error) redirectWithError(returnTo, error.message);
+  await recordPortalAudit(context, "reativar_unidade", "assoc_unidades", id);
+  revalidatePortal(returnTo);
+  redirectWithOk(returnTo, "Unidade reativada.");
+}
+
+export async function deletePortalUnidade(formData: FormData) {
+  const context = await requirePortalWrite("unidades", "/portal-associativo/unidades");
+  const id = textValue(formData, "id");
+  const returnTo = textValue(formData, "return_to") || "/portal-associativo/unidades";
+  const confirmacao = textValue(formData, "confirmacao");
+  if (confirmacao !== "EXCLUIR") {
+    redirectWithError(returnTo, "Digite EXCLUIR para confirmar a exclusão.");
+  }
+
+  const [vinculos, cobrancas, arquivos, transferencias] = await Promise.all([
+    countByEmpresa(context.client, "assoc_vinculos_unidade_pessoa", context.empresaId, { unidade_id: id }),
+    countByEmpresa(context.client, "assoc_cobrancas", context.empresaId, { unidade_id: id }),
+    countByEmpresa(context.client, "assoc_arquivos", context.empresaId, { unidade_id: id }),
+    countByEmpresa(context.client, "assoc_transferencias", context.empresaId, { unidade_id: id })
+  ]);
+  if (vinculos + cobrancas + arquivos + transferencias > 0) {
+    redirectWithError(returnTo, "Não é possível excluir unidade com vínculo, cobrança, documento ou transferência. Inative a unidade.");
+  }
+
+  const { error } = await context.client.from("assoc_unidades").delete().eq("id", id).eq("empresa_id", context.empresaId);
+  if (error) redirectWithError(returnTo, error.message);
+  await recordPortalAudit(context, "excluir_unidade", "assoc_unidades", id);
   revalidatePortal("/portal-associativo/unidades");
-  redirectWithOk("/portal-associativo/unidades", "Chacara/lote inativado.");
+  redirectWithOk("/portal-associativo/unidades", "Unidade excluída.");
 }
 
 export async function savePortalTransferencia(formData: FormData) {
@@ -278,7 +368,7 @@ export async function savePortalTransferencia(formData: FormData) {
 
 export async function savePortalCobranca(formData: FormData) {
   const context = await requirePortalWrite("financeiro", "/portal-associativo/financeiro");
-  const returnTo = "/portal-associativo/financeiro";
+  const returnTo = textValue(formData, "return_to") || "/portal-associativo/financeiro";
   const id = textValue(formData, "id");
   const unidadeId = textValue(formData, "unidade_id");
   const dataVencimento = dateValue(formData, "data_vencimento");
@@ -290,6 +380,20 @@ export async function savePortalCobranca(formData: FormData) {
 
   const unidade = await resolvePortalUnidade(context, unidadeId, returnTo);
   const dueDate = new Date(String(dataVencimento));
+  if (id) {
+    const current = await context.client
+      .from("assoc_cobrancas")
+      .select("id,status")
+      .eq("id", id)
+      .eq("empresa_id", context.empresaId)
+      .maybeSingle();
+    if (current.error || !current.data?.id) {
+      redirectWithError(returnTo, current.error?.message ?? "Cobrança não encontrada.");
+    }
+    if (String(current.data.status) === "cancelada" && textValue(formData, "status") !== "cancelada") {
+      redirectWithError(returnTo, "Reabra a cobrança cancelada antes de editá-la.");
+    }
+  }
   const payload = {
     empresa_id: requireEmpresaId(context.empresaId, returnTo),
     loteamento_id: nullableRecordId(unidade.loteamento_id),
@@ -331,6 +435,18 @@ export async function baixarPortalCobranca(formData: FormData) {
   const context = await requirePortalWrite("financeiro", "/portal-associativo/financeiro");
   const id = textValue(formData, "id");
   const returnTo = textValue(formData, "return_to") || "/portal-associativo/financeiro";
+  const current = await context.client
+    .from("assoc_cobrancas")
+    .select("id,status")
+    .eq("id", id)
+    .eq("empresa_id", context.empresaId)
+    .maybeSingle();
+  if (current.error || !current.data?.id) {
+    redirectWithError(returnTo, current.error?.message ?? "Cobrança não encontrada.");
+  }
+  if (String(current.data.status) === "cancelada") {
+    redirectWithError(returnTo, "Não é possível baixar cobrança cancelada sem reabrir.");
+  }
   const paidAt = new Date().toISOString();
   const valorPago = nullableNumberValue(formData, "valor_pago");
   const { error } = await context.client
@@ -355,6 +471,93 @@ export async function baixarPortalCobranca(formData: FormData) {
   });
   revalidatePortal(returnTo);
   redirectWithOk(returnTo, "Pagamento baixado manualmente.");
+}
+
+export async function approvePortalComprovante(formData: FormData) {
+  const context = await requirePortalWrite("financeiro", "/portal-associativo/financeiro");
+  const returnTo = textValue(formData, "return_to") || "/portal-associativo/financeiro";
+  const cobrancaId = textValue(formData, "cobranca_id");
+  if (context.perfil !== "administrador" && context.perfil !== "tesoureiro") {
+    redirectWithError(returnTo, "Apenas administrador ou tesoureiro pode aprovar comprovantes.");
+  }
+  const comprovante = await context.client.from("assoc_comprovantes_pagamento")
+    .select("id,comprovante_url,data_pagamento_informada")
+    .eq("empresa_id", context.empresaId)
+    .eq("cobranca_id", cobrancaId)
+    .eq("status", "enviado")
+    .order("enviado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (comprovante.error || !comprovante.data?.id) {
+    redirectWithError(returnTo, comprovante.error?.message ?? "Comprovante pendente não encontrado.");
+  }
+
+  const paidAt = dateValue(formData, "data_pagamento") || comprovante.data.data_pagamento_informada || new Date().toISOString();
+  const analyzedAt = new Date().toISOString();
+  const charge = await context.client.from("assoc_cobrancas").update({
+    status: "paga",
+    forma_pagamento: "pix_manual",
+    data_pagamento: paidAt,
+    comprovante_url: comprovante.data.comprovante_url,
+    comprovante_aprovado_url: comprovante.data.comprovante_url,
+    comprovante_pendente_url: null,
+    motivo_recusa: null,
+    aprovado_por: context.current.usuario.id,
+    aprovado_em: analyzedAt,
+    atualizado_em: analyzedAt
+  }).eq("id", cobrancaId).eq("empresa_id", context.empresaId).eq("status", "aguardando_aprovacao");
+  if (charge.error) redirectWithError(returnTo, charge.error.message);
+
+  const proof = await context.client.from("assoc_comprovantes_pagamento").update({
+    status: "aprovado",
+    motivo_recusa: null,
+    analisado_por: context.current.usuario.id,
+    analisado_em: analyzedAt,
+    atualizado_em: analyzedAt
+  }).eq("id", comprovante.data.id).eq("empresa_id", context.empresaId).eq("status", "enviado");
+  if (proof.error) redirectWithError(returnTo, proof.error.message);
+  await recordPortalAudit(context, "aprovar_comprovante", "assoc_cobrancas", cobrancaId, { comprovante_id: comprovante.data.id, data_pagamento: paidAt });
+  revalidatePortal(returnTo);
+  revalidatePath("/portal-associativo/painel-associado");
+  redirectWithOk(returnTo, "Pagamento aprovado. O recibo já está disponível.");
+}
+
+export async function rejectPortalComprovante(formData: FormData) {
+  const context = await requirePortalWrite("financeiro", "/portal-associativo/financeiro");
+  const returnTo = textValue(formData, "return_to") || "/portal-associativo/financeiro";
+  const cobrancaId = textValue(formData, "cobranca_id");
+  const motivo = textValue(formData, "motivo_recusa");
+  if (context.perfil !== "administrador" && context.perfil !== "tesoureiro") {
+    redirectWithError(returnTo, "Apenas administrador ou tesoureiro pode recusar comprovantes.");
+  }
+  if (!motivo) redirectWithError(returnTo, "Informe o motivo da recusa.");
+  const comprovante = await context.client.from("assoc_comprovantes_pagamento").select("id")
+    .eq("empresa_id", context.empresaId).eq("cobranca_id", cobrancaId).eq("status", "enviado")
+    .order("enviado_em", { ascending: false }).limit(1).maybeSingle();
+  if (comprovante.error || !comprovante.data?.id) redirectWithError(returnTo, comprovante.error?.message ?? "Comprovante pendente não encontrado.");
+
+  const charge = await context.client.from("assoc_cobrancas").select("data_vencimento")
+    .eq("id", cobrancaId).eq("empresa_id", context.empresaId).maybeSingle();
+  if (charge.error || !charge.data?.data_vencimento) redirectWithError(returnTo, charge.error?.message ?? "Cobrança não encontrada.");
+  const nextStatus = new Date(`${charge.data.data_vencimento}T23:59:59`) < new Date() ? "vencida" : "aberta";
+  const analyzedAt = new Date().toISOString();
+  const updateCharge = await context.client.from("assoc_cobrancas").update({
+    status: nextStatus,
+    motivo_recusa: motivo,
+    comprovante_pendente_url: null,
+    recusado_por: context.current.usuario.id,
+    recusado_em: analyzedAt,
+    atualizado_em: analyzedAt
+  }).eq("id", cobrancaId).eq("empresa_id", context.empresaId).eq("status", "aguardando_aprovacao");
+  if (updateCharge.error) redirectWithError(returnTo, updateCharge.error.message);
+  const proof = await context.client.from("assoc_comprovantes_pagamento").update({
+    status: "recusado", motivo_recusa: motivo, analisado_por: context.current.usuario.id, analisado_em: analyzedAt, atualizado_em: analyzedAt
+  }).eq("id", comprovante.data.id).eq("empresa_id", context.empresaId).eq("status", "enviado");
+  if (proof.error) redirectWithError(returnTo, proof.error.message);
+  await recordPortalAudit(context, "recusar_comprovante", "assoc_cobrancas", cobrancaId, { comprovante_id: comprovante.data.id, motivo });
+  revalidatePortal(returnTo);
+  revalidatePath("/portal-associativo/painel-associado");
+  redirectWithOk(returnTo, "Comprovante recusado e cobrança reaberta.");
 }
 
 export async function cancelPortalCobranca(formData: FormData) {
@@ -402,6 +605,32 @@ export async function cancelPortalCobranca(formData: FormData) {
   });
   revalidatePortal(returnTo);
   redirectWithOk(returnTo, "Mensalidade cancelada.");
+}
+
+export async function reopenPortalCobranca(formData: FormData) {
+  const context = await requirePortalWrite("financeiro", "/portal-associativo/financeiro");
+  const id = textValue(formData, "id");
+  const returnTo = textValue(formData, "return_to") || "/portal-associativo/financeiro";
+  if (context.perfil !== "administrador" && context.perfil !== "tesoureiro") {
+    redirectWithError(returnTo, "Apenas administrador ou tesoureiro pode reabrir cobrança.");
+  }
+  const { error } = await context.client
+    .from("assoc_cobrancas")
+    .update({
+      status: "aberta",
+      motivo_cancelamento: null,
+      cancelado_por: null,
+      cancelado_em: null,
+      atualizado_em: new Date().toISOString()
+    })
+    .eq("id", id)
+    .eq("empresa_id", context.empresaId)
+    .eq("status", "cancelada");
+
+  if (error) redirectWithError(returnTo, error.message);
+  await recordPortalAudit(context, "reabrir_cobranca", "assoc_cobrancas", id);
+  revalidatePortal(returnTo);
+  redirectWithOk(returnTo, "Cobrança reaberta.");
 }
 
 export async function gerarPortalMensalidadesLote(formData: FormData) {
@@ -474,11 +703,18 @@ export async function gerarPortalMensalidadesLote(formData: FormData) {
   const rows = [];
   let semValor = 0;
   let isentas = 0;
+  let semResponsavel = 0;
 
   for (const unit of unitsResult.data ?? []) {
     const unitRecord = unit as Record<string, unknown>;
     if (unitRecord.isento_mensalidade === true) {
       isentas += 1;
+      continue;
+    }
+
+    const responsavelId = responsaveis.get(String(unit.id));
+    if (!responsavelId) {
+      semResponsavel += 1;
       continue;
     }
 
@@ -501,7 +737,7 @@ export async function gerarPortalMensalidadesLote(formData: FormData) {
         empresa_id: empresaId,
         loteamento_id: nullableRecordId(unitRecord.loteamento_id),
         unidade_id: unit.id,
-        pessoa_responsavel_id: responsaveis.get(String(unit.id)) ?? null,
+        pessoa_responsavel_id: responsavelId,
         tipo_cobranca: "mensalidade",
         descricao,
         mes_referencia: item.month,
@@ -516,14 +752,14 @@ export async function gerarPortalMensalidadesLote(formData: FormData) {
   }
 
   if (rows.length === 0) {
-    redirectWithOk(returnTo, buildMensalidadeMessage(0, semValor, isentas));
+    redirectWithOk(returnTo, buildMensalidadeMessage(0, semValor, isentas, semResponsavel));
   }
 
   const { error } = await context.client.from("assoc_cobrancas").insert(rows);
   if (error) redirectWithError(returnTo, error.message);
-  await recordPortalAudit(context, "gerar_mensalidades_lote", "assoc_cobrancas", null, { quantidade: rows.length, loteamento_id: loteamentoId });
+  await recordPortalAudit(context, "gerar_mensalidades_lote", "assoc_cobrancas", null, { quantidade: rows.length, loteamento_id: loteamentoId, sem_responsavel: semResponsavel });
   revalidatePortal(returnTo);
-  redirectWithOk(returnTo, buildMensalidadeMessage(rows.length, semValor, isentas));
+  redirectWithOk(returnTo, buildMensalidadeMessage(rows.length, semValor, isentas, semResponsavel));
 }
 
 export async function savePortalReuniao(formData: FormData) {
@@ -578,6 +814,8 @@ export async function savePortalProjeto(formData: FormData) {
     status: textValue(formData, "status") || "planejado",
     valor_previsto: numberValue(formData, "valor_previsto"),
     valor_arrecadado: numberValue(formData, "valor_arrecadado"),
+    data_inicio: dateValue(formData, "data_inicio"),
+    data_fim: dateValue(formData, "data_fim"),
     liberado_associado: formData.get("liberado_associado") === "true",
     relatorio_url: nullableTextValue(formData, "relatorio_url")
   };
@@ -596,6 +834,9 @@ export async function savePortalConfiguracoes(formData: FormData) {
       logo_url: nullableTextValue(formData, "logo_url"),
       tema_visual: textValue(formData, "tema_visual") || "padrao",
       tipo_unidade_padrao: textValue(formData, "tipo_unidade_padrao") || "propriedade",
+      cidade: nullableTextValue(formData, "cidade"),
+      uf: nullableTextValue(formData, "uf"),
+      responsavel_nome: nullableTextValue(formData, "responsavel_nome"),
       valor_mensalidade_padrao: numberValue(formData, "valor_mensalidade_padrao"),
       vencimento_padrao: Number(textValue(formData, "vencimento_padrao") || 10),
       descricao_mensalidade_padrao: textValue(formData, "descricao_mensalidade_padrao") || "Mensalidade",
@@ -603,6 +844,10 @@ export async function savePortalConfiguracoes(formData: FormData) {
       pix_tipo_chave: nullableTextValue(formData, "pix_tipo_chave"),
       recebedor_nome: nullableTextValue(formData, "recebedor_nome"),
       recebedor_cidade: nullableTextValue(formData, "recebedor_cidade"),
+      instrucoes_pagamento: nullableTextValue(formData, "instrucoes_pagamento"),
+      instrucoes_pagamento_pix: nullableTextValue(formData, "instrucoes_pagamento"),
+      qr_code_pix_url: nullableTextValue(formData, "qr_code_pix_url"),
+      usar_pix_manual: formData.get("usar_pix_manual") === "true",
       webhook_url: nullableTextValue(formData, "webhook_url"),
       storage_provider_ativo: textValue(formData, "storage_provider_ativo") || "nenhum",
       assinatura_entidade: nullableTextValue(formData, "assinatura_entidade"),
@@ -642,6 +887,213 @@ export async function savePortalConfiguracoesPagamento(formData: FormData) {
   await recordPortalAudit(context, "atualizar_configuracoes_pagamento", "assoc_configuracoes_pagamento", null);
   revalidatePortal("/portal-associativo/configuracoes");
   redirectWithOk("/portal-associativo/configuracoes", "Configuracoes de pagamento salvas.");
+}
+
+export async function savePortalArquivoManual(formData: FormData) {
+  const context = await requirePortalWrite("documentos", "/portal-associativo/documentos");
+  const empresaId = requireEmpresaId(context.empresaId, "/portal-associativo/documentos");
+  const sharedUrl = textValue(formData, "shared_url");
+  const fileName = textValue(formData, "file_name");
+  const returnTo = textValue(formData, "return_to") || "/portal-associativo/documentos";
+  if (!sharedUrl || !fileName) {
+    redirectWithError(returnTo, "Informe o nome e o link do documento.");
+  }
+
+  const links = {
+    pessoa_id: nullableTextValue(formData, "pessoa_id"),
+    unidade_id: nullableTextValue(formData, "unidade_id"),
+    cobranca_id: nullableTextValue(formData, "cobranca_id"),
+    reuniao_id: nullableTextValue(formData, "reuniao_id"),
+    projeto_id: nullableTextValue(formData, "projeto_id"),
+    transferencia_id: nullableTextValue(formData, "transferencia_id")
+  };
+  await assertRecordBelongsToEmpresa(context, "assoc_pessoas", links.pessoa_id ?? "", returnTo, "Pessoa inválida para esta empresa.");
+  await assertRecordBelongsToEmpresa(context, "assoc_unidades", links.unidade_id ?? "", returnTo, "Unidade inválida para esta empresa.");
+  await assertRecordBelongsToEmpresa(context, "assoc_cobrancas", links.cobranca_id ?? "", returnTo, "Cobrança inválida para esta empresa.");
+  await assertRecordBelongsToEmpresa(context, "assoc_reunioes", links.reuniao_id ?? "", returnTo, "Reunião inválida para esta empresa.");
+  await assertRecordBelongsToEmpresa(context, "assoc_projetos", links.projeto_id ?? "", returnTo, "Projeto inválido para esta empresa.");
+  await assertRecordBelongsToEmpresa(context, "assoc_transferencias", links.transferencia_id ?? "", returnTo, "Transferência inválida para esta empresa.");
+
+  const liberado = formData.get("liberado_associado") === "true";
+  const result = await context.client.from("assoc_arquivos").insert({
+    empresa_id: empresaId,
+    ...links,
+    provedor: "manual",
+    file_name: fileName,
+    mime_type: nullableTextValue(formData, "mime_type") || "text/uri-list",
+    size: null,
+    path: sharedUrl,
+    shared_url: sharedUrl,
+    visibility: liberado ? "liberado_associado" : "interno",
+    liberado_associado: liberado,
+    categoria: textValue(formData, "categoria") || "outro",
+    descricao: nullableTextValue(formData, "descricao"),
+    criado_por: context.current.usuario.id,
+    atualizado_por: context.current.usuario.id
+  }).select("id").single();
+
+  if (result.error) redirectWithError(returnTo, result.error.message);
+  await recordPortalAudit(context, "enviar_documento", "assoc_arquivos", String(result.data?.id ?? ""), { provedor: "manual", fileName });
+  revalidatePortal(returnTo);
+  revalidatePath("/portal-associativo/painel-associado");
+  redirectWithOk(returnTo, "Documento manual cadastrado.");
+}
+
+export async function importPortalCsv(formData: FormData) {
+  const context = await requirePortalWrite("importacao", "/portal-associativo/importacao");
+  const empresaId = requireEmpresaId(context.empresaId, "/portal-associativo/importacao");
+  const tipo = textValue(formData, "tipo");
+  const file = formData.get("arquivo");
+  const returnTo = "/portal-associativo/importacao";
+  if (!["pessoas", "unidades", "cobrancas"].includes(tipo)) {
+    redirectWithError(returnTo, "Selecione o tipo de importação.");
+  }
+  if (!(file instanceof File) || file.size === 0) {
+    redirectWithError(returnTo, "Selecione um arquivo CSV.");
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    redirectWithError(returnTo, "Arquivo acima do limite de 5 MB.");
+  }
+
+  const parsed = parsePortalCsv(await file.text());
+  if (parsed.rows.length === 0) {
+    redirectWithError(returnTo, "CSV sem linhas para importar.");
+  }
+
+  const errors: Array<{ linha: number; campo?: string; mensagem: string; dados_linha: Record<string, string> }> = [];
+  const payloads: Array<Record<string, unknown>> = [];
+
+  if (tipo === "pessoas") {
+    const existing = await context.client.from("assoc_pessoas").select("cpf_cnpj,email,whatsapp").eq("empresa_id", empresaId).limit(5000);
+    const cpfSet = new Set(((existing.data ?? []) as Array<Record<string, unknown>>).map((row) => clean(row.cpf_cnpj)).filter(Boolean));
+    const emailSet = new Set(((existing.data ?? []) as Array<Record<string, unknown>>).map((row) => String(row.email ?? "").toLowerCase()).filter(Boolean));
+    const whatsappSet = new Set(((existing.data ?? []) as Array<Record<string, unknown>>).map((row) => clean(row.whatsapp)).filter(Boolean));
+
+    parsed.rows.forEach((row, index) => {
+      const line = index + 2;
+      const nome = row.nome_completo || row.nome;
+      const cpf = clean(row.cpf_cnpj || row.cpf || row.cnpj);
+      const email = String(row.email ?? "").trim().toLowerCase();
+      const whatsapp = normalizePhone(row.whatsapp);
+      if (!nome) errors.push({ linha: line, campo: "nome_completo", mensagem: "Nome obrigatório.", dados_linha: row });
+      if (cpf && cpfSet.has(cpf)) errors.push({ linha: line, campo: "cpf_cnpj", mensagem: "CPF/CNPJ duplicado.", dados_linha: row });
+      if (email && emailSet.has(email)) errors.push({ linha: line, campo: "email", mensagem: "E-mail duplicado.", dados_linha: row });
+      if (whatsapp && whatsappSet.has(whatsapp)) errors.push({ linha: line, campo: "whatsapp", mensagem: "WhatsApp duplicado.", dados_linha: row });
+      if (nome) {
+        payloads.push({
+          empresa_id: empresaId,
+          nome_completo: nome,
+          cpf_cnpj: cpf || null,
+          telefone: normalizePhone(row.telefone),
+          whatsapp,
+          email: email || null,
+          endereco: row.endereco || null,
+          endereco_residencial: row.endereco || null,
+          cidade: row.cidade || null,
+          uf: row.uf || null,
+          status_pessoa: row.status || "ativa",
+          observacoes: row.observacoes || null
+        });
+      }
+    });
+  }
+
+  if (tipo === "unidades") {
+    const existing = await context.client.from("assoc_unidades").select("codigo_unidade,numero_unidade,loteamento_id").eq("empresa_id", empresaId).limit(5000);
+    const unitSet = new Set(((existing.data ?? []) as Array<Record<string, unknown>>).map((row) => `${row.loteamento_id ?? ""}|${row.codigo_unidade}|${row.numero_unidade}`));
+
+    parsed.rows.forEach((row, index) => {
+      const line = index + 2;
+      const codigo = row.codigo_unidade || row.codigo;
+      const numero = row.numero_unidade || row.numero;
+      const key = `|${codigo}|${numero}`;
+      if (!codigo) errors.push({ linha: line, campo: "codigo_unidade", mensagem: "Código obrigatório.", dados_linha: row });
+      if (!numero) errors.push({ linha: line, campo: "numero_unidade", mensagem: "Número obrigatório.", dados_linha: row });
+      if (codigo && numero && unitSet.has(key)) errors.push({ linha: line, campo: "codigo_unidade", mensagem: "Unidade duplicada.", dados_linha: row });
+      if (codigo && numero) {
+        payloads.push({
+          empresa_id: empresaId,
+          codigo_unidade: codigo,
+          numero_unidade: numero,
+          quadra_setor: row.quadra_setor || row.quadra || row.setor || null,
+          tipo_unidade: row.tipo || row.tipo_unidade || "propriedade",
+          area_m2: parseOptionalNumber(row.area || row.area_m2),
+          endereco_localizacao: row.localizacao || row.endereco || null,
+          status_unidade: row.status || "ativa",
+          observacoes: row.observacoes || null
+        });
+      }
+    });
+  }
+
+  if (tipo === "cobrancas") {
+    const [units, people] = await Promise.all([
+      context.client.from("assoc_unidades").select("id,loteamento_id,codigo_unidade,numero_unidade").eq("empresa_id", empresaId).limit(5000),
+      context.client.from("assoc_pessoas").select("id,nome_completo").eq("empresa_id", empresaId).limit(5000)
+    ]);
+    const unitByKey = new Map(((units.data ?? []) as Array<Record<string, unknown>>).map((row) => [`${row.codigo_unidade}|${row.numero_unidade}`, row]));
+    const personByName = new Map(((people.data ?? []) as Array<Record<string, unknown>>).map((row) => [String(row.nome_completo ?? "").trim().toLowerCase(), row.id]));
+
+    parsed.rows.forEach((row, index) => {
+      const line = index + 2;
+      const codigo = row.codigo_unidade || row.codigo || row.unidade_codigo;
+      const numero = row.numero_unidade || row.numero || row.unidade_numero;
+      const unidade = unitByKey.get(`${codigo}|${numero}`);
+      const valor = parseOptionalNumber(row.valor || row.valor_original);
+      const vencimento = row.vencimento || row.data_vencimento;
+      if (!unidade) errors.push({ linha: line, campo: "unidade", mensagem: "Unidade não encontrada pelo código/número.", dados_linha: row });
+      if (!vencimento) errors.push({ linha: line, campo: "data_vencimento", mensagem: "Vencimento obrigatório.", dados_linha: row });
+      if (!valor || valor <= 0) errors.push({ linha: line, campo: "valor", mensagem: "Valor inválido.", dados_linha: row });
+      if (unidade && vencimento && valor && valor > 0) {
+        const dueDate = new Date(vencimento);
+        payloads.push({
+          empresa_id: empresaId,
+          loteamento_id: unidade.loteamento_id ?? null,
+          unidade_id: unidade.id,
+          pessoa_responsavel_id: row.responsavel ? personByName.get(String(row.responsavel).trim().toLowerCase()) ?? null : null,
+          tipo_cobranca: row.tipo || "mensalidade",
+          descricao: row.descricao || "Mensalidade",
+          mes_referencia: Number(row.mes || row.mes_referencia || dueDate.getMonth() + 1),
+          ano_referencia: Number(row.ano || row.ano_referencia || dueDate.getFullYear()),
+          data_vencimento: vencimento,
+          valor_original: valor,
+          valor_total: valor,
+          status: row.status || "aberta",
+          pix_gateway: "manual"
+        });
+      }
+    });
+  }
+
+  const importacao = await context.client.from("assoc_importacoes").insert({
+    empresa_id: empresaId,
+    tipo,
+    status: errors.length ? "erro" : "processada",
+    total_linhas: parsed.rows.length,
+    linhas_importadas: errors.length ? 0 : payloads.length,
+    erros: errors,
+    criado_por: context.current.usuario.id
+  }).select("id").single();
+
+  if (importacao.error) redirectWithError(returnTo, importacao.error.message);
+  if (errors.length) {
+    await context.client.from("assoc_importacao_erros").insert(errors.slice(0, 300).map((error) => ({
+      empresa_id: empresaId,
+      importacao_id: importacao.data.id,
+      linha: error.linha,
+      campo: error.campo ?? null,
+      mensagem: error.mensagem,
+      dados_linha: error.dados_linha
+    })));
+    redirectWithError(returnTo, `Importação validada com ${errors.length} erro(s). Nenhuma linha foi salva.`);
+  }
+
+  const table = tipo === "pessoas" ? "assoc_pessoas" : tipo === "unidades" ? "assoc_unidades" : "assoc_cobrancas";
+  const result = payloads.length ? await context.client.from(table).insert(payloads) : { error: null };
+  if (result.error) redirectWithError(returnTo, result.error.message);
+  await recordPortalAudit(context, "importar_dados", table, String(importacao.data.id), { tipo, linhas: payloads.length });
+  revalidatePortal(returnTo);
+  redirectWithOk(returnTo, `${payloads.length} linha(s) importada(s).`);
 }
 
 export async function togglePortalArquivoLiberado(formData: FormData) {
@@ -783,6 +1235,42 @@ async function assertNoDuplicatePessoa(
   if (duplicate) {
     redirectWithError("/portal-associativo/pessoas", `Cadastro possivelmente duplicado: ${duplicate.nome_completo}.`);
   }
+}
+
+async function assertNoDuplicateUnidade(
+  client: any,
+  empresaId: string,
+  currentId: string,
+  codigo: string,
+  numero: string,
+  loteamentoId: string | null,
+  returnTo: string
+) {
+  let query = client
+    .from("assoc_unidades")
+    .select("id,codigo_unidade,numero_unidade,loteamento_id")
+    .eq("empresa_id", empresaId)
+    .eq("codigo_unidade", codigo)
+    .eq("numero_unidade", numero)
+    .limit(10);
+
+  query = loteamentoId ? query.eq("loteamento_id", loteamentoId) : query.is("loteamento_id", null);
+  const { data, error } = await query;
+  if (error) redirectWithError(returnTo, error.message);
+  const duplicate = ((data ?? []) as Array<Record<string, unknown>>).find((row) => String(row.id) !== currentId);
+  if (duplicate) {
+    redirectWithError(returnTo, "Já existe unidade com este código e número nesta empresa.");
+  }
+}
+
+async function countByEmpresa(client: any, table: string, empresaId: string | null, filters: Record<string, unknown>) {
+  if (!empresaId) return 0;
+  let query = client.from(table).select("id", { count: "exact", head: true }).eq("empresa_id", empresaId);
+  for (const [key, value] of Object.entries(filters)) {
+    query = query.eq(key, value);
+  }
+  const { count } = await query;
+  return count ?? 0;
 }
 
 async function upsertActiveVinculo(context: Awaited<ReturnType<typeof getPortalContext>>, unidadeId: string, tipo: string, pessoaId: string) {
@@ -928,10 +1416,11 @@ function buildDueDate(year: number, month: number, day: number) {
   return `${year}-${String(month).padStart(2, "0")}-${String(dueDay).padStart(2, "0")}`;
 }
 
-function buildMensalidadeMessage(geradas: number, semValor: number, isentas: number) {
+function buildMensalidadeMessage(geradas: number, semValor: number, isentas: number, semResponsavel = 0) {
   const detalhes = [
     semValor ? `${semValor} chacara(s)/lote(s) sem valor configurado` : "",
-    isentas ? `${isentas} isenta(s)` : ""
+    isentas ? `${isentas} isenta(s)` : "",
+    semResponsavel ? `${semResponsavel} sem responsavel financeiro` : ""
   ].filter(Boolean);
   const base = geradas > 0 ? `${geradas} mensalidade(s) gerada(s).` : "Nenhuma nova mensalidade para gerar.";
   return detalhes.length ? `${base} ${detalhes.join(". ")}.` : base;
@@ -949,6 +1438,71 @@ function relationObject(value: unknown) {
 
 function clean(value: unknown) {
   return String(value ?? "").replace(/\D/g, "");
+}
+
+function normalizePhone(value: string | null) {
+  const digits = clean(value);
+  return digits || null;
+}
+
+function parsePortalCsv(content: string) {
+  const lines = content.replace(/^\uFEFF/, "").split(/\r?\n/).filter((line) => line.trim());
+  if (lines.length <= 1) return { headers: [] as string[], rows: [] as Array<Record<string, string>> };
+  const separator = lines[0].includes(";") ? ";" : ",";
+  const headers = splitCsvLine(lines[0], separator).map(normalizeHeader);
+  const rows = lines.slice(1).map((line) => {
+    const values = splitCsvLine(line, separator);
+    return headers.reduce<Record<string, string>>((row, header, index) => {
+      row[header] = String(values[index] ?? "").trim();
+      return row;
+    }, {});
+  });
+  return { headers, rows };
+}
+
+function splitCsvLine(line: string, separator: string) {
+  const cells: string[] = [];
+  let current = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+    if (char === '"' && quoted && next === '"') {
+      current += '"';
+      index += 1;
+      continue;
+    }
+    if (char === '"') {
+      quoted = !quoted;
+      continue;
+    }
+    if (char === separator && !quoted) {
+      cells.push(current);
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  cells.push(current);
+  return cells;
+}
+
+function normalizeHeader(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function parseOptionalNumber(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const normalized = raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function splitCsv(value: string) {

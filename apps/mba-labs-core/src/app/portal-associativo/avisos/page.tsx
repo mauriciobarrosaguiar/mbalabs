@@ -27,7 +27,7 @@ export default async function PortalAvisosPage({
   return (
     <PortalAssociativoShell activePath="/portal-associativo/avisos" can={(section) => canPortalAccess(data.perfil, section)} companyName={data.companyName} roleLabel={data.perfilLabel} userName={data.current.usuario.nome}>
       <section className="grid gap-6">
-        <PageHeader eyebrow="Portal Associativo" title="Avisos" description="Publique comunicados por prioridade, periodo, perfil, status de cobranca ou unidade." actions={<BackButton href="/portal-associativo" />} />
+        <PageHeader eyebrow="Portal Associativo" title="Avisos" description="Publique comunicados por prioridade, período, perfil, inadimplência ou unidade." actions={<BackButton href="/portal-associativo" />} />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
         {canWrite ? (
@@ -42,31 +42,34 @@ export default async function PortalAvisosPage({
                 </>
               }
             >
-              <FormInput label="Titulo" name="titulo" defaultValue={String(editing?.titulo ?? "")} required />
+              <FormInput label="Título" name="titulo" defaultValue={String(editing?.titulo ?? "")} required />
               <FormSelect
                 label="Prioridade"
                 name="prioridade"
                 defaultValue={String(editing?.prioridade ?? "media")}
-                options={[{ value: "baixa", label: "Baixa" }, { value: "media", label: "Media" }, { value: "alta", label: "Alta" }, { value: "urgente", label: "Urgente" }]}
+                options={[{ value: "baixa", label: "Baixa" }, { value: "media", label: "Média" }, { value: "alta", label: "Alta" }, { value: "urgente", label: "Urgente" }]}
               />
               <FormSelect
-                label="Publico"
+                label="Público"
                 name="publico"
                 defaultValue={String(editing?.publico ?? "todos")}
                 options={[
                   { value: "todos", label: "Todos" },
+                  { value: "associados", label: "Associados" },
+                  { value: "inadimplentes", label: "Inadimplentes" },
+                  { value: "diretoria", label: "Diretoria" },
                   { value: "perfil", label: "Por perfil" },
-                  { value: "status_cobranca", label: "Por status de cobranca" },
+                  { value: "status_cobranca", label: "Por status de cobrança" },
                   { value: "unidade", label: "Por unidade" }
                 ]}
               />
-              <FormInput label="Perfis (separados por virgula)" name="perfis" defaultValue={Array.isArray(editing?.perfis) ? (editing?.perfis as string[]).join(",") : ""} placeholder={PORTAL_PERFIL_OPTIONS.map((item) => item.value).join(", ")} />
-              <FormSelect label="Status de cobranca" name="status_cobranca" defaultValue={String(editing?.status_cobranca ?? "")} options={[{ value: "aberta", label: "Aberta" }, { value: "vencida", label: "Vencida" }, { value: "paga", label: "Paga" }]} />
+              <FormInput label="Perfis (separados por vírgula)" name="perfis" defaultValue={Array.isArray(editing?.perfis) ? (editing?.perfis as string[]).join(",") : ""} placeholder={PORTAL_PERFIL_OPTIONS.map((item) => item.value).join(", ")} />
+              <FormSelect label="Status de cobrança" name="status_cobranca" defaultValue={String(editing?.status_cobranca ?? "")} options={[{ value: "aberta", label: "Aberta" }, { value: "vencida", label: "Vencida" }, { value: "paga", label: "Paga" }]} />
               <FormSelect label="Unidade" name="unidade_id" defaultValue={String(editing?.unidade_id ?? "")} options={unitOptions} />
               <FormInput label="Link do portal" name="link_portal" defaultValue={String(editing?.link_portal ?? "/portal-associativo/painel-associado")} />
-              <FormDateInput label="Visivel de" name="visivel_de" defaultValue={String(editing?.visivel_de ?? "")} />
-              <FormDateInput label="Visivel ate" name="visivel_ate" defaultValue={String(editing?.visivel_ate ?? "")} />
-              <FormSelect label="Status" name="status" defaultValue={String(editing?.status ?? "ativo")} options={[{ value: "ativo", label: "Ativo" }, { value: "inativo", label: "Inativo" }]} />
+              <FormDateInput label="Visível de" name="visivel_de" defaultValue={String(editing?.visivel_de ?? "")} />
+              <FormDateInput label="Visível até" name="visivel_ate" defaultValue={String(editing?.visivel_ate ?? "")} />
+              <FormSelect label="Status" name="status" defaultValue={String(editing?.status ?? "ativo")} options={[{ value: "ativo", label: "Ativo" }, { value: "inativo", label: "Inativo" }, { value: "rascunho", label: "Rascunho" }]} />
               <FormCheckbox label="Mostrar no painel do associado" name="mostrar_painel" defaultChecked={editing?.mostrar_painel !== false} />
               <FormTextarea label="Mensagem" name="mensagem" defaultValue={String(editing?.mensagem ?? "")} />
             </ResourceForm>
@@ -75,12 +78,12 @@ export default async function PortalAvisosPage({
 
         <DataTable
           columns={[
-            { key: "titulo", label: "Titulo" },
+            { key: "titulo", label: "Título" },
             { key: "prioridade", label: "Prioridade" },
-            { key: "publico", label: "Publico" },
+            { key: "publico", label: "Público" },
             { key: "status", label: "Status" },
             { key: "visivel_de", label: "De" },
-            { key: "visivel_ate", label: "Ate" }
+            { key: "visivel_ate", label: "Até" }
           ]}
           rows={(data.rows as Array<Record<string, unknown>>).map((row) => ({ ...row, visivel_de: formatDate(row.visivel_de), visivel_ate: formatDate(row.visivel_ate) }))}
           actions={(row) => (

@@ -47,7 +47,7 @@ export default async function PortalTransferenciasPage({
         <PageHeader
           eyebrow="Portal Associativo"
           title="Transferências"
-          description="Transfira chácaras/lotes mantendo histórico, responsáveis, documento e responsabilidade por débitos."
+          description="Transfira unidades mantendo histórico, responsáveis, documento e responsabilidade por débitos."
           actions={<BackButton href="/portal-associativo" />}
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
@@ -55,7 +55,7 @@ export default async function PortalTransferenciasPage({
         {canWrite ? (
           <form action={savePortalTransferencia}>
             <ResourceForm title="Nova transferência" actions={<SubmitButton>Registrar transferência</SubmitButton>}>
-              <FormSelect label="Chácara/Lote" name="unidade_id" options={unitOptions} required />
+              <FormSelect label="Unidade" name="unidade_id" options={unitOptions} required />
               <FormSelect label="Novo proprietário" name="nova_pessoa_id" options={personOptions} required />
               <FormSelect label="Responsável financeiro" name="responsavel_financeiro_id" options={personOptions} />
               <FormSelect label="Responsável de contato" name="responsavel_contato_id" options={personOptions} />
@@ -63,16 +63,16 @@ export default async function PortalTransferenciasPage({
               <FormSelect
                 label="Débitos anteriores"
                 name="responsabilidade_debitos"
-                defaultValue="novo"
+                defaultValue="novo_responsavel"
                 options={[
-                  { value: "anterior", label: "Responsável anterior" },
-                  { value: "novo", label: "Novo responsável" },
-                  { value: "dividida", label: "Responsabilidade dividida" },
-                  { value: "entidade", label: "Assumido pela entidade" }
+                  { value: "antigo_responsavel", label: "Antigo responsável" },
+                  { value: "novo_responsavel", label: "Novo responsável" },
+                  { value: "dividido", label: "Dividido" },
+                  { value: "quitado", label: "Quitado" }
                 ]}
                 required
               />
-              <FormInput label="Documento da transferência" name="documento_url" placeholder="Caminho no armazenamento" />
+              <FormInput label="Documento da transferência" name="documento_url" placeholder="Link ou caminho no armazenamento" />
               <FormTextarea label="Motivo" name="motivo" />
               <FormTextarea label="Observações" name="observacoes" />
             </ResourceForm>
@@ -82,7 +82,7 @@ export default async function PortalTransferenciasPage({
         <DataTable
           columns={[
             { key: "data_transferencia", label: "Data" },
-            { key: "unidade", label: "Chácara/Lote" },
+            { key: "unidade", label: "Unidade" },
             { key: "pessoa_anterior", label: "Anterior" },
             { key: "nova_pessoa", label: "Novo responsável" },
             { key: "responsabilidade_debitos", label: "Débitos" },

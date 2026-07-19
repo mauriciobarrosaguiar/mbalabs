@@ -29,7 +29,8 @@ export async function GET(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: "Arquivo nao encontrado." }, { status: 404 });
   }
 
-  if (!canPortalAccess(context.perfil, "documentos") && !(await canCurrentUserReadFile(context, arquivo.data as Record<string, unknown>))) {
+  const isFinancialProof = String(arquivo.data.categoria ?? "") === "comprovante" && canPortalAccess(context.perfil, "financeiro");
+  if (!canPortalAccess(context.perfil, "documentos") && !isFinancialProof && !(await canCurrentUserReadFile(context, arquivo.data as Record<string, unknown>))) {
     return NextResponse.json({ error: "Seu perfil nao permite acessar este arquivo." }, { status: 403 });
   }
 

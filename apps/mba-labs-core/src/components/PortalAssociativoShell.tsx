@@ -4,6 +4,8 @@ import {
   ArrowLeft,
   Banknote,
   Bell,
+  ChevronRight,
+  ClipboardCheck,
   ClipboardList,
   FileText,
   FolderOpen,
@@ -12,12 +14,16 @@ import {
   LayoutDashboard,
   LogOut,
   Map as MapIcon,
-  MoreHorizontal,
+  Menu,
   Repeat,
   Settings,
   ShieldCheck,
-  Users
+  Sparkles,
+  Upload,
+  Users,
+  X
 } from "lucide-react";
+import styles from "@/app/portal-associativo/portal-shell.module.css";
 
 type PortalNavItem = {
   href: string;
@@ -28,6 +34,7 @@ type PortalNavItem = {
 
 const navItems: PortalNavItem[] = [
   { href: "/portal-associativo", label: "Dashboard", section: "dashboard", icon: LayoutDashboard },
+  { href: "/portal-associativo/implantacao", label: "Implantação", section: "implantacao", icon: ClipboardCheck },
   { href: "/portal-associativo/loteamentos", label: "Loteamentos", section: "loteamentos", icon: MapIcon },
   { href: "/portal-associativo/pessoas", label: "Associados", section: "pessoas", icon: Users },
   { href: "/portal-associativo/unidades", label: "Chácaras/Lotes", section: "unidades", icon: Home },
@@ -35,6 +42,7 @@ const navItems: PortalNavItem[] = [
   { href: "/portal-associativo/financeiro", label: "Mensalidades", section: "financeiro", icon: Banknote },
   { href: "/portal-associativo/inadimplentes", label: "Inadimplentes", section: "inadimplentes", icon: FileText },
   { href: "/portal-associativo/documentos", label: "Documentos", section: "documentos", icon: FolderOpen },
+  { href: "/portal-associativo/importacao", label: "Importação", section: "importacao", icon: Upload },
   { href: "/portal-associativo/relatorios", label: "Relatórios", section: "relatorios", icon: FileText },
   { href: "/portal-associativo/reunioes", label: "Reuniões", section: "reunioes", icon: ClipboardList },
   { href: "/portal-associativo/avisos", label: "Avisos", section: "avisos", icon: Bell },
@@ -61,74 +69,94 @@ export function PortalAssociativoShell({
   const visibleItems = navItems.filter((item) => can(item.section));
 
   return (
-    <div className="portal-associativo-module min-h-screen bg-background text-foreground">
-      <header className="portal-shell-top sticky top-0 z-20 border-b border-border bg-card/95 px-4 py-3 backdrop-blur">
-        <div className="relative mx-auto flex max-w-7xl items-center gap-4">
-          <Link className="min-w-0 shrink-0" href="/portal-associativo">
-            <div className="text-lg font-bold tracking-tight text-primary sm:text-xl">Portal Associativo</div>
-            <div className="max-w-[12rem] truncate text-xs text-muted-foreground sm:max-w-[16rem]" title={companyName}>
-              {companyName}
-            </div>
-          </Link>
+    <div className={`${styles.root} portal-associativo-module min-h-screen`}>
+      <header className={`${styles.mobileTop} sticky top-0 z-30 flex items-center justify-between px-6 py-5 lg:hidden`}>
+        <details className={styles.mobileMenu}>
+          <summary className={styles.menuTrigger} aria-label="Abrir menu">
+            <Menu className={`${styles.menuOpen} h-6 w-6`} aria-hidden />
+            <X className={`${styles.menuClose} h-6 w-6`} aria-hidden />
+            <span className="sr-only">Abrir menu</span>
+          </summary>
+          <div className={styles.mobileScrim} aria-hidden />
+          <aside className={styles.mobilePanel}>
+            <SidebarContent activePath={activePath} companyName={companyName} items={visibleItems} roleLabel={roleLabel} userName={userName} />
+          </aside>
+        </details>
 
-          <nav className="hidden min-w-0 flex-1 flex-wrap items-center justify-center gap-2 lg:flex" aria-label="Menu principal do Portal Associativo">
-            {visibleItems.map((item) => (
-              <PortalNavLink activePath={activePath} item={item} key={item.href} />
-            ))}
-          </nav>
-
-          <div className="ml-auto hidden shrink-0 items-center gap-3 lg:flex">
-            <div className="max-w-[12rem] text-right">
-              {userName ? <p className="truncate text-sm font-semibold" title={userName}>{userName}</p> : null}
-              {roleLabel ? <p className="truncate text-xs text-muted-foreground" title={roleLabel}>{roleLabel}</p> : null}
-            </div>
-            <Link className="portal-icon-button" href="/dashboard" title="Voltar ao MBA Labs">
-              <ArrowLeft className="h-4 w-4" aria-hidden />
-              <span className="sr-only">Voltar ao MBA Labs</span>
-            </Link>
-            <form action="/sair" method="post">
-              <button className="portal-icon-button" title="Sair" type="submit">
-                <LogOut className="h-4 w-4" aria-hidden />
-                <span className="sr-only">Sair</span>
-              </button>
-            </form>
-          </div>
-
-          <details className="portal-mobile-menu ml-auto lg:hidden">
-            <summary className="portal-menu-trigger" aria-label="Abrir menu">
-              <MoreHorizontal className="h-5 w-5" aria-hidden />
-              <span className="sr-only">Abrir menu</span>
-            </summary>
-            <div className="portal-mobile-panel">
-              <div className="border-b border-border px-3 py-3">
-                {userName ? <p className="truncate text-sm font-semibold" title={userName}>{userName}</p> : null}
-                {roleLabel ? <p className="truncate text-xs text-muted-foreground" title={roleLabel}>{roleLabel}</p> : null}
-              </div>
-              <nav className="grid gap-1 p-2" aria-label="Menu mobile do Portal Associativo">
-                {visibleItems.map((item) => (
-                  <PortalNavLink activePath={activePath} item={item} key={`${item.href}-mobile`} mobile />
-                ))}
-              </nav>
-              <div className="grid gap-2 border-t border-border p-3">
-                <Link className="button-secondary flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold" href="/dashboard">
-                  <ArrowLeft className="h-4 w-4" aria-hidden />
-                  Voltar ao MBA Labs
-                </Link>
-                <form action="/sair" method="post">
-                  <button className="button-secondary flex min-h-10 w-full items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold" type="submit">
-                    <LogOut className="h-4 w-4" aria-hidden />
-                    Sair
-                  </button>
-                </form>
-              </div>
-            </div>
-          </details>
-        </div>
+        <Link className={styles.notificationButton} href="/portal-associativo/avisos" title="Avisos">
+          <Bell className="h-5 w-5" aria-hidden />
+          <span className={styles.notificationDot} aria-hidden />
+          <span className="sr-only">Abrir avisos</span>
+        </Link>
       </header>
 
-      <main className="px-4 py-6 pb-10 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-7xl">{children}</div>
-      </main>
+      <div className="lg:grid lg:min-h-screen lg:grid-cols-[19rem_minmax(0,1fr)]">
+        <aside className={`${styles.sidebar} hidden lg:flex`}>
+          <SidebarContent activePath={activePath} companyName={companyName} items={visibleItems} roleLabel={roleLabel} userName={userName} />
+        </aside>
+
+        <main className="min-w-0 px-6 py-8 pb-12 sm:px-8 lg:px-10 xl:px-12">
+          <div className="mx-auto max-w-7xl">{children}</div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function SidebarContent({
+  activePath,
+  companyName,
+  items,
+  roleLabel,
+  userName
+}: {
+  activePath: string;
+  companyName: string;
+  items: PortalNavItem[];
+  roleLabel?: string;
+  userName?: string;
+}) {
+  const initials = getInitials(userName || companyName);
+
+  return (
+    <div className="flex min-h-full w-full flex-col">
+      <Link className={styles.sidebarBrand} href="/portal-associativo">
+        <span className={styles.brandMark}>
+          <Sparkles className="h-6 w-6" aria-hidden />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-lg font-black leading-tight">Portal Associativo</span>
+          <span className="block truncate text-sm font-semibold opacity-65" title={companyName}>{companyName}</span>
+        </span>
+      </Link>
+
+      <div className={styles.userCard}>
+        <span className={styles.userAvatar}>{initials}</span>
+        <span className="min-w-0">
+          {userName ? <span className="block truncate text-base font-black" title={userName}>{userName}</span> : null}
+          {roleLabel ? <span className="block truncate text-sm font-semibold opacity-65" title={roleLabel}>{roleLabel}</span> : null}
+        </span>
+      </div>
+
+      <div className={styles.navSectionLabel}>Navegação</div>
+      <nav className="grid gap-1.5" aria-label="Menu do Portal Associativo">
+        {items.map((item) => (
+          <PortalNavLink activePath={activePath} item={item} key={item.href} />
+        ))}
+      </nav>
+
+      <div className="mt-auto grid gap-3 pt-6">
+        <Link className={styles.sidebarAction} href="/dashboard">
+          <ArrowLeft className="h-5 w-5" aria-hidden />
+          Voltar ao MBA Labs
+        </Link>
+        <form action="/sair" method="post">
+          <button className={`${styles.sidebarAction} ${styles.sidebarActionGhost} w-full`} type="submit">
+            <LogOut className="h-5 w-5" aria-hidden />
+            Sair
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -136,36 +164,31 @@ export function PortalAssociativoShell({
 function PortalNavLink({
   item,
   activePath,
-  mobile = false
 }: {
   item: PortalNavItem;
   activePath: string;
-  mobile?: boolean;
 }) {
   const Icon = item.icon;
   const active = item.href === "/portal-associativo" ? activePath === item.href : activePath.startsWith(item.href);
 
-  if (mobile) {
-    return (
-      <Link
-        aria-current={active ? "page" : undefined}
-        className="portal-mobile-nav-link flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-semibold transition"
-        href={item.href}
-      >
-        <Icon className="h-4 w-4 text-primary" aria-hidden />
-        {item.label}
-      </Link>
-    );
-  }
-
   return (
     <Link
       aria-current={active ? "page" : undefined}
-      className="portal-nav-link inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold transition"
+      className={`${styles.navLink} group flex min-h-12 items-center gap-3 rounded-[24px] px-4 text-base font-semibold transition`}
       href={item.href}
     >
-      <Icon className="h-4 w-4 text-primary" aria-hidden />
-      {item.label}
+      <Icon className="h-5 w-5 shrink-0" aria-hidden />
+      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+      {active ? <ChevronRight className="h-4 w-4 shrink-0" aria-hidden /> : null}
     </Link>
   );
+}
+
+function getInitials(value: string) {
+  const parts = value
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, 2);
+  return parts.map((part) => part[0]?.toUpperCase()).join("") || "PA";
 }

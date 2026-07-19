@@ -29,8 +29,10 @@ export default async function PortalPessoasPage({
   const search = firstParam(params.q) ?? "";
   const status = firstParam(params.status) ?? "";
   const perfil = firstParam(params.perfil) ?? "";
+  const cidade = firstParam(params.cidade) ?? "";
+  const uf = firstParam(params.uf) ?? "";
   const editId = firstParam(params.edit);
-  const data = await listPortalPessoas(search, { status, perfil });
+  const data = await listPortalPessoas(search, { status, perfil, cidade, uf });
   if (!canPortalAccess(data.perfil, "pessoas")) {
     redirect("/portal-associativo/painel-associado");
   }
@@ -87,6 +89,7 @@ export default async function PortalPessoasPage({
               />
               <FormInput label="CPF/CNPJ" name="cpf_cnpj" defaultValue={String(editing?.cpf_cnpj ?? "")} />
               <FormInput label="RG/IE" name="rg_ie" defaultValue={String(editing?.rg_ie ?? "")} />
+              <FormInput label="Data de nascimento" name="data_nascimento" type="date" defaultValue={String(editing?.data_nascimento ?? "")} />
               <FormInput label="Telefone" name="telefone" defaultValue={String(editing?.telefone ?? "")} />
               <FormInput label="WhatsApp" name="whatsapp" defaultValue={String(editing?.whatsapp ?? "")} />
               <FormInput label="Email" name="email" type="email" defaultValue={String(editing?.email ?? "")} />
@@ -107,11 +110,13 @@ export default async function PortalPessoasPage({
                 options={[
                   { value: "ativa", label: "Ativa" },
                   { value: "inativa", label: "Inativa" },
-                  { value: "antigo_proprietario", label: "Antigo proprietario" }
+                  { value: "antigo_proprietario", label: "Antigo proprietário" },
+                  { value: "bloqueada", label: "Bloqueada" }
                 ]}
               />
               <FormInput label="Cidade" name="cidade" defaultValue={String(editing?.cidade ?? "")} />
               <FormInput label="UF" name="uf" defaultValue={String(editing?.uf ?? "")} />
+              <FormTextarea label="Endereço" name="endereco" defaultValue={String(editing?.endereco ?? editing?.endereco_residencial ?? "")} />
               <FormTextarea label="Endereco residencial" name="endereco_residencial" defaultValue={String(editing?.endereco_residencial ?? "")} />
               <FormTextarea label="Observacoes" name="observacoes" defaultValue={String(editing?.observacoes ?? "")} />
             </ResourceForm>
@@ -134,6 +139,9 @@ export default async function PortalPessoasPage({
               <div className="flex flex-wrap justify-end gap-2">
                 <Link className="button-secondary" href={`/portal-associativo/pessoas?edit=${row.id}`}>
                   Editar
+                </Link>
+                <Link className="button-secondary" href={`/portal-associativo/pessoas/${row.id}`}>
+                  Ficha
                 </Link>
                 <form action={inactivatePortalPessoa}>
                   <input name="id" type="hidden" value={String(row.id)} />
