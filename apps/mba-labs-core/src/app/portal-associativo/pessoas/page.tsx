@@ -15,6 +15,7 @@ import {
   formatDate
 } from "@/components/ui-kit";
 import { inactivatePortalPessoa, savePortalPessoa } from "@/lib/actions/portal-associativo-actions";
+import { getCidadeOptions, getUfOptions } from "@/lib/brazil-location-options";
 import { firstParam } from "@/lib/form-utils";
 import { canPortalAccess, getPortalLookups, listPortalPessoas, PORTAL_PERFIL_OPTIONS } from "@/lib/portal-associativo-data";
 
@@ -41,6 +42,8 @@ export default async function PortalPessoasPage({
   const lookups = await getPortalLookups("/portal-associativo/pessoas");
   const editing = data.rows.find((row) => row.id === editId);
   const canWrite = data.perfil === "administrador" || data.perfil === "presidente" || data.perfil === "secretario";
+  const cidadeOptions = getCidadeOptions(String(editing?.cidade ?? "Palmas"));
+  const ufOptions = getUfOptions(String(editing?.uf ?? "TO"));
 
   return (
     <PortalAssociativoShell
@@ -101,7 +104,7 @@ export default async function PortalPessoasPage({
               title={editing ? "Editar pessoa" : "Nova pessoa"}
               actions={
                 <>
-                  <SubmitButton>{editing ? "Salvar alteracoes" : "Salvar pessoa"}</SubmitButton>
+                  <SubmitButton>{editing ? "Salvar alterações" : "Salvar pessoa"}</SubmitButton>
                   {editing ? <Link className="button-secondary" href="/portal-associativo/pessoas">Cancelar</Link> : null}
                 </>
               }
@@ -112,8 +115,8 @@ export default async function PortalPessoasPage({
                 name="tipo_pessoa"
                 defaultValue={String(editing?.tipo_pessoa ?? "fisica")}
                 options={[
-                  { value: "fisica", label: "Fisica" },
-                  { value: "juridica", label: "Juridica" }
+                  { value: "fisica", label: "Física" },
+                  { value: "juridica", label: "Jurídica" }
                 ]}
                 required
               />
@@ -124,7 +127,7 @@ export default async function PortalPessoasPage({
               <FormInput label="WhatsApp" name="whatsapp" defaultValue={String(editing?.whatsapp ?? "")} />
               <FormInput label="Email" name="email" type="email" defaultValue={String(editing?.email ?? "")} />
               <FormSelect
-                label="Usuario MBA Labs"
+                label="Usuário MBA Labs"
                 name="core_usuario_id"
                 defaultValue={String(editing?.core_usuario_id ?? "")}
                 options={lookups.usuarios.map((user: Record<string, unknown>) => ({
@@ -144,11 +147,11 @@ export default async function PortalPessoasPage({
                   { value: "bloqueada", label: "Bloqueada" }
                 ]}
               />
-              <FormInput label="Cidade" name="cidade" defaultValue={String(editing?.cidade ?? "")} />
-              <FormInput label="UF" name="uf" defaultValue={String(editing?.uf ?? "")} />
+              <FormSelect label="UF" name="uf" defaultValue={String(editing?.uf ?? "TO")} options={ufOptions} />
+              <FormSelect label="Cidade" name="cidade" defaultValue={String(editing?.cidade ?? "Palmas")} options={cidadeOptions} />
               <FormTextarea label="Endereço" name="endereco" defaultValue={String(editing?.endereco ?? editing?.endereco_residencial ?? "")} />
               <FormTextarea label="Endereco residencial" name="endereco_residencial" defaultValue={String(editing?.endereco_residencial ?? "")} />
-              <FormTextarea label="Observacoes" name="observacoes" defaultValue={String(editing?.observacoes ?? "")} />
+              <FormTextarea label="Observações" name="observacoes" defaultValue={String(editing?.observacoes ?? "")} />
             </ResourceForm>
           </form>
           </details>
