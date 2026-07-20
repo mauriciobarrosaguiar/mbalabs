@@ -15,6 +15,7 @@ import {
   formatDate
 } from "@/components/ui-kit";
 import { savePortalConfiguracoes, savePortalConfiguracoesPagamento } from "@/lib/actions/portal-associativo-actions";
+import { getCidadeOptions, getUfOptions } from "@/lib/brazil-location-options";
 import { firstParam } from "@/lib/form-utils";
 import { canPortalAccess, getPortalConfiguracoes, PORTAL_UNIDADE_OPTIONS } from "@/lib/portal-associativo-data";
 import { portalStorageProviderLabel } from "@/lib/portal-associativo-storage";
@@ -31,6 +32,13 @@ export default async function PortalConfiguracoesPage({
   if (!canPortalAccess(data.perfil, "configuracoes")) {
     redirect("/portal-associativo");
   }
+
+  const cidadeOptions = getCidadeOptions(
+    String(data.configuracoes.cidade ?? "Palmas"),
+    String(data.configuracoes.recebedor_cidade ?? "Palmas"),
+    String(data.pagamento.cidade_recebedor ?? "Palmas")
+  );
+  const ufOptions = getUfOptions(String(data.configuracoes.uf ?? "TO"));
 
   return (
     <PortalAssociativoShell
@@ -56,8 +64,8 @@ export default async function PortalConfiguracoesPage({
             <FormInput label="Logo URL" name="logo_url" defaultValue={String(data.configuracoes.logo_url ?? "")} />
             <FormInput label="Tema visual" name="tema_visual" defaultValue={String(data.configuracoes.tema_visual ?? "padrao")} />
             <FormSelect label="Tipo de unidade padrão" name="tipo_unidade_padrao" defaultValue={String(data.configuracoes.tipo_unidade_padrao ?? "chacara")} options={PORTAL_UNIDADE_OPTIONS} />
-            <FormInput label="Cidade" name="cidade" defaultValue={String(data.configuracoes.cidade ?? "")} />
-            <FormInput label="UF" name="uf" defaultValue={String(data.configuracoes.uf ?? "")} />
+            <FormSelect label="UF" name="uf" defaultValue={String(data.configuracoes.uf ?? "TO")} options={ufOptions} />
+            <FormSelect label="Cidade" name="cidade" defaultValue={String(data.configuracoes.cidade ?? "Palmas")} options={cidadeOptions} />
             <FormInput label="Nome do responsável" name="responsavel_nome" defaultValue={String(data.configuracoes.responsavel_nome ?? "")} />
             <FormMoneyInput label="Valor padrão da mensalidade" name="valor_mensalidade_padrao" defaultValue={String(data.configuracoes.valor_mensalidade_padrao ?? 0)} />
             <FormInput label="Dia padrão de vencimento" name="vencimento_padrao" type="number" defaultValue={String(data.configuracoes.vencimento_padrao ?? 10)} />
@@ -65,7 +73,7 @@ export default async function PortalConfiguracoesPage({
             <FormInput label="Chave PIX manual" name="pix_chave" defaultValue={String(data.configuracoes.pix_chave ?? "")} />
             <FormInput label="Tipo da chave PIX" name="pix_tipo_chave" defaultValue={String(data.configuracoes.pix_tipo_chave ?? "")} />
             <FormInput label="Nome do recebedor" name="recebedor_nome" defaultValue={String(data.configuracoes.recebedor_nome ?? "")} />
-            <FormInput label="Cidade do recebedor" name="recebedor_cidade" defaultValue={String(data.configuracoes.recebedor_cidade ?? "")} />
+            <FormSelect label="Cidade do recebedor" name="recebedor_cidade" defaultValue={String(data.configuracoes.recebedor_cidade ?? "Palmas")} options={cidadeOptions} />
             <FormTextarea label="Instruções de pagamento" name="instrucoes_pagamento" defaultValue={String(data.configuracoes.instrucoes_pagamento ?? "")} />
             <FormInput label="QR Code PIX URL (opcional)" name="qr_code_pix_url" defaultValue={String(data.configuracoes.qr_code_pix_url ?? "")} />
             <FormCheckbox label="Usar PIX manual quando não houver banco de pagamento conectado" name="usar_pix_manual" defaultChecked={data.configuracoes.usar_pix_manual !== false} />
@@ -100,7 +108,7 @@ export default async function PortalConfiguracoesPage({
             <FormSelect label="Ambiente" name="ambiente" defaultValue={String(data.pagamento.ambiente ?? "homologacao")} options={[{ value: "homologacao", label: "Homologação" }, { value: "producao", label: "Produção" }]} />
             <FormInput label="Chave PIX" name="chave_pix" defaultValue={String(data.pagamento.chave_pix ?? "")} />
             <FormInput label="Nome do recebedor" name="nome_recebedor" defaultValue={String(data.pagamento.nome_recebedor ?? "")} />
-            <FormInput label="Cidade do recebedor" name="cidade_recebedor" defaultValue={String(data.pagamento.cidade_recebedor ?? "")} />
+            <FormSelect label="Cidade do recebedor" name="cidade_recebedor" defaultValue={String(data.pagamento.cidade_recebedor ?? "Palmas")} options={cidadeOptions} />
             <FormInput label="Descrição padrão da cobrança" name="descricao_padrao" defaultValue={String(data.pagamento.descricao_padrao ?? data.configuracoes.descricao_mensalidade_padrao ?? "Mensalidade")} />
             <FormInput label="Webhook URL" name="webhook_url" defaultValue={String(data.pagamento.webhook_url ?? "")} />
             <FormInput label="Modo padrão de cobrança" name="modo_cobranca_padrao" defaultValue={String(data.pagamento.modo_cobranca_padrao ?? "manual")} />
