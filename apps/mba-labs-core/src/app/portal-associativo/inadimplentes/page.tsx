@@ -84,7 +84,7 @@ export default async function PortalInadimplentesPage({
         <div className="grid gap-3 md:hidden">
           {data.rows.length ? data.rows.map((row) => (
             <article className="grid gap-3 rounded-2xl border border-red-200 bg-red-50 p-4" key={String(row.id)}>
-              <div><strong className="text-lg">{String(row.responsavel)}</strong><p className="text-sm text-muted-foreground">Unidade {String(row.unidade)}</p></div>
+              <div><strong className="text-lg">{String(row.responsavel)}</strong><p className="text-sm text-muted-foreground">{String(row.unidade)}</p></div>
               <div className="grid grid-cols-2 gap-3">
                 <CardInfo label="Total vencido" value={formatMoney(row.valor_total_vencido)} />
                 <CardInfo label="Cobranças" value={String(row.quantidade_cobrancas)} />

@@ -36,15 +36,16 @@ export async function GET(request: Request, { params }: RouteContext) {
 
   const config = await context.client
     .from("assoc_configuracoes")
-    .select("nome_publico_entidade,logo_url,assinatura_entidade")
+    .select("nome_publico_entidade,logo_url,assinatura_entidade,assinatura_tipo,assinatura_pessoa_id,responsavel_pessoa_id")
     .eq("empresa_id", context.empresaId)
     .maybeSingle();
   const entityName = text(config.data?.nome_publico_entidade) || context.companyName;
+  const signature = await resolveSignature(context, (config.data ?? {}) as Record<string, unknown>, entityName);
   const unidade = unitLabel(charge.data.assoc_unidades);
   const pdf = await createPortalReceiptPdf({
     entidade: entityName,
     logoUrl: text(config.data?.logo_url),
-    assinatura: text(config.data?.assinatura_entidade),
+    assinatura: signature,
     associado: relationName(charge.data.assoc_pessoas),
     unidade,
     descricao: text(charge.data.descricao) || "Cobranca",
@@ -69,6 +70,22 @@ export async function GET(request: Request, { params }: RouteContext) {
       "Content-Disposition": `inline; filename="recibo-${id}.pdf"`
     }
   });
+}
+
+async function resolveSignature(context: Awaited<ReturnType<typeof getPortalContext>>, config: Record<string, unknown>, entityName: string) {
+  const type = text(config.assinatura_tipo) || "entidade";
+  if (type === "entidade") return entityName;
+  const directId = type === "responsavel" ? text(config.responsavel_pessoa_id) : type === "pessoa" ? text(config.assinatura_pessoa_id) : "";
+  let pessoaId = directId;
+  if (!pessoaId && ["presidente", "tesoureiro", "secretario"].includes(type)) {
+    const profile = await context.client.from("assoc_perfis_usuarios").select("pessoa_id").eq("empresa_id", context.empresaId).eq("perfil", type).eq("status", "ativo").limit(1).maybeSingle();
+    pessoaId = text(profile.data?.pessoa_id);
+  }
+  if (pessoaId) {
+    const person = await context.client.from("assoc_pessoas").select("nome_completo").eq("empresa_id", context.empresaId).eq("id", pessoaId).maybeSingle();
+    if (person.data?.nome_completo) return text(person.data.nome_completo);
+  }
+  return text(config.assinatura_entidade) || entityName;
 }
 
 async function trySaveReceipt(
@@ -180,6 +197,7 @@ function relationName(value: unknown) {
 
 function unitLabel(value: unknown) {
   const unit = relationObject(value);
+  if (unit?.codigo_unidade && unit?.numero_unidade && String(unit.codigo_unidade) === String(unit.numero_unidade)) return `Unidade ${unit.numero_unidade}`;
   return [unit?.codigo_unidade, unit?.numero_unidade].filter(Boolean).join(" - ") || "-";
 }
 

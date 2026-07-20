@@ -18,7 +18,8 @@ import {
 } from "@/components/ui-kit";
 import { inactivatePortalUnidade, savePortalUnidade } from "@/lib/actions/portal-associativo-actions";
 import { firstParam } from "@/lib/form-utils";
-import { canPortalAccess, getPortalLookups, listPortalUnidades, loteamentoOptionLabel, PORTAL_UNIDADE_OPTIONS } from "@/lib/portal-associativo-data";
+import { canPortalAccess, getPortalLookups, listPortalUnidades, loteamentoOptionLabel } from "@/lib/portal-associativo-data";
+import { UnitCodeFields } from "../UnitCodeFields";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,6 @@ export default async function PortalUnidadesPage({
   const status = firstParam(params.status) ?? "";
   const loteamento = firstParam(params.loteamento) ?? "";
   const editId = firstParam(params.edit);
-  const quickMode = firstParam(params.modo) === "rapido";
   const preselectedOwner = firstParam(params.proprietario) ?? "";
   const data = await listPortalUnidades(search, status, loteamento);
   if (!canPortalAccess(data.perfil, "unidades")) {
@@ -68,6 +68,11 @@ export default async function PortalUnidadesPage({
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Link className="button-primary justify-center" href="#cadastro">Nova chácara/lote</Link>
+          <Link className="button-secondary justify-center" href="/portal-associativo/importacao?tipo=unidades">Importar planilha</Link>
+        </div>
+
         <form className="grid gap-3 rounded-lg border border-border bg-card p-4 md:grid-cols-[1fr_220px_160px_auto]" action="">
           <input className="input" name="q" defaultValue={search} placeholder="Buscar por código, número, setor, loteamento ou responsável" />
           <select className="input" name="loteamento" defaultValue={loteamento}>
@@ -87,31 +92,8 @@ export default async function PortalUnidadesPage({
           <button className="button-secondary" type="submit">Filtrar</button>
         </form>
 
-        {canWrite && !editing ? (
-          <form action={savePortalUnidade} id="cadastro">
-            <input name="status_unidade" type="hidden" value="ativa" />
-            <ResourceForm
-              title="Cadastro rápido"
-              actions={
-                <>
-                  <button className="button-primary" name="proxima_acao" type="submit" value="">Salvar</button>
-                  <button className="button-secondary" name="proxima_acao" type="submit" value="cobranca">Salvar e gerar mensalidade</button>
-                  <button className="button-secondary" name="proxima_acao" type="submit" value="documento">Salvar e adicionar documento</button>
-                </>
-              }
-            >
-              <FormInput label="Código" name="codigo_unidade" placeholder="Ex.: CH" required />
-              <FormInput label="Número da unidade" name="numero_unidade" placeholder="Ex.: 35" required />
-              <FormSelect label="Tipo" name="tipo_unidade" defaultValue="chacara" options={PORTAL_UNIDADE_OPTIONS} required />
-              <FormSelect label="Proprietário" name="proprietario_id" defaultValue={preselectedOwner} options={personOptions} required />
-              <FormSelect label="Responsável pelo pagamento" name="responsavel_financeiro_id" defaultValue={preselectedOwner} options={personOptions} required />
-              <FormSelect label="Responsável de contato" name="responsavel_contato_id" defaultValue={preselectedOwner} options={personOptions} />
-            </ResourceForm>
-          </form>
-        ) : null}
-
         {canWrite ? (
-          <details className="panel p-4" open={Boolean(editing) || !quickMode}>
+          <details className="panel p-4" id="cadastro" open>
             <summary className="cursor-pointer text-lg font-black">{editing ? "Editar cadastro" : "Cadastro completo"}</summary>
           <form action={savePortalUnidade}>
             <input name="id" type="hidden" value={String(editing?.id ?? "")} />
@@ -125,13 +107,11 @@ export default async function PortalUnidadesPage({
               }
             >
               <FormSelect label="Loteamento" name="loteamento_id" defaultValue={String(editing?.loteamento_id ?? "")} options={loteamentoOptions} />
-              <FormInput label="Código da chácara/lote" name="codigo_unidade" defaultValue={String(editing?.codigo_unidade ?? "")} required />
-              <FormInput label="Número/nome da chácara/lote" name="numero_unidade" defaultValue={String(editing?.numero_unidade ?? "")} required />
+              <UnitCodeFields defaultCode={String(editing?.codigo_unidade ?? "")} defaultNumber={String(editing?.numero_unidade ?? "")} defaultType={String(editing?.tipo_unidade ?? "chacara")} />
               <FormInput label="Quadra/setor" name="quadra_setor" defaultValue={String(editing?.quadra_setor ?? "")} />
-              <FormSelect label="Tipo" name="tipo_unidade" defaultValue={String(editing?.tipo_unidade ?? "chacara")} options={PORTAL_UNIDADE_OPTIONS} required />
-              <FormSelect label="Proprietário" name="proprietario_id" options={personOptions} />
-              <FormSelect label="Responsável financeiro" name="responsavel_financeiro_id" options={personOptions} />
-              <FormSelect label="Responsável de contato" name="responsavel_contato_id" options={personOptions} />
+              <FormSelect label="Proprietário" name="proprietario_id" defaultValue={preselectedOwner} options={personOptions} />
+              <FormSelect label="Responsável financeiro" name="responsavel_financeiro_id" defaultValue={preselectedOwner} options={personOptions} />
+              <FormSelect label="Responsável de contato" name="responsavel_contato_id" defaultValue={preselectedOwner} options={personOptions} />
               <FormSelect
                 label="Status"
                 name="status_unidade"
@@ -168,7 +148,7 @@ export default async function PortalUnidadesPage({
                 {canWrite ? <Link className="button-secondary col-span-2 justify-center" href={`/portal-associativo/transferencias?unidade=${row.id}`}>Transferir</Link> : null}
               </div>
             </article>
-          )) : <p className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">Nenhuma unidade cadastrada. Use o cadastro rápido para começar.</p>}
+          )) : <p className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">Nenhuma unidade cadastrada. Use o cadastro completo ou importe uma planilha para começar.</p>}
         </div>
 
         <div className="hidden md:block"><DataTable

@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PortalAssociativoShell } from "@/components/PortalAssociativoShell";
-import { BackButton, FormInput, FormMoneyInput, FormSelect, FormTextarea, MessageBanner, PageHeader, ResourceForm, StatCard, SubmitButton } from "@/components/ui-kit";
-import { fixPortalVinculoInconsistente, fixPortalVinculosDuplicados, savePortalConfiguracoes } from "@/lib/actions/portal-associativo-actions";
-import { canPortalAccess, getPortalConfiguracoes, getPortalDashboard, getPortalOnboarding, getPortalVinculoDiagnostics, PORTAL_UNIDADE_OPTIONS } from "@/lib/portal-associativo-data";
+import { BackButton, MessageBanner, PageHeader, StatCard } from "@/components/ui-kit";
+import { fixPortalVinculoInconsistente, fixPortalVinculosDuplicados } from "@/lib/actions/portal-associativo-actions";
+import { canPortalAccess, getPortalConfiguracoes, getPortalDashboard, getPortalOnboarding, getPortalVinculoDiagnostics } from "@/lib/portal-associativo-data";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +17,6 @@ export default async function PortalImplantacaoPage() {
   if (!canPortalAccess(onboarding.perfil, "implantacao")) {
     redirect("/portal-associativo");
   }
-
-  const config = settings.configuracoes as Record<string, unknown>;
 
   return (
     <PortalAssociativoShell activePath="/portal-associativo/implantacao" can={(section) => canPortalAccess(onboarding.perfil, section)} companyName={onboarding.companyName} roleLabel={onboarding.perfilLabel} userName={onboarding.current.usuario.nome}>
@@ -52,26 +50,7 @@ export default async function PortalImplantacaoPage() {
           </div>
         </section>
 
-        <form action={savePortalConfiguracoes}>
-          <ResourceForm title="1. Dados da entidade" actions={<SubmitButton>Salvar entidade e financeiro</SubmitButton>}>
-            <FormInput label="Nome público da associação" name="nome_publico_entidade" defaultValue={String(config.nome_publico_entidade ?? "")} required />
-            <FormInput label="Subtítulo" name="subtitulo" defaultValue={String(config.subtitulo ?? "")} />
-            <FormInput label="Logo URL" name="logo_url" defaultValue={String(config.logo_url ?? "")} />
-            <FormSelect label="Tipo padrão de unidade" name="tipo_unidade_padrao" defaultValue={String(config.tipo_unidade_padrao ?? "chacara")} options={PORTAL_UNIDADE_OPTIONS} />
-            <FormInput label="Tema visual simples" name="tema_visual" defaultValue={String(config.tema_visual ?? "padrao")} />
-            <FormInput label="Cidade" name="cidade" defaultValue={String(config.cidade ?? "")} />
-            <FormInput label="UF" name="uf" defaultValue={String(config.uf ?? "")} />
-            <FormInput label="Nome do responsável" name="responsavel_nome" defaultValue={String(config.responsavel_nome ?? "")} />
-            <FormMoneyInput label="Valor padrão da mensalidade" name="valor_mensalidade_padrao" defaultValue={String(config.valor_mensalidade_padrao ?? 0)} />
-            <FormInput label="Dia padrão de vencimento" name="vencimento_padrao" type="number" defaultValue={String(config.vencimento_padrao ?? 10)} />
-            <FormInput label="Descrição padrão da cobrança" name="descricao_mensalidade_padrao" defaultValue={String(config.descricao_mensalidade_padrao ?? "Mensalidade")} />
-            <FormInput label="Chave PIX manual" name="pix_chave" defaultValue={String(config.pix_chave ?? "")} />
-            <FormInput label="Tipo da chave PIX" name="pix_tipo_chave" defaultValue={String(config.pix_tipo_chave ?? "")} />
-            <FormInput label="Nome do recebedor" name="recebedor_nome" defaultValue={String(config.recebedor_nome ?? "")} />
-            <FormInput label="Cidade do recebedor" name="recebedor_cidade" defaultValue={String(config.recebedor_cidade ?? "")} />
-            <FormTextarea label="Instruções de pagamento" name="instrucoes_pagamento" defaultValue={String(config.instrucoes_pagamento ?? "")} />
-          </ResourceForm>
-        </form>
+        <section className="panel flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="text-lg font-black">1. Dados da entidade, responsável, logo e PIX</h2><p className="text-sm text-muted-foreground">Faça estes ajustes em uma única tela, usando seleções simples e envio de imagem.</p></div><Link className="button-primary" href="/portal-associativo/configuracoes">Abrir ajustes</Link></section>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Pessoas cadastradas" value={onboarding.counts.pessoas} />
@@ -82,11 +61,11 @@ export default async function PortalImplantacaoPage() {
 
         <div className="grid gap-4 lg:grid-cols-2">
           <StepPanel title="3. Cadastro de pessoas" description={`${onboarding.counts.pessoas} pessoa(s) já cadastrada(s).`}>
-            <Link className="button-primary" href="/portal-associativo/pessoas?modo=rapido#cadastro">Cadastrar associado</Link>
+            <Link className="button-primary" href="/portal-associativo/pessoas#cadastro">Cadastrar associado</Link>
             <Link className="button-secondary" href="/portal-associativo/importacao?tipo=pessoas">Importar CSV/Excel</Link>
           </StepPanel>
           <StepPanel title="4. Cadastro de unidades" description={`${onboarding.counts.unidades} unidade(s) já cadastrada(s).`}>
-            <Link className="button-primary" href="/portal-associativo/unidades?modo=rapido#cadastro">Cadastrar unidade</Link>
+            <Link className="button-primary" href="/portal-associativo/unidades#cadastro">Cadastrar unidade</Link>
             <Link className="button-secondary" href="/portal-associativo/importacao?tipo=unidades">Importar CSV/Excel</Link>
           </StepPanel>
           <StepPanel title="5. Vínculos" description={`${dashboard.metrics.unidadesSemResponsavelFinanceiro} unidade(s) sem responsável financeiro. Revise proprietário, financeiro e contato.`}>

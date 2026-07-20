@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { dateValue, messageParam, nullableTextValue, numberValue, textValue } from "@/lib/form-utils";
 import { canPortalAccess, getPortalContext, PORTAL_ASSOCIATIVO_PATH } from "@/lib/portal-associativo-data";
-import { deleteFromPortalStorage, isPortalStorageProvider } from "@/lib/portal-associativo-storage";
+import { buildPortalStorageFolder, deleteFromPortalStorage, getPortalStorageConnection, isPortalStorageProvider, uploadToPortalStorage } from "@/lib/portal-associativo-storage";
 
 export async function savePortalPessoa(formData: FormData) {
   const context = await requirePortalWrite("pessoas", "/portal-associativo/pessoas");
@@ -153,6 +153,7 @@ export async function savePortalLoteamento(formData: FormData) {
     empresa_id: requireEmpresaId(context.empresaId, returnTo),
     nome,
     codigo: nullableTextValue(formData, "codigo"),
+    tipo_loteamento: textValue(formData, "tipo_loteamento") || "outro",
     endereco: nullableTextValue(formData, "endereco"),
     cidade: nullableTextValue(formData, "cidade"),
     uf: nullableTextValue(formData, "uf"),
@@ -378,6 +379,7 @@ export async function savePortalTransferencia(formData: FormData) {
   const unidadeId = textValue(formData, "unidade_id");
   const novaPessoaId = textValue(formData, "nova_pessoa_id");
   const motivo = textValue(formData, "motivo");
+  const responsabilidadeDebitos = textValue(formData, "responsabilidade_debitos") || "antigo_responsavel";
 
   if (!unidadeId || !novaPessoaId || !motivo) {
     redirectWithError(returnTo, "Informe chacara/lote, novo responsavel e motivo.");
@@ -395,6 +397,7 @@ export async function savePortalTransferencia(formData: FormData) {
   const previousOwner = (activeLinks.data ?? []).find((row: Record<string, unknown>) => row.tipo_vinculo === "proprietario");
 
   const today = new Date().toISOString().slice(0, 10);
+  const transferDocument = await uploadPortalTransferDocument(context, formData.get("documento"), unidadeId);
   const responsavelFinanceiroId = nullableTextValue(formData, "responsavel_financeiro_id") ?? novaPessoaId;
   const responsavelContatoId = nullableTextValue(formData, "responsavel_contato_id") ?? novaPessoaId;
   const transferencia = await context.client
@@ -408,8 +411,8 @@ export async function savePortalTransferencia(formData: FormData) {
       responsavel_contato_id: responsavelContatoId,
       data_transferencia: dateValue(formData, "data_transferencia") ?? today,
       motivo,
-      documento_url: nullableTextValue(formData, "documento_url"),
-      responsabilidade_debitos: textValue(formData, "responsabilidade_debitos") || "novo",
+      documento_url: transferDocument?.url ?? null,
+      responsabilidade_debitos: responsabilidadeDebitos,
       observacoes: nullableTextValue(formData, "observacoes"),
       criado_por: context.current.usuario.id
     })
@@ -444,6 +447,14 @@ export async function savePortalTransferencia(formData: FormData) {
       redirectWithError(returnTo, `Não foi possível encerrar os vínculos anteriores: ${closed.error.message}`);
     }
   }
+  if (transferDocument) {
+    await context.client.from("assoc_arquivos").insert({ empresa_id: empresaId, unidade_id: unidadeId, transferencia_id: transferencia.data.id, provedor: transferDocument.provider, file_id: transferDocument.fileId || null, file_name: transferDocument.fileName, mime_type: transferDocument.mimeType, size: transferDocument.size, path: transferDocument.path, shared_url: transferDocument.url || null, visibility: "interno", liberado_associado: false, categoria: "transferencia", descricao: "Documento da transferência", criado_por: context.current.usuario.id, atualizado_por: context.current.usuario.id });
+  }
+  if (responsabilidadeDebitos === "abonado") {
+    const abonado = await context.client.from("assoc_cobrancas").update({ status: "cancelada", motivo_cancelamento: `Débitos abonados na transferência: ${motivo}`, atualizado_em: new Date().toISOString() }).eq("empresa_id", empresaId).eq("unidade_id", unidadeId).in("status", ["aberta", "vencida", "negociada", "aguardando_pagamento"]);
+    if (abonado.error) redirectWithError(returnTo, `Transferência registrada, mas não foi possível abonar os débitos: ${abonado.error.message}`);
+    await recordPortalAudit(context, "abonar_debitos_transferencia", "assoc_cobrancas", null, { unidade_id: unidadeId, transferencia_id: transferencia.data.id, motivo });
+  }
   await recordPortalAudit(context, "transferir_unidade", "assoc_transferencias", String(transferencia.data?.id ?? ""), { unidadeId, novaPessoaId });
   revalidatePortal(returnTo);
   revalidatePath("/portal-associativo/unidades");
@@ -463,6 +474,8 @@ export async function savePortalCobranca(formData: FormData) {
   }
 
   const unidade = await resolvePortalUnidade(context, unidadeId, returnTo);
+  const responsavelFinanceiroId = await resolveResponsavelFinanceiro(context, unidadeId);
+  if (!responsavelFinanceiroId) redirectWithError(returnTo, "Esta unidade não possui responsável pelo pagamento ativo. Corrija a unidade antes de criar a cobrança.");
   const dueDate = new Date(String(dataVencimento));
   if (id) {
     const current = await context.client
@@ -482,7 +495,7 @@ export async function savePortalCobranca(formData: FormData) {
     empresa_id: requireEmpresaId(context.empresaId, returnTo),
     loteamento_id: nullableRecordId(unidade.loteamento_id),
     unidade_id: unidadeId,
-    pessoa_responsavel_id: nullableTextValue(formData, "pessoa_responsavel_id") || (await resolveResponsavelFinanceiro(context, unidadeId)),
+    pessoa_responsavel_id: responsavelFinanceiroId,
     tipo_cobranca: textValue(formData, "tipo_cobranca") || "mensalidade",
     descricao: textValue(formData, "descricao") || "Mensalidade",
     mes_referencia: Number(textValue(formData, "mes_referencia") || dueDate.getMonth() + 1),
@@ -770,7 +783,7 @@ export async function gerarPortalMensalidadesLote(formData: FormData) {
       .is("data_fim", null),
     context.client
       .from("assoc_cobrancas")
-      .select("unidade_id,mes_referencia,ano_referencia")
+      .select("unidade_id,mes_referencia,ano_referencia,status")
       .eq("empresa_id", empresaId)
       .eq("tipo_cobranca", "mensalidade")
       .in("ano_referencia", [year])
@@ -869,15 +882,23 @@ export async function savePortalReuniao(formData: FormData) {
 export async function savePortalAviso(formData: FormData) {
   const context = await requirePortalWrite("avisos", "/portal-associativo/avisos");
   const id = textValue(formData, "id");
+  const publico = textValue(formData, "publico") || "todos";
+  const pessoaId = nullableTextValue(formData, "pessoa_id");
+  const unidadeId = nullableTextValue(formData, "unidade_id");
+  if (publico === "pessoa" && !pessoaId) redirectWithError("/portal-associativo/avisos", "Selecione o associado que receberá o aviso.");
+  if (publico === "unidade" && !unidadeId) redirectWithError("/portal-associativo/avisos", "Selecione a unidade que receberá o aviso.");
+  await assertRecordBelongsToEmpresa(context, "assoc_pessoas", pessoaId ?? "", "/portal-associativo/avisos", "Associado inválido para esta associação.");
+  await assertRecordBelongsToEmpresa(context, "assoc_unidades", unidadeId ?? "", "/portal-associativo/avisos", "Unidade inválida para esta associação.");
   const payload = {
     empresa_id: requireEmpresaId(context.empresaId, "/portal-associativo/avisos"),
     titulo: textValue(formData, "titulo"),
     mensagem: textValue(formData, "mensagem"),
     prioridade: textValue(formData, "prioridade") || "media",
-    publico: textValue(formData, "publico") || "todos",
+    publico,
     perfis: splitCsv(textValue(formData, "perfis")),
     status_cobranca: nullableTextValue(formData, "status_cobranca"),
-    unidade_id: nullableTextValue(formData, "unidade_id"),
+    pessoa_id: publico === "pessoa" ? pessoaId : null,
+    unidade_id: publico === "unidade" ? unidadeId : null,
     link_portal: nullableTextValue(formData, "link_portal"),
     visivel_de: dateValue(formData, "visivel_de") ?? new Date().toISOString().slice(0, 10),
     visivel_ate: dateValue(formData, "visivel_ate"),
@@ -910,31 +931,39 @@ export async function savePortalProjeto(formData: FormData) {
 export async function savePortalConfiguracoes(formData: FormData) {
   const context = await requirePortalWrite("configuracoes", "/portal-associativo/configuracoes");
   const empresaId = requireEmpresaId(context.empresaId, "/portal-associativo/configuracoes");
+  const responsavelPessoaId = textValue(formData, "responsavel_pessoa_id");
+  const assinaturaPessoaId = textValue(formData, "assinatura_pessoa_id");
+  await assertRecordBelongsToEmpresa(context, "assoc_pessoas", responsavelPessoaId, "/portal-associativo/configuracoes", "Responsável inválido para esta associação.");
+  await assertRecordBelongsToEmpresa(context, "assoc_pessoas", assinaturaPessoaId, "/portal-associativo/configuracoes", "Pessoa da assinatura inválida para esta associação.");
+  const responsavel = responsavelPessoaId ? await context.client.from("assoc_pessoas").select("nome_completo").eq("empresa_id", empresaId).eq("id", responsavelPessoaId).maybeSingle() : { data: null };
+  const descricaoSelecionada = textValue(formData, "descricao_mensalidade_padrao") || "Mensalidade";
+  const descricaoMensalidade = descricaoSelecionada === "Outra" ? textValue(formData, "descricao_mensalidade_outra") : descricaoSelecionada;
+  if (!descricaoMensalidade) redirectWithError("/portal-associativo/configuracoes", "Informe a descrição personalizada da mensalidade.");
   const { error } = await context.client.from("assoc_configuracoes").upsert(
     {
       empresa_id: empresaId,
       nome_publico_entidade: textValue(formData, "nome_publico_entidade") || "Portal Associativo",
       subtitulo: textValue(formData, "subtitulo") || "Gestao integrada de loteamentos, chacaras/lotes, mensalidades e comunicados.",
-      logo_url: nullableTextValue(formData, "logo_url"),
-      tema_visual: textValue(formData, "tema_visual") || "padrao",
       tipo_unidade_padrao: textValue(formData, "tipo_unidade_padrao") || "propriedade",
       cidade: nullableTextValue(formData, "cidade"),
       uf: nullableTextValue(formData, "uf"),
-      responsavel_nome: nullableTextValue(formData, "responsavel_nome"),
-      valor_mensalidade_padrao: numberValue(formData, "valor_mensalidade_padrao"),
+      responsavel_pessoa_id: responsavelPessoaId,
+      responsavel_nome: responsavel.data?.nome_completo ?? null,
+      valor_mensalidade_padrao: numberValue(formData, "valor_mensalidade_padrao") || 20,
       vencimento_padrao: Number(textValue(formData, "vencimento_padrao") || 10),
-      descricao_mensalidade_padrao: textValue(formData, "descricao_mensalidade_padrao") || "Mensalidade",
+      descricao_mensalidade_padrao: descricaoMensalidade,
       pix_chave: nullableTextValue(formData, "pix_chave"),
       pix_tipo_chave: nullableTextValue(formData, "pix_tipo_chave"),
       recebedor_nome: nullableTextValue(formData, "recebedor_nome"),
       recebedor_cidade: nullableTextValue(formData, "recebedor_cidade"),
+      recebedor_uf: nullableTextValue(formData, "recebedor_uf"),
       instrucoes_pagamento: nullableTextValue(formData, "instrucoes_pagamento"),
       instrucoes_pagamento_pix: nullableTextValue(formData, "instrucoes_pagamento"),
-      qr_code_pix_url: nullableTextValue(formData, "qr_code_pix_url"),
       usar_pix_manual: formData.get("usar_pix_manual") === "true",
       webhook_url: nullableTextValue(formData, "webhook_url"),
       storage_provider_ativo: textValue(formData, "storage_provider_ativo") || "nenhum",
-      assinatura_entidade: nullableTextValue(formData, "assinatura_entidade"),
+      assinatura_tipo: textValue(formData, "assinatura_tipo") || "entidade",
+      assinatura_pessoa_id: assinaturaPessoaId || null,
       implantacao_concluida: formData.get("implantacao_concluida") === "true",
       atualizado_em: new Date().toISOString()
     },
@@ -1408,6 +1437,20 @@ async function resolveResponsavelFinanceiro(context: Awaited<ReturnType<typeof g
     .is("data_fim", null)
     .maybeSingle();
   return data?.pessoa_id ?? null;
+}
+
+async function uploadPortalTransferDocument(context: Awaited<ReturnType<typeof getPortalContext>>, value: FormDataEntryValue | null, unidadeId: string) {
+  if (!(value instanceof File) || value.size === 0) return null;
+  const allowed = new Map([["pdf", "application/pdf"], ["jpg", "image/jpeg"], ["jpeg", "image/jpeg"], ["png", "image/png"], ["webp", "image/webp"]]);
+  const extension = value.name.toLowerCase().split(".").pop() ?? "";
+  if (value.size > 20 * 1024 * 1024) throw new Error("O documento da transferência deve ter no máximo 20 MB.");
+  if (allowed.get(extension) !== value.type.toLowerCase()) throw new Error("Envie um documento PDF, JPG, PNG ou WEBP válido.");
+  const connection = await getPortalStorageConnection(context.current);
+  if (!connection || !isPortalStorageProvider(String(connection.provedor ?? ""))) throw new Error("Configure onde os arquivos serão guardados antes de anexar documentos.");
+  const provider = connection.provedor as "dropbox" | "google_drive";
+  const uploaded = await uploadToPortalStorage({ current: context.current, provider, fileName: value.name, mimeType: value.type, bytes: Buffer.from(await value.arrayBuffer()), folderPath: buildPortalStorageFolder({ root: String(connection.root_folder_path ?? "/Portal Associativo"), area: "unidade", unidadeCodigo: unidadeId, categoria: "Transferências" }) });
+  if (!uploaded) throw new Error("Não foi possível guardar o documento da transferência.");
+  return { provider, fileId: uploaded.fileId, fileName: value.name, mimeType: value.type, size: value.size, path: uploaded.path, url: uploaded.url || uploaded.path };
 }
 
 async function resolvePortalUnidade(context: Awaited<ReturnType<typeof getPortalContext>>, unidadeId: string, returnTo: string) {

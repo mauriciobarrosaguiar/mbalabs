@@ -27,12 +27,12 @@ export default async function PortalAssociadoPage({ searchParams }: { searchPara
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
-        <nav className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Atalhos do painel">
-          <Link className="button-primary min-h-14 justify-center" href="#minhas-cobrancas">Minhas cobranças</Link>
-          <Link className="button-secondary min-h-14 justify-center" href="#minhas-unidades">Minhas unidades</Link>
-          <Link className="button-secondary min-h-14 justify-center" href="#meus-recibos">Meus recibos</Link>
-          <Link className="button-secondary min-h-14 justify-center" href="#documentos">Documentos</Link>
-          <Link className="button-secondary min-h-14 justify-center" href="#avisos">Avisos</Link>
+        <nav className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5" aria-label="Atalhos do painel">
+          <Link className="button-primary min-h-10 justify-center px-3 py-2 text-sm" href="#minhas-cobrancas">Minhas cobranças</Link>
+          <Link className="button-secondary min-h-10 justify-center px-3 py-2 text-sm" href="#minhas-unidades">Minhas unidades</Link>
+          <Link className="button-secondary min-h-10 justify-center px-3 py-2 text-sm" href="#meus-recibos">Meus recibos</Link>
+          <Link className="button-secondary min-h-10 justify-center px-3 py-2 text-sm" href="#documentos">Documentos</Link>
+          <Link className="button-secondary min-h-10 justify-center px-3 py-2 text-sm" href="#avisos">Avisos</Link>
         </nav>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

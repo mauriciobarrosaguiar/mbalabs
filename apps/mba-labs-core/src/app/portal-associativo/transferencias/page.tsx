@@ -4,7 +4,6 @@ import {
   BackButton,
   DataTable,
   FormDateInput,
-  FormInput,
   FormSelect,
   FormTextarea,
   MessageBanner,
@@ -70,7 +69,7 @@ export default async function PortalTransferenciasPage({
         ) : null}
 
         {canWrite && selected?.unidade ? (
-          <form action={savePortalTransferencia}>
+          <form action={savePortalTransferencia} encType="multipart/form-data">
             <input name="unidade_id" type="hidden" value={selectedUnitId} />
             <ResourceForm
               title="Troca de dono passo a passo"
@@ -96,18 +95,19 @@ export default async function PortalTransferenciasPage({
               <FormSelect
                 label="Débitos anteriores"
                 name="responsabilidade_debitos"
-                defaultValue="novo_responsavel"
+                defaultValue="antigo_responsavel"
                 options={[
                   { value: "antigo_responsavel", label: "Antigo responsável" },
                   { value: "novo_responsavel", label: "Novo responsável" },
                   { value: "dividido", label: "Dividido" },
                   { value: "quitado", label: "Quitado" }
+                  ,{ value: "abonado", label: "Abonado pela associação" }
                 ]}
                 required
               />
               <p className="col-span-full rounded-xl bg-muted p-3 text-sm leading-6 text-muted-foreground">Foram encontradas {outstandingCharges.length} cobrança(s) em aberto, totalizando {formatMoney(outstandingTotal)}. Escolha quem ficará responsável por esses débitos.</p>
               <h3 className="col-span-full mt-2 text-base font-black">7. Documento e motivo</h3>
-              <FormInput label="Documento da transferência" name="documento_url" placeholder="Link ou caminho no armazenamento" />
+              <label className="grid gap-1 text-sm font-semibold">Documento da transferência (opcional)<input accept="application/pdf,image/jpeg,image/png,image/webp" className="input" name="documento" type="file" /><span className="text-xs font-normal text-muted-foreground">O arquivo será guardado automaticamente no Dropbox ou Google Drive da associação.</span></label>
               <FormTextarea label="Motivo" name="motivo" />
               <FormTextarea label="Observações" name="observacoes" />
             </ResourceForm>

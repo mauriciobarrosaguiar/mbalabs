@@ -15,9 +15,9 @@ import {
   formatDate
 } from "@/components/ui-kit";
 import { inactivatePortalPessoa, savePortalPessoa } from "@/lib/actions/portal-associativo-actions";
-import { getCidadeOptions, getUfOptions } from "@/lib/brazil-location-options";
 import { firstParam } from "@/lib/form-utils";
 import { canPortalAccess, getPortalLookups, listPortalPessoas, PORTAL_PERFIL_OPTIONS } from "@/lib/portal-associativo-data";
+import { BrazilLocationFields } from "../BrazilLocationFields";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +33,6 @@ export default async function PortalPessoasPage({
   const cidade = firstParam(params.cidade) ?? "";
   const uf = firstParam(params.uf) ?? "";
   const editId = firstParam(params.edit);
-  const quickMode = firstParam(params.modo) === "rapido";
   const data = await listPortalPessoas(search, { status, perfil, cidade, uf });
   if (!canPortalAccess(data.perfil, "pessoas")) {
     redirect("/portal-associativo/painel-associado");
@@ -42,8 +41,6 @@ export default async function PortalPessoasPage({
   const lookups = await getPortalLookups("/portal-associativo/pessoas");
   const editing = data.rows.find((row) => row.id === editId);
   const canWrite = data.perfil === "administrador" || data.perfil === "presidente" || data.perfil === "secretario";
-  const cidadeOptions = getCidadeOptions(String(editing?.cidade ?? "Palmas"));
-  const ufOptions = getUfOptions(String(editing?.uf ?? "TO"));
 
   return (
     <PortalAssociativoShell
@@ -63,7 +60,7 @@ export default async function PortalPessoasPage({
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
         <div className="grid gap-3 sm:grid-cols-2">
-          {canWrite ? <Link className="button-primary min-h-14 justify-center" href="/portal-associativo/pessoas?modo=rapido#cadastro">Novo associado</Link> : null}
+          {canWrite ? <Link className="button-primary min-h-14 justify-center" href="#cadastro">Novo associado</Link> : null}
           <Link className="button-secondary min-h-14 justify-center" href="/portal-associativo/importacao?tipo=pessoas">Importar planilha</Link>
         </div>
 
@@ -73,30 +70,8 @@ export default async function PortalPessoasPage({
           <FilterLink href="/portal-associativo/pessoas?status=ativa" label="Ativos" active={status === "ativa"} />
         </div>
 
-        {canWrite && !editing ? (
-          <form action={savePortalPessoa} id="cadastro">
-            <input name="tipo_pessoa" type="hidden" value="fisica" />
-            <input name="status_pessoa" type="hidden" value="ativa" />
-            <ResourceForm
-              title="Cadastro rápido"
-              actions={
-                <>
-                  <button className="button-primary" name="proxima_acao" type="submit" value="">Salvar</button>
-                  <button className="button-secondary" name="proxima_acao" type="submit" value="unidade">Salvar e cadastrar unidade</button>
-                  <button className="button-secondary" name="proxima_acao" type="submit" value="cobranca">Salvar e gerar cobrança</button>
-                </>
-              }
-            >
-              <FormInput label="Nome" name="nome_completo" required />
-              <FormInput label="WhatsApp" name="whatsapp" placeholder="Ex.: (11) 99999-9999" />
-              <FormInput label="CPF (opcional)" name="cpf_cnpj" />
-              <FormInput label="E-mail (opcional)" name="email" type="email" />
-            </ResourceForm>
-          </form>
-        ) : null}
-
         {canWrite ? (
-          <details className="panel p-4" open={Boolean(editing) || !quickMode}>
+          <details className="panel p-4" id="cadastro" open>
             <summary className="cursor-pointer text-lg font-black">{editing ? "Editar cadastro" : "Cadastro completo"}</summary>
           <form action={savePortalPessoa}>
             <input name="id" type="hidden" value={String(editing?.id ?? "")} />
@@ -104,7 +79,7 @@ export default async function PortalPessoasPage({
               title={editing ? "Editar pessoa" : "Nova pessoa"}
               actions={
                 <>
-                  <SubmitButton>{editing ? "Salvar alterações" : "Salvar pessoa"}</SubmitButton>
+                  <SubmitButton>{editing ? "Salvar alteracoes" : "Salvar pessoa"}</SubmitButton>
                   {editing ? <Link className="button-secondary" href="/portal-associativo/pessoas">Cancelar</Link> : null}
                 </>
               }
@@ -115,8 +90,8 @@ export default async function PortalPessoasPage({
                 name="tipo_pessoa"
                 defaultValue={String(editing?.tipo_pessoa ?? "fisica")}
                 options={[
-                  { value: "fisica", label: "Física" },
-                  { value: "juridica", label: "Jurídica" }
+                  { value: "fisica", label: "Fisica" },
+                  { value: "juridica", label: "Juridica" }
                 ]}
                 required
               />
@@ -127,7 +102,7 @@ export default async function PortalPessoasPage({
               <FormInput label="WhatsApp" name="whatsapp" defaultValue={String(editing?.whatsapp ?? "")} />
               <FormInput label="Email" name="email" type="email" defaultValue={String(editing?.email ?? "")} />
               <FormSelect
-                label="Usuário MBA Labs"
+                label="Usuario MBA Labs"
                 name="core_usuario_id"
                 defaultValue={String(editing?.core_usuario_id ?? "")}
                 options={lookups.usuarios.map((user: Record<string, unknown>) => ({
@@ -147,11 +122,10 @@ export default async function PortalPessoasPage({
                   { value: "bloqueada", label: "Bloqueada" }
                 ]}
               />
-              <FormSelect label="UF" name="uf" defaultValue={String(editing?.uf ?? "TO")} options={ufOptions} />
-              <FormSelect label="Cidade" name="cidade" defaultValue={String(editing?.cidade ?? "Palmas")} options={cidadeOptions} />
+              <BrazilLocationFields defaultCity={String(editing?.cidade ?? "")} defaultUf={String(editing?.uf ?? "")} />
               <FormTextarea label="Endereço" name="endereco" defaultValue={String(editing?.endereco ?? editing?.endereco_residencial ?? "")} />
               <FormTextarea label="Endereco residencial" name="endereco_residencial" defaultValue={String(editing?.endereco_residencial ?? "")} />
-              <FormTextarea label="Observações" name="observacoes" defaultValue={String(editing?.observacoes ?? "")} />
+              <FormTextarea label="Observacoes" name="observacoes" defaultValue={String(editing?.observacoes ?? "")} />
             </ResourceForm>
           </form>
           </details>
@@ -165,7 +139,7 @@ export default async function PortalPessoasPage({
               <div className="grid grid-cols-2 gap-2">
                 <Link className="button-primary justify-center" href={`/portal-associativo/pessoas/${row.id}`}>Ver</Link>
                 {row.whatsapp ? <Link className="button-secondary justify-center" href={`https://wa.me/${String(row.whatsapp).replace(/\D/g, "")}`} target="_blank">WhatsApp</Link> : null}
-                {canWrite ? <Link className="button-secondary col-span-2 justify-center" href={`/portal-associativo/financeiro?responsavel=${row.id}#cobranca-avulsa`}>Criar cobrança</Link> : null}
+                {canWrite ? <Link className="button-secondary col-span-2 justify-center" href={Array.isArray(row.unidade_ids) && row.unidade_ids.length === 1 ? `/portal-associativo/financeiro?unidade=${row.unidade_ids[0]}#cobranca-avulsa` : "/portal-associativo/financeiro#cobranca-avulsa"}>Criar cobrança</Link> : null}
               </div>
             </article>
           )) : <p className="rounded-2xl border border-border bg-card p-5 text-sm text-muted-foreground">Nenhum associado cadastrado. Use “Novo associado” para começar.</p>}

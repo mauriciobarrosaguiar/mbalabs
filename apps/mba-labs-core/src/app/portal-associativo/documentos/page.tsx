@@ -14,7 +14,7 @@ import {
   SubmitButton,
   formatDate
 } from "@/components/ui-kit";
-import { deletePortalArquivo, savePortalArquivoManual, togglePortalArquivoLiberado } from "@/lib/actions/portal-associativo-actions";
+import { deletePortalArquivo, togglePortalArquivoLiberado } from "@/lib/actions/portal-associativo-actions";
 import { firstParam } from "@/lib/form-utils";
 import {
   canPortalAccess,
@@ -85,7 +85,6 @@ export default async function PortalDocumentosPage({
               <span className="text-sm font-bold">Arquivo</span>
               <input className="input" name="arquivo" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx,.csv,.txt" multiple required />
             </label>
-            <FormSelect label="Provedor" name="provedor" options={[{ value: "dropbox", label: "Dropbox" }, { value: "google_drive", label: "Google Drive" }]} />
             <FormInput label="Categoria" name="categoria" defaultValue="Documentos" />
             <FormSelect label="Pessoa" name="pessoa_id" options={personOptions} />
             <FormSelect label="Unidade" name="unidade_id" options={unitOptions} />
@@ -94,22 +93,6 @@ export default async function PortalDocumentosPage({
             <FormSelect label="Projeto" name="projeto_id" options={projetoOptions} />
             <FormCheckbox label="Liberado para associado" name="liberado_associado" />
             <FormTextarea label="Descricao" name="descricao" />
-          </ResourceForm>
-        </form>
-
-        <form action={savePortalArquivoManual}>
-          <ResourceForm title="Cadastrar link manual" actions={<SubmitButton>Salvar link</SubmitButton>}>
-            <input name="return_to" type="hidden" value="/portal-associativo/documentos" />
-            <FormInput label="Nome do documento" name="file_name" required />
-            <FormInput label="Link seguro do arquivo" name="shared_url" required />
-            <FormInput label="Categoria" name="categoria" defaultValue="outro" />
-            <FormSelect label="Pessoa" name="pessoa_id" options={personOptions} />
-            <FormSelect label="Unidade" name="unidade_id" options={unitOptions} />
-            <FormSelect label="Cobrança" name="cobranca_id" options={cobrancaOptions} />
-            <FormSelect label="Reunião" name="reuniao_id" options={reuniaoOptions} />
-            <FormSelect label="Projeto" name="projeto_id" options={projetoOptions} />
-            <FormCheckbox label="Liberado para associado" name="liberado_associado" />
-            <FormTextarea label="Descrição" name="descricao" />
           </ResourceForm>
         </form>
 

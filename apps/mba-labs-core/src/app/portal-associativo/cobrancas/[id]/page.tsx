@@ -91,7 +91,6 @@ export default async function PortalCobrancaDetailPage({ params }: PageProps) {
                   <input name="return_to" type="hidden" value={`/portal-associativo/cobrancas/${id}`} />
                   <input className="input" name="forma_pagamento" placeholder="Forma de pagamento" defaultValue="manual" />
                   <input className="input" name="valor_pago" placeholder="Valor pago" type="number" step="0.01" defaultValue={String(row.valor_total ?? "")} />
-                  <input className="input" name="comprovante_url" placeholder="Comprovante URL (opcional)" />
                   <button className="button-primary" type="submit">Baixar cobrança</button>
                 </form>
               ) : null}

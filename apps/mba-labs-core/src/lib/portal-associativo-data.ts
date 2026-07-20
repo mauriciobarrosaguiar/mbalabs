@@ -495,6 +495,7 @@ export async function listPortalPessoas(search = "", filters: { status?: string;
       perfil: relationObject(row.assoc_perfis_usuarios)?.perfil ?? "",
       perfil_status: relationObject(row.assoc_perfis_usuarios)?.status ?? "",
       unidades_vinculadas: unidadesPorPessoa.get(String(row.id))?.size ?? 0,
+      unidade_ids: Array.from(unidadesPorPessoa.get(String(row.id)) ?? []),
       cobrancas_abertas: cobrancasPorPessoa.get(String(row.id)) ?? 0
     }))
     .filter((row) => !filters.perfil || row.perfil === filters.perfil)
@@ -550,7 +551,7 @@ export async function listPortalCobrancas(filters: { status?: string; q?: string
     context.empresaId
   );
 
-  if (filters.status) query = query.eq("status", filters.status);
+  if (filters.status && filters.status !== "vencida") query = query.eq("status", filters.status);
   if (filters.loteamento) query = query.eq("loteamento_id", filters.loteamento);
   if (filters.unidade) query = query.eq("unidade_id", filters.unidade);
   if (filters.responsavel) query = query.eq("pessoa_responsavel_id", filters.responsavel);
@@ -571,6 +572,7 @@ export async function listPortalCobrancas(filters: { status?: string; q?: string
       whatsapp: relationPhone(row.assoc_pessoas),
       mensagem_whatsapp: buildChargeWhatsappMessage(row, context.companyName)
     }))
+    .filter((row) => filters.status !== "vencida" || row.status_calculado === "vencida")
     .filter((row) => includesSearch(row, ["descricao", "loteamento", "unidade", "responsavel"], filters.q ?? "")));
 
   return { ...context, rows, error: context.error ?? error?.message ?? null };
@@ -723,7 +725,7 @@ export async function getPortalMensalidadesPreview(params: {
       .is("data_fim", null),
     context.client
       .from("assoc_cobrancas")
-      .select("unidade_id,mes_referencia,ano_referencia")
+      .select("unidade_id,mes_referencia,ano_referencia,status")
       .eq("empresa_id", empresaId)
       .eq("tipo_cobranca", "mensalidade")
       .in("ano_referencia", [year]),
@@ -738,7 +740,8 @@ export async function getPortalMensalidadesPreview(params: {
     };
   }
 
-  const existing = new Set((existingResult.data ?? []).map((row: Record<string, unknown>) => `${row.unidade_id}-${row.ano_referencia}-${row.mes_referencia}`));
+  const existingRows = (existingResult.data ?? []) as Array<Record<string, unknown>>;
+  const existing = new Map(existingRows.map((row) => [`${row.unidade_id}-${row.ano_referencia}-${row.mes_referencia}`, String(row.status ?? "")]));
   const responsaveis = new Set((linksResult.data ?? []).map((row: Record<string, unknown>) => String(row.unidade_id ?? "")));
   const config = (configResult.data ?? {}) as Record<string, unknown>;
   const valorInformado = Number(String(params.valorOriginal ?? "").replace(",", ".") || 0);
@@ -786,7 +789,7 @@ export async function getPortalMensalidadesPreview(params: {
         valor
       };
       if (existing.has(key)) {
-        ignored.push({ ...previewRow, motivo: "Duplicidade" });
+        ignored.push({ ...previewRow, motivo: existing.get(key) === "paga" ? "Já estava paga" : "Cobrança já existente", status: existing.get(key) });
       } else {
         rows.push(previewRow);
       }
@@ -801,6 +804,9 @@ export async function getPortalMensalidadesPreview(params: {
       quantidade_sem_responsavel: semResponsavel,
       quantidade_cobrancas: rows.length,
       quantidade_ignoradas: ignored.length,
+      quantidade_ignoradas_pagas: ignored.filter((row) => row.status === "paga").length,
+      quantidade_ignoradas_existentes: ignored.filter((row) => row.status !== "paga").length,
+      quantidade_meses: months.length,
       valor_total: rows.reduce((sum, row) => sum + Number(row.valor ?? 0), 0),
       mes_inicial: params.mesInicial,
       vencimento: params.vencimentoDia,
@@ -855,7 +861,11 @@ export async function listPortalAvisos(activeOnly = false) {
     query = query.eq("status", "ativo").eq("mostrar_painel", true);
   }
   const { data, error } = await query;
-  return { ...context, rows: uniqueById(((data ?? []) as Array<Record<string, unknown>>).filter((row) => !activeOnly || isVisibleNotice(row))), error: context.error ?? error?.message ?? null };
+  const today = startOfToday();
+  const rows = uniqueById(((data ?? []) as Array<Record<string, unknown>>)
+    .filter((row) => !activeOnly || isVisibleNotice(row))
+    .map((row) => ({ ...row, status_visual: row.visivel_ate && new Date(String(row.visivel_ate)) < today ? "expirado" : row.status })));
+  return { ...context, rows, error: context.error ?? error?.message ?? null };
 }
 
 export async function listPortalProjetos() {
@@ -1009,7 +1019,7 @@ export async function getPortalAssociadoPanel() {
       mensagem_whatsapp: buildChargeWhatsappMessage({ ...row, pix_copia_cola: row.pix_copia_cola || config.data?.pix_chave }, context.companyName)
     }))
     .filter((row) => String(row.pessoa_responsavel_id ?? "") === pessoaId || unidadeIds.has(String(row.unidade_id ?? ""))));
-  const avisosRows = uniqueById((avisos.rows as Array<Record<string, unknown>>).filter((row) => noticeMatchesAssociatedAudience(row, context.perfil, unidadeIds, chargeRows)));
+  const avisosRows = uniqueById((avisos.rows as Array<Record<string, unknown>>).filter((row) => noticeMatchesAssociatedAudience(row, context.perfil, pessoaId, unidadeIds, chargeRows)));
   const documentosRows = uniqueFiles(((documentos.data ?? []) as Array<Record<string, unknown>>)
     .filter((row) => String(row.pessoa_id ?? "") === pessoaId || unidadeIds.has(String(row.unidade_id ?? "")) || chargeRows.some((charge) => String(charge.id) === String(row.cobranca_id ?? "")))
     .map<Record<string, unknown>>((row) => ({
@@ -1064,7 +1074,7 @@ export async function getPortalConfiguracoes() {
 export async function getPortalLookups(nextPath = PORTAL_ASSOCIATIVO_PATH) {
   const context = await getPortalContext(nextPath);
   const [pessoas, loteamentos, unidades, usuarios, config] = await Promise.all([
-    scopedByEmpresa(context.client.from("assoc_pessoas").select("id,nome_completo,whatsapp,email,status_pessoa").order("nome_completo"), context.empresaId),
+    scopedByEmpresa(context.client.from("assoc_pessoas").select("id,nome_completo,whatsapp,email,status_pessoa,core_usuario_id").order("nome_completo"), context.empresaId),
     scopedByEmpresa(context.client.from("assoc_loteamentos").select("id,nome,codigo,status,valor_mensalidade_padrao,vencimento_padrao,descricao_mensalidade_padrao").order("nome"), context.empresaId),
     scopedByEmpresa(context.client.from("assoc_unidades").select("id,loteamento_id,codigo_unidade,numero_unidade,tipo_unidade,status_unidade,valor_mensalidade,vencimento_dia,isento_mensalidade").order("numero_unidade"), context.empresaId),
     context.empresaId
@@ -1645,6 +1655,7 @@ function isVisibleNotice(row: Record<string, unknown>) {
 function noticeMatchesAssociatedAudience(
   row: Record<string, unknown>,
   perfil: PortalPerfil,
+  pessoaId: string,
   unidadeIds: Set<string>,
   charges: Array<Record<string, unknown>>
 ) {
@@ -1653,6 +1664,8 @@ function noticeMatchesAssociatedAudience(
   if (publico === "associados") return true;
   if (publico === "diretoria") return ["administrador", "presidente", "tesoureiro", "secretario", "conselho_fiscal"].includes(perfil);
   if (publico === "inadimplentes") return charges.some(isOverdueCharge);
+  if (publico === "adimplentes") return !charges.some(isOverdueCharge);
+  if (publico === "pessoa") return String(row.pessoa_id ?? "") === pessoaId;
   if (publico === "perfil" || publico === "por_perfil") {
     const perfis = Array.isArray(row.perfis) ? row.perfis.map(String) : [];
     return perfis.length === 0 || perfis.includes(perfil);
@@ -1676,7 +1689,7 @@ function defaultConfiguracoes(companyName: string) {
     logo_url: "",
     tema_visual: "padrao",
     tipo_unidade_padrao: "chacara",
-    valor_mensalidade_padrao: 0,
+    valor_mensalidade_padrao: 20,
     vencimento_padrao: 10,
     descricao_mensalidade_padrao: "Mensalidade",
     pix_chave: "",

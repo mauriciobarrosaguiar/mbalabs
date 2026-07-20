@@ -4,7 +4,7 @@ import { PortalAssociativoShell } from "@/components/PortalAssociativoShell";
 import { BackButton, DataTable, FormCheckbox, FormDateInput, FormInput, FormSelect, FormTextarea, MessageBanner, PageHeader, ResourceForm, SubmitButton, formatDate } from "@/components/ui-kit";
 import { savePortalAviso } from "@/lib/actions/portal-associativo-actions";
 import { firstParam } from "@/lib/form-utils";
-import { canPortalAccess, getPortalLookups, listPortalAvisos, PORTAL_PERFIL_OPTIONS, unitOptionLabel } from "@/lib/portal-associativo-data";
+import { canPortalAccess, getPortalLookups, listPortalAvisos, unitOptionLabel } from "@/lib/portal-associativo-data";
 
 export const dynamic = "force-dynamic";
 
@@ -15,13 +15,16 @@ export default async function PortalAvisosPage({
 }) {
   const params = await searchParams;
   const editId = firstParam(params.edit);
+  const situation = firstParam(params.situacao) ?? "ativos";
   const data = await listPortalAvisos();
   if (!canPortalAccess(data.perfil, "avisos")) {
     redirect("/portal-associativo/painel-associado");
   }
   const lookups = await getPortalLookups("/portal-associativo/avisos");
   const unitOptions = lookups.unidades.map((unit: Record<string, unknown>) => ({ value: String(unit.id), label: unitOptionLabel(unit) }));
+  const personOptions = lookups.pessoas.map((person: Record<string, unknown>) => ({ value: String(person.id), label: `${person.nome_completo}${person.whatsapp ? ` · ${person.whatsapp}` : ""}` }));
   const editing = (data.rows as Array<Record<string, unknown>>).find((row) => row.id === editId);
+  const visibleRows = (data.rows as Array<Record<string, unknown>>).filter((row) => situation === "expirados" ? row.status_visual === "expirado" : row.status_visual !== "expirado");
   const canWrite = data.perfil === "administrador" || data.perfil === "presidente" || data.perfil === "secretario";
 
   return (
@@ -29,6 +32,7 @@ export default async function PortalAvisosPage({
       <section className="grid gap-6">
         <PageHeader eyebrow="Portal Associativo" title="Avisos" description="Publique comunicados por prioridade, período, perfil, inadimplência ou unidade." actions={<BackButton href="/portal-associativo" />} />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
+        <div className="flex flex-wrap gap-2"><Link className={situation === "ativos" ? "button-primary" : "button-secondary"} href="/portal-associativo/avisos?situacao=ativos">Ativos e rascunhos</Link><Link className={situation === "expirados" ? "button-primary" : "button-secondary"} href="/portal-associativo/avisos?situacao=expirados">Expirados</Link></div>
 
         {canWrite ? (
           <form action={savePortalAviso}>
@@ -50,22 +54,20 @@ export default async function PortalAvisosPage({
                 options={[{ value: "baixa", label: "Baixa" }, { value: "media", label: "Média" }, { value: "alta", label: "Alta" }, { value: "urgente", label: "Urgente" }]}
               />
               <FormSelect
-                label="Público"
+                label="Enviar aviso para"
                 name="publico"
                 defaultValue={String(editing?.publico ?? "todos")}
                 options={[
                   { value: "todos", label: "Todos" },
-                  { value: "associados", label: "Associados" },
+                  { value: "adimplentes", label: "Adimplentes" },
                   { value: "inadimplentes", label: "Inadimplentes" },
-                  { value: "diretoria", label: "Diretoria" },
-                  { value: "perfil", label: "Por perfil" },
-                  { value: "status_cobranca", label: "Por status de cobrança" },
-                  { value: "unidade", label: "Por unidade" }
+                  { value: "pessoa", label: "Associado específico" },
+                  { value: "unidade", label: "Unidade específica" },
+                  { value: "diretoria", label: "Diretoria/Administração" }
                 ]}
               />
-              <FormInput label="Perfis (separados por vírgula)" name="perfis" defaultValue={Array.isArray(editing?.perfis) ? (editing?.perfis as string[]).join(",") : ""} placeholder={PORTAL_PERFIL_OPTIONS.map((item) => item.value).join(", ")} />
-              <FormSelect label="Status de cobrança" name="status_cobranca" defaultValue={String(editing?.status_cobranca ?? "")} options={[{ value: "aberta", label: "Aberta" }, { value: "vencida", label: "Vencida" }, { value: "paga", label: "Paga" }]} />
-              <FormSelect label="Unidade" name="unidade_id" defaultValue={String(editing?.unidade_id ?? "")} options={unitOptions} />
+              <FormSelect label="Associado específico (quando escolhido acima)" name="pessoa_id" defaultValue={String(editing?.pessoa_id ?? "")} options={personOptions} />
+              <FormSelect label="Unidade específica (quando escolhida acima)" name="unidade_id" defaultValue={String(editing?.unidade_id ?? "")} options={unitOptions} />
               <FormInput label="Link do portal" name="link_portal" defaultValue={String(editing?.link_portal ?? "/portal-associativo/painel-associado")} />
               <FormDateInput label="Visível de" name="visivel_de" defaultValue={String(editing?.visivel_de ?? "")} />
               <FormDateInput label="Visível até" name="visivel_ate" defaultValue={String(editing?.visivel_ate ?? "")} />
@@ -81,11 +83,11 @@ export default async function PortalAvisosPage({
             { key: "titulo", label: "Título" },
             { key: "prioridade", label: "Prioridade" },
             { key: "publico", label: "Público" },
-            { key: "status", label: "Status" },
+            { key: "status_visual", label: "Status" },
             { key: "visivel_de", label: "De" },
             { key: "visivel_ate", label: "Até" }
           ]}
-          rows={(data.rows as Array<Record<string, unknown>>).map((row) => ({ ...row, visivel_de: formatDate(row.visivel_de), visivel_ate: formatDate(row.visivel_ate) }))}
+          rows={visibleRows.map((row) => ({ ...row, visivel_de: formatDate(row.visivel_de), visivel_ate: formatDate(row.visivel_ate) }))}
           actions={(row) => (
             <div className="flex flex-wrap justify-end gap-2">
               <Link className="button-secondary" href={`https://wa.me/?text=${encodeURIComponent(buildWhatsappMessage(data.companyName, row))}`} target="_blank">WhatsApp</Link>

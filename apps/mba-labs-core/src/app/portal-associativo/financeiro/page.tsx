@@ -4,7 +4,6 @@ import { PortalAssociativoShell } from "@/components/PortalAssociativoShell";
 import {
   BackButton,
   DataTable,
-  FormCheckbox,
   FormDateInput,
   FormInput,
   FormMoneyInput,
@@ -68,15 +67,17 @@ export default async function PortalFinanceiroPage({
     valorOriginal: firstParam(params.preview_valor_original) ?? "",
     vencimentoDia: firstParam(params.preview_vencimento_dia) ?? "",
     descricao: firstParam(params.preview_descricao) ?? "",
-    ateDezembro: firstParam(params.preview_ate_dezembro) === "true"
+    modo: firstParam(params.preview_modo) ?? "mensal",
+    ano: firstParam(params.preview_ano) ?? String(new Date().getFullYear()),
+    ateDezembro: ["ate_dezembro", "anual"].includes(firstParam(params.preview_modo) ?? "")
   };
+  if (previewParams.modo === "anual") previewParams.mesInicial = `${previewParams.ano}-01`;
   const preview = previewParams.mesInicial ? await getPortalMensalidadesPreview(previewParams) : null;
   const loteamentoOptions: Array<{ value: string; label: string }> = lookups.loteamentos.map((item: Record<string, unknown>) => ({
     value: String(item.id),
     label: loteamentoOptionLabel(item)
   }));
   const unitOptions = lookups.unidades.map((unit: Record<string, unknown>) => ({ value: String(unit.id), label: unitOptionLabel(unit) }));
-  const personOptions = lookups.pessoas.map((person: Record<string, unknown>) => ({ value: String(person.id), label: String(person.nome_completo) }));
 
   return (
     <PortalAssociativoShell
@@ -120,7 +121,8 @@ export default async function PortalFinanceiroPage({
         </form>
 
         {canWrite ? (
-          <div className="grid gap-4 xl:grid-cols-2">
+          <div className="grid gap-4">
+            <details className="panel p-4" open={Boolean(editing)}><summary className="cursor-pointer text-lg font-black">Criar cobrança individual</summary><div className="mt-4">
             <form action={savePortalCobranca} id="cobranca-avulsa">
               <input name="id" type="hidden" value={String(editing?.id ?? "")} />
               <input name="return_to" type="hidden" value="/portal-associativo/financeiro" />
@@ -134,7 +136,7 @@ export default async function PortalFinanceiroPage({
                 }
               >
                 <FormSelect label="Unidade" name="unidade_id" defaultValue={String(editing?.unidade_id ?? filters.unidade)} options={unitOptions} required />
-                <FormSelect label="Responsável pelo pagamento" name="pessoa_responsavel_id" defaultValue={String(editing?.pessoa_responsavel_id ?? filters.responsavel)} options={personOptions} />
+                <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">O responsável pelo pagamento será preenchido automaticamente conforme o vínculo ativo da unidade.</p>
                 <FormInput label="Descricao" name="descricao" defaultValue={String(editing?.descricao ?? "Mensalidade")} required />
                 <FormSelect
                   label="Tipo"
@@ -164,17 +166,20 @@ export default async function PortalFinanceiroPage({
                 <FormTextarea label="Observacoes" name="observacoes" defaultValue={String(editing?.observacoes ?? "")} />
               </ResourceForm>
             </form>
-
+            </div></details>
+            <details className="panel p-4"><summary className="cursor-pointer text-lg font-black">Gerar cobranças em lote</summary><div className="mt-4">
             <form action="" id="mensalidades-lote" method="get">
               <ResourceForm title="Mensalidades em lote" actions={<SubmitButton>Ver previa</SubmitButton>}>
                 <FormSelect label="Loteamento" name="preview_loteamento_id" defaultValue={previewParams.loteamentoId} options={loteamentoOptions} />
-                <FormInput label="Mes inicial" name="preview_mes_inicial" type="month" defaultValue={previewParams.mesInicial} required />
+                <FormSelect label="Período de geração" name="preview_modo" defaultValue={previewParams.modo} options={[{ value: "mensal", label: "Mensal (somente o mês selecionado)" }, { value: "ate_dezembro", label: "Do mês selecionado até dezembro" }, { value: "anual", label: "Anual (12 meses)" }]} />
+                <FormInput label="Mês inicial (mensal/até dezembro)" name="preview_mes_inicial" type="month" defaultValue={previewParams.mesInicial} />
+                <FormInput label="Ano (geração anual)" name="preview_ano" type="number" defaultValue={previewParams.ano} />
                 <FormMoneyInput label="Valor padrao de apoio" name="preview_valor_original" defaultValue={previewParams.valorOriginal || String(lookups.configuracoes.valor_mensalidade_padrao ?? "")} />
                 <FormInput label="Dia de vencimento" name="preview_vencimento_dia" type="number" defaultValue={previewParams.vencimentoDia || String(lookups.configuracoes.vencimento_padrao ?? 10)} required />
                 <FormInput label="Descricao" name="preview_descricao" defaultValue={previewParams.descricao || String(lookups.configuracoes.descricao_mensalidade_padrao ?? "Mensalidade")} />
-                <FormCheckbox label="Gerar ate dezembro" name="preview_ate_dezembro" defaultChecked={previewParams.ateDezembro || !previewParams.mesInicial} />
               </ResourceForm>
             </form>
+            </div></details>
           </div>
         ) : null}
 
@@ -185,7 +190,7 @@ export default async function PortalFinanceiroPage({
                 <p className="eyebrow">Previa de mensalidades</p>
                 <h2 className="text-xl font-black">Confira antes de gerar</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {String(preview.preview.quantidade_cobrancas)} nova(s), {String(preview.preview.quantidade_ignoradas)} ignorada(s) por duplicidade, total {formatMoney(preview.preview.valor_total)}.
+                  {String(preview.preview.quantidade_cobrancas)} nova(s) em {String(preview.preview.quantidade_meses)} mês(es), total {formatMoney(preview.preview.valor_total)}. {String(preview.preview.quantidade_ignoradas_pagas)} ignorada(s) porque já estavam pagas e {String(preview.preview.quantidade_ignoradas_existentes)} porque já existiam.
                 </p>
               </div>
               <form action={gerarPortalMensalidadesLote} className="flex flex-wrap gap-2">
@@ -317,7 +322,6 @@ export default async function PortalFinanceiroPage({
                     <input name="return_to" type="hidden" value="/portal-associativo/financeiro" />
                     <input className="input" name="forma_pagamento" placeholder="Forma de pagamento" defaultValue="manual" />
                     <input className="input" name="valor_pago" placeholder="Valor pago" type="number" step="0.01" defaultValue={String(row.valor_total_raw ?? "")} />
-                    <input className="input" name="comprovante_url" placeholder="Comprovante URL (opcional)" />
                     <button className="button-primary" type="submit">Confirmar baixa</button>
                   </form>
                 </details>

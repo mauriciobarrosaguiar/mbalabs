@@ -16,9 +16,10 @@ import {
   formatMoney
 } from "@/components/ui-kit";
 import { inactivatePortalLoteamento, savePortalLoteamento } from "@/lib/actions/portal-associativo-actions";
-import { getCidadeOptions, getUfOptions } from "@/lib/brazil-location-options";
 import { firstParam } from "@/lib/form-utils";
 import { canPortalAccess, listPortalLoteamentos } from "@/lib/portal-associativo-data";
+import { BrazilLocationFields } from "../BrazilLocationFields";
+import { LoteamentoCodeFields } from "../LoteamentoCodeFields";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +40,6 @@ export default async function PortalLoteamentosPage({
 
   const editing = data.rows.find((row) => row.id === editId);
   const canWrite = data.perfil === "administrador" || data.perfil === "presidente" || data.perfil === "secretario";
-  const cidadeOptions = getCidadeOptions(String(editing?.cidade ?? "Palmas"));
-  const ufOptions = getUfOptions(String(editing?.uf ?? "TO"));
 
   return (
     <PortalAssociativoShell
@@ -82,9 +81,8 @@ export default async function PortalLoteamentosPage({
               }
             >
               <FormInput label="Nome do loteamento" name="nome" defaultValue={String(editing?.nome ?? "")} required />
-              <FormInput label="Código interno" name="codigo" defaultValue={String(editing?.codigo ?? "")} />
-              <FormSelect label="UF" name="uf" defaultValue={String(editing?.uf ?? "TO")} options={ufOptions} />
-              <FormSelect label="Cidade" name="cidade" defaultValue={String(editing?.cidade ?? "Palmas")} options={cidadeOptions} />
+              <LoteamentoCodeFields defaultCode={String(editing?.codigo ?? "")} defaultType={String(editing?.tipo_loteamento ?? "outro")} />
+              <BrazilLocationFields defaultCity={String(editing?.cidade ?? "")} defaultUf={String(editing?.uf ?? "")} />
               <FormMoneyInput label="Mensalidade padrão" name="valor_mensalidade_padrao" defaultValue={Number(editing?.valor_mensalidade_padrao ?? 0)} />
               <FormInput label="Dia de vencimento padrão" name="vencimento_padrao" type="number" defaultValue={String(editing?.vencimento_padrao ?? 10)} />
               <FormInput
