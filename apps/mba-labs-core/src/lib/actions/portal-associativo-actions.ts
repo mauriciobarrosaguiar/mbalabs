@@ -383,35 +383,29 @@ export async function savePortalTransferencia(formData: FormData) {
     redirectWithError(returnTo, "Informe chacara/lote, novo responsavel e motivo.");
   }
 
-  const previousOwner = await context.client
+  const activeLinks = await context.client
     .from("assoc_vinculos_unidade_pessoa")
-    .select("pessoa_id")
-    .eq("empresa_id", empresaId)
-    .eq("unidade_id", unidadeId)
-    .eq("tipo_vinculo", "proprietario")
-    .eq("status_vinculo", "ativo")
-    .is("data_fim", null)
-    .maybeSingle();
-
-  const today = new Date().toISOString().slice(0, 10);
-  await context.client
-    .from("assoc_vinculos_unidade_pessoa")
-    .update({ status_vinculo: "encerrado", data_fim: today, motivo_encerramento: motivo, atualizado_em: new Date().toISOString() })
+    .select("id,pessoa_id,tipo_vinculo")
     .eq("empresa_id", empresaId)
     .eq("unidade_id", unidadeId)
     .in("tipo_vinculo", ["proprietario", "responsavel_financeiro", "responsavel_contato"])
     .eq("status_vinculo", "ativo")
     .is("data_fim", null);
+  if (activeLinks.error) redirectWithError(returnTo, activeLinks.error.message);
+  const previousOwner = (activeLinks.data ?? []).find((row: Record<string, unknown>) => row.tipo_vinculo === "proprietario");
 
+  const today = new Date().toISOString().slice(0, 10);
+  const responsavelFinanceiroId = nullableTextValue(formData, "responsavel_financeiro_id") ?? novaPessoaId;
+  const responsavelContatoId = nullableTextValue(formData, "responsavel_contato_id") ?? novaPessoaId;
   const transferencia = await context.client
     .from("assoc_transferencias")
     .insert({
       empresa_id: empresaId,
       unidade_id: unidadeId,
-      pessoa_anterior_id: previousOwner.data?.pessoa_id ?? null,
+      pessoa_anterior_id: previousOwner?.pessoa_id ?? null,
       nova_pessoa_id: novaPessoaId,
-      responsavel_financeiro_id: nullableTextValue(formData, "responsavel_financeiro_id") ?? novaPessoaId,
-      responsavel_contato_id: nullableTextValue(formData, "responsavel_contato_id") ?? novaPessoaId,
+      responsavel_financeiro_id: responsavelFinanceiroId,
+      responsavel_contato_id: responsavelContatoId,
       data_transferencia: dateValue(formData, "data_transferencia") ?? today,
       motivo,
       documento_url: nullableTextValue(formData, "documento_url"),
@@ -426,9 +420,30 @@ export async function savePortalTransferencia(formData: FormData) {
     redirectWithError(returnTo, transferencia.error.message);
   }
 
-  await insertVinculo(context, unidadeId, novaPessoaId, "proprietario");
-  await insertVinculo(context, unidadeId, textValue(formData, "responsavel_financeiro_id") || novaPessoaId, "responsavel_financeiro");
-  await insertVinculo(context, unidadeId, textValue(formData, "responsavel_contato_id") || novaPessoaId, "responsavel_contato");
+  const newLinks = await context.client.from("assoc_vinculos_unidade_pessoa").insert([
+    { empresa_id: empresaId, unidade_id: unidadeId, pessoa_id: novaPessoaId, tipo_vinculo: "proprietario", data_inicio: today, status_vinculo: "ativo" },
+    { empresa_id: empresaId, unidade_id: unidadeId, pessoa_id: responsavelFinanceiroId, tipo_vinculo: "responsavel_financeiro", data_inicio: today, status_vinculo: "ativo" },
+    { empresa_id: empresaId, unidade_id: unidadeId, pessoa_id: responsavelContatoId, tipo_vinculo: "responsavel_contato", data_inicio: today, status_vinculo: "ativo" }
+  ]).select("id");
+  if (newLinks.error) {
+    await context.client.from("assoc_transferencias").delete().eq("id", transferencia.data.id).eq("empresa_id", empresaId);
+    redirectWithError(returnTo, `Não foi possível criar os novos vínculos: ${newLinks.error.message}`);
+  }
+
+  const oldLinkIds = (activeLinks.data ?? []).map((row: Record<string, unknown>) => String(row.id)).filter(Boolean);
+  if (oldLinkIds.length) {
+    const closed = await context.client
+      .from("assoc_vinculos_unidade_pessoa")
+      .update({ status_vinculo: "encerrado", data_fim: today, motivo_encerramento: motivo, atualizado_em: new Date().toISOString() })
+      .eq("empresa_id", empresaId)
+      .in("id", oldLinkIds);
+    if (closed.error) {
+      const newLinkIds = (newLinks.data ?? []).map((row: Record<string, unknown>) => String(row.id)).filter(Boolean);
+      if (newLinkIds.length) await context.client.from("assoc_vinculos_unidade_pessoa").delete().eq("empresa_id", empresaId).in("id", newLinkIds);
+      await context.client.from("assoc_transferencias").delete().eq("id", transferencia.data.id).eq("empresa_id", empresaId);
+      redirectWithError(returnTo, `Não foi possível encerrar os vínculos anteriores: ${closed.error.message}`);
+    }
+  }
   await recordPortalAudit(context, "transferir_unidade", "assoc_transferencias", String(transferencia.data?.id ?? ""), { unidadeId, novaPessoaId });
   revalidatePortal(returnTo);
   revalidatePath("/portal-associativo/unidades");

@@ -11,11 +11,12 @@ import {
   PageHeader,
   ResourceForm,
   SubmitButton,
+  formatMoney,
   formatDate
 } from "@/components/ui-kit";
 import { savePortalTransferencia } from "@/lib/actions/portal-associativo-actions";
 import { firstParam } from "@/lib/form-utils";
-import { canPortalAccess, getPortalLookups, listPortalTransferencias, unitOptionLabel } from "@/lib/portal-associativo-data";
+import { canPortalAccess, getPortalLookups, getPortalUnidadeDetail, listPortalTransferencias, unitOptionLabel } from "@/lib/portal-associativo-data";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,11 @@ export default async function PortalTransferenciasPage({
   const personOptions = lookups.pessoas.map((person: Record<string, unknown>) => ({ value: String(person.id), label: String(person.nome_completo) }));
   const unitOptions = lookups.unidades.map((unit: Record<string, unknown>) => ({ value: String(unit.id), label: unitOptionLabel(unit) }));
   const canWrite = data.perfil === "administrador" || data.perfil === "presidente" || data.perfil === "secretario";
+  const selectedUnitId = firstParam(params.unidade);
+  const selected = selectedUnitId ? await getPortalUnidadeDetail(selectedUnitId) : null;
+  const currentOwner = selected?.vinculos.find((row) => row.tipo_vinculo === "proprietario" && row.status_vinculo === "ativo" && !row.data_fim);
+  const outstandingCharges = selected ? [...selected.cobrancasAbertas, ...selected.cobrancasVencidas].filter((row, index, rows) => rows.findIndex((item) => item.id === row.id) === index) : [];
+  const outstandingTotal = outstandingCharges.reduce((total, row) => total + Number(row.valor_total ?? row.valor_original ?? 0), 0);
 
   return (
     <PortalAssociativoShell
@@ -53,7 +59,19 @@ export default async function PortalTransferenciasPage({
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
         {canWrite ? (
+          <form className="rounded-2xl border bg-card p-4 shadow-sm sm:p-5" method="get">
+            <h2 className="text-lg font-black">1. Escolha a unidade</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Primeiro selecione a chácara ou lote para conferir o dono atual e os débitos.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+              <FormSelect label="Unidade" name="unidade" options={unitOptions} defaultValue={selectedUnitId} required />
+              <button className="button-primary min-h-11" type="submit">Continuar</button>
+            </div>
+          </form>
+        ) : null}
+
+        {canWrite && selected?.unidade ? (
           <form action={savePortalTransferencia}>
+            <input name="unidade_id" type="hidden" value={selectedUnitId} />
             <ResourceForm
               title="Troca de dono passo a passo"
               actions={
@@ -64,8 +82,11 @@ export default async function PortalTransferenciasPage({
                 </details>
               }
             >
-              <h3 className="col-span-full text-base font-black">1. Escolha a unidade</h3>
-              <FormSelect label="Unidade" name="unidade_id" options={unitOptions} required />
+              <div className="col-span-full grid gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:grid-cols-3">
+                <div><span className="text-xs font-bold uppercase text-muted-foreground">Unidade</span><p className="font-black">{unitOptionLabel(selected.unidade)}</p></div>
+                <div><span className="text-xs font-bold uppercase text-muted-foreground">Dono atual</span><p className="font-black">{String(currentOwner?.pessoa ?? "Sem proprietário definido")}</p></div>
+                <div><span className="text-xs font-bold uppercase text-muted-foreground">Débitos em aberto</span><p className="font-black text-red-700">{formatMoney(outstandingTotal)} ({outstandingCharges.length})</p></div>
+              </div>
               <h3 className="col-span-full mt-2 text-base font-black">2 a 4. Defina os novos responsáveis</h3>
               <FormSelect label="Novo proprietário" name="nova_pessoa_id" options={personOptions} required />
               <FormSelect label="Responsável pelo pagamento" name="responsavel_financeiro_id" options={personOptions} />
@@ -84,14 +105,14 @@ export default async function PortalTransferenciasPage({
                 ]}
                 required
               />
-              <p className="col-span-full rounded-xl bg-muted p-3 text-sm leading-6 text-muted-foreground">Antes de confirmar, abra a ficha da unidade em outra aba para conferir as cobranças abertas e vencidas.</p>
+              <p className="col-span-full rounded-xl bg-muted p-3 text-sm leading-6 text-muted-foreground">Foram encontradas {outstandingCharges.length} cobrança(s) em aberto, totalizando {formatMoney(outstandingTotal)}. Escolha quem ficará responsável por esses débitos.</p>
               <h3 className="col-span-full mt-2 text-base font-black">7. Documento e motivo</h3>
               <FormInput label="Documento da transferência" name="documento_url" placeholder="Link ou caminho no armazenamento" />
               <FormTextarea label="Motivo" name="motivo" />
               <FormTextarea label="Observações" name="observacoes" />
             </ResourceForm>
           </form>
-        ) : null}
+        ) : canWrite && selectedUnitId ? <MessageBanner error="Não foi possível carregar esta unidade. Escolha outra e tente novamente." /> : null}
 
         <DataTable
           columns={[
