@@ -104,6 +104,14 @@ export const internalApps: InternalAppDefinition[] = [
       { label: "Assistente", value: "assistente" },
       { label: "Financeiro/leitura", value: "financeiro_leitura" }
     ]
+  },
+  {
+    slug: "google-empresas",
+    name: "Google Empresas",
+    description: "Painel privado para cadastrar, autorizar, criar e verificar Perfis da Empresa no Google.",
+    urlPath: "/google-empresas",
+    alternatePaths: [{ label: "Painel privado - /google-empresas", value: "/google-empresas" }],
+    profileOptions: [{ label: "Admin Master", value: "admin_master" }]
   }
 ];
 
