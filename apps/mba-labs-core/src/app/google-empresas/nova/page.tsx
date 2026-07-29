@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { AppNav } from "@/components/AppNav";
+import { ArrowLeft } from "lucide-react";
+import { GoogleEmpresasNav } from "@/components/google-empresas/GoogleEmpresasNav";
 import { GoogleEmpresaForm } from "@/components/google-empresas/GoogleEmpresaForm";
-import { MessageBanner, PageHeader } from "@/components/ui-kit";
+import { MessageBanner } from "@/components/ui-kit";
 import { requireGoogleEmpresasAdmin } from "@/lib/google-empresas/data";
 import { criarGoogleEmpresa } from "../actions";
 
@@ -16,19 +17,22 @@ export default async function NovaGoogleEmpresaPage({
   const query = await searchParams;
 
   return (
-    <main>
-      <AppNav />
-      <section className="page-shell grid gap-6 py-8">
-        <PageHeader
-          eyebrow="Google Empresas"
-          title="Cadastrar empresa"
-          description="Preencha os dados reais usados pela empresa. O painel utilizará essas informações na pesquisa de duplicidades e na criação do Perfil da Empresa."
-          actions={
-            <Link className="button-secondary" href="/google-empresas">
-              Voltar
-            </Link>
-          }
-        />
+    <main className="google-empresas-module">
+      <GoogleEmpresasNav active="empresas" />
+      <section className="google-empresas-content grid gap-6">
+        <header className="google-page-header">
+          <div>
+            <p className="eyebrow">Google Empresas</p>
+            <h1>Cadastrar empresa</h1>
+            <p>
+              Preencha os dados reais usados pela empresa. O painel utilizará essas informações na pesquisa de duplicidades e na criação do Perfil da Empresa.
+            </p>
+          </div>
+          <Link className="button-secondary inline-flex items-center gap-2" href="/google-empresas">
+            <ArrowLeft size={17} />
+            Voltar ao painel
+          </Link>
+        </header>
         <MessageBanner error={first(query.error)} />
         <GoogleEmpresaForm action={criarGoogleEmpresa} />
       </section>
