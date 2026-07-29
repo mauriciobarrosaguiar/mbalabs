@@ -1,5 +1,6 @@
 import type { GoogleEmpresa } from "@/lib/google-empresas/data";
 import { FormDateInput, FormInput, FormSelect, FormTextarea, SubmitButton } from "@/components/ui-kit";
+import { GoogleCategoryFields } from "./GoogleCategoryFields";
 
 const days = [
   ["MONDAY", "Segunda-feira"],
@@ -33,12 +34,9 @@ export function GoogleEmpresaForm({
           <FormInput label="Nome da empresa no Google" name="nome" defaultValue={empresa?.nome} required />
           <FormInput label="Razão social" name="razao_social" defaultValue={empresa?.razao_social} />
           <FormInput label="CNPJ" name="cnpj" defaultValue={empresa?.cnpj} placeholder="00.000.000/0000-00" />
-          <FormInput label="Categoria principal" name="categoria_principal" defaultValue={empresa?.categoria_principal} placeholder="Ex.: Farmácia" required />
-          <FormInput
-            label="Categorias secundárias"
-            name="categorias_secundarias"
-            defaultValue={(empresa?.categorias_secundarias ?? []).join(", ")}
-            placeholder="Separe por vírgulas"
+          <GoogleCategoryFields
+            primaryDefault={empresa?.categoria_principal}
+            secondaryDefault={empresa?.categorias_secundarias}
           />
           <FormSelect
             label="Como atende"
