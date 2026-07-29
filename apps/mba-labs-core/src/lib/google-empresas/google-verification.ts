@@ -34,7 +34,7 @@ export async function startGoogleBusinessVerification({
   phoneNumber?: string;
   mailerContact?: string;
   empresa?: GoogleEmpresa;
-}) {
+}): Promise<Record<string, any>> {
   const body: Record<string, unknown> = { method, languageCode: "pt-BR" };
 
   if (empresa?.tipo_atendimento === "area_servico" && empresa.endereco_linha1) {
@@ -51,7 +51,7 @@ export async function startGoogleBusinessVerification({
     { method: "POST", body: JSON.stringify(body) }
   );
 
-  return result.verification ?? result;
+  return result.verification ?? (result as Record<string, any>);
 }
 
 export async function completeGoogleBusinessVerification(accessToken: string, verificationName: string, pin: string) {
