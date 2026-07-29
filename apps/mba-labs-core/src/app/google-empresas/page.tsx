@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
-import { Building2, Clock3, Plus, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { Building2, Clock3, Download, Plus, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { GoogleEmpresasNav } from "@/components/google-empresas/GoogleEmpresasNav";
 import { GoogleEmpresasTable, type GoogleEmpresasTableRow } from "@/components/google-empresas/GoogleEmpresasTable";
 import { MessageBanner, formatDate } from "@/components/ui-kit";
@@ -92,10 +92,20 @@ export default async function GoogleEmpresasPage({
               Envie autorizações ao cliente, pesquise perfis existentes, crie o Perfil da Empresa e acompanhe a verificação em tempo real — tudo no MBA Labs.
             </p>
           </div>
-          <Link className="google-primary-action" href="/google-empresas/nova">
-            <Plus size={18} />
-            Nova empresa
-          </Link>
+          <div className="google-hero-actions">
+            <a
+              className="google-checklist-action"
+              href="/api/google-empresas/checklist-documentos"
+              download
+            >
+              <Download size={18} />
+              Baixar lista de documentos
+            </a>
+            <Link className="google-primary-action" href="/google-empresas/nova">
+              <Plus size={18} />
+              Nova empresa
+            </Link>
+          </div>
         </div>
 
         <div className="mt-6">
