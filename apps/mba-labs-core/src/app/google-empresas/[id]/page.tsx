@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AppNav } from "@/components/AppNav";
+import { GoogleEmpresasNav } from "@/components/google-empresas/GoogleEmpresasNav";
 import { CopyAuthorizationLink } from "@/components/google-empresas/CopyAuthorizationLink";
 import { GoogleEmpresaForm } from "@/components/google-empresas/GoogleEmpresaForm";
 import { DataTable, MessageBanner, PageHeader, StatCard, SubmitButton, formatDate } from "@/components/ui-kit";
@@ -57,9 +57,9 @@ export default async function GoogleEmpresaDetailPage({
   }));
 
   return (
-    <main>
-      <AppNav />
-      <section className="page-shell grid gap-6 py-8">
+    <main className="google-empresas-module">
+      <GoogleEmpresasNav active="empresas" />
+      <section className="google-empresas-content grid gap-6">
         <PageHeader
           eyebrow="Google Empresas"
           title={empresa.nome}
@@ -265,7 +265,7 @@ export default async function GoogleEmpresaDetailPage({
 function StepHeader({ number, title, description }: { number: string; title: string; description: string }) {
   return (
     <div className="flex items-start gap-4">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-emerald-300 font-black text-slate-950">{number}</span>
+      <span className="google-step-number">{number}</span>
       <div>
         <h2 className="text-2xl font-black">{title}</h2>
         <p className="mt-1 text-sm leading-6 text-slate-300">{description}</p>
