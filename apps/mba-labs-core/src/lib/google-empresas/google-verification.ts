@@ -1,13 +1,15 @@
 import "server-only";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import type { GoogleEmpresa } from "./data";
 import { googleRequest } from "./google-client";
 import { buildPostalAddress } from "./google-location-payload";
 
 export async function fetchGoogleVerificationOptions(accessToken: string, locationName: string, empresa?: GoogleEmpresa) {
+  const resolvedEmpresa = empresa ?? (await findEmpresaByLocationName(locationName));
   const body: Record<string, unknown> = { languageCode: "pt-BR" };
 
-  if (empresa?.tipo_atendimento === "area_servico" && empresa.endereco_linha1) {
-    body.context = { address: buildPostalAddress(empresa) };
+  if (resolvedEmpresa?.tipo_atendimento === "area_servico" && resolvedEmpresa.endereco_linha1) {
+    body.context = { address: buildPostalAddress(resolvedEmpresa) };
   }
 
   const result = await googleRequest<{ options?: Array<Record<string, any>> }>(
@@ -35,15 +37,18 @@ export async function startGoogleBusinessVerification({
   mailerContact?: string;
   empresa?: GoogleEmpresa;
 }): Promise<Record<string, any>> {
+  const resolvedEmpresa = empresa ?? (await findEmpresaByLocationName(locationName));
   const body: Record<string, unknown> = { method, languageCode: "pt-BR" };
 
-  if (empresa?.tipo_atendimento === "area_servico" && empresa.endereco_linha1) {
-    body.context = { address: buildPostalAddress(empresa) };
+  if (resolvedEmpresa?.tipo_atendimento === "area_servico" && resolvedEmpresa.endereco_linha1) {
+    body.context = { address: buildPostalAddress(resolvedEmpresa) };
   }
 
   if (method === "EMAIL" && emailUserName) body.emailAddress = emailUserName;
   if (["PHONE_CALL", "SMS"].includes(method) && phoneNumber) body.phoneNumber = phoneNumber;
-  if (method === "ADDRESS") body.mailerContact = mailerContact || empresa?.nome || "Responsável pela empresa";
+  if (method === "ADDRESS") {
+    body.mailerContact = mailerContact || resolvedEmpresa?.nome || "Responsável pela empresa";
+  }
 
   const result = await googleRequest<{ verification?: Record<string, any> }>(
     `https://mybusinessverifications.googleapis.com/v1/${locationName}:verify`,
@@ -68,4 +73,15 @@ export async function listGoogleBusinessVerifications(accessToken: string, locat
     accessToken
   );
   return result.verifications ?? [];
+}
+
+async function findEmpresaByLocationName(locationName: string) {
+  const supabase = getSupabaseAdmin() as any;
+  const { data } = await supabase
+    .from("gmb_empresas")
+    .select("*")
+    .eq("google_location_name", locationName)
+    .maybeSingle();
+
+  return (data ?? null) as GoogleEmpresa | null;
 }
