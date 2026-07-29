@@ -92,9 +92,9 @@ export default async function GoogleEmpresasPage({
               Envie autorizações ao cliente, pesquise perfis existentes, crie o Perfil da Empresa e acompanhe a verificação em tempo real — tudo no MBA Labs.
             </p>
           </div>
-          <div className="google-hero-actions">
+          <div className="flex shrink-0 flex-col gap-3 sm:flex-row lg:items-center">
             <a
-              className="google-checklist-action"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[13px] border border-cyan-300/20 bg-cyan-400/[0.08] px-5 text-sm font-extrabold text-cyan-100 shadow-[0_14px_32px_rgba(34,211,238,0.08)] transition hover:-translate-y-0.5 hover:border-cyan-300/35 hover:bg-cyan-400/[0.13]"
               href="/api/google-empresas/checklist-documentos"
               download
             >
