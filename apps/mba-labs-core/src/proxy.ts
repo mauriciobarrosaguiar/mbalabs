@@ -24,6 +24,7 @@ export const config = {
     "/lavagestor/:path*",
     "/bikecomanda/:path*",
     "/portal-associativo/:path*",
+    "/google-empresas/:path*",
     "/acesso-bloqueado"
   ]
 };
