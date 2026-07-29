@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import styles from "./RouteThemeController.module.css";
 
 const SYSTEM_ROUTE_PREFIXES = [
   "/apps",
@@ -42,5 +43,5 @@ export function RouteThemeController() {
     applyRouteTheme(pathname);
   }, [pathname]);
 
-  return null;
+  return <span aria-hidden="true" className={styles.themeMarker} />;
 }
