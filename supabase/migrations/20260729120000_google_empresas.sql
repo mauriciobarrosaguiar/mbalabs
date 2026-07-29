@@ -89,11 +89,13 @@ create index if not exists idx_gmb_autorizacoes_empresa on public.gmb_autorizaco
 create index if not exists idx_gmb_autorizacoes_token on public.gmb_autorizacoes(public_token);
 create index if not exists idx_gmb_operacoes_empresa on public.gmb_operacoes(empresa_id, created_at desc);
 
-create or replace trigger set_gmb_empresas_updated_at
+drop trigger if exists set_gmb_empresas_updated_at on public.gmb_empresas;
+create trigger set_gmb_empresas_updated_at
 before update on public.gmb_empresas
 for each row execute function public.set_updated_at();
 
-create or replace trigger set_gmb_autorizacoes_updated_at
+drop trigger if exists set_gmb_autorizacoes_updated_at on public.gmb_autorizacoes;
+create trigger set_gmb_autorizacoes_updated_at
 before update on public.gmb_autorizacoes
 for each row execute function public.set_updated_at();
 
