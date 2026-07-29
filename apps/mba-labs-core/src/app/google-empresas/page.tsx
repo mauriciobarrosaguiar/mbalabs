@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
-import { Building2, Clock3, Plus, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { Building2, Clock3, Download, Plus, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { GoogleEmpresasNav } from "@/components/google-empresas/GoogleEmpresasNav";
 import { GoogleEmpresasTable, type GoogleEmpresasTableRow } from "@/components/google-empresas/GoogleEmpresasTable";
 import { MessageBanner, formatDate } from "@/components/ui-kit";
@@ -92,10 +92,20 @@ export default async function GoogleEmpresasPage({
               Envie autorizações ao cliente, pesquise perfis existentes, crie o Perfil da Empresa e acompanhe a verificação em tempo real — tudo no MBA Labs.
             </p>
           </div>
-          <Link className="google-primary-action" href="/google-empresas/nova">
-            <Plus size={18} />
-            Nova empresa
-          </Link>
+          <div className="flex shrink-0 flex-col gap-3 sm:flex-row lg:items-center">
+            <a
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[13px] border border-cyan-300/20 bg-cyan-400/[0.08] px-5 text-sm font-extrabold text-cyan-100 shadow-[0_14px_32px_rgba(34,211,238,0.08)] transition hover:-translate-y-0.5 hover:border-cyan-300/35 hover:bg-cyan-400/[0.13]"
+              href="/api/google-empresas/checklist-documentos"
+              download
+            >
+              <Download size={18} />
+              Baixar lista de documentos
+            </a>
+            <Link className="google-primary-action" href="/google-empresas/nova">
+              <Plus size={18} />
+              Nova empresa
+            </Link>
+          </div>
         </div>
 
         <div className="mt-6">
