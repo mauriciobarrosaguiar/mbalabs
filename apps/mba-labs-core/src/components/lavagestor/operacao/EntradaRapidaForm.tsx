@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MessageBanner, SubmitButton } from "@/components/ui-kit";
+import { MessageBanner } from "@/components/ui-kit";
 import { createLavagemMelhorada } from "@/lib/actions/lavagestor-lavagem-actions";
 
 type Cliente = {
@@ -65,6 +65,7 @@ export function EntradaRapidaForm({
   const [descontoPercentual, setDescontoPercentual] = useState("");
   const [entregaTipo, setEntregaTipo] = useState<"retirar" | "levar">("retirar");
   const [enderecoEntrega, setEnderecoEntrega] = useState("");
+  const [submitted, setSubmitted] = useState(false);
 
   const resumo = useMemo(() => {
     const principal = servicos.find((servico) => servico.id === servicoId);
@@ -129,7 +130,7 @@ export function EntradaRapidaForm({
   }
 
   return (
-    <form action={createLavagemMelhorada} encType="multipart/form-data" className="grid w-full max-w-full min-w-0 gap-3 overflow-hidden">
+    <form action={createLavagemMelhorada} encType="multipart/form-data" className="grid w-full max-w-full min-w-0 gap-3 overflow-hidden" onSubmit={() => setSubmitted(true)}>
       <MessageBanner ok={ok} error={error} />
 
       <input type="hidden" name="return_to" value="/lavagestor/operacao/fila" />
@@ -261,7 +262,9 @@ export function EntradaRapidaForm({
         </label>
       </section>
 
-      <SubmitButton>Salvar entrada</SubmitButton>
+      <button className="button-primary min-h-14 justify-center rounded-2xl text-base font-black disabled:opacity-70" type="submit" disabled={submitted}>
+        {submitted ? "Salvando..." : "Salvar entrada"}
+      </button>
     </form>
   );
 }
