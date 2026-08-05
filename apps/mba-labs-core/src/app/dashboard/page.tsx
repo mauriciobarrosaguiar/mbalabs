@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { AppNav } from "@/components/AppNav";
+import { InstallAppCard } from "@/components/InstallAppCard";
+import { PwaRegister } from "@/components/PwaRegister";
 import { getDashboardData, isSuperAdminType } from "@/lib/core-data";
 import { getInternalAppBySlug } from "@/lib/app-registry";
 
@@ -14,6 +16,7 @@ export default async function DashboardPage() {
 
   return (
     <main>
+      <PwaRegister />
       <AppNav />
       <section className="page-shell grid gap-8 py-8">
         <div className="grid gap-2">
@@ -27,6 +30,10 @@ export default async function DashboardPage() {
               Aviso: não foi possível carregar todos os dados agora. {error}
             </p>
           ) : null}
+        </div>
+
+        <div className="max-w-xl">
+          <InstallAppCard />
         </div>
 
         {visibleApps.length > 0 ? (
