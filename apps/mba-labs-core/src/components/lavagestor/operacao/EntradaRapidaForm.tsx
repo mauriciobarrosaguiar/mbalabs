@@ -127,7 +127,7 @@ export function EntradaRapidaForm({
   }
 
   return (
-    <form action={createLavagemMelhorada} encType="multipart/form-data" className="grid gap-3">
+    <form action={createLavagemMelhorada} encType="multipart/form-data" className="grid w-full max-w-full min-w-0 gap-3 overflow-hidden">
       <MessageBanner ok={ok} error={error} />
 
       <input type="hidden" name="return_to" value="/lavagestor/operacao/fila" />
@@ -142,8 +142,8 @@ export function EntradaRapidaForm({
       <input type="hidden" name="entrega_tipo" value="retirar" />
       <input type="hidden" name="descricao_extra" value="Entrada rapida" />
 
-      <section className="grid gap-3 rounded-3xl border border-border bg-white p-4 shadow-sm">
-        <h1 className="text-center text-2xl font-black">Entrada de veiculo</h1>
+      <section className="grid w-full max-w-full min-w-0 gap-3 overflow-hidden rounded-2xl border border-border bg-white p-3 shadow-sm sm:rounded-3xl sm:p-4">
+        <h1 className="break-words text-center text-2xl font-black leading-tight sm:text-3xl">Entrada de veiculo</h1>
 
         <datalist id="placas-cadastradas">
           {veiculos.map((veiculo) => (
@@ -156,10 +156,10 @@ export function EntradaRapidaForm({
           ))}
         </datalist>
 
-        <label className="grid gap-2">
-          <span className="text-center text-lg font-black">Digite a placa</span>
+        <label className="grid min-w-0 gap-2">
+          <span className="break-words text-center text-base font-black leading-tight sm:text-lg">Digite a placa</span>
           <input
-            className="input min-h-14 text-center text-2xl font-black uppercase tracking-[0.12em]"
+            className="input min-h-12 w-full min-w-0 text-center text-xl font-black uppercase tracking-[0.08em] sm:min-h-14 sm:text-2xl sm:tracking-[0.12em]"
             name="veiculo_placa"
             list="placas-cadastradas"
             placeholder="ABC1D23"
@@ -175,9 +175,9 @@ export function EntradaRapidaForm({
 
         {clienteId ? <p className="rounded-xl bg-emerald-50 px-3 py-2 text-center text-xs font-black text-emerald-900">Cliente cadastrado encontrado. Os dados foram puxados automaticamente.</p> : null}
 
-        <label className="grid gap-2">
-          <span className="text-center text-lg font-black">Tipo de servico</span>
-          <select className="input min-h-14 text-center text-base font-bold" name="servico_id" required value={servicoId} onChange={(event) => setServicoId(event.target.value)}>
+        <label className="grid min-w-0 gap-2">
+          <span className="break-words text-center text-base font-black leading-tight sm:text-lg">Tipo de servico</span>
+          <select className="input min-h-12 w-full min-w-0 text-center text-sm font-bold sm:min-h-14 sm:text-base" name="servico_id" required value={servicoId} onChange={(event) => setServicoId(event.target.value)}>
             {servicos.map((servico) => (
               <option key={servico.id} value={servico.id}>{servico.nome}</option>
             ))}
@@ -185,16 +185,14 @@ export function EntradaRapidaForm({
         </label>
 
         {servicosAdicionais.length > 0 ? (
-          <div className="grid gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 p-3">
-            <p className="text-center text-lg font-black text-slate-950">Produtos adicionais</p>
-            <div className="grid gap-2">
+          <div className="grid w-full min-w-0 gap-2 overflow-hidden rounded-2xl border border-emerald-100 bg-emerald-50 p-2 sm:p-3">
+            <p className="break-words text-center text-lg font-black leading-tight text-slate-950 sm:text-xl">Produtos adicionais</p>
+            <div className="grid min-w-0 gap-2">
               {servicosAdicionais.map((servico) => (
-                <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm font-black text-slate-950 shadow-sm" key={servico.id}>
-                  <span className="flex min-w-0 items-center gap-3">
-                    <input className="h-5 w-5 shrink-0" type="checkbox" name="servico_adicional_ids" value={servico.id} checked={adicionalIds.includes(servico.id)} onChange={() => toggleAdicional(servico.id)} />
-                    <span className="truncate">{servico.nome}</span>
-                  </span>
-                  <span className="shrink-0 text-emerald-900">{formatCurrency(servico.preco)}</span>
+                <label className="grid min-h-12 min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm font-black text-slate-950 shadow-sm" key={servico.id}>
+                  <input className="row-span-2 h-5 w-5 shrink-0 self-center" type="checkbox" name="servico_adicional_ids" value={servico.id} checked={adicionalIds.includes(servico.id)} onChange={() => toggleAdicional(servico.id)} />
+                  <span className="min-w-0 truncate leading-5">{servico.nome}</span>
+                  <span className="min-w-0 truncate text-sm leading-5 text-emerald-900">{formatCurrency(servico.preco)}</span>
                 </label>
               ))}
             </div>
@@ -202,9 +200,9 @@ export function EntradaRapidaForm({
         ) : null}
 
         {convenios.length > 0 ? (
-          <label className="grid gap-2">
-            <span className="text-center text-lg font-black">Convênio</span>
-            <select className="input min-h-14 text-center text-base font-bold" name="convenio_id" value={convenioId} onChange={(event) => setConvenioId(event.target.value)}>
+          <label className="grid min-w-0 gap-2">
+            <span className="break-words text-center text-base font-black leading-tight sm:text-lg">Convênio</span>
+            <select className="input min-h-12 w-full min-w-0 text-center text-sm font-bold sm:min-h-14 sm:text-base" name="convenio_id" value={convenioId} onChange={(event) => setConvenioId(event.target.value)}>
               <option value="">Sem convênio</option>
               {convenios.map((convenio) => (
                 <option key={convenio.id} value={convenio.id}>{convenio.nome}</option>
@@ -213,16 +211,16 @@ export function EntradaRapidaForm({
           </label>
         ) : null}
 
-        <div className="grid gap-2 rounded-2xl border border-amber-100 bg-amber-50 p-3">
-          <p className="text-center text-lg font-black text-slate-950">Desconto manual</p>
-          <div className="grid grid-cols-2 gap-2">
-            <button className={`min-h-11 rounded-xl border px-3 text-sm font-black ${descontoTipo === "valor" ? "border-emerald-300 bg-white text-emerald-900" : "border-slate-200 bg-white text-slate-800"}`} type="button" onClick={() => setDescontoTipo("valor")}>R$</button>
-            <button className={`min-h-11 rounded-xl border px-3 text-sm font-black ${descontoTipo === "percentual" ? "border-emerald-300 bg-white text-emerald-900" : "border-slate-200 bg-white text-slate-800"}`} type="button" onClick={() => setDescontoTipo("percentual")}>%</button>
+        <div className="grid w-full min-w-0 gap-2 overflow-hidden rounded-2xl border border-amber-100 bg-amber-50 p-2 sm:p-3">
+          <p className="break-words text-center text-lg font-black leading-tight text-slate-950 sm:text-xl">Desconto manual</p>
+          <div className="grid min-w-0 grid-cols-2 gap-2">
+            <button className={`min-h-11 min-w-0 rounded-xl border px-3 text-sm font-black ${descontoTipo === "valor" ? "border-emerald-300 bg-white text-emerald-900" : "border-slate-200 bg-white text-slate-800"}`} type="button" onClick={() => setDescontoTipo("valor")}>R$</button>
+            <button className={`min-h-11 min-w-0 rounded-xl border px-3 text-sm font-black ${descontoTipo === "percentual" ? "border-emerald-300 bg-white text-emerald-900" : "border-slate-200 bg-white text-slate-800"}`} type="button" onClick={() => setDescontoTipo("percentual")}>%</button>
           </div>
           <input type="hidden" name="desconto_tipo" value={descontoTipo} />
           <input type="hidden" name="desconto_percentual" value={descontoTipo === "percentual" ? descontoPercentual : "0"} />
           <input
-            className="input min-h-14 text-center text-base font-bold"
+            className="input min-h-12 w-full min-w-0 text-center text-sm font-bold sm:min-h-14 sm:text-base"
             name="valor_desconto"
             inputMode="decimal"
             placeholder={descontoTipo === "percentual" ? "Desconto em %" : "Desconto em R$"}
@@ -231,15 +229,15 @@ export function EntradaRapidaForm({
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-2 rounded-2xl border border-emerald-100 bg-white p-3 text-center shadow-sm">
+        <div className="grid w-full min-w-0 grid-cols-1 gap-2 rounded-2xl border border-emerald-100 bg-white p-2 text-center shadow-sm sm:grid-cols-3 sm:p-3">
           <Info label="Total" value={formatCurrency(resumo.totalBruto)} />
           <Info label="Desconto" value={formatCurrency(resumo.descontoTotal)} />
           <Info label="Final" value={formatCurrency(resumo.valorFinal)} />
         </div>
 
-        <label className="grid gap-2">
-          <span className="text-center text-lg font-black">Foto da placa</span>
-          <input className="input min-h-14 bg-white text-sm font-bold" name="foto_placa" type="file" accept="image/*" capture="environment" />
+        <label className="grid min-w-0 gap-2">
+          <span className="break-words text-center text-base font-black leading-tight sm:text-lg">Foto da placa</span>
+          <input className="input min-h-12 w-full min-w-0 bg-white text-sm font-bold sm:min-h-14" name="foto_placa" type="file" accept="image/*" capture="environment" />
         </label>
       </section>
 
@@ -270,15 +268,15 @@ function Field({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="grid gap-2">
-      <span className="text-center text-lg font-black">{label}</span>
-      <input className="input min-h-14 text-center text-base font-bold" name={name} list={list} placeholder={placeholder} required={required} inputMode={inputMode} value={value} onBlur={onBlur} onChange={(event) => onChange(event.target.value)} />
+    <label className="grid min-w-0 gap-2">
+      <span className="break-words text-center text-base font-black leading-tight sm:text-lg">{label}</span>
+      <input className="input min-h-12 w-full min-w-0 text-center text-sm font-bold sm:min-h-14 sm:text-base" name={name} list={list} placeholder={placeholder} required={required} inputMode={inputMode} value={value} onBlur={onBlur} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }
 
 function Info({ label, value }: { label: string; value: string }) {
-  return <span className="rounded-xl bg-muted px-2 py-2"><span className="block text-[10px] font-black uppercase tracking-[0.08em] text-muted-foreground">{label}</span><strong className="block text-sm">{value}</strong></span>;
+  return <span className="min-w-0 rounded-xl bg-muted px-2 py-2"><span className="block text-[10px] font-black uppercase tracking-[0.08em] text-muted-foreground">{label}</span><strong className="block truncate text-sm" title={value}>{value}</strong></span>;
 }
 
 function formatCurrency(value: unknown) {
@@ -286,6 +284,10 @@ function formatCurrency(value: unknown) {
 }
 
 function money(value: unknown) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
   const normalized = String(value ?? "0").replace(/\./g, "").replace(",", ".");
   const number = Number(normalized);
   return Number.isFinite(number) ? number : 0;
