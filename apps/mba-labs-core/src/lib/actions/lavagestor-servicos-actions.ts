@@ -9,6 +9,7 @@ import { getSupabaseServer } from "@/lib/supabase";
 export async function saveServicoAvancado(formData: FormData) {
   const current = await requireAppAccess("lavagestor");
   const supabase = await getSupabaseServer();
+  const client = supabase as any;
   const id = textValue(formData, "id");
   const nome = textValue(formData, "nome");
   const preco = numberValue(formData, "preco");
@@ -41,12 +42,14 @@ export async function saveServicoAvancado(formData: FormData) {
   };
 
   const result = id
-    ? await (supabase as any).from("lava_servicos").update(payload).eq("id", id).eq("empresa_id", current.empresaId)
-    : await (supabase as any).from("lava_servicos").insert(payload);
+    ? await client.from("lava_servicos").update(payload).eq("id", id).eq("empresa_id", current.empresaId).select("id").maybeSingle()
+    : await client.from("lava_servicos").insert(payload).select("id").maybeSingle();
 
-  if (result.error) {
-    redirect(`/lavagestor/servicos?error=${messageParam(result.error.message)}`);
+  if (result.error || !result.data?.id) {
+    redirect(`/lavagestor/servicos?error=${messageParam(result.error?.message ?? "Não foi possível salvar o serviço.")}`);
   }
+
+  await saveServicoInsumos(client, current.empresaId, String(result.data.id), formData);
 
   await logAction({
     appSlug: "lavagestor",
@@ -55,8 +58,51 @@ export async function saveServicoAvancado(formData: FormData) {
   });
 
   revalidatePath("/lavagestor/servicos");
+  revalidatePath("/lavagestor/estoque");
   revalidatePath("/lavagestor/nova-lavagem");
+  revalidatePath("/lavagestor/operacao/entrada");
   redirect(`/lavagestor/servicos?ok=${messageParam("Serviço salvo com sucesso.")}`);
+}
+
+async function saveServicoInsumos(client: any, empresaId: string | null, servicoId: string, formData: FormData) {
+  const produtoIds = formData.getAll("insumo_produto_id").map((value) => String(value).trim());
+  const quantidades = formData.getAll("insumo_quantidade").map((value) => String(value).trim());
+  const pares = produtoIds
+    .map((produtoId, index) => ({ produtoId, quantidade: Number(String(quantidades[index] ?? "0").replace(",", ".")) }))
+    .filter((item) => item.produtoId && Number.isFinite(item.quantidade) && item.quantidade > 0);
+
+  await client.from("lava_servico_insumos").delete().eq("empresa_id", empresaId).eq("servico_id", servicoId);
+
+  if (pares.length === 0) return;
+
+  const { data: produtos, error } = await client
+    .from("lava_estoque_produtos")
+    .select("id,unidade_base,unidade")
+    .eq("empresa_id", empresaId)
+    .in("id", pares.map((item) => item.produtoId));
+
+  if (error) {
+    redirect(`/lavagestor/servicos?error=${messageParam(error.message)}`);
+  }
+
+  const produtosMap = new Map(((produtos ?? []) as Array<Record<string, unknown>>).map((produto) => [String(produto.id), produto]));
+  const rows = pares
+    .filter((item) => produtosMap.has(item.produtoId))
+    .map((item) => {
+      const produto = produtosMap.get(item.produtoId)!;
+      return {
+        empresa_id: empresaId,
+        servico_id: servicoId,
+        produto_id: item.produtoId,
+        quantidade_por_servico: item.quantidade,
+        unidade: String(produto.unidade_base ?? produto.unidade ?? "un")
+      };
+    });
+
+  if (rows.length > 0) {
+    const { error: insertError } = await client.from("lava_servico_insumos").insert(rows);
+    if (insertError) redirect(`/lavagestor/servicos?error=${messageParam(insertError.message)}`);
+  }
 }
 
 export async function criarServicosPadraoLavaGestor() {
@@ -99,6 +145,7 @@ export async function criarServicosPadraoLavaGestor() {
   await logAction({ appSlug: "lavagestor", acao: "criar servicos padrao", detalhes: { criados: rows.length } });
   revalidatePath("/lavagestor/servicos");
   revalidatePath("/lavagestor/nova-lavagem");
+  revalidatePath("/lavagestor/operacao/entrada");
   redirect(`/lavagestor/servicos?ok=${messageParam(rows.length ? "Serviços padrão criados com sucesso. Você pode ajustar os preços." : "Serviços padrão já estavam cadastrados.")}`);
 }
 
