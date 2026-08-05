@@ -106,6 +106,23 @@ export const internalApps: InternalAppDefinition[] = [
     ]
   },
   {
+    slug: "conteudo-ia",
+    name: "MBA Conteúdo IA",
+    description: "Planejamento e criação inteligente de conteúdo para redes sociais, iniciando pelo TikTok.",
+    urlPath: "/conteudo-ia",
+    alternatePaths: [
+      { label: "Entrada do portal - /apps/conteudo-ia", value: "/apps/conteudo-ia" },
+      { label: "App direto - /conteudo-ia", value: "/conteudo-ia" }
+    ],
+    profileOptions: [
+      { label: "Admin da empresa", value: "admin_empresa" },
+      { label: "Estrategista", value: "estrategista" },
+      { label: "Criador", value: "criador" },
+      { label: "Aprovador", value: "aprovador" },
+      { label: "Visualizador", value: "visualizador" }
+    ]
+  },
+  {
     slug: "google-empresas",
     name: "Google Empresas",
     description: "Painel privado para cadastrar, autorizar, criar e verificar Perfis da Empresa no Google.",
