@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Download, ExternalLink, MoreVertical, PlusSquare, Share2, Smartphone } from "lucide-react";
+import { Download, ExternalLink, MoreVertical, PlusSquare, Share2, Smartphone } from "lucide-react";
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -80,19 +80,7 @@ export function InstallAppCard() {
   }
 
   if (installed) {
-    return (
-      <section className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4" aria-live="polite">
-        <div className="flex items-center gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-400/15 text-emerald-300">
-            <CheckCircle2 size={20} />
-          </span>
-          <div>
-            <p className="font-bold text-white">Aplicativo instalado</p>
-            <p className="text-sm leading-5 text-slate-300">Abra a MBA Labs pelo ícone da tela inicial.</p>
-          </div>
-        </div>
-      </section>
-    );
+    return null;
   }
 
   return (
