@@ -56,7 +56,6 @@ export default async function ConveniosPage({ searchParams }: { searchParams: Pr
               name="percentual_desconto"
               type="number"
               min="0"
-              max="100"
               step="0.01"
               defaultValue={String(editing?.percentual_desconto ?? 0)}
             />
