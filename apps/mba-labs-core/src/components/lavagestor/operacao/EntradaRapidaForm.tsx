@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { MessageBanner, SubmitButton } from "@/components/ui-kit";
 import { createLavagemMelhorada } from "@/lib/actions/lavagestor-lavagem-actions";
 
@@ -25,11 +25,19 @@ type Servico = {
   preco?: number | null;
 };
 
+type Convenio = {
+  id: string;
+  nome: string;
+  percentual_desconto?: number | null;
+  nao_paga?: boolean;
+};
+
 export function EntradaRapidaForm({
   clientes,
   veiculos,
   servicos,
   servicosAdicionais = [],
+  convenios = [],
   ok,
   error
 }: {
@@ -37,6 +45,7 @@ export function EntradaRapidaForm({
   veiculos: Veiculo[];
   servicos: Servico[];
   servicosAdicionais?: Servico[];
+  convenios?: Convenio[];
   ok?: string;
   error?: string;
 }) {
@@ -49,6 +58,28 @@ export function EntradaRapidaForm({
   const [veiculoModelo, setVeiculoModelo] = useState("Veiculo");
   const [veiculoCor, setVeiculoCor] = useState("");
   const [servicoId, setServicoId] = useState(servicos[0]?.id ?? "");
+  const [adicionalIds, setAdicionalIds] = useState<string[]>([]);
+  const [convenioId, setConvenioId] = useState("");
+  const [descontoTipo, setDescontoTipo] = useState<"valor" | "percentual">("valor");
+  const [descontoValor, setDescontoValor] = useState("");
+  const [descontoPercentual, setDescontoPercentual] = useState("");
+
+  const resumo = useMemo(() => {
+    const principal = servicos.find((servico) => servico.id === servicoId);
+    const adicionais = servicosAdicionais.filter((servico) => adicionalIds.includes(servico.id));
+    const totalBruto = money(principal?.preco) + adicionais.reduce((total, servico) => total + money(servico.preco), 0);
+    const convenio = convenios.find((item) => item.id === convenioId);
+    const descontoConvenio = convenio?.nao_paga ? totalBruto : roundMoney(totalBruto * Math.min(Math.max(money(convenio?.percentual_desconto), 0), 100) / 100);
+    const descontoManual = descontoTipo === "percentual"
+      ? roundMoney(totalBruto * Math.min(Math.max(money(descontoPercentual), 0), 100) / 100)
+      : money(descontoValor);
+    const descontoTotal = roundMoney(Math.min(totalBruto, Math.max(0, descontoConvenio + descontoManual)));
+    return { totalBruto, descontoTotal, valorFinal: roundMoney(Math.max(totalBruto - descontoTotal, 0)) };
+  }, [adicionalIds, convenioId, convenios, descontoPercentual, descontoTipo, descontoValor, servicoId, servicos, servicosAdicionais]);
+
+  function toggleAdicional(id: string) {
+    setAdicionalIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+  }
 
   function applyCliente(cliente?: Cliente) {
     if (!cliente) return;
@@ -109,7 +140,6 @@ export function EntradaRapidaForm({
       <input type="hidden" name="veiculo_modelo" value={veiculoModelo} />
       <input type="hidden" name="veiculo_cor" value={veiculoCor} />
       <input type="hidden" name="entrega_tipo" value="retirar" />
-      <input type="hidden" name="valor_desconto" value="0" />
       <input type="hidden" name="descricao_extra" value="Entrada rapida" />
 
       <section className="grid gap-3 rounded-3xl border border-border bg-white p-4 shadow-sm">
@@ -161,7 +191,7 @@ export function EntradaRapidaForm({
               {servicosAdicionais.map((servico) => (
                 <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm font-black text-slate-950 shadow-sm" key={servico.id}>
                   <span className="flex min-w-0 items-center gap-3">
-                    <input className="h-5 w-5 shrink-0" type="checkbox" name="servico_adicional_ids" value={servico.id} />
+                    <input className="h-5 w-5 shrink-0" type="checkbox" name="servico_adicional_ids" value={servico.id} checked={adicionalIds.includes(servico.id)} onChange={() => toggleAdicional(servico.id)} />
                     <span className="truncate">{servico.nome}</span>
                   </span>
                   <span className="shrink-0 text-emerald-900">{formatCurrency(servico.preco)}</span>
@@ -170,6 +200,42 @@ export function EntradaRapidaForm({
             </div>
           </div>
         ) : null}
+
+        {convenios.length > 0 ? (
+          <label className="grid gap-2">
+            <span className="text-center text-lg font-black">Convênio</span>
+            <select className="input min-h-14 text-center text-base font-bold" name="convenio_id" value={convenioId} onChange={(event) => setConvenioId(event.target.value)}>
+              <option value="">Sem convênio</option>
+              {convenios.map((convenio) => (
+                <option key={convenio.id} value={convenio.id}>{convenio.nome}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+
+        <div className="grid gap-2 rounded-2xl border border-amber-100 bg-amber-50 p-3">
+          <p className="text-center text-lg font-black text-slate-950">Desconto manual</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button className={`min-h-11 rounded-xl border px-3 text-sm font-black ${descontoTipo === "valor" ? "border-emerald-300 bg-white text-emerald-900" : "border-slate-200 bg-white text-slate-800"}`} type="button" onClick={() => setDescontoTipo("valor")}>R$</button>
+            <button className={`min-h-11 rounded-xl border px-3 text-sm font-black ${descontoTipo === "percentual" ? "border-emerald-300 bg-white text-emerald-900" : "border-slate-200 bg-white text-slate-800"}`} type="button" onClick={() => setDescontoTipo("percentual")}>%</button>
+          </div>
+          <input type="hidden" name="desconto_tipo" value={descontoTipo} />
+          <input type="hidden" name="desconto_percentual" value={descontoTipo === "percentual" ? descontoPercentual : "0"} />
+          <input
+            className="input min-h-14 text-center text-base font-bold"
+            name="valor_desconto"
+            inputMode="decimal"
+            placeholder={descontoTipo === "percentual" ? "Desconto em %" : "Desconto em R$"}
+            value={descontoTipo === "percentual" ? descontoPercentual : descontoValor}
+            onChange={(event) => descontoTipo === "percentual" ? setDescontoPercentual(event.target.value) : setDescontoValor(event.target.value)}
+          />
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 rounded-2xl border border-emerald-100 bg-white p-3 text-center shadow-sm">
+          <Info label="Total" value={formatCurrency(resumo.totalBruto)} />
+          <Info label="Desconto" value={formatCurrency(resumo.descontoTotal)} />
+          <Info label="Final" value={formatCurrency(resumo.valorFinal)} />
+        </div>
 
         <label className="grid gap-2">
           <span className="text-center text-lg font-black">Foto da placa</span>
@@ -211,8 +277,22 @@ function Field({
   );
 }
 
+function Info({ label, value }: { label: string; value: string }) {
+  return <span className="rounded-xl bg-muted px-2 py-2"><span className="block text-[10px] font-black uppercase tracking-[0.08em] text-muted-foreground">{label}</span><strong className="block text-sm">{value}</strong></span>;
+}
+
 function formatCurrency(value: unknown) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value ?? 0));
+}
+
+function money(value: unknown) {
+  const normalized = String(value ?? "0").replace(/\./g, "").replace(",", ".");
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 function normalPlate(value: unknown) {
