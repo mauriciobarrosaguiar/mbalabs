@@ -19,6 +19,7 @@ export async function createLavagemMelhorada(formData: FormData) {
   const servicoPrincipalId = textValue(formData, "servico_id");
   const adicionalIds = uniqueValues(formData.getAll("servico_adicional_ids").map(String)).filter((id) => id !== servicoPrincipalId);
   const funcionarioIds = uniqueValues(formData.getAll("funcionario_ids").map(String)).filter(Boolean);
+  const convenioId = textValue(formData, "convenio_id");
   const entregaTipoRaw = textValue(formData, "entrega_tipo") || "retirar";
   const entregaTipo = entregaTipoRaw === "levar" ? "levar" : "retirar";
   const enderecoEntrega = entregaTipo === "levar" ? nullableTextValue(formData, "endereco_entrega") : null;
@@ -28,20 +29,23 @@ export async function createLavagemMelhorada(formData: FormData) {
   }
 
   const allServicoIds = uniqueValues([servicoPrincipalId, ...adicionalIds]);
-  const [funcionariosResult, servicosResult, configResult] = await Promise.all([
+  const [funcionariosResult, servicosResult, configResult, convenioResult] = await Promise.all([
     funcionarioIds.length > 0
       ? client.from("lava_funcionarios").select("id,nome,percentual_comissao").eq("empresa_id", empresaId).in("id", funcionarioIds)
       : Promise.resolve({ data: [], error: null }),
     client.from("lava_servicos").select("id,nome,preco,percentual_comissao").eq("empresa_id", empresaId).in("id", allServicoIds),
-    empresaId ? client.from("lava_configuracoes").select("percentual_comissao_padrao,permitir_desconto").eq("empresa_id", empresaId).maybeSingle() : Promise.resolve({ data: null, error: null })
+    empresaId ? client.from("lava_configuracoes").select("percentual_comissao_padrao,permitir_desconto").eq("empresa_id", empresaId).maybeSingle() : Promise.resolve({ data: null, error: null }),
+    convenioId ? client.from("lava_convenios").select("id,nome,percentual_desconto,nao_paga,ativo").eq("id", convenioId).eq("empresa_id", empresaId).maybeSingle() : Promise.resolve({ data: null, error: null })
   ]);
 
   if (funcionariosResult.error || (funcionariosResult.data ?? []).length !== funcionarioIds.length) redirect(`/lavagestor/operacao/entrada?error=${messageParam("Um ou mais lavadores nao foram encontrados.")}`);
   if (servicosResult.error || (servicosResult.data ?? []).length !== allServicoIds.length) redirect(`/lavagestor/operacao/entrada?error=${messageParam("Um ou mais servicos nao foram encontrados.")}`);
+  if (convenioResult.error) redirect(`/lavagestor/operacao/entrada?error=${messageParam(convenioResult.error.message)}`);
 
   const funcionarios = (funcionariosResult.data ?? []) as Array<Record<string, unknown>>;
   const servicos = (servicosResult.data ?? []) as Array<Record<string, unknown>>;
   const config = (configResult.data ?? {}) as Record<string, unknown>;
+  const convenio = convenioResult.data && convenioResult.data.ativo !== false ? convenioResult.data as Record<string, unknown> : null;
   const percentualComissaoPadrao = Number(config.percentual_comissao_padrao ?? 35);
   const permitirDesconto = config.permitir_desconto === false ? false : true;
   const servicoPrincipal = servicos.find((row) => String(row.id) === servicoPrincipalId);
@@ -50,7 +54,6 @@ export async function createLavagemMelhorada(formData: FormData) {
 
   const funcionarioPrincipal = funcionarios.find((row) => String(row.id) === funcionarioIds[0]) ?? funcionarios[0];
   const funcionarioPercentualPadrao = funcionarioPrincipal ? Number(funcionarioPrincipal.percentual_comissao ?? percentualComissaoPadrao) : 0;
-  const desconto = permitirDesconto ? numberValue(formData, "valor_desconto") : 0;
   const observacoes = nullableTextValue(formData, "observacoes");
   const now = new Date().toISOString();
 
@@ -66,6 +69,15 @@ export async function createLavagemMelhorada(formData: FormData) {
   });
 
   const totalBruto = roundMoney(itensServico.reduce((total, item) => total + item.valor, 0));
+  const descontoTipo = textValue(formData, "desconto_tipo") === "percentual" ? "percentual" : "valor";
+  const descontoPercentual = Math.max(0, Math.min(numberValue(formData, "desconto_percentual"), 100));
+  const descontoManual = permitirDesconto
+    ? (descontoTipo === "percentual" ? roundMoney((totalBruto * descontoPercentual) / 100) : numberValue(formData, "valor_desconto"))
+    : 0;
+  const convenioPercentual = Math.max(0, Math.min(Number(convenio?.percentual_desconto ?? 0), 100));
+  const convenioNaoPaga = convenio?.nao_paga === true;
+  const descontoConvenio = convenioNaoPaga ? totalBruto : roundMoney((totalBruto * convenioPercentual) / 100);
+  const desconto = roundMoney(Math.min(totalBruto, Math.max(0, descontoManual + descontoConvenio)));
   const valorFinal = roundMoney(Math.max(totalBruto - desconto, 0));
   const comissaoTotal = funcionarioIds.length > 0 ? roundMoney(itensServico.reduce((total, item) => total + item.comissao, 0)) : 0;
   const comissaoPorLavador = funcionarioIds.length > 0 ? roundMoney(comissaoTotal / funcionarioIds.length) : 0;
@@ -76,6 +88,12 @@ export async function createLavagemMelhorada(formData: FormData) {
     veiculo_id: veiculoId,
     funcionario_id: funcionarioIds[0] || null,
     servico_id: servicoPrincipalId,
+    convenio_id: convenio?.id ?? null,
+    convenio_nome: convenio ? String(convenio.nome ?? "") : null,
+    convenio_desconto_percentual: convenioNaoPaga ? 100 : convenioPercentual,
+    convenio_nao_paga: convenioNaoPaga,
+    desconto_tipo: descontoTipo,
+    desconto_percentual: descontoTipo === "percentual" ? descontoPercentual : 0,
     descricao_extra: nullableTextValue(formData, "descricao_extra"),
     valor: valorFinal,
     valor_total: totalBruto,
@@ -83,8 +101,8 @@ export async function createLavagemMelhorada(formData: FormData) {
     valor_final: valorFinal,
     valor_recebido: 0,
     valor_pendente: valorFinal,
-    status_pagamento: "aberto",
-    forma_pagamento: null,
+    status_pagamento: valorFinal <= 0 ? "pago" : "aberto",
+    forma_pagamento: valorFinal <= 0 ? (convenio ? "convenio" : "desconto") : null,
     comissao: comissaoTotal,
     status: "na_fila",
     data_entrada: now,
@@ -129,15 +147,16 @@ export async function createLavagemMelhorada(formData: FormData) {
     status_anterior: null,
     status_novo: "na_fila",
     observacao: funcionarioIds.length > 0
-      ? `Lavagem criada com ${funcionarioIds.length} lavador(es). Comissao total: ${comissaoTotal}. Entrega: ${entregaTipo}.`
-      : `Entrada criada sem lavador definido. Entrega: ${entregaTipo}.`
+      ? `Lavagem criada com ${funcionarioIds.length} lavador(es). Comissao total: ${comissaoTotal}. Entrega: ${entregaTipo}. Desconto: ${desconto}.`
+      : `Entrada criada sem lavador definido. Entrega: ${entregaTipo}. Desconto: ${desconto}.`
   });
 
-  await logAction({ appSlug: "lavagestor", acao: "criar lavagem", detalhes: { lavagem_id: lavagem.id, valor: valorFinal, comissao_total: comissaoTotal, lavadores: funcionarioIds.length, servicos: allServicoIds.length, entrega_tipo: entregaTipo } });
+  await logAction({ appSlug: "lavagestor", acao: "criar lavagem", detalhes: { lavagem_id: lavagem.id, valor: valorFinal, desconto, convenio_id: convenio?.id ?? null, comissao_total: comissaoTotal, lavadores: funcionarioIds.length, servicos: allServicoIds.length, entrega_tipo: entregaTipo } });
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/fila");
   revalidatePath("/lavagestor/operacao/fila");
   revalidatePath("/lavagestor/comissoes");
+  revalidatePath("/lavagestor/pagamentos");
   const finalPath = returnTo.replace("[id]", String(lavagem.id));
   redirect(`${finalPath}${finalPath.includes("?") ? "&" : "?"}ok=${messageParam("Entrada registrada com sucesso.")}`);
 }
