@@ -19,7 +19,7 @@ export async function baixarEstoqueDaLavagem(client: any, current: Current, lava
 
   const insumosResult = await client
     .from("lava_servico_insumos")
-    .select("servico_id,produto_id,quantidade_por_servico,unidade,lava_estoque_produtos(id,estoque_atual,custo_unitario,nome,unidade,unidade_base)")
+    .select("servico_id,produto_id,quantidade_por_servico,unidade,lava_estoque_produtos(id,estoque_atual,estoque_minimo,custo_unitario,nome,unidade,unidade_base)")
     .eq("empresa_id", current.empresaId)
     .in("servico_id", servicoIds);
   const insumos = (insumosResult.data ?? []) as Row[];
@@ -33,9 +33,11 @@ export async function baixarEstoqueDaLavagem(client: any, current: Current, lava
     if (!produtoId || quantidade <= 0 || !produto) continue;
     const unidade = normalizeStockUnit(insumo.unidade, String(produto.unidade_base ?? produto.unidade ?? "un"));
     const estoqueAtual = moneyNumber(produto.estoque_atual);
+    const estoqueMinimo = moneyNumber(produto.estoque_minimo);
     const novoEstoque = roundStock(estoqueAtual - quantidade);
     const custoUnitario = moneyNumber(produto.custo_unitario);
     if (novoEstoque < 0) avisos.push(`${produto.nome ?? "Produto"} ficou negativo (${novoEstoque}).`);
+    if (estoqueMinimo > 0 && novoEstoque <= estoqueMinimo) avisos.push(`${produto.nome ?? "Produto"} atingiu estoque baixo (${novoEstoque} <= mínimo ${estoqueMinimo}).`);
     await client.from("lava_estoque_produtos").update({ estoque_atual: novoEstoque }).eq("id", produtoId).eq("empresa_id", current.empresaId);
     await client.from("lava_estoque_movimentos").insert({
       empresa_id: current.empresaId,
