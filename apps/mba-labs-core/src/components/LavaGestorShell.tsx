@@ -53,6 +53,7 @@ const lavaNavItems: LavaNavItem[] = [
   { href: "/lavagestor/veiculos", label: "Veículos", icon: Car, anyOf: ["veiculo.criar", "veiculo.editar"] },
   { href: "/lavagestor/funcionarios", label: "Funcionários", icon: Wrench, permission: "funcionario.gerenciar" },
   { href: "/lavagestor/servicos", label: "Serviços", icon: Sparkles, permission: "servico.gerenciar" },
+  { href: "/lavagestor/convenios", label: "Convênios", icon: HandCoins, permission: "configuracao.editar" },
   { href: "/lavagestor/estoque", label: "Estoque", icon: Package, permission: "estoque.ver" },
   { href: "/lavagestor/comissoes", label: "Comissões", icon: HandCoins, anyOf: ["comissao.ver_propria", "comissao.ver_todas"] },
   { href: "/lavagestor/vales", label: "Vales", icon: Banknote, permission: "financeiro.ver_caixa" },
@@ -72,7 +73,7 @@ const lavaNavItems: LavaNavItem[] = [
 
 const lavaNavGroupsConfig: Array<{ label: string; hrefs: string[] }> = [
   { label: "Operação", hrefs: ["/lavagestor/operacao", "/lavagestor/operacao/entrada", "/lavagestor/operacao/saida", "/lavagestor/operacao/fila", "/lavagestor/busca", "/lavagestor/lavagens", "/lavagestor/placa"] },
-  { label: "Cadastros", hrefs: ["/lavagestor/clientes", "/lavagestor/veiculos", "/lavagestor/funcionarios", "/lavagestor/servicos", "/lavagestor/estoque"] },
+  { label: "Cadastros", hrefs: ["/lavagestor/clientes", "/lavagestor/veiculos", "/lavagestor/funcionarios", "/lavagestor/servicos", "/lavagestor/convenios", "/lavagestor/estoque"] },
   { label: "Financeiro", hrefs: ["/lavagestor/dashboard", "/lavagestor/pagamentos", "/lavagestor/financeiro", "/lavagestor/comissoes", "/lavagestor/vales", "/lavagestor/pagamentos-integrados", "/lavagestor/notas-fiscais"] },
   { label: "Crescimento", hrefs: ["/lavagestor/whatsapp", "/lavagestor/pos-venda", "/lavagestor/automacoes", "/lavagestor/iamob"] },
   { label: "Sistema", hrefs: ["/lavagestor/relatorios", "/lavagestor/usuarios", "/lavagestor/setup-facil", "/lavagestor/configuracoes"] }
