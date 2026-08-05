@@ -8,7 +8,9 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const { profile, apps, error } = await getDashboardData();
   const isAdminMaster = isSuperAdminType(profile.tipo);
-  const visibleApps = isAdminMaster ? apps : apps.filter((app) => Boolean(getInternalAppBySlug(app.slug)));
+  const visibleApps = isAdminMaster
+    ? apps
+    : apps.filter((app) => app.canAccess && Boolean(getInternalAppBySlug(app.slug)));
 
   return (
     <main>
