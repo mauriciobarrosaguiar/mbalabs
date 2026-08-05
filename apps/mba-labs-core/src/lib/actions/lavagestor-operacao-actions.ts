@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { messageParam, textValue } from "@/lib/form-utils";
 import { requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
-import { sendLavagemReceiptWhatsapp } from "@/lib/lavagestor-recibo-whatsapp";
 import { getSupabaseServer } from "@/lib/supabase";
 
 type SaidaTipo = "pago" | "convenio" | "fiado" | "faturar" | "cancelado" | "finalizado";
@@ -81,6 +80,8 @@ export async function registrarSaidaOperacao(formData: FormData) {
     if (pagamentoError) {
       redirect(`${returnTo}?error=${messageParam(pagamentoError)}`);
     }
+
+    await criarEnvioReciboPendente(client, empresaId, lavagemId, current.usuario.id);
   }
 
   if (funcionarioIds.length > 0 && tipo !== "cancelado") {
@@ -97,14 +98,6 @@ export async function registrarSaidaOperacao(formData: FormData) {
     observacao: `Saida rapida registrada como ${labelTipo(tipo)}${tipo === "pago" && formaPagamento ? ` - ${labelFormaPagamento(formaPagamento)}` : ""}${convenioNome ? ` - convenio ${convenioNome}` : ""}.`
   });
 
-  let whatsappMessage = "";
-  if (tipo === "pago") {
-    const whatsappResult = await sendLavagemReceiptWhatsapp(lavagemId, "automatico_saida_paga");
-    whatsappMessage = whatsappResult.ok
-      ? " Recibo enviado automaticamente pelo WhatsApp."
-      : ` WhatsApp automático não enviado: ${whatsappResult.error ?? "verifique a configuração da empresa."}`;
-  }
-
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/fila");
   revalidatePath("/lavagestor/operacao");
@@ -112,11 +105,7 @@ export async function registrarSaidaOperacao(formData: FormData) {
   revalidatePath("/lavagestor/operacao/saida");
   revalidatePath(`/lavagestor/recibos/${lavagemId}`);
 
-  if (tipo === "pago") {
-    redirect(`/lavagestor/recibos/${lavagemId}?ok=${messageParam(`Saida finalizada.${whatsappMessage}`)}`);
-  }
-
-  redirect(`${returnTo}?ok=${messageParam(labelSuccess(tipo))}`);
+  redirect(`${returnTo}?ok=${messageParam(tipo === "pago" ? "Saida finalizada. Recibo ficou na fila de envio automatico." : labelSuccess(tipo))}`);
 }
 
 function buildPayload(tipo: SaidaTipo, valorFinal: number, funcionarioId: string, formaPagamento: string): Row {
@@ -193,6 +182,37 @@ async function registrarPagamento(client: any, empresaId: string | null, lavagem
   });
 
   return error?.message ?? "";
+}
+
+async function criarEnvioReciboPendente(client: any, empresaId: string | null, lavagemId: string, usuarioId: string) {
+  if (!empresaId) return;
+
+  const { data: existente } = await client
+    .from("lava_whatsapp_envios")
+    .select("id")
+    .eq("empresa_id", empresaId)
+    .eq("lavagem_id", lavagemId)
+    .eq("evento", "recibo_pagamento")
+    .in("status", ["pendente", "enviando", "enviado"])
+    .limit(1);
+
+  if ((existente ?? []).length > 0) return;
+
+  await client.from("lava_whatsapp_envios").insert({
+    empresa_id: empresaId,
+    cliente_id: null,
+    lavagem_id: lavagemId,
+    evento: "recibo_pagamento",
+    telefone: null,
+    mensagem: "Recibo pendente de envio automatico.",
+    mensagem_gerada_por: "modelo",
+    provider: "evolution",
+    status: "pendente",
+    precisa_aprovacao: false,
+    aprovado_por: usuarioId,
+    aprovado_em: new Date().toISOString(),
+    erro: null
+  });
 }
 
 async function registrarLavadoresEComissao(client: any, empresaId: string | null, lavagemId: string, funcionarioIds: string[], valorFinal: number, servicoId: string) {
