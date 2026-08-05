@@ -1,3 +1,5 @@
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LavaGestorShell } from "@/components/LavaGestorShell";
 import {
@@ -16,9 +18,11 @@ import {
   formatMoney
 } from "@/components/ui-kit";
 import { inactivateFuncionario, saveFuncionario } from "@/lib/actions/lavagestor-actions";
+import { logAction, requireAppAccess } from "@/lib/core-data";
+import { firstParam, messageParam, textValue } from "@/lib/form-utils";
 import { listLavaComissoes, listLavaFuncionarios, listLavaVales } from "@/lib/lavagestor-data";
-import { firstParam } from "@/lib/form-utils";
 import { requireLavaGestorFinanceAccess } from "@/lib/lavagestor-permissions";
+import { getSupabaseServer } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +87,53 @@ const PERMISSOES_EXTRAS_OPTIONS = [
   }
 ];
 
+async function deleteFuncionario(formData: FormData) {
+  "use server";
+
+  await requireLavaGestorFinanceAccess("/lavagestor/funcionarios");
+  const current = await requireAppAccess("lavagestor");
+  const supabase = await getSupabaseServer();
+  const client = supabase as any;
+  const id = textValue(formData, "id");
+
+  if (!id) {
+    redirect(`/lavagestor/funcionarios?error=${messageParam("Funcionário não informado.")}`);
+  }
+
+  const { data: funcionario, error: funcionarioError } = await client
+    .from("lava_funcionarios")
+    .select("id,nome,core_usuario_id,usuario_id")
+    .eq("id", id)
+    .eq("empresa_id", current.empresaId)
+    .maybeSingle();
+
+  if (funcionarioError || !funcionario) {
+    redirect(`/lavagestor/funcionarios?error=${messageParam(funcionarioError?.message ?? "Funcionário não encontrado.")}`);
+  }
+
+  const { error: deleteError } = await client
+    .from("lava_funcionarios")
+    .delete()
+    .eq("id", id)
+    .eq("empresa_id", current.empresaId);
+
+  if (deleteError) {
+    redirect(`/lavagestor/funcionarios?error=${messageParam("Não foi possível excluir. Se este funcionário já tem lavagens, comissões ou vales, use Inativar para preservar o histórico.")}`);
+  }
+
+  const linkedUsuarioId = funcionario.core_usuario_id ?? funcionario.usuario_id;
+  if (linkedUsuarioId) {
+    await client
+      .from("core_usuario_app_permissoes")
+      .update({ status: "inativo", permissoes_extras: [], updated_at: new Date().toISOString() })
+      .eq("usuario_id", linkedUsuarioId)
+      .eq("empresa_id", current.empresaId);
+  }
+
+  await logAction({ appSlug: "lavagestor", acao: "excluir funcionário", detalhes: { id, nome: funcionario.nome } });
+  revalidatePath("/lavagestor/funcionarios");
+  redirect(`/lavagestor/funcionarios?ok=${messageParam("Funcionário excluído.")}`);
+}
 
 export default async function FuncionariosPage({
   searchParams
@@ -244,6 +295,12 @@ export default async function FuncionariosPage({
               <form action={inactivateFuncionario}>
                 <input name="id" type="hidden" value={String(row.id)} />
                 <DeleteButton>Inativar</DeleteButton>
+              </form>
+              <form action={deleteFuncionario}>
+                <input name="id" type="hidden" value={String(row.id)} />
+                <button className="min-h-11 rounded-xl border border-red-200 bg-red-600 px-5 text-sm font-black text-white shadow-sm transition hover:bg-red-700" type="submit">
+                  Excluir
+                </button>
               </form>
             </div>
           )}
