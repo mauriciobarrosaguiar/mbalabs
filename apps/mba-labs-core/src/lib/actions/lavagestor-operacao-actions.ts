@@ -9,6 +9,13 @@ import { getSupabaseServer } from "@/lib/supabase";
 type SaidaTipo = "pago" | "convenio" | "fiado" | "faturar" | "cancelado" | "finalizado";
 type Row = Record<string, unknown>;
 
+type ConvenioRow = {
+  id?: unknown;
+  nome?: unknown;
+  percentual_desconto?: unknown;
+  nao_paga?: unknown;
+};
+
 const formasPagamentoPermitidas = ["pix", "cartao_credito", "cartao_debito"];
 
 export async function registrarSaidaOperacao(formData: FormData) {
@@ -26,7 +33,7 @@ export async function registrarSaidaOperacao(formData: FormData) {
     ...formData.getAll("funcionario_ids").map(String),
     textValue(formData, "funcionario_id")
   ]).filter(Boolean);
-  const convenioNome = textValue(formData, "convenio_nome");
+  const convenioId = textValue(formData, "convenio_id");
   const formaPagamento = normalizeFormaPagamento(textValue(formData, "forma_pagamento"));
 
   if (!lavagemId || !tipo) {
@@ -37,6 +44,10 @@ export async function registrarSaidaOperacao(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam("Selecione a forma de pagamento: Pix, cartao credito ou cartao debito.")}`);
   }
 
+  if (tipo === "convenio" && !convenioId) {
+    redirect(`${returnTo}?error=${messageParam("Selecione o convenio antes de finalizar como convenio.")}`);
+  }
+
   if (!["cancelado", "finalizado"].includes(tipo) && funcionarioIds.length === 0) {
     redirect(`${returnTo}?error=${messageParam("Selecione pelo menos um lavador.")}`);
   }
@@ -45,7 +56,7 @@ export async function registrarSaidaOperacao(formData: FormData) {
 
   const { data: lavagem, error: lavagemError } = await client
     .from("lava_lavagens")
-    .select("id,servico_id,funcionario_id,valor,valor_final,valor_recebido,valor_pendente,status,status_pagamento,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo),lava_servicos(nome)")
+    .select("id,servico_id,funcionario_id,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,status,status_pagamento,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo),lava_servicos(nome)")
     .eq("id", lavagemId)
     .eq("empresa_id", empresaId)
     .maybeSingle();
@@ -58,11 +69,37 @@ export async function registrarSaidaOperacao(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam("Essa lavagem ja foi encerrada.")}`);
   }
 
-  const valorFinal = Number(lavagem.valor_final ?? lavagem.valor ?? 0);
-  const payload = buildPayload(tipo, valorFinal, funcionarioIds[0] || String(lavagem.funcionario_id ?? ""), formaPagamento);
+  const valorBase = money(lavagem.valor_total ?? lavagem.valor ?? lavagem.valor_final ?? 0);
+  const descontoAtual = money(lavagem.valor_desconto ?? Math.max(valorBase - money(lavagem.valor_final ?? valorBase), 0));
+  let convenio: ConvenioRow | null = null;
 
-  if (tipo === "convenio" && convenioNome) {
-    payload.observacoes = `Convenio: ${convenioNome}`;
+  if (convenioId) {
+    const { data: convenioData, error: convenioError } = await client
+      .from("lava_convenios")
+      .select("id,nome,percentual_desconto,nao_paga,ativo")
+      .eq("id", convenioId)
+      .eq("empresa_id", empresaId)
+      .maybeSingle();
+
+    if (convenioError || !convenioData?.id || convenioData.ativo === false) {
+      redirect(`${returnTo}?error=${messageParam(convenioError?.message ?? "Convenio nao encontrado ou inativo.")}`);
+    }
+
+    convenio = convenioData;
+  }
+
+  const ajuste = calcularValoresComConvenio(valorBase, descontoAtual, convenio);
+  const payload = buildPayload(tipo, ajuste.valorFinal, funcionarioIds[0] || String(lavagem.funcionario_id ?? ""), formaPagamento);
+
+  if (convenio) {
+    payload.convenio_id = String(convenio.id ?? "");
+    payload.convenio_nome = String(convenio.nome ?? "");
+    payload.convenio_desconto_percentual = ajuste.percentualConvenio;
+    payload.convenio_nao_paga = convenio.nao_paga === true;
+    payload.valor_total = valorBase;
+    payload.valor_desconto = ajuste.descontoTotal;
+    payload.valor_final = ajuste.valorFinal;
+    payload.observacoes = `Convenio: ${String(convenio.nome ?? "")} - desconto ${ajuste.percentualConvenio}%.`;
   }
 
   const { error: updateError } = await client
@@ -76,7 +113,7 @@ export async function registrarSaidaOperacao(formData: FormData) {
   }
 
   if (tipo === "pago") {
-    const pagamentoError = await registrarPagamento(client, empresaId, lavagemId, valorFinal, formaPagamento);
+    const pagamentoError = await registrarPagamento(client, empresaId, lavagemId, ajuste.valorFinal, formaPagamento);
     if (pagamentoError) {
       redirect(`${returnTo}?error=${messageParam(pagamentoError)}`);
     }
@@ -85,7 +122,7 @@ export async function registrarSaidaOperacao(formData: FormData) {
   }
 
   if (funcionarioIds.length > 0 && tipo !== "cancelado") {
-    await registrarLavadoresEComissao(client, empresaId, lavagemId, funcionarioIds, valorFinal, String(lavagem.servico_id ?? ""));
+    await registrarLavadoresEComissao(client, empresaId, lavagemId, funcionarioIds, ajuste.valorFinal, String(lavagem.servico_id ?? ""));
   }
 
   await client.from("lava_historico").insert({
@@ -95,7 +132,7 @@ export async function registrarSaidaOperacao(formData: FormData) {
     acao: tipo === "finalizado" ? "finalizar_lavagem_operacao" : "saida_lavagem_operacao",
     status_anterior: String(lavagem.status ?? ""),
     status_novo: String(payload.status ?? ""),
-    observacao: `Saida rapida registrada como ${labelTipo(tipo)}${tipo === "pago" && formaPagamento ? ` - ${labelFormaPagamento(formaPagamento)}` : ""}${convenioNome ? ` - convenio ${convenioNome}` : ""}.`
+    observacao: `Saida rapida registrada como ${labelTipo(tipo)}${tipo === "pago" && formaPagamento ? ` - ${labelFormaPagamento(formaPagamento)}` : ""}${convenio ? ` - convenio ${String(convenio.nome ?? "")}, desconto ${ajuste.percentualConvenio}%` : ""}.`
   });
 
   revalidatePath("/lavagestor");
@@ -103,6 +140,7 @@ export async function registrarSaidaOperacao(formData: FormData) {
   revalidatePath("/lavagestor/operacao");
   revalidatePath("/lavagestor/operacao/fila");
   revalidatePath("/lavagestor/operacao/saida");
+  revalidatePath("/lavagestor/convenios");
   revalidatePath(`/lavagestor/recibos/${lavagemId}`);
 
   redirect(`${returnTo}?ok=${messageParam(tipo === "pago" ? "Saida finalizada. Recibo ficou na fila de envio automatico." : labelSuccess(tipo))}`);
@@ -146,18 +184,22 @@ function buildPayload(tipo: SaidaTipo, valorFinal: number, funcionarioId: string
       status_pagamento: "fiado",
       forma_pagamento: "fiado",
       valor_recebido: 0,
-      valor_pendente: valorFinal
+      valor_pendente: valorFinal,
+      data_finalizacao: new Date().toISOString(),
+      data_entrega: new Date().toISOString()
     };
   }
 
   if (tipo === "convenio") {
     return {
       ...base,
-      status: "finalizado",
-      status_pagamento: "aberto",
+      status: "entregue",
+      status_pagamento: valorFinal <= 0 ? "pago" : "convenio",
       forma_pagamento: "convenio",
-      valor_recebido: 0,
-      valor_pendente: valorFinal
+      valor_recebido: valorFinal <= 0 ? 0 : 0,
+      valor_pendente: valorFinal,
+      data_finalizacao: new Date().toISOString(),
+      data_entrega: new Date().toISOString()
     };
   }
 
@@ -167,7 +209,9 @@ function buildPayload(tipo: SaidaTipo, valorFinal: number, funcionarioId: string
     status_pagamento: "aberto",
     forma_pagamento: "a_faturar",
     valor_recebido: 0,
-    valor_pendente: valorFinal
+    valor_pendente: valorFinal,
+    data_finalizacao: new Date().toISOString(),
+    data_entrega: new Date().toISOString()
   };
 }
 
@@ -254,6 +298,21 @@ async function registrarLavadoresEComissao(client: any, empresaId: string | null
   })));
 }
 
+function calcularValoresComConvenio(valorBase: number, descontoAtual: number, convenio: ConvenioRow | null) {
+  const percentualConvenio = convenio
+    ? convenio.nao_paga === true
+      ? 100
+      : clampPercent(convenio.percentual_desconto)
+    : 0;
+  const descontoConvenio = roundMoney(valorBase * percentualConvenio / 100);
+  const descontoTotal = roundMoney(Math.min(valorBase, Math.max(0, descontoAtual + descontoConvenio)));
+  return {
+    percentualConvenio,
+    descontoTotal,
+    valorFinal: roundMoney(Math.max(valorBase - descontoTotal, 0))
+  };
+}
+
 function uniqueValues(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));
 }
@@ -293,10 +352,26 @@ function labelFormaPagamento(value: string) {
 function labelSuccess(tipo: SaidaTipo) {
   if (tipo === "finalizado") return "Lavagem finalizada e aguardando saida.";
   if (tipo === "cancelado") return "Lavagem cancelada.";
-  if (tipo === "convenio") return "Convenio registrado. O veiculo continua aguardando pagamento.";
+  if (tipo === "convenio") return "Saida registrada no convenio.";
   return `Saida registrada como ${labelTipo(tipo)}.`;
 }
 
 function safeReturn(value: string) {
   return value.startsWith("/lavagestor") && !value.startsWith("//") ? value : "/lavagestor/operacao/fila";
+}
+
+function money(value: unknown) {
+  const normalized = String(value ?? "0").replace(/\./g, "").replace(",", ".");
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function clampPercent(value: unknown) {
+  const number = Number(value ?? 0);
+  if (!Number.isFinite(number)) return 0;
+  return Math.min(Math.max(number, 0), 100);
 }
