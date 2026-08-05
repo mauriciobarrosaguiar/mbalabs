@@ -27,6 +27,14 @@ export default async function LavaOperacaoEntradaPage({ searchParams }: { search
       preco: row.preco == null ? 0 : Number(row.preco)
     }));
 
+  const servicosAdicionais = servicosResult.rows
+    .filter((row) => row.ativo !== false && Boolean(row.adicional))
+    .map((row) => ({
+      id: String(row.id),
+      nome: String(row.nome),
+      preco: row.preco == null ? 0 : Number(row.preco)
+    }));
+
   const clientes = lookups.clientes.map((row) => ({
     id: String(row.id ?? ""),
     nome: String(row.nome ?? ""),
@@ -59,6 +67,7 @@ export default async function LavaOperacaoEntradaPage({ searchParams }: { search
             clientes={clientes}
             veiculos={veiculos}
             servicos={servicos}
+            servicosAdicionais={servicosAdicionais}
             ok={firstParam(params.ok)}
             error={firstParam(params.error) ?? servicosResult.error ?? configError ?? undefined}
           />
