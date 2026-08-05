@@ -19,14 +19,16 @@ export const LAVA_PAYMENT_STATUS_LABELS: Record<string, string> = {
   aberto: "Aberto",
   parcial: "Parcial",
   pago: "Pago",
-  fiado: "Fiado"
+  fiado: "Fiado",
+  cancelado: "Cancelado"
 };
 
 export const LAVA_PAYMENT_METHOD_LABELS: Record<string, string> = {
   dinheiro: "Dinheiro",
   pix: "Pix",
   cartao: "Cartão",
-  fiado: "Fiado"
+  fiado: "Fiado",
+  convenio: "Convênio"
 };
 
 export function normalizeLavaStatus(status: unknown) {
@@ -67,7 +69,7 @@ export async function getLavaDashboard() {
   ] = await Promise.all([
     countByEmpresa(client, "lava_clientes", empresaId),
     countByEmpresa(client, "lava_veiculos", empresaId),
-    countByEmpresa(client, "lava_funcionarios", empresaId, { ativo: true }),
+    countByEmpresa(client, "lava_funcionarios", empresaId, { ativo: true, excluido: false }),
     countByEmpresa(client, "lava_servicos", empresaId, { ativo: true }),
     countByEmpresa(client, "lava_lavagens", empresaId),
     countByEmpresa(client, "lava_comissoes", empresaId, { status: "pendente" }),
@@ -262,8 +264,9 @@ export async function listLavaFuncionarios(search = "") {
   const supabase = await getSupabaseServer();
   const { data, error } = await (supabase as any)
     .from("lava_funcionarios")
-    .select("id,nome,telefone,email,percentual_comissao,ativo,acesso_sistema,perfil_acesso,permissoes_extras,core_usuario_id,usuario_id,created_at")
+    .select("id,nome,telefone,email,percentual_comissao,ativo,acesso_sistema,perfil_acesso,permissoes_extras,core_usuario_id,usuario_id,excluido,excluido_em,created_at")
     .eq("empresa_id", current.empresaId)
+    .eq("excluido", false)
     .order("nome", { ascending: true })
     .limit(200);
 
@@ -280,6 +283,23 @@ export async function listLavaServicos(search = "") {
   const { data, error } = await (supabase as any)
     .from("lava_servicos")
     .select("id,nome,descricao,preco,percentual_comissao,ativo,created_at")
+    .eq("empresa_id", current.empresaId)
+    .order("nome", { ascending: true })
+    .limit(200);
+
+  const rows = ((data ?? []) as Array<Record<string, unknown>>).filter((row) =>
+    includesSearch(row, ["nome", "descricao"], search)
+  );
+
+  return { rows, error: error?.message ?? null };
+}
+
+export async function listLavaConvenios(search = "") {
+  const current = await requireAppAccess("lavagestor");
+  const supabase = await getSupabaseServer();
+  const { data, error } = await (supabase as any)
+    .from("lava_convenios")
+    .select("id,nome,descricao,percentual_desconto,nao_paga,ativo,created_at")
     .eq("empresa_id", current.empresaId)
     .order("nome", { ascending: true })
     .limit(200);
@@ -313,7 +333,7 @@ export async function listLavaLavagens(filters: { data?: string; funcionario?: s
   const { data, error } = await (supabase as any)
     .from("lava_lavagens")
     .select(
-      "id,cliente_id,veiculo_id,funcionario_id,servico_id,descricao_extra,observacoes,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,comissao,status,status_pagamento,forma_pagamento,data_lavagem,data_entrada,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_funcionarios(nome),lava_servicos(nome)"
+      "id,cliente_id,veiculo_id,funcionario_id,servico_id,convenio_id,convenio_nome,convenio_desconto_percentual,convenio_nao_paga,desconto_tipo,desconto_percentual,descricao_extra,observacoes,valor,valor_total,valor_desconto,valor_final,valor_recebido,valor_pendente,comissao,status,status_pagamento,forma_pagamento,data_lavagem,data_entrada,lava_clientes(nome,telefone),lava_veiculos(placa,marca,modelo,cor),lava_funcionarios(nome),lava_servicos(nome)"
     )
     .eq("empresa_id", current.empresaId)
     .order("data_lavagem", { ascending: false })
