@@ -72,7 +72,7 @@ const lavaNavItems: LavaNavItem[] = [
 ];
 
 const lavaNavGroupsConfig: Array<{ label: string; hrefs: string[] }> = [
-  { label: "Operação", hrefs: ["/lavagestor/operacao", "/lavagestor/operacao/entrada", "/lavagestor/operacao/saida", "/lavagestor/operacao/fila", "/lavagestor/busca", "/lavagestor/lavagens", "/lavagestor/placa"] },
+  { label: "Operação", hrefs: ["/lavagestor/operacao", "/lavagestor/busca", "/lavagestor/lavagens", "/lavagestor/placa"] },
   { label: "Cadastros", hrefs: ["/lavagestor/clientes", "/lavagestor/veiculos", "/lavagestor/funcionarios", "/lavagestor/servicos", "/lavagestor/convenios", "/lavagestor/estoque"] },
   { label: "Financeiro", hrefs: ["/lavagestor/dashboard", "/lavagestor/pagamentos", "/lavagestor/financeiro", "/lavagestor/comissoes", "/lavagestor/vales", "/lavagestor/pagamentos-integrados", "/lavagestor/notas-fiscais"] },
   { label: "Crescimento", hrefs: ["/lavagestor/whatsapp", "/lavagestor/pos-venda", "/lavagestor/automacoes", "/lavagestor/iamob"] },
