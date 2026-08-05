@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/AuthForms";
 import { BrandLogo } from "@/components/BrandLogo";
+import { InstallAppCard } from "@/components/InstallAppCard";
+import { PwaRegister } from "@/components/PwaRegister";
 import { getLoginDestination, getSessionProfile } from "@/lib/core-data";
 import { safeNextPath } from "@/lib/form-utils";
 
@@ -22,6 +24,7 @@ export default async function LoginPage({
 
   return (
     <main className="page-shell grid min-h-screen content-center py-10">
+      <PwaRegister />
       <div className="mx-auto grid w-full max-w-md gap-6">
         <Link className="w-fit" href="/" aria-label="Voltar para o início da MBA Labs">
           <BrandLogo size="md" />
@@ -36,6 +39,7 @@ export default async function LoginPage({
           </div>
           <LoginForm nextPath={nextPath} />
         </section>
+        <InstallAppCard />
         <Link className="text-center text-sm text-slate-400 transition hover:text-white" href="/">
           Voltar para o início
         </Link>
