@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useFormStatus } from "react-dom";
 import { registrarSaidaOperacao } from "@/lib/actions/lavagestor-operacao-actions";
 
 type Row = Record<string, unknown>;
@@ -101,34 +102,64 @@ export function SaidaPagamentoForm({
           </label>
 
           <div className="grid grid-cols-2 gap-2">
-            <button className="min-h-12 rounded-2xl border border-emerald-200 bg-white px-3 text-sm font-black text-emerald-950 shadow-sm active:scale-[0.98]" type="button" onClick={() => setModoPago(false)}>
+            <ActionButton className="min-h-12 rounded-2xl border border-emerald-200 bg-white px-3 text-sm font-black text-emerald-950 shadow-sm active:scale-[0.98]" type="button" onClick={() => setModoPago(false)}>
               Voltar
-            </button>
-            <button name="tipo_saida" value="pago" className="min-h-12 rounded-2xl bg-emerald-600 px-3 text-sm font-black text-white shadow-sm active:scale-[0.98]" type="submit">
+            </ActionButton>
+            <ActionButton name="tipo_saida" value="pago" className="min-h-12 rounded-2xl bg-emerald-600 px-3 text-sm font-black text-white shadow-sm active:scale-[0.98]" type="submit">
               Finalizar saída
-            </button>
+            </ActionButton>
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          <button className="min-h-16 rounded-2xl bg-emerald-500 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]" type="button" onClick={() => setModoPago(true)}>
+          <ActionButton
+            name={convenioId ? "tipo_saida" : undefined}
+            value={convenioId ? "pago" : undefined}
+            className="min-h-16 rounded-2xl bg-emerald-500 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]"
+            type={convenioId ? "submit" : "button"}
+            onClick={() => {
+              if (!convenioId) setModoPago(true);
+            }}
+          >
             PAGO
-          </button>
-          <button name="tipo_saida" value="convenio" className="min-h-16 rounded-2xl bg-blue-500 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]" type="submit">
-            CONVÊNIO
-          </button>
-          <button name="tipo_saida" value="fiado" className="min-h-16 rounded-2xl bg-amber-500 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]" type="submit">
+          </ActionButton>
+          <ActionButton name="tipo_saida" value="fiado" className="min-h-16 rounded-2xl bg-amber-500 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]" type="submit">
             FIADO
-          </button>
-          <button name="tipo_saida" value="faturar" className="min-h-16 rounded-2xl bg-slate-700 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]" type="submit">
+          </ActionButton>
+          <ActionButton name="tipo_saida" value="faturar" className="min-h-16 rounded-2xl bg-slate-700 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]" type="submit">
             A FATURAR
-          </button>
-          <button name="tipo_saida" value="cancelado" className="col-span-2 min-h-14 rounded-2xl bg-red-500 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]" type="submit" formNoValidate>
+          </ActionButton>
+          <ActionButton name="tipo_saida" value="cancelado" className="min-h-16 rounded-2xl bg-red-500 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]" type="submit" formNoValidate>
             CANCELAR
-          </button>
+          </ActionButton>
         </div>
       )}
     </form>
+  );
+}
+
+function ActionButton({
+  children,
+  className,
+  type = "submit",
+  name,
+  value,
+  formNoValidate,
+  onClick
+}: {
+  children: React.ReactNode;
+  className: string;
+  type?: "submit" | "button";
+  name?: string;
+  value?: string;
+  formNoValidate?: boolean;
+  onClick?: () => void;
+}) {
+  const { pending } = useFormStatus();
+  return (
+    <button className={className} type={type} name={name} value={value} formNoValidate={formNoValidate} disabled={pending} onClick={onClick}>
+      {pending ? "Aguarde..." : children}
+    </button>
   );
 }
 
