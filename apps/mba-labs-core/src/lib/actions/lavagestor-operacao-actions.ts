@@ -40,7 +40,7 @@ export async function registrarSaidaOperacao(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam("Selecione a lavagem e o tipo de saida.")}`);
   }
 
-  if (tipo === "pago" && !formaPagamento) {
+  if (tipo === "pago" && !convenioId && !formaPagamento) {
     redirect(`${returnTo}?error=${messageParam("Selecione a forma de pagamento: Pix, cartao credito ou cartao debito.")}`);
   }
 
@@ -88,8 +88,10 @@ export async function registrarSaidaOperacao(formData: FormData) {
     convenio = convenioData;
   }
 
+  const tipoEfetivo: SaidaTipo = convenio && (tipo === "pago" || tipo === "convenio") ? "convenio" : tipo;
   const ajuste = calcularValoresComConvenio(valorBase, descontoAtual, convenio);
-  const payload = buildPayload(tipo, ajuste.valorFinal, funcionarioIds[0] || String(lavagem.funcionario_id ?? ""), formaPagamento);
+  const formaPagamentoEfetiva = tipoEfetivo === "convenio" ? "convenio" : formaPagamento;
+  const payload = buildPayload(tipoEfetivo, ajuste.valorFinal, funcionarioIds[0] || String(lavagem.funcionario_id ?? ""), formaPagamentoEfetiva);
 
   if (convenio) {
     payload.convenio_id = String(convenio.id ?? "");
@@ -112,8 +114,8 @@ export async function registrarSaidaOperacao(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam(updateError.message)}`);
   }
 
-  if (tipo === "pago") {
-    const pagamentoError = await registrarPagamento(client, empresaId, lavagemId, ajuste.valorFinal, formaPagamento, "Pagamento registrado na saida rapida.");
+  if (tipoEfetivo === "pago") {
+    const pagamentoError = await registrarPagamento(client, empresaId, lavagemId, ajuste.valorFinal, formaPagamentoEfetiva, "Pagamento registrado na saida rapida.");
     if (pagamentoError) {
       redirect(`${returnTo}?error=${messageParam(pagamentoError)}`);
     }
@@ -121,17 +123,12 @@ export async function registrarSaidaOperacao(formData: FormData) {
     await criarEnvioReciboPendente(client, empresaId, lavagemId, current.usuario.id, "Recibo de pagamento pendente de envio automatico.");
   }
 
-  if (tipo === "convenio") {
+  if (tipoEfetivo === "convenio") {
     const convenioNome = String(convenio?.nome ?? "Convenio");
-    const pagamentoError = await registrarPagamento(client, empresaId, lavagemId, 0, "convenio", `Saida registrada em convenio: ${convenioNome}. Valor do cliente zerado no recibo.`);
-    if (pagamentoError) {
-      redirect(`${returnTo}?error=${messageParam(pagamentoError)}`);
-    }
-
     await criarEnvioReciboPendente(client, empresaId, lavagemId, current.usuario.id, `Recibo de convenio pendente de envio automatico. Convenio: ${convenioNome}. Valor do cliente: R$ 0,00.`);
   }
 
-  if (funcionarioIds.length > 0 && tipo !== "cancelado") {
+  if (funcionarioIds.length > 0 && tipoEfetivo !== "cancelado") {
     await registrarLavadoresEComissao(client, empresaId, lavagemId, funcionarioIds, ajuste.valorFinal, String(lavagem.servico_id ?? ""));
   }
 
@@ -139,10 +136,10 @@ export async function registrarSaidaOperacao(formData: FormData) {
     empresa_id: empresaId,
     lavagem_id: lavagemId,
     usuario_id: current.usuario.id,
-    acao: tipo === "finalizado" ? "finalizar_lavagem_operacao" : "saida_lavagem_operacao",
+    acao: tipoEfetivo === "finalizado" ? "finalizar_lavagem_operacao" : "saida_lavagem_operacao",
     status_anterior: String(lavagem.status ?? ""),
     status_novo: String(payload.status ?? ""),
-    observacao: `Saida rapida registrada como ${labelTipo(tipo)}${tipo === "pago" && formaPagamento ? ` - ${labelFormaPagamento(formaPagamento)}` : ""}${convenio ? ` - convenio ${String(convenio.nome ?? "")}, desconto ${ajuste.percentualConvenio}%` : ""}.`
+    observacao: `Saida rapida registrada como ${labelTipo(tipoEfetivo)}${tipoEfetivo === "pago" && formaPagamentoEfetiva ? ` - ${labelFormaPagamento(formaPagamentoEfetiva)}` : ""}${convenio ? ` - convenio ${String(convenio.nome ?? "")}, desconto ${ajuste.percentualConvenio}%` : ""}.`
   });
 
   revalidatePath("/lavagestor");
@@ -153,7 +150,7 @@ export async function registrarSaidaOperacao(formData: FormData) {
   revalidatePath("/lavagestor/convenios");
   revalidatePath(`/lavagestor/recibos/${lavagemId}`);
 
-  redirect(`${returnTo}?ok=${messageParam(tipo === "pago" || tipo === "convenio" ? "Saida finalizada. Recibo ficou na fila de envio automatico." : labelSuccess(tipo))}`);
+  redirect(`${returnTo}?ok=${messageParam(tipoEfetivo === "pago" || tipoEfetivo === "convenio" ? "Saida finalizada. Recibo ficou na fila de envio automatico." : labelSuccess(tipoEfetivo))}`);
 }
 
 function buildPayload(tipo: SaidaTipo, valorFinal: number, funcionarioId: string, formaPagamento: string): Row {
@@ -204,7 +201,7 @@ function buildPayload(tipo: SaidaTipo, valorFinal: number, funcionarioId: string
     return {
       ...base,
       status: "entregue",
-      status_pagamento: "convenio",
+      status_pagamento: "pago",
       forma_pagamento: "convenio",
       valor_recebido: 0,
       valor_pendente: 0,
