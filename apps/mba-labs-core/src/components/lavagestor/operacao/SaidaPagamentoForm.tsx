@@ -1,26 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { registrarSaidaOperacao } from "@/lib/actions/lavagestor-operacao-actions";
 
 type Row = Record<string, unknown>;
-
-const conveniosPadrao = [
-  "ANM",
-  "Alianca Auto Center (Desc. 15%)",
-  "Andar Locadora (Desc. 33%)",
-  "Ariolino",
-  "Bunge (Desc. R$ 10,00)",
-  "CAOA CHERY - NOVOS",
-  "CAOA CHERY - SEMI NOVOS",
-  "CRM",
-  "CRT - TO",
-  "Carajas (Desc. 10%)",
-  "Celebrate (Desc. 11%)",
-  "Cid - Oficina Alianca (Desc. 15%)",
-  "Claro - Ticket Log",
-  "Cref 14 (R$ 60,00)"
-];
+type Convenio = {
+  id: string;
+  nome: string;
+  percentual_desconto: number;
+  nao_paga: boolean;
+};
 
 const formasPagamento = [
   { value: "pix", label: "Pix" },
@@ -28,9 +17,30 @@ const formasPagamento = [
   { value: "cartao_debito", label: "Cartão débito" }
 ];
 
-export function SaidaPagamentoForm({ lavagemId, funcionarios, funcionarioAtual = "" }: { lavagemId: string; funcionarios: Row[]; funcionarioAtual?: string }) {
+export function SaidaPagamentoForm({
+  lavagemId,
+  funcionarios,
+  funcionarioAtual = "",
+  convenios = [],
+  valorOriginal = 0
+}: {
+  lavagemId: string;
+  funcionarios: Row[];
+  funcionarioAtual?: string;
+  convenios?: Convenio[];
+  valorOriginal?: number;
+}) {
   const [modoPago, setModoPago] = useState(false);
   const [formaPagamento, setFormaPagamento] = useState("pix");
+  const [convenioId, setConvenioId] = useState("");
+
+  const resumoConvenio = useMemo(() => {
+    const convenio = convenios.find((item) => item.id === convenioId);
+    const percentual = convenio?.nao_paga ? 100 : clampPercent(convenio?.percentual_desconto ?? 0);
+    const desconto = roundMoney(Number(valorOriginal || 0) * percentual / 100);
+    const valorFinal = roundMoney(Math.max(Number(valorOriginal || 0) - desconto, 0));
+    return { convenio, percentual, desconto, valorFinal };
+  }, [convenioId, convenios, valorOriginal]);
 
   return (
     <form action={registrarSaidaOperacao} className="grid gap-3 p-3 pt-0">
@@ -54,14 +64,24 @@ export function SaidaPagamentoForm({ lavagemId, funcionarios, funcionarioAtual =
       </div>
 
       <label className="grid gap-2">
-        <span className="text-sm font-black">Convenio</span>
-        <select className="input min-h-12 text-base font-bold" name="convenio_nome" defaultValue="">
-          <option value="">Selecione o convenio</option>
-          {conveniosPadrao.map((convenio) => (
-            <option key={convenio} value={convenio}>{convenio}</option>
+        <span className="text-sm font-black">Convênio</span>
+        <select className="input min-h-12 text-base font-bold" name="convenio_id" value={convenioId} onChange={(event) => setConvenioId(event.target.value)}>
+          <option value="">Sem convênio</option>
+          {convenios.map((convenio) => (
+            <option key={convenio.id} value={convenio.id}>
+              {convenio.nome} · {convenio.nao_paga ? "100%" : `${clampPercent(convenio.percentual_desconto)}%`}
+            </option>
           ))}
         </select>
       </label>
+
+      {resumoConvenio.convenio ? (
+        <div className="grid grid-cols-3 gap-2 rounded-2xl border border-blue-100 bg-blue-50 p-2 text-center text-xs font-black text-blue-950">
+          <span className="rounded-xl bg-white px-2 py-2">Desconto<br />{formatCurrency(resumoConvenio.desconto)}</span>
+          <span className="rounded-xl bg-white px-2 py-2">Final<br />{formatCurrency(resumoConvenio.valorFinal)}</span>
+          <span className="rounded-xl bg-white px-2 py-2">Comissão<br />sobre final</span>
+        </div>
+      ) : null}
 
       {modoPago ? (
         <div className="grid gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
@@ -95,7 +115,7 @@ export function SaidaPagamentoForm({ lavagemId, funcionarios, funcionarioAtual =
             PAGO
           </button>
           <button name="tipo_saida" value="convenio" className="min-h-16 rounded-2xl bg-blue-500 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]" type="submit">
-            CONVENIO
+            CONVÊNIO
           </button>
           <button name="tipo_saida" value="fiado" className="min-h-16 rounded-2xl bg-amber-500 px-3 text-base font-black text-white shadow-sm active:scale-[0.98]" type="submit">
             FIADO
@@ -110,4 +130,18 @@ export function SaidaPagamentoForm({ lavagemId, funcionarios, funcionarioAtual =
       )}
     </form>
   );
+}
+
+function clampPercent(value: unknown) {
+  const number = Number(value ?? 0);
+  if (!Number.isFinite(number)) return 0;
+  return Math.min(Math.max(number, 0), 100);
+}
+
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function formatCurrency(value: unknown) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value ?? 0));
 }
