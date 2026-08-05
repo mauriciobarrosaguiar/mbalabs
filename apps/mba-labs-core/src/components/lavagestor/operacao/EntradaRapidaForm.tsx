@@ -63,6 +63,8 @@ export function EntradaRapidaForm({
   const [descontoTipo, setDescontoTipo] = useState<"valor" | "percentual">("valor");
   const [descontoValor, setDescontoValor] = useState("");
   const [descontoPercentual, setDescontoPercentual] = useState("");
+  const [entregaTipo, setEntregaTipo] = useState<"retirar" | "levar">("retirar");
+  const [enderecoEntrega, setEnderecoEntrega] = useState("");
 
   const resumo = useMemo(() => {
     const principal = servicos.find((servico) => servico.id === servicoId);
@@ -139,11 +141,11 @@ export function EntradaRapidaForm({
       <input type="hidden" name="veiculo_marca" value={veiculoMarca} />
       <input type="hidden" name="veiculo_modelo" value={veiculoModelo} />
       <input type="hidden" name="veiculo_cor" value={veiculoCor} />
-      <input type="hidden" name="entrega_tipo" value="retirar" />
+      <input type="hidden" name="entrega_tipo" value={entregaTipo} />
       <input type="hidden" name="descricao_extra" value="Entrada rapida" />
 
       <section className="grid w-full max-w-full min-w-0 gap-3 overflow-hidden rounded-2xl border border-border bg-white p-3 shadow-sm sm:rounded-3xl sm:p-4">
-        <h1 className="break-words text-center text-2xl font-black leading-tight sm:text-3xl">Entrada de veiculo</h1>
+        <h1 className="break-words text-center text-2xl font-black leading-tight sm:text-3xl">Entrada de veículo</h1>
 
         <datalist id="placas-cadastradas">
           {veiculos.map((veiculo) => (
@@ -176,13 +178,31 @@ export function EntradaRapidaForm({
         {clienteId ? <p className="rounded-xl bg-emerald-50 px-3 py-2 text-center text-xs font-black text-emerald-900">Cliente cadastrado encontrado. Os dados foram puxados automaticamente.</p> : null}
 
         <label className="grid min-w-0 gap-2">
-          <span className="break-words text-center text-base font-black leading-tight sm:text-lg">Tipo de servico</span>
+          <span className="break-words text-center text-base font-black leading-tight sm:text-lg">Tipo de serviço</span>
           <select className="input min-h-12 w-full min-w-0 text-center text-sm font-bold sm:min-h-14 sm:text-base" name="servico_id" required value={servicoId} onChange={(event) => setServicoId(event.target.value)}>
             {servicos.map((servico) => (
               <option key={servico.id} value={servico.id}>{servico.nome}</option>
             ))}
           </select>
         </label>
+
+        <div className="grid w-full min-w-0 gap-2 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 sm:p-3">
+          <p className="break-words text-center text-lg font-black leading-tight text-slate-950 sm:text-xl">Entrega</p>
+          <div className="grid min-w-0 grid-cols-2 gap-2">
+            <button className={`min-h-12 min-w-0 rounded-xl border px-2 text-sm font-black ${entregaTipo === "retirar" ? "border-emerald-400 bg-emerald-50 text-emerald-950" : "border-slate-200 bg-white text-slate-800"}`} type="button" onClick={() => setEntregaTipo("retirar")}>Cliente retira</button>
+            <button className={`min-h-12 min-w-0 rounded-xl border px-2 text-sm font-black ${entregaTipo === "levar" ? "border-emerald-400 bg-emerald-50 text-emerald-950" : "border-slate-200 bg-white text-slate-800"}`} type="button" onClick={() => setEntregaTipo("levar")}>Levar</button>
+          </div>
+          {entregaTipo === "levar" ? (
+            <input
+              className="input min-h-12 w-full min-w-0 text-center text-sm font-bold sm:min-h-14 sm:text-base"
+              name="endereco_entrega"
+              placeholder="Endereço para entrega"
+              required
+              value={enderecoEntrega}
+              onChange={(event) => setEnderecoEntrega(event.target.value)}
+            />
+          ) : null}
+        </div>
 
         {servicosAdicionais.length > 0 ? (
           <div className="grid w-full min-w-0 gap-2 overflow-hidden rounded-2xl border border-emerald-100 bg-emerald-50 p-2 sm:p-3">
