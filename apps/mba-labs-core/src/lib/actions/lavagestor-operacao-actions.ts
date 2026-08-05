@@ -9,6 +9,8 @@ import { getSupabaseServer } from "@/lib/supabase";
 type SaidaTipo = "pago" | "convenio" | "fiado" | "faturar" | "cancelado" | "finalizado";
 type Row = Record<string, unknown>;
 
+const formasPagamentoPermitidas = ["pix", "cartao_credito", "cartao_debito"];
+
 export async function registrarSaidaOperacao(formData: FormData) {
   const { current } = await requireLavaGestorAccess("/lavagestor/operacao/saida");
   const empresaId = current.empresaId;
@@ -25,9 +27,14 @@ export async function registrarSaidaOperacao(formData: FormData) {
     textValue(formData, "funcionario_id")
   ]).filter(Boolean);
   const convenioNome = textValue(formData, "convenio_nome");
+  const formaPagamento = normalizeFormaPagamento(textValue(formData, "forma_pagamento"));
 
   if (!lavagemId || !tipo) {
     redirect(`${returnTo}?error=${messageParam("Selecione a lavagem e o tipo de saida.")}`);
+  }
+
+  if (tipo === "pago" && !formaPagamento) {
+    redirect(`${returnTo}?error=${messageParam("Selecione a forma de pagamento: Pix, cartao credito ou cartao debito.")}`);
   }
 
   if (!["cancelado", "finalizado"].includes(tipo) && funcionarioIds.length === 0) {
@@ -52,7 +59,7 @@ export async function registrarSaidaOperacao(formData: FormData) {
   }
 
   const valorFinal = Number(lavagem.valor_final ?? lavagem.valor ?? 0);
-  const payload = buildPayload(tipo, valorFinal, funcionarioIds[0] || String(lavagem.funcionario_id ?? ""));
+  const payload = buildPayload(tipo, valorFinal, funcionarioIds[0] || String(lavagem.funcionario_id ?? ""), formaPagamento);
 
   if (tipo === "convenio" && convenioNome) {
     payload.observacoes = `Convenio: ${convenioNome}`;
@@ -68,6 +75,13 @@ export async function registrarSaidaOperacao(formData: FormData) {
     redirect(`${returnTo}?error=${messageParam(updateError.message)}`);
   }
 
+  if (tipo === "pago") {
+    const pagamentoError = await registrarPagamento(client, empresaId, lavagemId, valorFinal, formaPagamento);
+    if (pagamentoError) {
+      redirect(`${returnTo}?error=${messageParam(pagamentoError)}`);
+    }
+  }
+
   if (funcionarioIds.length > 0 && tipo !== "cancelado") {
     await registrarLavadoresEComissao(client, empresaId, lavagemId, funcionarioIds, valorFinal, String(lavagem.servico_id ?? ""));
   }
@@ -79,7 +93,7 @@ export async function registrarSaidaOperacao(formData: FormData) {
     acao: tipo === "finalizado" ? "finalizar_lavagem_operacao" : "saida_lavagem_operacao",
     status_anterior: String(lavagem.status ?? ""),
     status_novo: String(payload.status ?? ""),
-    observacao: `Saida rapida registrada como ${labelTipo(tipo)}${convenioNome ? ` - convenio ${convenioNome}` : ""}.`
+    observacao: `Saida rapida registrada como ${labelTipo(tipo)}${tipo === "pago" && formaPagamento ? ` - ${labelFormaPagamento(formaPagamento)}` : ""}${convenioNome ? ` - convenio ${convenioNome}` : ""}.`
   });
 
   revalidatePath("/lavagestor");
@@ -87,16 +101,16 @@ export async function registrarSaidaOperacao(formData: FormData) {
   revalidatePath("/lavagestor/operacao");
   revalidatePath("/lavagestor/operacao/fila");
   revalidatePath("/lavagestor/operacao/saida");
+  revalidatePath(`/lavagestor/recibos/${lavagemId}`);
 
   if (tipo === "pago") {
-    const reciboUrl = buildReceiptWhatsappUrl(lavagem as Row, valorFinal, lavagemId);
-    if (reciboUrl) redirect(reciboUrl);
+    redirect(`/lavagestor/recibos/${lavagemId}?ok=${messageParam("Saida finalizada. Recibo liberado para envio pela API do WhatsApp.")}`);
   }
 
   redirect(`${returnTo}?ok=${messageParam(labelSuccess(tipo))}`);
 }
 
-function buildPayload(tipo: SaidaTipo, valorFinal: number, funcionarioId: string): Row {
+function buildPayload(tipo: SaidaTipo, valorFinal: number, funcionarioId: string, formaPagamento: string): Row {
   const base = funcionarioId ? { funcionario_id: funcionarioId } : {};
 
   if (tipo === "finalizado") {
@@ -118,9 +132,10 @@ function buildPayload(tipo: SaidaTipo, valorFinal: number, funcionarioId: string
       ...base,
       status: "entregue",
       status_pagamento: "pago",
-      forma_pagamento: "pago",
+      forma_pagamento: formaPagamento,
       valor_recebido: valorFinal,
-      valor_pendente: 0
+      valor_pendente: 0,
+      data_pagamento: new Date().toISOString()
     };
   }
 
@@ -154,6 +169,19 @@ function buildPayload(tipo: SaidaTipo, valorFinal: number, funcionarioId: string
     valor_recebido: 0,
     valor_pendente: valorFinal
   };
+}
+
+async function registrarPagamento(client: any, empresaId: string | null, lavagemId: string, valorFinal: number, formaPagamento: string) {
+  const { error } = await client.from("lava_pagamentos").insert({
+    empresa_id: empresaId,
+    lavagem_id: lavagemId,
+    valor: valorFinal,
+    forma_pagamento: formaPagamento,
+    data_pagamento: new Date().toISOString(),
+    observacoes: "Pagamento registrado na saida rapida."
+  });
+
+  return error?.message ?? "";
 }
 
 async function registrarLavadoresEComissao(client: any, empresaId: string | null, lavagemId: string, funcionarioIds: string[], valorFinal: number, servicoId: string) {
@@ -195,44 +223,6 @@ async function registrarLavadoresEComissao(client: any, empresaId: string | null
   })));
 }
 
-function buildReceiptWhatsappUrl(lavagem: Row, valorFinal: number, lavagemId: string) {
-  const cliente = relation(lavagem.lava_clientes);
-  const veiculo = relation(lavagem.lava_veiculos);
-  const servico = relation(lavagem.lava_servicos);
-  const phone = whatsappPhone(cliente.telefone);
-
-  if (!phone) return "";
-
-  const placa = String(veiculo.placa ?? "").trim();
-  const modelo = [veiculo.marca, veiculo.modelo].filter(Boolean).join(" ").trim();
-  const texto = [
-    "Recibo LavaGestor",
-    `Cliente: ${String(cliente.nome ?? "Cliente")}`,
-    `Veiculo: ${[placa, modelo].filter(Boolean).join(" - ") || "Veiculo"}`,
-    `Servico: ${String(servico.nome ?? "Lavagem")}`,
-    `Valor pago: ${money(valorFinal)}`,
-    `Ticket: ${lavagemId.slice(0, 8)}`,
-    "Obrigado pela preferencia!"
-  ].join("\n");
-
-  return `https://wa.me/${phone}?text=${encodeURIComponent(texto)}`;
-}
-
-function whatsappPhone(value: unknown) {
-  const digits = String(value ?? "").replace(/\D/g, "");
-  if (digits.length === 10 || digits.length === 11) return `55${digits}`;
-  if (digits.length >= 12) return digits;
-  return "";
-}
-
-function relation(value: unknown): Row {
-  return (Array.isArray(value) ? value[0] : value || {}) as Row;
-}
-
-function money(value: number) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-}
-
 function uniqueValues(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));
 }
@@ -241,6 +231,11 @@ function normalizeTipoSaida(value: string): SaidaTipo | null {
   const normalized = value.trim().toLowerCase();
   if (["pago", "convenio", "fiado", "faturar", "cancelado", "finalizado"].includes(normalized)) return normalized as SaidaTipo;
   return null;
+}
+
+function normalizeFormaPagamento(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return formasPagamentoPermitidas.includes(normalized) ? normalized : "";
 }
 
 function labelTipo(tipo: SaidaTipo) {
@@ -253,6 +248,15 @@ function labelTipo(tipo: SaidaTipo) {
     finalizado: "Finalizado"
   };
   return labels[tipo];
+}
+
+function labelFormaPagamento(value: string) {
+  const labels: Record<string, string> = {
+    pix: "Pix",
+    cartao_credito: "Cartao credito",
+    cartao_debito: "Cartao debito"
+  };
+  return labels[value] ?? value;
 }
 
 function labelSuccess(tipo: SaidaTipo) {
