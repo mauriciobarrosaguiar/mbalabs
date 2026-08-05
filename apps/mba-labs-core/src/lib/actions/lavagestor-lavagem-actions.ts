@@ -28,6 +28,12 @@ export async function createLavagemMelhorada(formData: FormData) {
     redirect(`/lavagestor/operacao/entrada?error=${messageParam("Informe cliente, veiculo e servico.")}`);
   }
 
+  const lavagemAberta = await findOpenLavagemForVeiculo(client, empresaId, veiculoId);
+  if (lavagemAberta?.id) {
+    const finalPath = returnTo.replace("[id]", String(lavagemAberta.id));
+    redirect(`${finalPath}${finalPath.includes("?") ? "&" : "?"}ok=${messageParam("Entrada ja registrada. Evitei duplicidade.")}`);
+  }
+
   const allServicoIds = uniqueValues([servicoPrincipalId, ...adicionalIds]);
   const [funcionariosResult, servicosResult, configResult, convenioResult] = await Promise.all([
     funcionarioIds.length > 0
@@ -159,6 +165,18 @@ export async function createLavagemMelhorada(formData: FormData) {
   revalidatePath("/lavagestor/pagamentos");
   const finalPath = returnTo.replace("[id]", String(lavagem.id));
   redirect(`${finalPath}${finalPath.includes("?") ? "&" : "?"}ok=${messageParam("Entrada registrada com sucesso.")}`);
+}
+
+async function findOpenLavagemForVeiculo(client: any, empresaId: string | null, veiculoId: string) {
+  const { data } = await client
+    .from("lava_lavagens")
+    .select("id")
+    .eq("empresa_id", empresaId)
+    .eq("veiculo_id", veiculoId)
+    .in("status", ["na_fila", "em_lavagem", "lavando", "finalizado", "cliente_avisado"])
+    .limit(1);
+
+  return (data ?? [])[0] ?? null;
 }
 
 async function saveEntradaPhoto(client: any, current: { empresaId: string | null; usuario: { id: string } }, lavagemId: string, clienteId: string, veiculoId: string, fileValue: FormDataEntryValue | null) {
