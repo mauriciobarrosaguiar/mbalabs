@@ -4,6 +4,7 @@ import { BackButton, MessageBanner, formatDate, formatMoney } from "@/components
 import { SaidaPagamentoForm } from "@/components/lavagestor/operacao/SaidaPagamentoForm";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
+import { listLavaConvenios } from "@/lib/lavagestor-data";
 import { listLavaFila } from "@/lib/lavagestor-fila-data";
 import { requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
 
@@ -15,13 +16,23 @@ export default async function LavaOperacaoSaidaPage({ searchParams }: { searchPa
   const params = await searchParams;
   const q = firstParam(params.q) ?? "";
 
-  const [{ config }, fila] = await Promise.all([
+  const [{ config }, fila, conveniosResult] = await Promise.all([
     getLavaConfiguracoesEmpresa(),
     listLavaFila(),
+    listLavaConvenios(),
     requireLavaGestorAccess("/lavagestor/operacao/saida")
   ]);
 
   const rows = q ? fila.rows.filter((row) => matches(row as Row, q)) : [];
+  const convenios = conveniosResult.rows
+    .filter((row) => row.ativo !== false)
+    .map((row) => ({
+      id: String(row.id ?? ""),
+      nome: String(row.nome ?? ""),
+      percentual_desconto: Number(row.percentual_desconto ?? 0),
+      nao_paga: row.nao_paga === true
+    }))
+    .filter((row) => row.id && row.nome);
 
   return (
     <LavaGestorShell activePath="/lavagestor/operacao/saida" companyName={config.nome_exibicao}>
@@ -36,7 +47,7 @@ export default async function LavaOperacaoSaidaPage({ searchParams }: { searchPa
           </button>
         </form>
 
-        <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? fila.error ?? undefined} />
+        <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? fila.error ?? conveniosResult.error ?? undefined} />
 
         {q && rows.length === 0 ? (
           <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-center text-sm font-black text-amber-950">
@@ -46,7 +57,7 @@ export default async function LavaOperacaoSaidaPage({ searchParams }: { searchPa
 
         <div className="grid gap-3">
           {rows.map((row) => (
-            <SaidaCard key={String((row as Row).id ?? "")} row={row as Row} funcionarios={fila.funcionarios as Row[]} />
+            <SaidaCard key={String((row as Row).id ?? "")} row={row as Row} funcionarios={fila.funcionarios as Row[]} convenios={convenios} />
           ))}
         </div>
 
@@ -58,9 +69,10 @@ export default async function LavaOperacaoSaidaPage({ searchParams }: { searchPa
   );
 }
 
-function SaidaCard({ row, funcionarios }: { row: Row; funcionarios: Row[] }) {
+function SaidaCard({ row, funcionarios, convenios }: { row: Row; funcionarios: Row[]; convenios: Array<{ id: string; nome: string; percentual_desconto: number; nao_paga: boolean }> }) {
   const id = String(row.id ?? "");
   const foto = String(row.foto_entrada_preview_url || row.foto_entrada_url || row.checklist_foto_url || "");
+  const valorOriginal = Number(row.valor_final ?? row.valor ?? 0);
 
   return (
     <article className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
@@ -78,11 +90,11 @@ function SaidaCard({ row, funcionarios }: { row: Row; funcionarios: Row[] }) {
       </div>
 
       <div className="grid grid-cols-2 gap-2 px-3 pb-3 text-xs">
-        <Info label="Valor" value={formatMoney(row.valor_final ?? row.valor)} />
+        <Info label="Valor" value={formatMoney(valorOriginal)} />
         <Info label="Entrada" value={formatDate(row.data_entrada ?? row.data_lavagem)} />
       </div>
 
-      <SaidaPagamentoForm lavagemId={id} funcionarios={funcionarios} funcionarioAtual={String(row.funcionario_id ?? "")} />
+      <SaidaPagamentoForm lavagemId={id} funcionarios={funcionarios} funcionarioAtual={String(row.funcionario_id ?? "")} convenios={convenios} valorOriginal={valorOriginal} />
     </article>
   );
 }
