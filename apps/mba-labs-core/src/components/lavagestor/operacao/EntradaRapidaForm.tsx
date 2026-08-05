@@ -29,12 +29,14 @@ export function EntradaRapidaForm({
   clientes,
   veiculos,
   servicos,
+  servicosAdicionais = [],
   ok,
   error
 }: {
   clientes: Cliente[];
   veiculos: Veiculo[];
   servicos: Servico[];
+  servicosAdicionais?: Servico[];
   ok?: string;
   error?: string;
 }) {
@@ -152,6 +154,23 @@ export function EntradaRapidaForm({
           </select>
         </label>
 
+        {servicosAdicionais.length > 0 ? (
+          <div className="grid gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 p-3">
+            <p className="text-center text-lg font-black text-slate-950">Produtos adicionais</p>
+            <div className="grid gap-2">
+              {servicosAdicionais.map((servico) => (
+                <label className="flex min-h-12 items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm font-black text-slate-950 shadow-sm" key={servico.id}>
+                  <span className="flex min-w-0 items-center gap-3">
+                    <input className="h-5 w-5 shrink-0" type="checkbox" name="servico_adicional_ids" value={servico.id} />
+                    <span className="truncate">{servico.nome}</span>
+                  </span>
+                  <span className="shrink-0 text-emerald-900">{formatCurrency(servico.preco)}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
         <label className="grid gap-2">
           <span className="text-center text-lg font-black">Foto da placa</span>
           <input className="input min-h-14 bg-white text-sm font-bold" name="foto_placa" type="file" accept="image/*" capture="environment" />
@@ -190,6 +209,10 @@ function Field({
       <input className="input min-h-14 text-center text-base font-bold" name={name} list={list} placeholder={placeholder} required={required} inputMode={inputMode} value={value} onBlur={onBlur} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
+}
+
+function formatCurrency(value: unknown) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value ?? 0));
 }
 
 function normalPlate(value: unknown) {
