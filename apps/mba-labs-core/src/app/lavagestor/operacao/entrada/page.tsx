@@ -3,7 +3,7 @@ import { BackButton, EmptyState } from "@/components/ui-kit";
 import { EntradaRapidaForm } from "@/components/lavagestor/operacao/EntradaRapidaForm";
 import { firstParam } from "@/lib/form-utils";
 import { getLavaConfiguracoesEmpresa } from "@/lib/lavagestor-configuracoes-data";
-import { getLavaLookups } from "@/lib/lavagestor-data";
+import { getLavaLookups, listLavaConvenios } from "@/lib/lavagestor-data";
 import { listLavaServicosAvancados } from "@/lib/lavagestor-servicos-data";
 import { requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
 
@@ -12,9 +12,10 @@ export const dynamic = "force-dynamic";
 export default async function LavaOperacaoEntradaPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
 
-  const [lookups, servicosResult, { config, error: configError }] = await Promise.all([
+  const [lookups, servicosResult, conveniosResult, { config, error: configError }] = await Promise.all([
     getLavaLookups(),
     listLavaServicosAvancados(),
+    listLavaConvenios(),
     getLavaConfiguracoesEmpresa(),
     requireLavaGestorAccess("/lavagestor/operacao/entrada")
   ]);
@@ -33,6 +34,15 @@ export default async function LavaOperacaoEntradaPage({ searchParams }: { search
       id: String(row.id),
       nome: String(row.nome),
       preco: row.preco == null ? 0 : Number(row.preco)
+    }));
+
+  const convenios = conveniosResult.rows
+    .filter((row) => row.ativo !== false)
+    .map((row) => ({
+      id: String(row.id),
+      nome: String(row.nome),
+      percentual_desconto: Number(row.percentual_desconto ?? 0),
+      nao_paga: row.nao_paga === true
     }));
 
   const clientes = lookups.clientes.map((row) => ({
@@ -68,8 +78,9 @@ export default async function LavaOperacaoEntradaPage({ searchParams }: { search
             veiculos={veiculos}
             servicos={servicos}
             servicosAdicionais={servicosAdicionais}
+            convenios={convenios}
             ok={firstParam(params.ok)}
-            error={firstParam(params.error) ?? servicosResult.error ?? configError ?? undefined}
+            error={firstParam(params.error) ?? servicosResult.error ?? conveniosResult.error ?? configError ?? undefined}
           />
         )}
       </section>
