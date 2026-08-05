@@ -111,28 +111,44 @@ async function deleteFuncionario(formData: FormData) {
     redirect(`/lavagestor/funcionarios?error=${messageParam(funcionarioError?.message ?? "Funcionário não encontrado.")}`);
   }
 
+  const linkedUsuarioId = funcionario.core_usuario_id ?? funcionario.usuario_id;
+  const now = new Date().toISOString();
   const { error: deleteError } = await client
     .from("lava_funcionarios")
-    .delete()
+    .update({
+      ativo: false,
+      acesso_sistema: false,
+      permissoes_extras: [],
+      excluido: true,
+      excluido_em: now,
+      updated_at: now
+    })
     .eq("id", id)
     .eq("empresa_id", current.empresaId);
 
   if (deleteError) {
-    redirect(`/lavagestor/funcionarios?error=${messageParam("Não foi possível excluir. Se este funcionário já tem lavagens, comissões ou vales, use Inativar para preservar o histórico.")}`);
+    redirect(`/lavagestor/funcionarios?error=${messageParam(deleteError.message)}`);
   }
 
-  const linkedUsuarioId = funcionario.core_usuario_id ?? funcionario.usuario_id;
   if (linkedUsuarioId) {
     await client
       .from("core_usuario_app_permissoes")
-      .update({ status: "inativo", permissoes_extras: [], updated_at: new Date().toISOString() })
+      .update({ status: "inativo", permissoes_extras: [], updated_at: now })
       .eq("usuario_id", linkedUsuarioId)
       .eq("empresa_id", current.empresaId);
+
+    await client
+      .from("core_usuarios")
+      .update({ status: "inativo", updated_at: now })
+      .eq("id", linkedUsuarioId)
+      .eq("empresa_id", current.empresaId)
+      .eq("tipo_global", "funcionario");
   }
 
-  await logAction({ appSlug: "lavagestor", acao: "excluir funcionário", detalhes: { id, nome: funcionario.nome } });
+  await logAction({ appSlug: "lavagestor", acao: "excluir funcionário", detalhes: { id, nome: funcionario.nome, preserva_historico: true } });
   revalidatePath("/lavagestor/funcionarios");
-  redirect(`/lavagestor/funcionarios?ok=${messageParam("Funcionário excluído.")}`);
+  revalidatePath("/lavagestor");
+  redirect(`/lavagestor/funcionarios?ok=${messageParam("Funcionário excluído da lista. O histórico de lavagens, saídas, vales e comissões foi preservado.")}`);
 }
 
 export default async function FuncionariosPage({
