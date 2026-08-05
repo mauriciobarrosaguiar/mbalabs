@@ -64,7 +64,7 @@ export default async function LavaOperacaoEntradaPage({ searchParams }: { search
 
   return (
     <LavaGestorShell activePath="/lavagestor/operacao/entrada" companyName={config.nome_exibicao}>
-      <section className="mx-auto grid w-full max-w-xl gap-3 py-3">
+      <section className="mx-auto grid w-full max-w-full min-w-0 gap-3 overflow-x-hidden py-2 sm:max-w-xl sm:py-3">
         <BackButton href="/lavagestor/operacao" label="Voltar" />
 
         {!ready ? (
