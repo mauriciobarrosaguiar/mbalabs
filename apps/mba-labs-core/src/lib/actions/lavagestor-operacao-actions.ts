@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { messageParam, textValue } from "@/lib/form-utils";
 import { requireLavaGestorAccess } from "@/lib/lavagestor-permissions";
+import { sendLavagemReceiptWhatsapp } from "@/lib/lavagestor-recibo-whatsapp";
 import { getSupabaseServer } from "@/lib/supabase";
 
 type SaidaTipo = "pago" | "convenio" | "fiado" | "faturar" | "cancelado" | "finalizado";
@@ -96,6 +97,14 @@ export async function registrarSaidaOperacao(formData: FormData) {
     observacao: `Saida rapida registrada como ${labelTipo(tipo)}${tipo === "pago" && formaPagamento ? ` - ${labelFormaPagamento(formaPagamento)}` : ""}${convenioNome ? ` - convenio ${convenioNome}` : ""}.`
   });
 
+  let whatsappMessage = "";
+  if (tipo === "pago") {
+    const whatsappResult = await sendLavagemReceiptWhatsapp(lavagemId, "automatico_saida_paga");
+    whatsappMessage = whatsappResult.ok
+      ? " Recibo enviado automaticamente pelo WhatsApp."
+      : ` WhatsApp automático não enviado: ${whatsappResult.error ?? "verifique a configuração da empresa."}`;
+  }
+
   revalidatePath("/lavagestor");
   revalidatePath("/lavagestor/fila");
   revalidatePath("/lavagestor/operacao");
@@ -104,7 +113,7 @@ export async function registrarSaidaOperacao(formData: FormData) {
   revalidatePath(`/lavagestor/recibos/${lavagemId}`);
 
   if (tipo === "pago") {
-    redirect(`/lavagestor/recibos/${lavagemId}?ok=${messageParam("Saida finalizada. Recibo liberado para envio pela API do WhatsApp.")}`);
+    redirect(`/lavagestor/recibos/${lavagemId}?ok=${messageParam(`Saida finalizada.${whatsappMessage}`)}`);
   }
 
   redirect(`${returnTo}?ok=${messageParam(labelSuccess(tipo))}`);
@@ -135,7 +144,9 @@ function buildPayload(tipo: SaidaTipo, valorFinal: number, funcionarioId: string
       forma_pagamento: formaPagamento,
       valor_recebido: valorFinal,
       valor_pendente: 0,
-      data_pagamento: new Date().toISOString()
+      data_pagamento: new Date().toISOString(),
+      data_finalizacao: new Date().toISOString(),
+      data_entrega: new Date().toISOString()
     };
   }
 
