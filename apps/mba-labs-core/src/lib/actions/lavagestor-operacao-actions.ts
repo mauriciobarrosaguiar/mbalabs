@@ -113,12 +113,22 @@ export async function registrarSaidaOperacao(formData: FormData) {
   }
 
   if (tipo === "pago") {
-    const pagamentoError = await registrarPagamento(client, empresaId, lavagemId, ajuste.valorFinal, formaPagamento);
+    const pagamentoError = await registrarPagamento(client, empresaId, lavagemId, ajuste.valorFinal, formaPagamento, "Pagamento registrado na saida rapida.");
     if (pagamentoError) {
       redirect(`${returnTo}?error=${messageParam(pagamentoError)}`);
     }
 
-    await criarEnvioReciboPendente(client, empresaId, lavagemId, current.usuario.id);
+    await criarEnvioReciboPendente(client, empresaId, lavagemId, current.usuario.id, "Recibo de pagamento pendente de envio automatico.");
+  }
+
+  if (tipo === "convenio") {
+    const convenioNome = String(convenio?.nome ?? "Convenio");
+    const pagamentoError = await registrarPagamento(client, empresaId, lavagemId, 0, "convenio", `Saida registrada em convenio: ${convenioNome}. Valor do cliente zerado no recibo.`);
+    if (pagamentoError) {
+      redirect(`${returnTo}?error=${messageParam(pagamentoError)}`);
+    }
+
+    await criarEnvioReciboPendente(client, empresaId, lavagemId, current.usuario.id, `Recibo de convenio pendente de envio automatico. Convenio: ${convenioNome}. Valor do cliente: R$ 0,00.`);
   }
 
   if (funcionarioIds.length > 0 && tipo !== "cancelado") {
@@ -143,7 +153,7 @@ export async function registrarSaidaOperacao(formData: FormData) {
   revalidatePath("/lavagestor/convenios");
   revalidatePath(`/lavagestor/recibos/${lavagemId}`);
 
-  redirect(`${returnTo}?ok=${messageParam(tipo === "pago" ? "Saida finalizada. Recibo ficou na fila de envio automatico." : labelSuccess(tipo))}`);
+  redirect(`${returnTo}?ok=${messageParam(tipo === "pago" || tipo === "convenio" ? "Saida finalizada. Recibo ficou na fila de envio automatico." : labelSuccess(tipo))}`);
 }
 
 function buildPayload(tipo: SaidaTipo, valorFinal: number, funcionarioId: string, formaPagamento: string): Row {
@@ -194,10 +204,11 @@ function buildPayload(tipo: SaidaTipo, valorFinal: number, funcionarioId: string
     return {
       ...base,
       status: "entregue",
-      status_pagamento: valorFinal <= 0 ? "pago" : "convenio",
+      status_pagamento: "convenio",
       forma_pagamento: "convenio",
-      valor_recebido: valorFinal <= 0 ? 0 : 0,
-      valor_pendente: valorFinal,
+      valor_recebido: 0,
+      valor_pendente: 0,
+      data_pagamento: new Date().toISOString(),
       data_finalizacao: new Date().toISOString(),
       data_entrega: new Date().toISOString()
     };
@@ -215,20 +226,20 @@ function buildPayload(tipo: SaidaTipo, valorFinal: number, funcionarioId: string
   };
 }
 
-async function registrarPagamento(client: any, empresaId: string | null, lavagemId: string, valorFinal: number, formaPagamento: string) {
+async function registrarPagamento(client: any, empresaId: string | null, lavagemId: string, valorFinal: number, formaPagamento: string, observacoes = "Pagamento registrado na saida rapida.") {
   const { error } = await client.from("lava_pagamentos").insert({
     empresa_id: empresaId,
     lavagem_id: lavagemId,
     valor: valorFinal,
     forma_pagamento: formaPagamento,
     data_pagamento: new Date().toISOString(),
-    observacoes: "Pagamento registrado na saida rapida."
+    observacoes
   });
 
   return error?.message ?? "";
 }
 
-async function criarEnvioReciboPendente(client: any, empresaId: string | null, lavagemId: string, usuarioId: string) {
+async function criarEnvioReciboPendente(client: any, empresaId: string | null, lavagemId: string, usuarioId: string, mensagem = "Recibo pendente de envio automatico.") {
   if (!empresaId) return;
 
   const { data: existente } = await client
@@ -248,7 +259,7 @@ async function criarEnvioReciboPendente(client: any, empresaId: string | null, l
     lavagem_id: lavagemId,
     evento: "recibo_pagamento",
     telefone: null,
-    mensagem: "Recibo pendente de envio automatico.",
+    mensagem,
     mensagem_gerada_por: "modelo",
     provider: "evolution",
     status: "pendente",
@@ -352,7 +363,7 @@ function labelFormaPagamento(value: string) {
 function labelSuccess(tipo: SaidaTipo) {
   if (tipo === "finalizado") return "Lavagem finalizada e aguardando saida.";
   if (tipo === "cancelado") return "Lavagem cancelada.";
-  if (tipo === "convenio") return "Saida registrada no convenio.";
+  if (tipo === "convenio") return "Saida registrada no convenio. Recibo ficou na fila de envio automatico.";
   return `Saida registrada como ${labelTipo(tipo)}.`;
 }
 
