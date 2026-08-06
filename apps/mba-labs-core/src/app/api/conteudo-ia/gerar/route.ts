@@ -1,9 +1,21 @@
 import { createHash } from "node:crypto";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getConteudoIaApiContext } from "@/lib/conteudo-ia-auth";
 import type { ConteudoIaGeneratedPlan } from "@/lib/conteudo-ia-types";
 import { getSupabaseServer } from "@/lib/supabase";
+
+type VideoMode = "narrado" | "gravacao" | "visual";
+type VoiceStyle = "feminina" | "masculina" | "neutra";
+type DurationStyle = "curto" | "medio" | "longo";
+
+type ProductionPreferences = {
+  mode: VideoMode;
+  voice: VoiceStyle;
+  duration: DurationStyle;
+  useRealMedia: boolean;
+};
 
 const generationSchema = z.object({
   marcaId: z.string().uuid(),
@@ -40,7 +52,10 @@ const responseSchema = {
           day: { type: "string" },
           date: { type: "string" },
           objective: { type: "string" },
-          format: { type: "string", enum: ["video_curto", "carrossel", "imagem"] },
+          format: {
+            type: "string",
+            enum: ["video_curto", "carrossel", "imagem"]
+          },
           theme: { type: "string" },
           title: { type: "string" },
           hook: { type: "string" },
@@ -90,24 +105,32 @@ export async function POST(request: Request) {
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json(
       {
-        error: "A geração por IA está pronta, mas a chave OPENAI_API_KEY ainda não foi configurada na Vercel.",
+        error:
+          "A geração por IA está pronta, mas a chave OPENAI_API_KEY ainda não foi configurada na Vercel.",
         code: "OPENAI_NOT_CONFIGURED"
       },
       { status: 503 }
     );
   }
 
-  const parsed = generationSchema.safeParse(await request.json().catch(() => null));
+  const parsed = generationSchema.safeParse(
+    await request.json().catch(() => null)
+  );
   if (!parsed.success) {
     return NextResponse.json(
-      { error: "Salve e revise o DNA do perfil antes de gerar.", details: parsed.error.flatten() },
+      {
+        error: "Salve e revise o DNA do perfil antes de gerar.",
+        details: parsed.error.flatten()
+      },
       { status: 400 }
     );
   }
 
+  const cookieStore = await cookies();
+  const productionPreferences = getProductionPreferences(cookieStore);
   const input = parsed.data;
   const startDate = nextPlanningDate();
-  const prompt = buildPrompt(input, startDate);
+  const prompt = buildPrompt(input, startDate, productionPreferences);
 
   const apiResponse = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -124,7 +147,8 @@ export async function POST(request: Request) {
           content: [
             {
               type: "input_text",
-              text: "Você é um estrategista brasileiro de conteúdo para TikTok. Gere conteúdo original, responsável, prático, em português do Brasil, sem prometer resultados e sem copiar criadores. Priorize retenção, clareza, utilidade e autenticidade."
+              text:
+                "Você é um estrategista e diretor de vídeos curtos brasileiro. Gere conteúdo original, responsável, prático, em português do Brasil, sem prometer resultados e sem copiar criadores. Priorize retenção, clareza, utilidade, autenticidade e instruções de produção que possam ser executadas com celular."
             }
           ]
         },
@@ -151,27 +175,43 @@ export async function POST(request: Request) {
 
   const raw = await apiResponse.json().catch(() => null);
   if (!apiResponse.ok) {
-    const message = raw?.error?.message || "A OpenAI não conseguiu gerar o planejamento agora.";
+    const message =
+      raw?.error?.message ||
+      "A OpenAI não conseguiu gerar o planejamento agora.";
     return NextResponse.json({ error: message }, { status: apiResponse.status });
   }
 
   const outputText = extractOutputText(raw);
   if (!outputText) {
-    return NextResponse.json({ error: "A IA retornou uma resposta sem conteúdo utilizável." }, { status: 502 });
+    return NextResponse.json(
+      { error: "A IA retornou uma resposta sem conteúdo utilizável." },
+      { status: 502 }
+    );
   }
 
   let plan: ConteudoIaGeneratedPlan;
   try {
     plan = JSON.parse(outputText) as ConteudoIaGeneratedPlan;
   } catch {
-    return NextResponse.json({ error: "Não foi possível interpretar o planejamento gerado." }, { status: 502 });
+    return NextResponse.json(
+      { error: "Não foi possível interpretar o planejamento gerado." },
+      { status: 502 }
+    );
   }
 
   if (!Array.isArray(plan.contents) || plan.contents.length === 0) {
-    return NextResponse.json({ error: "O planejamento gerado não contém publicações." }, { status: 502 });
+    return NextResponse.json(
+      { error: "O planejamento gerado não contém publicações." },
+      { status: 502 }
+    );
   }
 
   const supabase = (await getSupabaseServer()) as any;
+  const storedPlan = {
+    ...plan,
+    productionPreferences
+  };
+
   const planningInsert = await supabase
     .from("conteudo_planejamentos")
     .insert({
@@ -184,7 +224,7 @@ export async function POST(request: Request) {
       objetivo: input.objetivo,
       resumo_estrategico: plan.strategySummary,
       insight_publico: plan.audienceInsight,
-      conteudo_json: plan,
+      conteudo_json: storedPlan,
       status: "gerado",
       criado_por: auth.profile.id
     })
@@ -192,7 +232,10 @@ export async function POST(request: Request) {
     .single();
 
   if (planningInsert.error) {
-    return NextResponse.json({ error: planningInsert.error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: planningInsert.error.message },
+      { status: 500 }
+    );
   }
 
   const publications = plan.contents.map((item, index) => ({
@@ -219,7 +262,10 @@ export async function POST(request: Request) {
     status: "rascunho"
   }));
 
-  const publicationsInsert = await supabase.from("conteudo_publicacoes").insert(publications);
+  const publicationsInsert = await supabase
+    .from("conteudo_publicacoes")
+    .insert(publications);
+
   if (publicationsInsert.error) {
     await supabase
       .from("conteudo_planejamentos")
@@ -227,7 +273,10 @@ export async function POST(request: Request) {
       .eq("id", planningInsert.data.id)
       .eq("empresa_id", auth.empresaId);
 
-    return NextResponse.json({ error: publicationsInsert.error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: publicationsInsert.error.message },
+      { status: 500 }
+    );
   }
 
   const usage = raw?.usage ?? {};
@@ -240,10 +289,15 @@ export async function POST(request: Request) {
     tokens_entrada: usage.input_tokens ?? 0,
     tokens_saida: usage.output_tokens ?? 0,
     requisicao_id: raw?.id ?? null,
-    finalidade: "planejamento_tiktok"
+    finalidade: `planejamento_tiktok_${productionPreferences.mode}`
   });
 
-  return NextResponse.json({ ok: true, planningId: planningInsert.data.id, plan });
+  return NextResponse.json({
+    ok: true,
+    planningId: planningInsert.data.id,
+    plan,
+    productionPreferences
+  });
 }
 
 function extractOutputText(response: any) {
@@ -258,7 +312,9 @@ function extractOutputText(response: any) {
     }
   }
 
-  return typeof response?.output_text === "string" ? response.output_text : null;
+  return typeof response?.output_text === "string"
+    ? response.output_text
+    : null;
 }
 
 function nextPlanningDate() {
@@ -267,7 +323,50 @@ function nextPlanningDate() {
   return date.toISOString().slice(0, 10);
 }
 
-function buildPrompt(input: z.infer<typeof generationSchema>, startDate: string) {
+function getProductionPreferences(cookieStore: {
+  get: (name: string) => { value: string } | undefined;
+}): ProductionPreferences {
+  const mode = readAllowedValue<VideoMode>(
+    cookieStore.get("mba_conteudo_modo")?.value,
+    ["narrado", "gravacao", "visual"],
+    "gravacao"
+  );
+  const voice = readAllowedValue<VoiceStyle>(
+    cookieStore.get("mba_conteudo_voz")?.value,
+    ["feminina", "masculina", "neutra"],
+    "neutra"
+  );
+  const duration = readAllowedValue<DurationStyle>(
+    cookieStore.get("mba_conteudo_duracao")?.value,
+    ["curto", "medio", "longo"],
+    "medio"
+  );
+
+  return {
+    mode,
+    voice,
+    duration,
+    useRealMedia:
+      cookieStore.get("mba_conteudo_midia_real")?.value !== "nao"
+  };
+}
+
+function readAllowedValue<T extends string>(
+  value: string | undefined,
+  allowed: readonly T[],
+  fallback: T
+) {
+  return value && allowed.includes(value as T) ? (value as T) : fallback;
+}
+
+function buildPrompt(
+  input: z.infer<typeof generationSchema>,
+  startDate: string,
+  preferences: ProductionPreferences
+) {
+  const durationInstruction = getDurationInstruction(preferences.duration);
+  const modeInstruction = getModeInstruction(preferences);
+
   return [
     `Crie exatamente ${input.postsPorPeriodo} conteúdos para TikTok.`,
     `Data inicial do planejamento: ${startDate}.`,
@@ -281,8 +380,55 @@ function buildPrompt(input: z.infer<typeof generationSchema>, startDate: string)
     `Cidade ou região: ${input.cidadeRegiao || "não informada"}.`,
     `Pilares: ${input.pilares.join(", ")}.`,
     `Frequência escolhida: ${input.frequencia}.`,
-    "Use formato vertical 1080x1920. Para cada conteúdo, crie gancho para os primeiros 2 segundos, roteiro gravável com celular, legenda, CTA, hashtags específicas e briefing visual.",
+    `Duração escolhida: ${durationInstruction}.`,
+    `Uso de fotos e vídeos reais do usuário: ${
+      preferences.useRealMedia ? "sim, priorize mídia real" : "não, planeje visuais que possam ser criados ou obtidos posteriormente"
+    }.`,
+    modeInstruction,
+    "Defina format como video_curto em todos os conteúdos e use sempre 1080x1920.",
+    "Para cada conteúdo, crie gancho forte para os primeiros 2 segundos, roteiro executável, legenda, CTA, hashtags específicas e briefing visual detalhado.",
+    "No campo script, separe claramente as cenas com marcações como CENA 1, CENA 2 e CENA 3. Inclua falas, narração ou textos na tela conforme o modo escolhido.",
+    "No campo visualBrief, informe enquadramento, imagens ou clipes necessários, texto na tela, ritmo dos cortes, legendas, transições e sugestão de música ou efeitos.",
     "Distribua os temas sem repetição, misturando educação, autoridade, relacionamento, bastidores e oferta quando fizer sentido para o objetivo.",
     "As datas devem estar no formato YYYY-MM-DD e em ordem cronológica."
   ].join("\n");
+}
+
+function getDurationInstruction(duration: DurationStyle) {
+  if (duration === "curto") return "entre 15 e 30 segundos";
+  if (duration === "longo") return "entre 60 e 90 segundos";
+  return "entre 30 e 60 segundos";
+}
+
+function getModeInstruction(preferences: ProductionPreferences) {
+  if (preferences.mode === "narrado") {
+    const voiceLabel = {
+      feminina: "voz feminina",
+      masculina: "voz masculina",
+      neutra: "voz natural e neutra"
+    }[preferences.voice];
+
+    return [
+      "Modo escolhido: VÍDEO NARRADO.",
+      `Planeje a narração para ${voiceLabel}, com frases naturais, fáceis de ouvir e sincronizadas com as cenas.`,
+      "O apresentador não precisa aparecer. O campo script deve indicar a narração exata de cada cena e o campo visualBrief deve orientar quais fotos ou vídeos aparecem enquanto a voz fala.",
+      "Inclua legendas completas na tela e música de fundo discreta, sem competir com a voz."
+    ].join(" ");
+  }
+
+  if (preferences.mode === "visual") {
+    return [
+      "Modo escolhido: VÍDEO VISUAL AUTOMÁTICO.",
+      "Não dependa de uma pessoa aparecendo nem de narração contínua.",
+      "Construa a história com imagens ou clipes interessantes, textos curtos na tela, cortes dinâmicos, música e efeitos sonoros.",
+      "O campo script deve descrever a sequência visual e os textos de cada cena. Use uma frase de voz opcional somente quando for realmente necessária."
+    ].join(" ");
+  }
+
+  return [
+    "Modo escolhido: ROTEIRO PARA O USUÁRIO GRAVAR.",
+    "O usuário pode aparecer falando ou mostrar o ambiente enquanto fala.",
+    "O campo script deve trazer a fala exata, a ordem das cenas, o que filmar, o enquadramento e o texto que aparece na tela.",
+    "Use linguagem espontânea, simples e natural, como uma conversa real gravada pelo celular."
+  ].join(" ");
 }
