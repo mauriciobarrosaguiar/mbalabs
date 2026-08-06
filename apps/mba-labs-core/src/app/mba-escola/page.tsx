@@ -1,25 +1,18 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import type { Metadata } from "next";
+import MbaEscolaClient from "./mba-escola-client";
 
-export default function MbaEscolaEntryPage() {
-  const appUrl = process.env.NEXT_PUBLIC_MBA_ESCOLA_URL;
-
-  if (appUrl) {
-    redirect(appUrl);
+export const metadata: Metadata = {
+  title: "MBA Escola",
+  description: "Comunicação simples entre escola, professores e famílias.",
+  applicationName: "MBA Escola",
+  manifest: "/mba-escola/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "MBA Escola",
+    statusBarStyle: "default"
   }
+};
 
-  return (
-    <main className="page-shell grid min-h-screen place-items-center py-10">
-      <section className="panel max-w-xl p-7 text-center">
-        <p className="eyebrow">MBA Escola</p>
-        <h1 className="mt-3 text-3xl font-black">Aplicativo em configuração</h1>
-        <p className="mt-4 leading-7 text-slate-300">
-          O MBA Escola já faz parte do portal, mas o endereço do projeto separado ainda precisa ser configurado na Vercel.
-        </p>
-        <Link className="button-secondary mt-6" href="/dashboard">
-          Voltar ao dashboard
-        </Link>
-      </section>
-    </main>
-  );
+export default function MbaEscolaPage() {
+  return <MbaEscolaClient />;
 }
