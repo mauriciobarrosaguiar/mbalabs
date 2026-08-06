@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { Eye, EyeOff, LoaderCircle, LogIn } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -34,59 +35,66 @@ export function LoginForm() {
   }
 
   return (
-    <form className="grid gap-5" onSubmit={handleSubmit}>
-      <label className="grid gap-2 font-bold">
-        E-mail
-        <input
-          autoComplete="email"
-          className="field"
-          inputMode="email"
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="seuemail@exemplo.com"
-          required
-          type="email"
-          value={email}
-        />
-      </label>
-
-      <label className="grid gap-2 font-bold">
-        Senha
-        <span className="relative block">
+    <div className="grid gap-5">
+      <form className="grid gap-5" onSubmit={handleSubmit}>
+        <label className="grid gap-2 font-bold">
+          E-mail
           <input
-            autoComplete="current-password"
-            className="field pr-14"
-            minLength={6}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Digite sua senha"
+            autoComplete="email"
+            className="field"
+            inputMode="email"
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="seuemail@exemplo.com"
             required
-            type={showPassword ? "text" : "password"}
-            value={password}
+            type="email"
+            value={email}
           />
-          <button
-            aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-            className="absolute right-1 top-1 grid h-12 w-12 place-items-center rounded-xl text-slate-500"
-            onClick={() => setShowPassword((current) => !current)}
-            type="button"
-          >
-            {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
-          </button>
-        </span>
-      </label>
+        </label>
 
-      {message ? (
-        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700" role="alert">
-          {message}
+        <label className="grid gap-2 font-bold">
+          Senha
+          <span className="relative block">
+            <input
+              autoComplete="current-password"
+              className="field pr-14"
+              minLength={6}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Digite sua senha"
+              required
+              type={showPassword ? "text" : "password"}
+              value={password}
+            />
+            <button
+              aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+              className="absolute right-1 top-1 grid h-12 w-12 place-items-center rounded-xl text-slate-500"
+              onClick={() => setShowPassword((current) => !current)}
+              type="button"
+            >
+              {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+            </button>
+          </span>
+        </label>
+
+        {message ? (
+          <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700" role="alert">
+            {message}
+          </p>
+        ) : null}
+
+        <button className="primary-button flex items-center justify-center gap-2" disabled={loading} type="submit">
+          {loading ? <LoaderCircle className="animate-spin" size={22} /> : <LogIn size={22} />}
+          {loading ? "Entrando..." : "Entrar"}
+        </button>
+      </form>
+
+      <div className="grid gap-2 text-center text-sm">
+        <Link className="font-black text-[#176b5b]" href="/primeiro-acesso">
+          Primeiro acesso
+        </Link>
+        <p className="leading-6 text-slate-500">
+          Use o primeiro acesso somente se sua escola ou a administração do sistema já autorizou seu e-mail.
         </p>
-      ) : null}
-
-      <button className="primary-button flex items-center justify-center gap-2" disabled={loading} type="submit">
-        {loading ? <LoaderCircle className="animate-spin" size={22} /> : <LogIn size={22} />}
-        {loading ? "Entrando..." : "Entrar"}
-      </button>
-
-      <p className="text-center text-sm leading-6 text-slate-500">
-        Primeiro acesso ou esqueceu a senha? Procure a secretaria da escola.
-      </p>
-    </form>
+      </div>
+    </div>
   );
 }
