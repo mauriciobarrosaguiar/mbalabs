@@ -16,9 +16,9 @@ export function GET() {
       categories: ["education", "productivity"],
       icons: [
         {
-          src: "/mba-escola/icon",
+          src: "/mba-escola-icon.svg",
           sizes: "512x512",
-          type: "image/png",
+          type: "image/svg+xml",
           purpose: "any maskable"
         }
       ]
