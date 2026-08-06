@@ -9,6 +9,7 @@ values
   ('Clinica', 'clinica', 'Clinicas e prestadores de saude.', 'ativa'),
   ('Guincho', 'guincho', 'Empresas de guincho e assistencia.', 'ativa'),
   ('Agro', 'agro', 'Empresas do agronegocio.', 'ativa'),
+  ('Escola', 'escola', 'Escolas, creches e instituicoes de ensino.', 'ativa'),
   ('Outros', 'outros', 'Categoria geral para empresas nao classificadas.', 'ativa')
 on conflict (slug) do update set
   nome = excluded.nome,
@@ -19,7 +20,8 @@ insert into public.core_apps (slug, nome, descricao, url_path, ativo, ordem)
 values
   ('mba-cotacoes', 'MBA Cotacoes', 'Sistema de cotacoes, vendedores, respostas e pedidos.', '/apps/mbacotacoes', true, 10),
   ('lavagestor', 'LavaGestor', 'Sistema para gestao de lava-jatos, lavagens, vales e comissoes.', '/apps/lavagestor', true, 20),
-  ('bikecomanda', 'BikeComanda', 'Sistema para bicicletarias controlarem comandas, orcamentos, pagamentos e comissoes.', '/apps/bikecomanda', true, 30)
+  ('bikecomanda', 'BikeComanda', 'Sistema para bicicletarias controlarem comandas, orcamentos, pagamentos e comissoes.', '/apps/bikecomanda', true, 30),
+  ('mba-escola', 'MBA Escola', 'Comunicacao, atividades, reunioes e acompanhamento entre escola e familias.', '/mba-escola', true, 70)
 on conflict (slug) do update set
   nome = excluded.nome,
   descricao = excluded.descricao,
@@ -30,7 +32,7 @@ on conflict (slug) do update set
 insert into public.core_planos (app_id, nome, descricao, valor_mensal, limite_usuarios, limite_registros, ativo)
 select id, 'Starter', 'Plano inicial para validacao e primeiras empresas.', 0, 3, 1000, true
 from public.core_apps
-where slug in ('mba-cotacoes', 'lavagestor', 'bikecomanda')
+where slug in ('mba-cotacoes', 'lavagestor', 'bikecomanda', 'mba-escola')
 on conflict (app_id, nome) do update set
   descricao = excluded.descricao,
   valor_mensal = excluded.valor_mensal,
