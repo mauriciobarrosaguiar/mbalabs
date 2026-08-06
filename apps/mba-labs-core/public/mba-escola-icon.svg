@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#176b5b"/>
+  <path d="M72 190 256 96l184 94-184 94L72 190Z" fill="#fff"/>
+  <path d="M142 230v92c0 55 228 55 228 0v-92l-114 58-114-58Z" fill="#d1fae5"/>
+  <path d="M423 204v112" stroke="#fff" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="423" cy="337" r="18" fill="#fff"/>
+  <text x="256" y="425" text-anchor="middle" font-family="Arial, sans-serif" font-size="58" font-weight="900" fill="#fff">MBA</text>
+  <text x="256" y="474" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#fff">ESCOLA</text>
+</svg>
