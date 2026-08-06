@@ -8,9 +8,10 @@ export default async function ConteudoIaPage() {
   const current = await requireAppAccess("conteudo-ia", "/conteudo-ia");
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
+    <main className="relative min-h-screen overflow-hidden bg-[#050817] text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(168,85,247,0.14),transparent_26%),radial-gradient(circle_at_88%_16%,rgba(217,70,239,0.12),transparent_24%),linear-gradient(180deg,#07091a_0%,#050817_55%,#040612_100%)]" />
       <AppNav />
-      <section className="page-shell py-6 md:py-8">
+      <section className="page-shell relative py-6 md:py-9">
         <ConteudoIaStudio userName={current.usuario.nome} />
       </section>
     </main>
