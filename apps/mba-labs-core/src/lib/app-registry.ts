@@ -123,6 +123,19 @@ export const internalApps: InternalAppDefinition[] = [
     ]
   },
   {
+    slug: "mba-escola",
+    name: "MBA Escola",
+    description: "Comunicação, atividades, reuniões e acompanhamento entre escola e famílias.",
+    urlPath: "/mba-escola",
+    alternatePaths: [{ label: "App direto - /mba-escola", value: "/mba-escola" }],
+    profileOptions: [
+      { label: "Direção", value: "direcao" },
+      { label: "Coordenação", value: "coordenacao" },
+      { label: "Professor", value: "professor" },
+      { label: "Responsável", value: "responsavel" }
+    ]
+  },
+  {
     slug: "google-empresas",
     name: "Google Empresas",
     description: "Painel privado para cadastrar, autorizar, criar e verificar Perfis da Empresa no Google.",
