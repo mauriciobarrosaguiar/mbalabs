@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AcademicOperations from "./academic-operations";
+import AuthorizationsPanel from "./authorizations-panel";
 import RoleWorkspace from "./role-workspace";
 import SchoolManagement from "./school-management";
 
@@ -33,6 +34,7 @@ const supabase = createClient(
 type SchoolRole = "admin_escola" | "direcao" | "coordenacao" | "professor" | "responsavel" | "aluno";
 type OperationalRole = "coordenacao" | "professor" | "responsavel" | "aluno";
 type RoutineRole = Exclude<SchoolRole, "aluno">;
+type AuthorizationRole = "admin_escola" | "direcao" | "coordenacao" | "responsavel";
 type Profile = {
   nome: string;
   papel: SchoolRole;
@@ -214,6 +216,7 @@ export default function MbaEscolaClient() {
   }
 
   const isSchoolManager = profile?.papel === "admin_escola" || profile?.papel === "direcao";
+  const showAuthorizations = profile && ["admin_escola", "direcao", "coordenacao", "responsavel"].includes(profile.papel);
 
   return (
     <main className="cotacoes-module min-h-screen bg-[#f5f8fb] pb-10 text-slate-900">
@@ -240,11 +243,13 @@ export default function MbaEscolaClient() {
           <>
             <SchoolManagement supabase={supabase} schoolName={profile?.escola?.nome || "Minha escola"} role={profile!.papel as "admin_escola" | "direcao"} />
             <AcademicOperations supabase={supabase} profile={{ nome: profile!.nome, papel: profile!.papel as RoutineRole, escola_id: profile!.escola_id }} />
+            {showAuthorizations ? <AuthorizationsPanel supabase={supabase} profile={{ nome: profile!.nome, papel: profile!.papel as AuthorizationRole, escola_id: profile!.escola_id }} /> : null}
           </>
         ) : (
           <>
             <RoleWorkspace supabase={supabase} profile={profile as Profile & { papel: OperationalRole }} />
             {profile!.papel !== "aluno" ? <AcademicOperations supabase={supabase} profile={{ nome: profile!.nome, papel: profile!.papel as RoutineRole, escola_id: profile!.escola_id }} /> : null}
+            {showAuthorizations ? <AuthorizationsPanel supabase={supabase} profile={{ nome: profile!.nome, papel: profile!.papel as AuthorizationRole, escola_id: profile!.escola_id }} /> : null}
           </>
         )}
       </div>
