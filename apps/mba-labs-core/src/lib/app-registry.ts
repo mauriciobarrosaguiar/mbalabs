@@ -129,10 +129,12 @@ export const internalApps: InternalAppDefinition[] = [
     urlPath: "/mba-escola",
     alternatePaths: [{ label: "App direto - /mba-escola", value: "/mba-escola" }],
     profileOptions: [
+      { label: "Admin da Escola", value: "admin_escola" },
       { label: "Direção", value: "direcao" },
       { label: "Coordenação", value: "coordenacao" },
       { label: "Professor", value: "professor" },
-      { label: "Responsável", value: "responsavel" }
+      { label: "Responsável", value: "responsavel" },
+      { label: "Aluno", value: "aluno" }
     ]
   },
   {
