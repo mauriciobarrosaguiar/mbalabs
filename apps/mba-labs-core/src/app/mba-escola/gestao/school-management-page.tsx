@@ -81,7 +81,7 @@ export default function SchoolManagementPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f5f8fb] pb-10 text-slate-900">
+    <main className="cotacoes-module min-h-screen bg-[#f5f8fb] pb-10 text-slate-900">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex min-h-20 w-[min(1180px,calc(100%-32px))] items-center justify-between gap-4 py-3">
           <Link className="flex items-center gap-3" href="/mba-escola">
