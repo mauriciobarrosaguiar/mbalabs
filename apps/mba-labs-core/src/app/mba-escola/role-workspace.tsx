@@ -34,8 +34,8 @@ type Person = { id: string; nome: string; papel: string; email: string | null };
 type ChildLink = { aluno_id: string; parentesco: string | null; principal: boolean; aluno: Student | null };
 
 type Props = { supabase: SupabaseClient; profile: Profile };
-
 type Tab = "inicio" | "aulas" | "atividades" | "alunos" | "acompanhamentos" | "reunioes" | "comunicados";
+type SaveResult = { error?: { message: string } | null };
 
 const field = "min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-700 focus:ring-4 focus:ring-emerald-100";
 const area = `${field} min-h-24 resize-y`;
@@ -140,10 +140,9 @@ export default function RoleWorkspace({ supabase, profile }: Props) {
   }, [meetingForm.aluno_id, guardianLinks]);
 
   const childIds = useMemo(() => new Set(children.map((c) => c.aluno_id)), [children]);
-  const studentById = useMemo(() => Object.fromEntries(students.map((s) => [s.id, s])), [students]);
   const readingByNotice = useMemo(() => Object.fromEntries(readings.map((r) => [r.comunicado_id, r])), [readings]);
 
-  async function runSave(action: () => Promise<{ error?: { message: string } | null }>, success: string) {
+  async function runSave(action: () => PromiseLike<SaveResult>, success: string) {
     setSaving(true);
     setMessage("");
     const result = await action();
@@ -330,7 +329,7 @@ function MeetingsTab({ writable, students, meetings, form, setForm, guardians, g
 }
 
 function NoticesTab({ role, writable, classes, notices, form, setForm, save, saving, readingByNotice, markNotice }: any) {
-  return <div className="grid gap-5 lg:grid-cols-[.9fr_1.1fr]">{writable ? <Card title="Publicar comunicado" icon={Bell}><form className="grid gap-3" onSubmit={save}><select className={field} value={form.turma_id} onChange={(e) => setForm((x: any) => ({ ...x, turma_id: e.target.value }))}><option value="">Toda a escola</option>{classes.map((c: ClassRow) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select><input className={field} placeholder="Título" value={form.titulo} onChange={(e) => setForm((x: any) => ({ ...x, titulo: e.target.value }))} required /><input className={field} placeholder="Resumo curto" value={form.resumo} onChange={(e) => setForm((x: any) => ({ ...x, resumo: e.target.value }))} /><textarea className={area} placeholder="Conteúdo do comunicado" value={form.conteudo} onChange={(e) => setForm((x: any) => ({ ...x, conteudo: e.target.value }))} required /><select className={field} value={form.prioridade} onChange={(e) => setForm((x: any) => ({ ...x, prioridade: e.target.value }))}><option value="normal">Normal</option><option value="importante">Importante</option><option value="urgente">Urgente</option></select><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={form.exige_confirmacao} onChange={(e) => setForm((x: any) => ({ ...x, exige_confirmacao: e.target.checked }))} /> Exigir “Li e estou ciente”</label><button className={primary} disabled={saving}><Bell size={17} /> Publicar</button></form></Card> : null}<Card title="Comunicados" icon={Bell}><ListEmpty empty={!notices.length} text="Nenhum comunicado disponível.">{notices.map((n: Notice) => { const read = readingByNotice[n.id] as Reading | undefined; return <article key={n.id} className={`rounded-2xl border p-4 ${n.prioridade === "urgente" ? "border-rose-200 bg-rose-50/40" : "border-slate-200"}`}><div className="flex flex-wrap justify-between gap-2"><div><p className="font-black">{n.titulo}</p><p className="text-xs font-bold text-[#176b5b]">{n.turma?.nome || "Toda a escola"}</p></div><span className="text-xs font-bold text-slate-500">{formatDate(n.publicado_em)}</span></div>{n.resumo ? <p className="mt-2 text-sm font-semibold text-slate-700">{n.resumo}</p> : null}<p className="mt-2 text-sm leading-6 text-slate-600">{n.conteudo}</p>{role === "responsavel" || role === "aluno" ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">{read ? <span className="text-xs font-bold text-emerald-700">Lido {read.confirmado_em ? "· ciência confirmada" : ""}</span> : <button className={secondary} onClick={() => void markNotice(n.id, false)} type="button"><UserCheck size={16} /> Marcar como lido</button>}{n.exige_confirmacao && !read?.confirmado_em ? <button className={primary} onClick={() => void markNotice(n.id, true)} type="button"><CheckCircle2 size={16} /> Li e estou ciente</button> : null}</div> : null}</article>; })}</ListEmpty></Card></div>;
+  return <div className="grid gap-5 lg:grid-cols-[.9fr_1.1fr]">{writable ? <Card title="Publicar comunicado" icon={Bell}><form className="grid gap-3" onSubmit={save}><select className={field} value={form.turma_id} onChange={(e) => setForm((x: any) => ({ ...x, turma_id: e.target.value }))}>{role === "coordenacao" ? <option value="">Toda a escola</option> : <option value="" disabled>Selecione a turma</option>}{classes.map((c: ClassRow) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select><input className={field} placeholder="Título" value={form.titulo} onChange={(e) => setForm((x: any) => ({ ...x, titulo: e.target.value }))} required /><input className={field} placeholder="Resumo curto" value={form.resumo} onChange={(e) => setForm((x: any) => ({ ...x, resumo: e.target.value }))} /><textarea className={area} placeholder="Conteúdo do comunicado" value={form.conteudo} onChange={(e) => setForm((x: any) => ({ ...x, conteudo: e.target.value }))} required /><select className={field} value={form.prioridade} onChange={(e) => setForm((x: any) => ({ ...x, prioridade: e.target.value }))}><option value="normal">Normal</option><option value="importante">Importante</option><option value="urgente">Urgente</option></select><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={form.exige_confirmacao} onChange={(e) => setForm((x: any) => ({ ...x, exige_confirmacao: e.target.checked }))} /> Exigir “Li e estou ciente”</label><button className={primary} disabled={saving}><Bell size={17} /> Publicar</button></form></Card> : null}<Card title="Comunicados" icon={Bell}><ListEmpty empty={!notices.length} text="Nenhum comunicado disponível.">{notices.map((n: Notice) => { const read = readingByNotice[n.id] as Reading | undefined; return <article key={n.id} className={`rounded-2xl border p-4 ${n.prioridade === "urgente" ? "border-rose-200 bg-rose-50/40" : "border-slate-200"}`}><div className="flex flex-wrap justify-between gap-2"><div><p className="font-black">{n.titulo}</p><p className="text-xs font-bold text-[#176b5b]">{n.turma?.nome || "Toda a escola"}</p></div><span className="text-xs font-bold text-slate-500">{formatDate(n.publicado_em)}</span></div>{n.resumo ? <p className="mt-2 text-sm font-semibold text-slate-700">{n.resumo}</p> : null}<p className="mt-2 text-sm leading-6 text-slate-600">{n.conteudo}</p>{role === "responsavel" || role === "aluno" ? <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">{read ? <span className="text-xs font-bold text-emerald-700">Lido {read.confirmado_em ? "· ciência confirmada" : ""}</span> : <button className={secondary} onClick={() => void markNotice(n.id, false)} type="button"><UserCheck size={16} /> Marcar como lido</button>}{n.exige_confirmacao && !read?.confirmado_em ? <button className={primary} onClick={() => void markNotice(n.id, true)} type="button"><CheckCircle2 size={16} /> Li e estou ciente</button> : null}</div> : null}</article>; })}</ListEmpty></Card></div>;
 }
 
 function SelectClass({ classes, value, onChange }: { classes: ClassRow[]; value: string; onChange: (value: string) => void }) {
@@ -347,7 +346,10 @@ function ListEmpty({ empty, text, children }: { empty: boolean; text: string; ch
 
 function formatDate(value: string | null) {
   if (!value) return "Sem data";
-  try { return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(`${value}T12:00:00`)); } catch { return "Sem data"; }
+  try {
+    const parsed = value.length === 10 ? new Date(`${value}T12:00:00`) : new Date(value);
+    return new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(parsed);
+  } catch { return "Sem data"; }
 }
 
 function formatDateTime(value: string | null) {
