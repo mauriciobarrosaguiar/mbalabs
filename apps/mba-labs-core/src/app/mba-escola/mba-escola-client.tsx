@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import SchoolManagement from "./school-management";
 
 const supabase = createClient(
   "https://ihcfhuxxjllmqypzuzce.supabase.co",
@@ -242,8 +243,10 @@ export default function MbaEscolaClient() {
     );
   }
 
+  const isSchoolManager = profile?.papel === "admin_escola" || profile?.papel === "direcao";
+
   return (
-    <main className="min-h-screen bg-[#f5f8fb] pb-10 text-slate-900">
+    <main className={`min-h-screen bg-[#f5f8fb] pb-10 text-slate-900 ${isSchoolManager ? "cotacoes-module" : ""}`}>
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex min-h-20 w-[min(1180px,calc(100%-32px))] items-center justify-between gap-4 py-3">
           <div className="flex items-center gap-3">
@@ -261,7 +264,17 @@ export default function MbaEscolaClient() {
           <p className="mt-2 leading-7 text-slate-500">{admin ? "Controle total do MBA Escola, escolas, perfis, conteúdo, planos e pagamentos." : roleDescription(profile!.papel)}</p>
         </section>
 
-        {admin ? <OwnerDashboard schools={schools} /> : <SchoolDashboard profile={profile!} announcements={announcements} />}
+        {admin ? (
+          <OwnerDashboard schools={schools} />
+        ) : isSchoolManager ? (
+          <SchoolManagement
+            supabase={supabase}
+            schoolName={profile?.escola?.nome || "Minha escola"}
+            role={profile!.papel as "admin_escola" | "direcao"}
+          />
+        ) : (
+          <SchoolDashboard profile={profile!} announcements={announcements} />
+        )}
       </div>
     </main>
   );
