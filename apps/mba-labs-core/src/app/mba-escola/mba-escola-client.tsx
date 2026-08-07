@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import AcademicOperations from "./academic-operations";
 import RoleWorkspace from "./role-workspace";
 import SchoolManagement from "./school-management";
 
@@ -31,6 +32,7 @@ const supabase = createClient(
 
 type SchoolRole = "admin_escola" | "direcao" | "coordenacao" | "professor" | "responsavel" | "aluno";
 type OperationalRole = "coordenacao" | "professor" | "responsavel" | "aluno";
+type RoutineRole = Exclude<SchoolRole, "aluno">;
 type Profile = {
   nome: string;
   papel: SchoolRole;
@@ -235,9 +237,15 @@ export default function MbaEscolaClient() {
         {admin ? (
           <OwnerDashboard schools={schools} />
         ) : isSchoolManager ? (
-          <SchoolManagement supabase={supabase} schoolName={profile?.escola?.nome || "Minha escola"} role={profile!.papel as "admin_escola" | "direcao"} />
+          <>
+            <SchoolManagement supabase={supabase} schoolName={profile?.escola?.nome || "Minha escola"} role={profile!.papel as "admin_escola" | "direcao"} />
+            <AcademicOperations supabase={supabase} profile={{ nome: profile!.nome, papel: profile!.papel as RoutineRole, escola_id: profile!.escola_id }} />
+          </>
         ) : (
-          <RoleWorkspace supabase={supabase} profile={profile as Profile & { papel: OperationalRole }} />
+          <>
+            <RoleWorkspace supabase={supabase} profile={profile as Profile & { papel: OperationalRole }} />
+            {profile!.papel !== "aluno" ? <AcademicOperations supabase={supabase} profile={{ nome: profile!.nome, papel: profile!.papel as RoutineRole, escola_id: profile!.escola_id }} /> : null}
+          </>
         )}
       </div>
     </main>
