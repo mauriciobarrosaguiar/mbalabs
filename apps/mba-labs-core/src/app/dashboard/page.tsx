@@ -57,7 +57,7 @@ export default async function DashboardPage() {
                     ) : null}
                   </div>
                   {canOpen ? (
-                    <Link className="button-primary" href={app.url_path}>
+                    <Link className="button-primary" href={getAccessHref(app)}>
                       Acessar
                     </Link>
                   ) : (
@@ -75,6 +75,14 @@ export default async function DashboardPage() {
       </section>
     </main>
   );
+}
+
+function getAccessHref(app: { slug: string; url_path: string }) {
+  if (app.slug === "mba-escola") {
+    return "https://www.mbalabs.com.br/mba-escola";
+  }
+
+  return app.url_path;
 }
 
 function profileLabel(type: string) {
