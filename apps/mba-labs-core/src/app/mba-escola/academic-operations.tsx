@@ -3,6 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import AttendanceChecklist from "./attendance-checklist";
 import LegacyAcademicOperations from "./academic-operations-legacy";
+import StudentSafetyPanel from "./student-safety-panel";
 
 type Role = "admin_escola" | "direcao" | "coordenacao" | "professor" | "responsavel";
 type Props = {
@@ -19,6 +20,8 @@ export default function AcademicOperations({ supabase, profile }: Props) {
     <div className={canTakeAttendance ? "mba-hide-legacy-frequency" : ""}>
       <LegacyAcademicOperations supabase={supabase} profile={profile} />
     </div>
+
+    <StudentSafetyPanel supabase={supabase} profile={profile} />
 
     <style jsx global>{`
       .mba-hide-legacy-frequency > section > nav > button:nth-child(2) {
