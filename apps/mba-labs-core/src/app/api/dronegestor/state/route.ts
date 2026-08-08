@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAppAccess } from "@/lib/core-data";
+import { getSessionProfile } from "@/lib/core-data";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -10,18 +10,53 @@ const MAX_STATE_BYTES = 180_000;
 
 type StoredState = Record<string, unknown>;
 
-async function getContext() {
-  return requireAppAccess("dronegestor", "/apps/dronegestor/campo");
+type ApiContext = {
+  usuario: {
+    id: string;
+    tipo: string;
+  };
+  empresaId: string | null;
+};
+
+async function getContext(): Promise<{ current: ApiContext | null; response: NextResponse | null }> {
+  const context = await getSessionProfile();
+
+  if (!context.user || !context.profile) {
+    return {
+      current: null,
+      response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 })
+    };
+  }
+
+  const admin = ["super_admin", "admin_master"].includes(context.profile.tipo);
+  const appAllowed = (context.appsLiberados ?? []).some(
+    (app) => app.slug === "dronegestor" && app.canAccess
+  );
+
+  if (!admin && !appAllowed) {
+    return {
+      current: null,
+      response: NextResponse.json({ ok: false, error: "Acesso ao DroneGestor não liberado." }, { status: 403 })
+    };
+  }
+
+  return {
+    current: {
+      usuario: { id: context.profile.id, tipo: context.profile.tipo },
+      empresaId: context.profile.empresa_id
+    },
+    response: null
+  };
 }
 
 function validateState(value: unknown): StoredState {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("Estado da operacao invalido.");
+    throw new Error("Estado da operação inválido.");
   }
 
   const serialized = JSON.stringify(value);
   if (Buffer.byteLength(serialized, "utf8") > MAX_STATE_BYTES) {
-    throw new Error("Estado da operacao excedeu o limite de sincronizacao.");
+    throw new Error("Estado da operação excedeu o limite de sincronização.");
   }
 
   return value as StoredState;
@@ -29,7 +64,9 @@ function validateState(value: unknown): StoredState {
 
 export async function GET(request: NextRequest) {
   try {
-    const current = await getContext();
+    const access = await getContext();
+    if (access.response) return access.response;
+    const current = access.current!;
     const admin = createSupabaseAdminClient() as any;
     const history = request.nextUrl.searchParams.get("history") === "1";
 
@@ -75,7 +112,9 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const current = await getContext();
+    const access = await getContext();
+    if (access.response) return access.response;
+    const current = access.current!;
     const body = await request.json();
     const state = validateState(body?.state);
     const updatedAt = typeof body?.updatedAt === "string" ? body.updatedAt : new Date().toISOString();
@@ -119,7 +158,9 @@ export async function PUT(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const current = await getContext();
+    const access = await getContext();
+    if (access.response) return access.response;
+    const current = access.current!;
     const body = await request.json();
     const state = validateState(body?.state);
     const admin = createSupabaseAdminClient() as any;
@@ -137,7 +178,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, finalizedAt });
   } catch (error) {
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Falha ao finalizar a operacao no Supabase." },
+      { ok: false, error: error instanceof Error ? error.message : "Falha ao finalizar a operação no Supabase." },
       { status: 500 }
     );
   }
