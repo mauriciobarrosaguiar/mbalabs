@@ -69,6 +69,7 @@ function buildOperationSummary(state: StoredState, pilotName: string) {
   const occurrences = Array.isArray(state.occurrences) ? state.occurrences : [];
   const areaHa = numberValue(mission.area);
   const volumeLHa = numberValue(mission.volume);
+  const progressHa = Math.max(0, numberValue(state.progressHa));
 
   return {
     piloto: pilotName,
@@ -85,7 +86,7 @@ function buildOperationSummary(state: StoredState, pilotName: string) {
     cultura: textValue(mission.cultura),
     alvo: textValue(mission.alvo),
     areaHa,
-    areaConcluidaHa: areaHa,
+    areaConcluidaHa: Math.min(areaHa, progressHa),
     drone: textValue(mission.drone),
     volumeLHa,
     totalCaldaL: areaHa * volumeLHa,
@@ -93,7 +94,9 @@ function buildOperationSummary(state: StoredState, pilotName: string) {
     velocidadeKmh: numberValue(mission.velocidadeKmh),
     alturaM: numberValue(mission.alturaM),
     sarpasNumero: textValue(mission.sarpasNumero),
+    sarpasSituacao: textValue(mission.sarpasSituacao),
     sarpasConfirmado: mission.sarpasConfirmado === true,
+    climaCampoConfirmado: mission.climaCampoConfirmado === true,
     climaCampo: {
       ventoKmh: numberValue(mission.ventoCampoKmh),
       direcaoVento: textValue(mission.direcaoVentoCampo),
@@ -116,6 +119,22 @@ function buildOperationSummary(state: StoredState, pilotName: string) {
   };
 }
 
+function validateFinalization(summary: ReturnType<typeof buildOperationSummary>, state: StoredState) {
+  if (summary.areaHa <= 0) throw new Error("Área planejada inválida.");
+  if (summary.areaConcluidaHa < summary.areaHa - 0.01) {
+    throw new Error(`A operação não pode ser concluída: ${summary.areaConcluidaHa.toFixed(2)} ha registrados de ${summary.areaHa.toFixed(2)} ha planejados.`);
+  }
+  if (!summary.cultura || !summary.alvo || !summary.drone) throw new Error("Cultura, alvo e drone são obrigatórios para a conclusão.");
+  if (summary.volumeLHa <= 0 || summary.faixaM <= 0 || summary.velocidadeKmh <= 0 || summary.alturaM <= 0) throw new Error("Volume, faixa, velocidade e altura precisam ser válidos antes da conclusão.");
+  if (!summary.produtos.some((product) => product.nome && product.dose > 0 && product.unidade)) throw new Error("Informe ao menos um produto com dose válida.");
+  if (!summary.climaCampoConfirmado || !summary.climaCampo.direcaoVento || summary.climaCampo.temperaturaC === 0 || summary.climaCampo.umidadePct <= 0) throw new Error("A medição climática de campo precisa estar confirmada.");
+  if (!summary.calibracaoConcluida) throw new Error("Calibração incompleta.");
+  if (!summary.checklistConcluido) throw new Error("Checklist pré-voo incompleto.");
+  if (!summary.sarpasConfirmado || !summary.sarpasSituacao) throw new Error("A situação SARPAS precisa estar conferida.");
+  if (summary.sarpasSituacao === "autorizado" && !summary.sarpasNumero) throw new Error("Informe a referência SARPAS da operação autorizada.");
+  if (state.concluida !== true) throw new Error("A operação não foi marcada como concluída no dispositivo.");
+}
+
 function applyHistoryScope(query: any, current: ApiContext) {
   const companyManager = ["admin_empresa", "super_admin", "admin_master"].includes(current.usuario.tipo);
   if (companyManager && current.empresaId) return query.eq("empresa_id", current.empresaId);
@@ -131,17 +150,22 @@ export async function GET(request: NextRequest) {
     const history = request.nextUrl.searchParams.get("history") === "1";
 
     if (history) {
+      const requestedLimit = Number(request.nextUrl.searchParams.get("limit") || 200);
+      const limit = Math.max(1, Math.min(500, Number.isFinite(requestedLimit) ? requestedLimit : 200));
+      const requestedOffset = Number(request.nextUrl.searchParams.get("offset") || 0);
+      const offset = Math.max(0, Number.isFinite(requestedOffset) ? requestedOffset : 0);
       let query = admin
         .from("core_logs")
         .select("id,usuario_id,empresa_id,detalhes,created_at")
         .eq("app_slug", "dronegestor")
         .eq("acao", FINALIZED_ACTION)
         .order("created_at", { ascending: false })
-        .limit(100);
+        .range(offset, offset + limit);
       query = applyHistoryScope(query, current);
       const { data, error } = await query;
       if (error) throw error;
-      return NextResponse.json({ ok: true, items: data ?? [] });
+      const items = data ?? [];
+      return NextResponse.json({ ok: true, items: items.slice(0, limit), hasMore: items.length > limit, nextOffset: items.length > limit ? offset + limit : null });
     }
 
     const { data, error } = await admin
@@ -187,7 +211,7 @@ export async function PUT(request: NextRequest) {
       .maybeSingle();
     if (findError) throw findError;
 
-    const detalhes = { state, updatedAt, version: 2 };
+    const detalhes = { state, updatedAt, version: 3 };
     if (existing?.id) {
       const { error } = await admin.from("core_logs").update({ detalhes }).eq("id", existing.id);
       if (error) throw error;
@@ -214,6 +238,9 @@ export async function POST(request: NextRequest) {
     const admin = createSupabaseAdminClient() as any;
     const finalizedAt = new Date().toISOString();
 
+    const summary = buildOperationSummary(state, pilotName);
+    validateFinalization(summary, state);
+
     if (operationId) {
       const { data: existing, error: existingError } = await admin
         .from("core_logs")
@@ -228,8 +255,7 @@ export async function POST(request: NextRequest) {
       if (existing) return NextResponse.json({ ok: true, duplicate: true, id: existing.id, finalizedAt: (existing.detalhes as any)?.finalizedAt ?? existing.created_at });
     }
 
-    const summary = buildOperationSummary(state, pilotName);
-    const detalhes = { operationId: operationId || crypto.randomUUID(), finalizedAt, version: 4, summary, state };
+    const detalhes = { operationId: operationId || crypto.randomUUID(), finalizedAt, version: 5, summary, state };
     const { data, error } = await admin
       .from("core_logs")
       .insert({ empresa_id: current.empresaId, usuario_id: current.usuario.id, app_slug: "dronegestor", acao: FINALIZED_ACTION, detalhes })
@@ -239,6 +265,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, id: data.id, operationId: detalhes.operationId, finalizedAt });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Falha ao finalizar a operação no Supabase." }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Falha ao finalizar a operação no Supabase.";
+    const status = message.includes("não pode ser concluída") || message.includes("obrigat") || message.includes("incomplet") || message.includes("precisa") || message.includes("Informe") ? 400 : 500;
+    return NextResponse.json({ ok: false, error: message }, { status });
   }
 }
