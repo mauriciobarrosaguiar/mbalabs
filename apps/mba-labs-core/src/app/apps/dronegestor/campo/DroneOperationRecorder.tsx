@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Check, CloudOff, History, LoaderCircle, Save } from "lucide-react";
+import { Check, CloudOff, ClipboardList, History, LoaderCircle, Save } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { snapshotDroneLocalState } from "./DronePersistenceSync";
 
@@ -15,6 +15,13 @@ type MissionSnapshot = {
   area?: number;
   drone?: string;
   sarpasConfirmado?: boolean;
+  ordemServicoId?: string;
+  ordemServicoNumero?: string;
+  clienteNome?: string;
+  fazendaNome?: string;
+  talhaoNome?: string;
+  municipio?: string;
+  uf?: string;
 };
 
 type PendingFinalization = {
@@ -80,6 +87,21 @@ function buildState(operationId: string) {
   return state;
 }
 
+async function markOrderConcluded(state: Record<string, unknown>) {
+  const mission = state.mission && typeof state.mission === "object" && !Array.isArray(state.mission)
+    ? state.mission as MissionSnapshot
+    : {};
+  if (!mission.ordemServicoId) return;
+
+  await fetch("/api/dronegestor/cadastros", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "os", entityId: mission.ordemServicoId, data: { status: "concluida" } }),
+    cache: "no-store",
+    keepalive: true
+  }).catch(() => null);
+}
+
 async function sendFinalization(payload: PendingFinalization) {
   const response = await fetch("/api/dronegestor/state", {
     method: "POST",
@@ -94,9 +116,8 @@ async function sendFinalization(payload: PendingFinalization) {
   });
 
   const data = await response.json().catch(() => null);
-  if (!response.ok) {
-    throw new Error(data?.error || "Não foi possível registrar a operação.");
-  }
+  if (!response.ok) throw new Error(data?.error || "Não foi possível registrar a operação.");
+  await markOrderConcluded(payload.state);
   return data;
 }
 
@@ -141,7 +162,7 @@ export function DroneOperationRecorder({ pilotName }: { pilotName: string }) {
       await sendFinalization(queued);
       localStorage.setItem(LAST_FINALIZED_KEY, queued.operationId);
       localStorage.removeItem(PENDING_FINALIZATION_KEY);
-      setMessage("Operação sincronizada com o histórico.");
+      setMessage("Operação sincronizada com o histórico e OS concluída.");
     } catch {
       setMessage("Conclusão continua pendente de sincronização.");
     } finally {
@@ -198,7 +219,7 @@ export function DroneOperationRecorder({ pilotName }: { pilotName: string }) {
       localStorage.removeItem(PENDING_FINALIZATION_KEY);
       setSaved(true);
       setPending(false);
-      setMessage("Operação registrada definitivamente no histórico.");
+      setMessage(mission.ordemServicoId ? "Operação salva e ordem de serviço concluída." : "Operação registrada definitivamente no histórico.");
     } catch (error) {
       localStorage.setItem(PENDING_FINALIZATION_KEY, JSON.stringify(payload));
       setPending(true);
@@ -209,14 +230,23 @@ export function DroneOperationRecorder({ pilotName }: { pilotName: string }) {
   }
 
   return (
-    <div style={{ position: "fixed", right: 14, bottom: 84, zIndex: 80, display: "grid", gap: 8, width: "min(330px, calc(100vw - 28px))" }}>
+    <div style={{ position: "fixed", right: 14, bottom: 84, zIndex: 80, display: "grid", gap: 8, width: "min(360px, calc(100vw - 28px))" }}>
       {message ? (
         <div style={{ borderRadius: 14, padding: "10px 12px", background: "rgba(8,25,20,.96)", color: "#d1fae5", border: "1px solid rgba(52,211,153,.35)", fontSize: 12, lineHeight: 1.4, boxShadow: "0 12px 35px rgba(0,0,0,.25)" }}>
           {message}
         </div>
       ) : null}
 
+      {mission.ordemServicoId ? (
+        <div style={{ borderRadius: 14, padding: "9px 12px", background: "rgba(255,255,255,.96)", color: "#334155", border: "1px solid rgba(148,163,184,.28)", fontSize: 11, lineHeight: 1.4, boxShadow: "0 10px 26px rgba(0,0,0,.12)" }}>
+          <strong style={{ color: "#065f46" }}>{mission.ordemServicoNumero || "OS vinculada"}</strong>{mission.clienteNome ? ` • ${mission.clienteNome}` : ""}<br/>{[mission.fazendaNome, mission.talhaoNome, mission.municipio && mission.uf ? `${mission.municipio}/${mission.uf}` : ""].filter(Boolean).join(" • ")}
+        </div>
+      ) : null}
+
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+        <Link href="/apps/dronegestor/gestao" style={{ minHeight: 40, display: "inline-flex", alignItems: "center", gap: 7, padding: "0 12px", borderRadius: 999, background: "rgba(255,255,255,.97)", color: "#065f46", border: "1px solid rgba(16,185,129,.28)", fontSize: 12, fontWeight: 800, textDecoration: "none", boxShadow: "0 10px 28px rgba(0,0,0,.16)" }}>
+          <ClipboardList size={16} /> OS
+        </Link>
         <Link href="/apps/dronegestor/historico" style={{ minHeight: 40, display: "inline-flex", alignItems: "center", gap: 7, padding: "0 12px", borderRadius: 999, background: "rgba(15,23,42,.96)", color: "#e2e8f0", border: "1px solid rgba(148,163,184,.3)", fontSize: 12, fontWeight: 800, textDecoration: "none", boxShadow: "0 10px 28px rgba(0,0,0,.22)" }}>
           <History size={16} /> Histórico
         </Link>
