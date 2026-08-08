@@ -34,6 +34,10 @@ export function snapshotDroneLocalState(overrides: Partial<LocalState> = {}) {
   return { ...state, ...overrides };
 }
 
+function fingerprintLocalState() {
+  return JSON.stringify(snapshotDroneLocalState());
+}
+
 function applyRemoteState(state: Record<string, unknown>, updatedAt: string) {
   for (const [name, key] of Object.entries(STORAGE) as Array<[keyof typeof STORAGE, string]>) {
     if (!(name in state)) continue;
@@ -78,16 +82,25 @@ export function DronePersistenceSync() {
     let disposed = false;
     let syncing = false;
     let lastPushed = "";
+    let lastFingerprint = fingerprintLocalState();
 
     async function sync(force = false) {
       if (disposed || syncing || !navigator.onLine) return;
-      const updatedAt = localStorage.getItem(UPDATED_KEY) || "";
-      if (!updatedAt && !force) return;
+
+      const currentFingerprint = fingerprintLocalState();
+      if (currentFingerprint !== lastFingerprint) {
+        lastFingerprint = currentFingerprint;
+        markDroneStateChanged();
+      }
+
+      let updatedAt = localStorage.getItem(UPDATED_KEY) || "";
+      if (!updatedAt && force) updatedAt = markDroneStateChanged();
+      if (!updatedAt) return;
       if (!force && updatedAt === lastPushed) return;
 
       syncing = true;
       try {
-        await pushState(updatedAt || new Date().toISOString());
+        await pushState(updatedAt);
         lastPushed = updatedAt;
       } catch {
         // O estado permanece no aparelho e sera reenviado quando a conexao voltar.
@@ -101,8 +114,11 @@ export function DronePersistenceSync() {
         const response = await fetch("/api/dronegestor/state", { cache: "no-store" });
         if (!response.ok) return;
         const payload = await response.json();
-        if (disposed || !payload?.state) {
-          await sync();
+        if (disposed) return;
+
+        if (!payload?.state) {
+          const hasLocalData = Object.values(snapshotDroneLocalState()).some((value) => value !== null);
+          if (hasLocalData) await sync(true);
           return;
         }
 
@@ -124,7 +140,7 @@ export function DronePersistenceSync() {
     }
 
     void hydrate();
-    const interval = window.setInterval(() => void sync(), 4500);
+    const interval = window.setInterval(() => void sync(), 4000);
     const onOnline = () => void sync(true);
     const onVisibility = () => {
       if (document.visibilityState === "hidden") void sync();
