@@ -1,5 +1,6 @@
 import { requireAppAccess } from "@/lib/core-data";
 import { DroneGestorApp } from "./DroneGestorApp";
+import { DroneMissionContextReset } from "./DroneMissionContextReset";
 import { DroneOperationRecorder } from "./DroneOperationRecorder";
 import { DronePersistenceSync } from "./DronePersistenceSync";
 import { DroneWeatherSync } from "./DroneWeatherSync";
@@ -12,6 +13,7 @@ export default async function DroneGestorCampoPage() {
 
   return (
     <>
+      <DroneMissionContextReset />
       <DroneGestorApp userName={pilotName} />
       <DronePersistenceSync />
       <DroneWeatherSync />
