@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
     if (error) throw error;
 
     const items = (data ?? [])
-      .map((row: any) => ({ id: row.id, createdAt: row.created_at, ...(row.detalhes ?? {}) }))
+      .map((row: any) => ({ id: row.id, dbCreatedAt: row.created_at, ...(row.detalhes ?? {}) }))
       .filter((item: any) => item.ativo !== false);
 
     return NextResponse.json({ ok: true, items });
@@ -191,11 +191,11 @@ export async function POST(request: NextRequest) {
         acao: ACTIONS[type],
         detalhes
       })
-      .select("id,created_at")
+      .select("id")
       .single();
     if (error) throw error;
 
-    return NextResponse.json({ ok: true, item: { id: inserted.id, createdAt: inserted.created_at, ...detalhes } });
+    return NextResponse.json({ ok: true, item: { id: inserted.id, ...detalhes } });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Falha ao salvar cadastro." }, { status: 500 });
   }
