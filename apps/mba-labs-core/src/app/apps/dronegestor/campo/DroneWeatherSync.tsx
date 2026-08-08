@@ -126,10 +126,11 @@ export function DroneWeatherSync() {
           };
 
           localStorage.setItem(WEATHER_KEY, JSON.stringify(snapshot));
+          localStorage.setItem("dronegestor:updatedAt:v2", new Date().toISOString());
           setWeather(snapshot);
-          setMessage("Modelo meteorológico e GPS atualizados. Esses valores NÃO foram gravados como medição de campo.");
+          window.dispatchEvent(new CustomEvent("dronegestor:weather-updated", { detail: snapshot }));
+          setMessage("Modelo meteorológico e GPS atualizados sem sair da etapa atual. Esses valores NÃO foram gravados como medição de campo.");
           setLoading(false);
-          window.setTimeout(() => window.location.reload(), 900);
         } catch (error) {
           setLoading(false);
           setMessage(error instanceof Error ? error.message : "Não foi possível atualizar o modelo meteorológico.");
