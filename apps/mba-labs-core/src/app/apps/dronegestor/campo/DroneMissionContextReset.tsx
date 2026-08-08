@@ -33,18 +33,22 @@ export function DroneMissionContextReset() {
         faixa: 0,
         velocidadeKmh: 0,
         alturaM: 0,
-        produtos: [],
+        produtos: [{ id: "produto-1", nome: "", dose: 0, unidade: "mL/ha" }],
         distanciaSensivel: 0,
+        semAreaSensivel: false,
         ventoCampoKmh: 0,
         direcaoVentoCampo: "",
         temperaturaCampo: 0,
         umidadeCampo: 0,
+        climaCampoConfirmado: false,
+        climaCampoMedidoEm: "",
         tempoAbastecimentoMin: 0,
         tempoTrocaBateriaMin: 0,
         tanquesPorBateria: 0,
         tempoDeslocamentoMin: 0,
         tempoBordaduraMin: 0,
         sarpasNumero: "",
+        sarpasSituacao: "",
         sarpasConfirmado: false
       };
 
@@ -55,10 +59,14 @@ export function DroneMissionContextReset() {
       localStorage.setItem("dronegestor:progress:v2", JSON.stringify(0));
       localStorage.setItem("dronegestor:insightAccepted:v2", JSON.stringify(false));
       localStorage.setItem("dronegestor:riskAccepted:v2", JSON.stringify(false));
+      localStorage.setItem("dronegestor:started:v3", JSON.stringify(false));
+      localStorage.setItem("dronegestor:paused:v3", JSON.stringify(false));
+      localStorage.setItem("dronegestor:view:v3", "nova");
       localStorage.removeItem("dronegestor:weather");
       localStorage.removeItem("dronegestor:operationId:v3");
       localStorage.removeItem("dronegestor:lastFinalizedOperationId:v3");
-      localStorage.removeItem("dronegestor:pendingFinalization:v3");
+      // Importante: a fila dronegestor:finalizationQueue:v4 NÃO é apagada aqui.
+      // Ela pertence às operações concluídas offline anteriores, não à nova OS.
       localStorage.setItem("dronegestor:updatedAt:v2", new Date().toISOString());
       localStorage.setItem(RESET_MARKER, osId);
     } catch {

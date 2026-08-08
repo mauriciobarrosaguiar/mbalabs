@@ -1,11 +1,15 @@
 import { requireAppAccess } from "@/lib/core-data";
-import { DroneGestorApp } from "./DroneGestorApp";
+import { DroneGestorAppV2 } from "./DroneGestorAppV2";
 import { DroneMissionContextReset } from "./DroneMissionContextReset";
-import { DroneOperationRecorder } from "./DroneOperationRecorder";
 import { DronePersistenceSync } from "./DronePersistenceSync";
 import { DroneWeatherSync } from "./DroneWeatherSync";
 
 export const dynamic = "force-dynamic";
+
+function canManageDroneStandards(tipo: string, isAdminMaster: boolean) {
+  const normalized = tipo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replaceAll(" ", "_");
+  return isAdminMaster || ["admin_empresa", "responsavel_tecnico", "rt"].includes(normalized);
+}
 
 export default async function DroneGestorCampoPage() {
   const current = await requireAppAccess("dronegestor", "/apps/dronegestor/campo");
@@ -14,10 +18,13 @@ export default async function DroneGestorCampoPage() {
   return (
     <>
       <DroneMissionContextReset />
-      <DroneGestorApp userName={pilotName} />
+      <DroneGestorAppV2
+        userName={pilotName}
+        userType={current.tipo}
+        canManage={canManageDroneStandards(current.tipo, current.isAdminMaster)}
+      />
       <DronePersistenceSync />
       <DroneWeatherSync />
-      <DroneOperationRecorder pilotName={pilotName} />
     </>
   );
 }
