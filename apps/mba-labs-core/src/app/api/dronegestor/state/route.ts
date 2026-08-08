@@ -14,6 +14,7 @@ type ApiContext = {
   usuario: {
     id: string;
     tipo: string;
+    nome?: string | null;
   };
   empresaId: string | null;
 };
@@ -42,7 +43,11 @@ async function getContext(): Promise<{ current: ApiContext | null; response: Nex
 
   return {
     current: {
-      usuario: { id: context.profile.id, tipo: context.profile.tipo },
+      usuario: {
+        id: context.profile.id,
+        tipo: context.profile.tipo,
+        nome: context.profile.nome
+      },
       empresaId: context.profile.empresa_id
     },
     response: null
@@ -62,6 +67,83 @@ function validateState(value: unknown): StoredState {
   return value as StoredState;
 }
 
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function numberValue(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function textValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function booleanRecordComplete(value: unknown) {
+  const record = objectValue(value);
+  const values = Object.values(record);
+  return values.length > 0 && values.every((item) => item === true);
+}
+
+function buildOperationSummary(state: StoredState, pilotName: string) {
+  const mission = objectValue(state.mission);
+  const weather = objectValue(state.weather);
+  const products = Array.isArray(mission.produtos) ? mission.produtos : [];
+  const occurrences = Array.isArray(state.occurrences) ? state.occurrences : [];
+  const areaHa = numberValue(mission.area);
+  const volumeLHa = numberValue(mission.volume);
+
+  return {
+    piloto: pilotName,
+    cultura: textValue(mission.cultura),
+    alvo: textValue(mission.alvo),
+    areaHa,
+    areaConcluidaHa: areaHa,
+    drone: textValue(mission.drone),
+    volumeLHa,
+    totalCaldaL: areaHa * volumeLHa,
+    faixaM: numberValue(mission.faixa),
+    velocidadeKmh: numberValue(mission.velocidadeKmh),
+    alturaM: numberValue(mission.alturaM),
+    sarpasNumero: textValue(mission.sarpasNumero),
+    sarpasConfirmado: mission.sarpasConfirmado === true,
+    climaCampo: {
+      ventoKmh: numberValue(mission.ventoCampoKmh),
+      direcaoVento: textValue(mission.direcaoVentoCampo),
+      temperaturaC: numberValue(mission.temperaturaCampo),
+      umidadePct: numberValue(mission.umidadeCampo)
+    },
+    gps: {
+      latitude: numberValue(weather.latitude),
+      longitude: numberValue(weather.longitude),
+      capturadoEm: textValue(weather.capturedAt)
+    },
+    produtos: products.map((item) => {
+      const product = objectValue(item);
+      return {
+        nome: textValue(product.nome),
+        dose: numberValue(product.dose),
+        unidade: textValue(product.unidade)
+      };
+    }),
+    calibracaoConcluida: booleanRecordComplete(state.calibration),
+    checklistConcluido: booleanRecordComplete(state.checklist),
+    ocorrencias: occurrences,
+    totalOcorrencias: occurrences.length
+  };
+}
+
+function applyHistoryScope(query: any, current: ApiContext) {
+  const companyManager = ["admin_empresa", "super_admin", "admin_master"].includes(current.usuario.tipo);
+  if (companyManager && current.empresaId) {
+    return query.eq("empresa_id", current.empresaId);
+  }
+  return query.eq("usuario_id", current.usuario.id);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const access = await getContext();
@@ -71,14 +153,16 @@ export async function GET(request: NextRequest) {
     const history = request.nextUrl.searchParams.get("history") === "1";
 
     if (history) {
-      const { data, error } = await admin
+      let query = admin
         .from("core_logs")
-        .select("id,detalhes,created_at")
-        .eq("usuario_id", current.usuario.id)
+        .select("id,usuario_id,empresa_id,detalhes,created_at")
         .eq("app_slug", "dronegestor")
         .eq("acao", FINALIZED_ACTION)
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(100);
+
+      query = applyHistoryScope(query, current);
+      const { data, error } = await query;
 
       if (error) throw error;
       return NextResponse.json({ ok: true, items: data ?? [] });
@@ -163,19 +247,56 @@ export async function POST(request: NextRequest) {
     const current = access.current!;
     const body = await request.json();
     const state = validateState(body?.state);
+    const operationId = textValue(body?.operationId) || textValue(state.operationId);
+    const pilotName = textValue(body?.pilotName) || current.usuario.nome || "Piloto";
     const admin = createSupabaseAdminClient() as any;
     const finalizedAt = new Date().toISOString();
 
-    const { error } = await admin.from("core_logs").insert({
-      empresa_id: current.empresaId,
-      usuario_id: current.usuario.id,
-      app_slug: "dronegestor",
-      acao: FINALIZED_ACTION,
-      detalhes: { state, finalizedAt, version: 2 }
-    });
+    if (operationId) {
+      const { data: existing, error: existingError } = await admin
+        .from("core_logs")
+        .select("id,detalhes,created_at")
+        .eq("usuario_id", current.usuario.id)
+        .eq("app_slug", "dronegestor")
+        .eq("acao", FINALIZED_ACTION)
+        .contains("detalhes", { operationId })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingError) throw existingError;
+      if (existing) {
+        return NextResponse.json({
+          ok: true,
+          duplicate: true,
+          id: existing.id,
+          finalizedAt: (existing.detalhes as any)?.finalizedAt ?? existing.created_at
+        });
+      }
+    }
+
+    const summary = buildOperationSummary(state, pilotName);
+    const detalhes = {
+      operationId: operationId || crypto.randomUUID(),
+      finalizedAt,
+      version: 3,
+      summary,
+      state
+    };
+
+    const { data, error } = await admin
+      .from("core_logs")
+      .insert({
+        empresa_id: current.empresaId,
+        usuario_id: current.usuario.id,
+        app_slug: "dronegestor",
+        acao: FINALIZED_ACTION,
+        detalhes
+      })
+      .select("id")
+      .single();
 
     if (error) throw error;
-    return NextResponse.json({ ok: true, finalizedAt });
+    return NextResponse.json({ ok: true, id: data.id, operationId: detalhes.operationId, finalizedAt });
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "Falha ao finalizar a operação no Supabase." },
