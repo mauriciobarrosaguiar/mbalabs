@@ -11,43 +11,25 @@ const MAX_STATE_BYTES = 180_000;
 type StoredState = Record<string, unknown>;
 
 type ApiContext = {
-  usuario: {
-    id: string;
-    tipo: string;
-    nome?: string | null;
-  };
+  usuario: { id: string; tipo: string; nome?: string | null };
   empresaId: string | null;
 };
 
 async function getContext(): Promise<{ current: ApiContext | null; response: NextResponse | null }> {
   const context = await getSessionProfile();
-
   if (!context.user || !context.profile) {
-    return {
-      current: null,
-      response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 })
-    };
+    return { current: null, response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }) };
   }
 
   const admin = ["super_admin", "admin_master"].includes(context.profile.tipo);
-  const appAllowed = (context.appsLiberados ?? []).some(
-    (app) => app.slug === "dronegestor" && app.canAccess
-  );
-
+  const appAllowed = (context.appsLiberados ?? []).some((app) => app.slug === "dronegestor" && app.canAccess);
   if (!admin && !appAllowed) {
-    return {
-      current: null,
-      response: NextResponse.json({ ok: false, error: "Acesso ao DroneGestor não liberado." }, { status: 403 })
-    };
+    return { current: null, response: NextResponse.json({ ok: false, error: "Acesso ao DroneGestor não liberado." }, { status: 403 }) };
   }
 
   return {
     current: {
-      usuario: {
-        id: context.profile.id,
-        tipo: context.profile.tipo,
-        nome: context.profile.nome
-      },
+      usuario: { id: context.profile.id, tipo: context.profile.tipo, nome: context.profile.nome },
       empresaId: context.profile.empresa_id
     },
     response: null
@@ -55,22 +37,14 @@ async function getContext(): Promise<{ current: ApiContext | null; response: Nex
 }
 
 function validateState(value: unknown): StoredState {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("Estado da operação inválido.");
-  }
-
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Estado da operação inválido.");
   const serialized = JSON.stringify(value);
-  if (Buffer.byteLength(serialized, "utf8") > MAX_STATE_BYTES) {
-    throw new Error("Estado da operação excedeu o limite de sincronização.");
-  }
-
+  if (Buffer.byteLength(serialized, "utf8") > MAX_STATE_BYTES) throw new Error("Estado da operação excedeu o limite de sincronização.");
   return value as StoredState;
 }
 
 function objectValue(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
 function numberValue(value: unknown) {
@@ -98,6 +72,16 @@ function buildOperationSummary(state: StoredState, pilotName: string) {
 
   return {
     piloto: pilotName,
+    ordemServicoId: textValue(mission.ordemServicoId),
+    ordemServicoNumero: textValue(mission.ordemServicoNumero),
+    clienteId: textValue(mission.clienteId),
+    clienteNome: textValue(mission.clienteNome),
+    fazendaId: textValue(mission.fazendaId),
+    fazendaNome: textValue(mission.fazendaNome),
+    municipio: textValue(mission.municipio),
+    uf: textValue(mission.uf),
+    talhaoId: textValue(mission.talhaoId),
+    talhaoNome: textValue(mission.talhaoNome),
     cultura: textValue(mission.cultura),
     alvo: textValue(mission.alvo),
     areaHa,
@@ -123,11 +107,7 @@ function buildOperationSummary(state: StoredState, pilotName: string) {
     },
     produtos: products.map((item) => {
       const product = objectValue(item);
-      return {
-        nome: textValue(product.nome),
-        dose: numberValue(product.dose),
-        unidade: textValue(product.unidade)
-      };
+      return { nome: textValue(product.nome), dose: numberValue(product.dose), unidade: textValue(product.unidade) };
     }),
     calibracaoConcluida: booleanRecordComplete(state.calibration),
     checklistConcluido: booleanRecordComplete(state.checklist),
@@ -138,9 +118,7 @@ function buildOperationSummary(state: StoredState, pilotName: string) {
 
 function applyHistoryScope(query: any, current: ApiContext) {
   const companyManager = ["admin_empresa", "super_admin", "admin_master"].includes(current.usuario.tipo);
-  if (companyManager && current.empresaId) {
-    return query.eq("empresa_id", current.empresaId);
-  }
+  if (companyManager && current.empresaId) return query.eq("empresa_id", current.empresaId);
   return query.eq("usuario_id", current.usuario.id);
 }
 
@@ -160,10 +138,8 @@ export async function GET(request: NextRequest) {
         .eq("acao", FINALIZED_ACTION)
         .order("created_at", { ascending: false })
         .limit(100);
-
       query = applyHistoryScope(query, current);
       const { data, error } = await query;
-
       if (error) throw error;
       return NextResponse.json({ ok: true, items: data ?? [] });
     }
@@ -177,7 +153,6 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-
     if (error) throw error;
 
     const details = data?.detalhes && typeof data.detalhes === "object" ? data.detalhes : null;
@@ -187,10 +162,7 @@ export async function GET(request: NextRequest) {
       updatedAt: details && "updatedAt" in details ? (details as any).updatedAt : data?.created_at ?? null
     });
   } catch (error) {
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Falha ao carregar os dados do DroneGestor." },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Falha ao carregar os dados do DroneGestor." }, { status: 500 });
   }
 }
 
@@ -213,7 +185,6 @@ export async function PUT(request: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-
     if (findError) throw findError;
 
     const detalhes = { state, updatedAt, version: 2 };
@@ -221,22 +192,13 @@ export async function PUT(request: NextRequest) {
       const { error } = await admin.from("core_logs").update({ detalhes }).eq("id", existing.id);
       if (error) throw error;
     } else {
-      const { error } = await admin.from("core_logs").insert({
-        empresa_id: current.empresaId,
-        usuario_id: current.usuario.id,
-        app_slug: "dronegestor",
-        acao: STATE_ACTION,
-        detalhes
-      });
+      const { error } = await admin.from("core_logs").insert({ empresa_id: current.empresaId, usuario_id: current.usuario.id, app_slug: "dronegestor", acao: STATE_ACTION, detalhes });
       if (error) throw error;
     }
 
     return NextResponse.json({ ok: true, updatedAt });
   } catch (error) {
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Falha ao salvar os dados do DroneGestor." },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Falha ao salvar os dados do DroneGestor." }, { status: 500 });
   }
 }
 
@@ -262,45 +224,21 @@ export async function POST(request: NextRequest) {
         .contains("detalhes", { operationId })
         .limit(1)
         .maybeSingle();
-
       if (existingError) throw existingError;
-      if (existing) {
-        return NextResponse.json({
-          ok: true,
-          duplicate: true,
-          id: existing.id,
-          finalizedAt: (existing.detalhes as any)?.finalizedAt ?? existing.created_at
-        });
-      }
+      if (existing) return NextResponse.json({ ok: true, duplicate: true, id: existing.id, finalizedAt: (existing.detalhes as any)?.finalizedAt ?? existing.created_at });
     }
 
     const summary = buildOperationSummary(state, pilotName);
-    const detalhes = {
-      operationId: operationId || crypto.randomUUID(),
-      finalizedAt,
-      version: 3,
-      summary,
-      state
-    };
-
+    const detalhes = { operationId: operationId || crypto.randomUUID(), finalizedAt, version: 4, summary, state };
     const { data, error } = await admin
       .from("core_logs")
-      .insert({
-        empresa_id: current.empresaId,
-        usuario_id: current.usuario.id,
-        app_slug: "dronegestor",
-        acao: FINALIZED_ACTION,
-        detalhes
-      })
+      .insert({ empresa_id: current.empresaId, usuario_id: current.usuario.id, app_slug: "dronegestor", acao: FINALIZED_ACTION, detalhes })
       .select("id")
       .single();
-
     if (error) throw error;
+
     return NextResponse.json({ ok: true, id: data.id, operationId: detalhes.operationId, finalizedAt });
   } catch (error) {
-    return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Falha ao finalizar a operação no Supabase." },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Falha ao finalizar a operação no Supabase." }, { status: 500 });
   }
 }
