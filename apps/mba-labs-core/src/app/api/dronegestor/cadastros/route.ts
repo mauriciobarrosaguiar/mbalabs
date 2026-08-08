@@ -17,7 +17,12 @@ type ApiContext = {
   usuarioId: string;
   usuarioTipo: string;
   empresaId: string | null;
+  canManage: boolean;
 };
+
+function normalizeType(value: string) {
+  return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replaceAll(" ", "_");
+}
 
 function isResourceType(value: string | null): value is ResourceType {
   return value === "cliente" || value === "fazenda" || value === "talhao" || value === "os";
@@ -103,11 +108,13 @@ async function getContext(): Promise<{ current: ApiContext | null; response: Nex
     return { current: null, response: NextResponse.json({ ok: false, error: "Acesso ao DroneGestor não liberado." }, { status: 403 }) };
   }
 
+  const normalized = normalizeType(context.profile.tipo);
   return {
     current: {
       usuarioId: context.profile.id,
       usuarioTipo: context.profile.tipo,
-      empresaId: context.profile.empresa_id
+      empresaId: context.profile.empresa_id,
+      canManage: admin || ["admin_empresa", "responsavel_tecnico", "rt"].includes(normalized)
     },
     response: null
   };
@@ -128,7 +135,65 @@ async function findEntity(admin: any, current: ApiContext, type: ResourceType, e
   query = scopeQuery(query, current);
   const { data, error } = await query.maybeSingle();
   if (error) throw error;
+  if (!data || data.detalhes?.ativo === false) return null;
   return data;
+}
+
+async function requireRelations(admin: any, current: ApiContext, type: ResourceType, data: Record<string, unknown>) {
+  if (type === "fazenda") {
+    if (!await findEntity(admin, current, "cliente", cleanText(data.clienteId, 80))) throw new Error("O cliente selecionado não existe ou está inativo.");
+    return;
+  }
+
+  if (type === "talhao") {
+    if (!await findEntity(admin, current, "fazenda", cleanText(data.fazendaId, 80))) throw new Error("A fazenda selecionada não existe ou está inativa.");
+    return;
+  }
+
+  if (type === "os") {
+    const cliente = await findEntity(admin, current, "cliente", cleanText(data.clienteId, 80));
+    const fazenda = await findEntity(admin, current, "fazenda", cleanText(data.fazendaId, 80));
+    const talhao = await findEntity(admin, current, "talhao", cleanText(data.talhaoId, 80));
+    if (!cliente || !fazenda || !talhao) throw new Error("Cliente, fazenda e talhão precisam estar ativos.");
+    const fazendaData = fazenda.detalhes?.data ?? {};
+    const talhaoData = talhao.detalhes?.data ?? {};
+    if (fazendaData.clienteId !== data.clienteId) throw new Error("A fazenda selecionada não pertence ao cliente informado.");
+    if (talhaoData.fazendaId !== data.fazendaId) throw new Error("O talhão selecionado não pertence à fazenda informada.");
+  }
+}
+
+async function hasDependency(admin: any, current: ApiContext, action: string, dataPatch: Record<string, unknown>) {
+  let query = admin
+    .from("core_logs")
+    .select("id,detalhes")
+    .eq("app_slug", "dronegestor")
+    .eq("acao", action)
+    .contains("detalhes", { ativo: true, data: dataPatch })
+    .limit(1);
+  query = scopeQuery(query, current);
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
+}
+
+async function hasFinalizedOperationForOs(admin: any, current: ApiContext, osId: string) {
+  let query = admin
+    .from("core_logs")
+    .select("id")
+    .eq("app_slug", "dronegestor")
+    .eq("acao", "operacao_finalizada")
+    .contains("detalhes", { summary: { ordemServicoId: osId } })
+    .limit(1);
+  query = scopeQuery(query, current);
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return Boolean(data);
+}
+
+function onlyStatusPatch(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const keys = Object.keys(value as Record<string, unknown>);
+  return keys.length === 1 && keys[0] === "status";
 }
 
 export async function GET(request: NextRequest) {
@@ -155,7 +220,7 @@ export async function GET(request: NextRequest) {
       .map((row: any) => ({ id: row.id, dbCreatedAt: row.created_at, ...(row.detalhes ?? {}) }))
       .filter((item: any) => item.ativo !== false);
 
-    return NextResponse.json({ ok: true, items });
+    return NextResponse.json({ ok: true, items, canManage: current.canManage });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Falha ao carregar cadastros." }, { status: 500 });
   }
@@ -166,6 +231,8 @@ export async function POST(request: NextRequest) {
     const access = await getContext();
     if (access.response) return access.response;
     const current = access.current!;
+    if (!current.canManage) return NextResponse.json({ ok: false, error: "Somente administrador da empresa ou RT pode criar cadastros e ordens de serviço." }, { status: 403 });
+
     const body = await request.json();
     const type = cleanText(body?.type, 20);
     if (!isResourceType(type)) return NextResponse.json({ ok: false, error: "Tipo de cadastro inválido." }, { status: 400 });
@@ -173,6 +240,7 @@ export async function POST(request: NextRequest) {
     const data = cleanData(type, body?.data) as Record<string, unknown>;
     validateRequired(type, data);
     const admin = createSupabaseAdminClient() as any;
+    await requireRelations(admin, current, type, data);
     const entityId = crypto.randomUUID();
     const now = new Date().toISOString();
 
@@ -184,13 +252,7 @@ export async function POST(request: NextRequest) {
     const detalhes = { entityId, type, ativo: true, createdAt: now, updatedAt: now, data };
     const { data: inserted, error } = await admin
       .from("core_logs")
-      .insert({
-        empresa_id: current.empresaId,
-        usuario_id: current.usuarioId,
-        app_slug: "dronegestor",
-        acao: ACTIONS[type],
-        detalhes
-      })
+      .insert({ empresa_id: current.empresaId, usuario_id: current.usuarioId, app_slug: "dronegestor", acao: ACTIONS[type], detalhes })
       .select("id")
       .single();
     if (error) throw error;
@@ -211,14 +273,27 @@ export async function PATCH(request: NextRequest) {
     const entityId = cleanText(body?.entityId, 80);
     if (!isResourceType(type) || !entityId) return NextResponse.json({ ok: false, error: "Cadastro inválido." }, { status: 400 });
 
+    const isOperationalStatusPatch = type === "os" && onlyStatusPatch(body?.data) && ["em_execucao", "concluida"].includes(cleanText(body?.data?.status, 30));
+    if (!current.canManage && !isOperationalStatusPatch) return NextResponse.json({ ok: false, error: "Seu perfil não pode editar cadastros administrativos." }, { status: 403 });
+
     const admin = createSupabaseAdminClient() as any;
     const existing = await findEntity(admin, current, type, entityId);
-    if (!existing) return NextResponse.json({ ok: false, error: "Registro não encontrado." }, { status: 404 });
+    if (!existing) return NextResponse.json({ ok: false, error: "Registro não encontrado ou inativo." }, { status: 404 });
 
     const currentDetails = existing.detalhes ?? {};
     const currentData = currentDetails.data ?? {};
+    const requestedStatus = type === "os" ? cleanText(body?.data?.status, 30) : "";
+
+    if (type === "os" && requestedStatus === "em_execucao" && ["concluida", "cancelada"].includes(currentData.status)) {
+      return NextResponse.json({ ok: false, error: "OS concluída ou cancelada não pode voltar para execução. Duplique/crie uma nova OS." }, { status: 409 });
+    }
+    if (type === "os" && requestedStatus === "concluida" && !current.canManage && !await hasFinalizedOperationForOs(admin, current, entityId)) {
+      return NextResponse.json({ ok: false, error: "A OS só pode ser concluída após o registro definitivo da operação no histórico." }, { status: 409 });
+    }
+
     const data = cleanData(type, { ...currentData, ...(body?.data ?? {}) }) as Record<string, unknown>;
     validateRequired(type, data);
+    await requireRelations(admin, current, type, data);
     const detalhes = { ...currentDetails, entityId, type, ativo: true, updatedAt: new Date().toISOString(), data };
     const { error } = await admin.from("core_logs").update({ detalhes }).eq("id", existing.id);
     if (error) throw error;
@@ -233,6 +308,8 @@ export async function DELETE(request: NextRequest) {
     const access = await getContext();
     if (access.response) return access.response;
     const current = access.current!;
+    if (!current.canManage) return NextResponse.json({ ok: false, error: "Somente administrador da empresa ou RT pode inativar cadastros." }, { status: 403 });
+
     const body = await request.json();
     const type = cleanText(body?.type, 20);
     const entityId = cleanText(body?.entityId, 80);
@@ -240,7 +317,16 @@ export async function DELETE(request: NextRequest) {
 
     const admin = createSupabaseAdminClient() as any;
     const existing = await findEntity(admin, current, type, entityId);
-    if (!existing) return NextResponse.json({ ok: false, error: "Registro não encontrado." }, { status: 404 });
+    if (!existing) return NextResponse.json({ ok: false, error: "Registro não encontrado ou inativo." }, { status: 404 });
+
+    if (type === "cliente" && await hasDependency(admin, current, ACTIONS.fazenda, { clienteId: entityId })) return NextResponse.json({ ok: false, error: "Este cliente possui fazenda ativa. Inative/reorganize as dependências primeiro." }, { status: 409 });
+    if (type === "fazenda" && await hasDependency(admin, current, ACTIONS.talhao, { fazendaId: entityId })) return NextResponse.json({ ok: false, error: "Esta fazenda possui talhão ativo. Inative/reorganize as dependências primeiro." }, { status: 409 });
+    if (type === "talhao" && await hasDependency(admin, current, ACTIONS.os, { talhaoId: entityId })) return NextResponse.json({ ok: false, error: "Este talhão possui ordem de serviço ativa. Preserve o vínculo histórico." }, { status: 409 });
+    if (type === "os") {
+      const status = existing.detalhes?.data?.status;
+      if (["em_execucao", "concluida"].includes(status)) return NextResponse.json({ ok: false, error: "OS em execução ou concluída não pode ser inativada." }, { status: 409 });
+    }
+
     const detalhes = { ...(existing.detalhes ?? {}), ativo: false, updatedAt: new Date().toISOString() };
     const { error } = await admin.from("core_logs").update({ detalhes }).eq("id", existing.id);
     if (error) throw error;
