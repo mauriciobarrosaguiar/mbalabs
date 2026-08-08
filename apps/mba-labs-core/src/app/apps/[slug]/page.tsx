@@ -7,7 +7,8 @@ const internalDestinations: Record<string, string> = {
   "mba-cotacoes": "/cotacoes",
   lavagestor: "/lavagestor",
   bikecomanda: "/bikecomanda",
-  "portal-associativo": "/portal-associativo"
+  "portal-associativo": "/portal-associativo",
+  dronegestor: "/apps/dronegestor/campo"
 };
 
 export default async function AppEntryPage({
