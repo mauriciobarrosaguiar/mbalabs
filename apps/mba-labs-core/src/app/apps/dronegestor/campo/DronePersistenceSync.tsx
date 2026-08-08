@@ -12,18 +12,17 @@ const STORAGE = {
   weather: "dronegestor:weather",
   progressHa: "dronegestor:progress:v2",
   insightAccepted: "dronegestor:insightAccepted:v2",
-  riskAccepted: "dronegestor:riskAccepted:v2"
+  riskAccepted: "dronegestor:riskAccepted:v2",
+  currentView: "dronegestor:view:v3",
+  operationStarted: "dronegestor:started:v3",
+  paused: "dronegestor:paused:v3"
 } as const;
 
 type LocalState = Record<keyof typeof STORAGE, unknown>;
 
 function safeParse(value: string | null) {
   if (value === null) return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
+  try { return JSON.parse(value); } catch { return value; }
 }
 
 export function snapshotDroneLocalState(overrides: Partial<LocalState> = {}) {
@@ -67,7 +66,7 @@ export async function finalizeDroneOperation(overrides: Partial<LocalState> = {}
     cache: "no-store",
     keepalive: true
   });
-  if (!response.ok) throw new Error("Falha ao registrar a operacao concluida.");
+  if (!response.ok) throw new Error("Falha ao registrar a operação concluída.");
   return response.json();
 }
 
@@ -103,7 +102,7 @@ export function DronePersistenceSync() {
         await pushState(updatedAt);
         lastPushed = updatedAt;
       } catch {
-        // O estado permanece no aparelho e sera reenviado quando a conexao voltar.
+        // Modo offline: estado permanece no aparelho para a próxima sincronização.
       } finally {
         syncing = false;
       }
@@ -135,16 +134,14 @@ export function DronePersistenceSync() {
 
         await sync();
       } catch {
-        // Modo offline: o aplicativo continua usando o cache local.
+        // O aplicativo continua usando o cache local.
       }
     }
 
     void hydrate();
     const interval = window.setInterval(() => void sync(), 4000);
     const onOnline = () => void sync(true);
-    const onVisibility = () => {
-      if (document.visibilityState === "hidden") void sync();
-    };
+    const onVisibility = () => { if (document.visibilityState === "hidden") void sync(); };
 
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisibility);
