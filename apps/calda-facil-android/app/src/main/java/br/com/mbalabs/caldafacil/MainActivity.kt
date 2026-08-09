@@ -33,20 +33,21 @@ class MainActivity : Activity() {
             allowFileAccess = false
             allowContentAccess = false
             mediaPlaybackRequiresUserGesture = true
-
-            // Mantém o mesmo tamanho/escala visual da versão aberta no navegador.
             textZoom = 100
             useWideViewPort = true
             loadWithOverviewMode = false
 
-            // Alguns aparelhos Samsung aplicam escurecimento automático ao WebView.
-            // Isso alterava os cards claros para azul-marinho sem adaptar todo o texto.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // targetSdk 35: setForceDark() não tem efeito a partir do Android 13.
+            // Em Android 13+ usamos a API atual para impedir o WebView de
+            // transformar os cartões claros da página em modo escuro.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                isAlgorithmicDarkeningAllowed = false
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 @Suppress("DEPRECATION")
                 forceDark = WebSettings.FORCE_DARK_OFF
             }
 
-            userAgentString = "$userAgentString CaldaFacilAndroid/1.1"
+            userAgentString = "$userAgentString CaldaFacilAndroid/1.2"
         }
 
         webView.webViewClient = object : WebViewClient() {
