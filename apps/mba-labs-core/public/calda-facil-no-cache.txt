@@ -1,1 +1,0 @@
-A rota /calda-facil é servida com Cache-Control: no-store para que o aplicativo carregue sempre a versão mais recente publicada no site.
