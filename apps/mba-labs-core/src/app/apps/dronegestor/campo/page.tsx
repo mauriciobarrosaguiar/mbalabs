@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { Calculator } from "lucide-react";
 import { requireAppAccess } from "@/lib/core-data";
 import { DroneGestorAppV3 } from "./DroneGestorAppV3";
 import { DroneMissionContextReset } from "./DroneMissionContextReset";
@@ -27,6 +29,13 @@ export default async function DroneGestorCampoPage() {
       <DronePersistenceSync />
       <DroneOsLifecycleSync />
       <DroneWeatherSync />
+      <Link
+        href="/apps/dronegestor/calculadora"
+        className="fixed bottom-5 left-4 z-40 flex min-h-12 items-center gap-2 rounded-2xl border border-emerald-300 bg-white px-4 py-3 text-sm font-black text-emerald-900 no-underline shadow-xl shadow-emerald-950/15"
+      >
+        <Calculator size={19}/>
+        Calda rápida
+      </Link>
     </>
   );
 }
