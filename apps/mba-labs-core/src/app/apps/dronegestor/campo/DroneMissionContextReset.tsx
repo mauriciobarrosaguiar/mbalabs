@@ -26,8 +26,12 @@ export function DroneMissionContextReset() {
         talhaoNome: current.talhaoNome ?? "",
         cultura: current.cultura ?? "",
         alvo: current.alvo ?? "",
+        tipoAtividade: "Pulverização",
         area: Number(current.area) || 0,
         drone: "",
+        identificacaoAnac: "",
+        pontaPulverizacao: "",
+        documentoTecnicoReferencia: "",
         volume: 0,
         tanque: 0,
         faixa: 0,
@@ -37,6 +41,7 @@ export function DroneMissionContextReset() {
         distanciaSensivel: 0,
         semAreaSensivel: false,
         ventoCampoKmh: 0,
+        ventoCampoMedido: false,
         direcaoVentoCampo: "",
         temperaturaCampo: 0,
         umidadeCampo: 0,
@@ -65,9 +70,9 @@ export function DroneMissionContextReset() {
       localStorage.removeItem("dronegestor:weather");
       localStorage.removeItem("dronegestor:operationId:v3");
       localStorage.removeItem("dronegestor:lastFinalizedOperationId:v3");
-      // Importante: a fila dronegestor:finalizationQueue:v4 NÃO é apagada aqui.
-      // Ela pertence às operações concluídas offline anteriores, não à nova OS.
-      localStorage.setItem("dronegestor:updatedAt:v2", new Date().toISOString());
+      localStorage.removeItem("dronegestor:startedAt:v4");
+      localStorage.removeItem("dronegestor:finalizedAt:v4");
+      // A fila dronegestor:finalizationQueue:v4 é intencionalmente preservada.
       localStorage.setItem(RESET_MARKER, osId);
     } catch {
       // Se o cache local estiver inconsistente, o app continua com o fluxo normal.
