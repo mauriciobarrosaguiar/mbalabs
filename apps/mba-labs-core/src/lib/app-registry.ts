@@ -139,16 +139,16 @@ export const internalApps: InternalAppDefinition[] = [
   },
   {
     slug: "dronegestor",
-    name: "DroneGestor Agro",
-    description: "Copiloto de campo para planejamento, cálculos de pulverização, segurança, operação e relatórios de drones agrícolas.",
-    urlPath: "/apps/dronegestor",
+    name: "Calculadora de Calda",
+    description: "Calculadora simples para volume de calda, misturador, múltiplos produtos, doses, sequência e receita de preparo.",
+    urlPath: "/apps/dronegestor/calculadora",
     alternatePaths: [
-      { label: "Entrada do portal - /apps/dronegestor", value: "/apps/dronegestor" },
-      { label: "Copiloto de campo - /apps/dronegestor/campo", value: "/apps/dronegestor/campo" }
+      { label: "Calculadora de Calda - /apps/dronegestor/calculadora", value: "/apps/dronegestor/calculadora" },
+      { label: "Entrada compatível - /apps/dronegestor", value: "/apps/dronegestor" },
+      { label: "Atalho compatível - /dronegestor", value: "/dronegestor" }
     ],
     profileOptions: [
       { label: "Admin da empresa", value: "admin_empresa" },
-      { label: "Gestor operacional", value: "gestor_operacional" },
       { label: "Responsável técnico", value: "responsavel_tecnico" },
       { label: "Piloto", value: "piloto" },
       { label: "Aplicador CAAR", value: "aplicador_caar" },
