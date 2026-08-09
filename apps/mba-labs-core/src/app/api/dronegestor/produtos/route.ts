@@ -6,9 +6,11 @@ export const dynamic = "force-dynamic";
 
 const VERIFY_ACTION = "produto_bula_verificado_v1";
 const AGROFIT_RESOURCE_ID = "d30b30d7-e256-484e-9ab8-cd40974e1238";
-const AGROFIT_DATASTORE = "https://dados.agricultura.gov.br/api/3/action/datastore_search";
+const AGROFIT_CSV_URL = "https://dados.agricultura.gov.br/dataset/6c913699-e82e-4da3-a0a1-fb6c431e367f/resource/d30b30d7-e256-484e-9ab8-cd40974e1238/download/agrofitprodutosformulados.csv";
+const CACHE_MS = 6 * 60 * 60 * 1000;
 
 type ProductStatus = "verified" | "no_explicit_order" | "review_required";
+type CsvRecord = Record<string, string>;
 
 type VerifiedProduct = {
   productKey: string;
@@ -25,6 +27,8 @@ type VerifiedProduct = {
   tankMixNotes: string;
   sourceTitle: string;
 };
+
+let agrofitCache: { expiresAt: number; rows: CsvRecord[] } | null = null;
 
 function normalize(value: unknown) {
   return String(value ?? "").trim();
@@ -46,11 +50,16 @@ function normalizeSearch(value: string) {
     .toLowerCase();
 }
 
-function field(record: Record<string, unknown>, aliases: string[]) {
-  const normalized = new Map(Object.entries(record).map(([key, value]) => [normalizeKey(key), value]));
+function field(record: Record<string, unknown>, aliases: string[], hints: string[][] = []) {
+  const entries = Object.entries(record).map(([key, value]) => [normalizeKey(key), value] as const);
+  const normalized = new Map(entries);
   for (const alias of aliases) {
     const value = normalized.get(normalizeKey(alias));
     if (value !== undefined && value !== null && String(value).trim()) return normalize(value);
+  }
+  for (const group of hints) {
+    const match = entries.find(([key, value]) => group.every((hint) => key.includes(normalizeKey(hint))) && value !== undefined && value !== null && String(value).trim());
+    if (match) return normalize(match[1]);
   }
   return "";
 }
@@ -60,12 +69,30 @@ function productKey(name: string, registration: string) {
 }
 
 function normalizeOfficialRecord(record: Record<string, unknown>) {
-  const name = field(record, ["marca comercial", "marca_comercial", "produto", "nome comercial", "nome_comercial", "nome do produto", "produto formulado"]);
-  const registration = field(record, ["numero registro", "número registro", "registro", "numero_registro", "n do registro", "nº registro"]);
-  const activeIngredient = field(record, ["ingrediente ativo", "ingrediente_ativo", "principio ativo", "princípio ativo", "ingredientes ativos"]);
-  const formulation = field(record, ["formulacao", "formulação", "tipo formulacao", "tipo formulação"]);
-  const holder = field(record, ["titular", "empresa", "registrante", "titular do registro", "empresa registrante"]);
-  const bulletinUrl = field(record, ["bula", "url bula", "url_bula", "link bula", "rotulo bula", "rótulo bula", "rotulo_bula"]);
+  const name = field(record,
+    ["marca comercial", "marca_comercial", "produto", "nome comercial", "nome_comercial", "nome do produto", "produto formulado", "nm_marca_comercial", "marca"],
+    [["marca", "comercial"], ["nome", "produto"]]
+  );
+  const registration = field(record,
+    ["numero registro", "número registro", "registro", "numero_registro", "n do registro", "nº registro", "nr_registro", "numero do registro"],
+    [["registro"]]
+  );
+  const activeIngredient = field(record,
+    ["ingrediente ativo", "ingrediente_ativo", "principio ativo", "princípio ativo", "ingredientes ativos", "ingredientes_ativos"],
+    [["ingrediente", "ativo"], ["principio", "ativo"]]
+  );
+  const formulation = field(record,
+    ["formulacao", "formulação", "tipo formulacao", "tipo formulação", "tipo_de_formulacao"],
+    [["formula"]]
+  );
+  const holder = field(record,
+    ["titular", "empresa", "registrante", "titular do registro", "empresa registrante", "razao social", "razão social"],
+    [["titular"], ["registrante"], ["razao", "social"]]
+  );
+  const bulletinUrl = field(record,
+    ["bula", "url bula", "url_bula", "link bula", "rotulo bula", "rótulo bula", "rotulo_bula"],
+    [["bula"]]
+  );
   return {
     key: productKey(name, registration),
     name,
@@ -78,20 +105,79 @@ function normalizeOfficialRecord(record: Record<string, unknown>) {
   };
 }
 
-async function fetchAgrofit(query: string, limit: number) {
-  const url = new URL(AGROFIT_DATASTORE);
-  url.searchParams.set("resource_id", AGROFIT_RESOURCE_ID);
-  url.searchParams.set("limit", String(Math.max(1, Math.min(50, limit))));
-  if (query) url.searchParams.set("q", query);
-  const response = await fetch(url, {
-    headers: { Accept: "application/json", "User-Agent": "MBA-Labs-DroneGestor/1.0" },
+function detectDelimiter(text: string) {
+  const line = text.replace(/^\uFEFF/, "").split(/\r?\n/).find((item) => item.trim()) || "";
+  const options = [";", ",", "\t"];
+  return options.sort((a, b) => line.split(b).length - line.split(a).length)[0];
+}
+
+function parseCsv(text: string): CsvRecord[] {
+  const delimiter = detectDelimiter(text);
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let value = "";
+  let quoted = false;
+  const source = text.replace(/^\uFEFF/, "");
+
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i];
+    if (quoted) {
+      if (char === '"') {
+        if (source[i + 1] === '"') { value += '"'; i += 1; }
+        else quoted = false;
+      } else value += char;
+      continue;
+    }
+    if (char === '"') { quoted = true; continue; }
+    if (char === delimiter) { row.push(value.trim()); value = ""; continue; }
+    if (char === "\n") {
+      row.push(value.replace(/\r$/, "").trim());
+      if (row.some((cell) => cell)) rows.push(row);
+      row = []; value = "";
+      continue;
+    }
+    value += char;
+  }
+  if (value || row.length) {
+    row.push(value.replace(/\r$/, "").trim());
+    if (row.some((cell) => cell)) rows.push(row);
+  }
+  if (rows.length < 2) return [];
+  const headers = rows[0].map((header, index) => header || `coluna_${index + 1}`);
+  return rows.slice(1).map((cells) => Object.fromEntries(headers.map((header, index) => [header, cells[index] ?? ""])));
+}
+
+async function loadAgrofitRows() {
+  if (agrofitCache && agrofitCache.expiresAt > Date.now()) return agrofitCache.rows;
+  const response = await fetch(AGROFIT_CSV_URL, {
+    headers: { Accept: "text/csv,*/*", "User-Agent": "MBA-Labs-DroneGestor/1.0" },
     cache: "no-store",
-    signal: AbortSignal.timeout(12000)
+    signal: AbortSignal.timeout(20000)
   });
-  if (!response.ok) throw new Error(`AGROFIT indisponível (${response.status}).`);
-  const payload = await response.json();
-  if (!payload?.success || !Array.isArray(payload?.result?.records)) throw new Error("Resposta do AGROFIT fora do formato esperado.");
-  return payload.result.records.map((item: unknown) => normalizeOfficialRecord((item && typeof item === "object" ? item : {}) as Record<string, unknown>)).filter((item: { name: string }) => item.name);
+  if (!response.ok) throw new Error(`CSV oficial do AGROFIT indisponível (${response.status}).`);
+  const bytes = await response.arrayBuffer();
+  let text = new TextDecoder("utf-8").decode(bytes);
+  const replacementCount = (text.match(/�/g) || []).length;
+  if (replacementCount > 3) text = new TextDecoder("windows-1252").decode(bytes);
+  const rows = parseCsv(text);
+  if (!rows.length) throw new Error("O CSV oficial do AGROFIT não retornou registros utilizáveis.");
+  agrofitCache = { expiresAt: Date.now() + CACHE_MS, rows };
+  return rows;
+}
+
+async function fetchAgrofit(query: string, limit: number) {
+  const rows = await loadAgrofitRows();
+  const needle = normalizeSearch(query);
+  const matches = rows
+    .filter((record) => normalizeSearch(Object.values(record).join(" ")).includes(needle))
+    .map((record) => normalizeOfficialRecord(record))
+    .filter((item) => item.name);
+  const unique = new Map<string, ReturnType<typeof normalizeOfficialRecord>>();
+  for (const item of matches) {
+    if (!unique.has(item.key)) unique.set(item.key, item);
+    if (unique.size >= Math.max(1, Math.min(50, limit))) break;
+  }
+  return Array.from(unique.values());
 }
 
 function normalizedType(value: string) {
@@ -201,7 +287,8 @@ export async function GET(request: NextRequest) {
       officialAvailable: officialResult.status === "fulfilled",
       officialError: officialResult.status === "rejected" ? String((officialResult.reason as Error)?.message || "AGROFIT temporariamente indisponível") : null,
       canManage: ctx?.canManage === true,
-      resourceId: AGROFIT_RESOURCE_ID
+      resourceId: AGROFIT_RESOURCE_ID,
+      sourceUrl: AGROFIT_CSV_URL
     });
   } catch (error) {
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Falha ao consultar a biblioteca de produtos." }, { status: 500 });
@@ -237,7 +324,9 @@ export async function POST(request: NextRequest) {
       sourceTitle: normalize(body?.sourceTitle) || (status === "verified" ? "Bula verificada" : "Revisão técnica")
     };
 
+    if (status !== "review_required" && !product.bulletinUrl) return NextResponse.json({ ok: false, error: "Informe a fonte/link da bula revisada." }, { status: 400 });
     if (status === "verified" && !product.preparationSummary) return NextResponse.json({ ok: false, error: "Para marcar como verificado, registre o resumo do preparo indicado na bula." }, { status: 400 });
+    if (status === "verified" && !product.sequenceGroup) return NextResponse.json({ ok: false, error: "Para marcar a sequência como verificada, informe o grupo/posição validado na bula." }, { status: 400 });
 
     const admin = createSupabaseAdminClient() as any;
     const { error } = await admin.from("core_logs").insert({
@@ -245,7 +334,7 @@ export async function POST(request: NextRequest) {
       usuario_id: ctx.userId,
       app_slug: "dronegestor",
       acao: VERIFY_ACTION,
-      detalhes: { product, verifiedBy: ctx.userId, verifiedAt: new Date().toISOString(), sourceResourceId: AGROFIT_RESOURCE_ID }
+      detalhes: { product, verifiedBy: ctx.userId, verifiedAt: new Date().toISOString(), sourceResourceId: AGROFIT_RESOURCE_ID, sourceUrl: AGROFIT_CSV_URL }
     });
     if (error) throw error;
     return NextResponse.json({ ok: true, product });
