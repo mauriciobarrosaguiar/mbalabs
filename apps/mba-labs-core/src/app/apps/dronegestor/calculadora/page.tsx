@@ -5,5 +5,15 @@ export const dynamic = "force-dynamic";
 
 export default async function DroneGestorCalculadoraPage() {
   await requireAppAccess("dronegestor", "/apps/dronegestor/calculadora");
-  return <QuickCaldaCalculatorV3 />;
+  return (
+    <>
+      <QuickCaldaCalculatorV3 />
+      <style>{`
+        a[href="/apps/dronegestor/campo"],
+        a[href="/apps/dronegestor/produtos"] {
+          display: none !important;
+        }
+      `}</style>
+    </>
+  );
 }
