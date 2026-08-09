@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Calculator, Droplets, FlaskConical, Plus, RotateCcw, ShieldAlert, Trash2 } from "lucide-react";
+import { ArrowLeft, Calculator, Droplets, FlaskConical, ListChecks, Plus, RotateCcw, ShieldAlert, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 type DoseUnit = "mL/ha" | "L/ha" | "g/ha" | "kg/ha" | "mL/100L" | "g/100L";
@@ -250,6 +250,33 @@ export function QuickCaldaCalculatorV3() {
           )}
         </section>
 
+        {result.ready && result.activeProducts.length > 0 && (
+          <section className="rounded-[26px] border border-violet-200 bg-violet-50 p-4 shadow-sm sm:p-5">
+            <div className="flex items-center gap-2 text-violet-950"><ListChecks size={20}/><strong>Receita do preparo</strong></div>
+            <p className="mt-1 text-sm leading-5 text-violet-900">Use as quantidades calculadas abaixo para cada carga. A ordem de entrada dos produtos deve seguir a bula, receita agronômica ou orientação do responsável técnico.</p>
+
+            {result.fullMixes > 0 && (
+              <RecipeCard
+                title={`Carga cheia${result.fullMixes > 1 ? ` — repetir ${result.fullMixes} vezes` : ""}`}
+                finalLiters={result.mixerL}
+                areaHa={result.areaPerMixer}
+                products={result.activeProducts}
+                mode="full"
+              />
+            )}
+
+            {result.hasPartial && (
+              <RecipeCard
+                title="Última carga"
+                finalLiters={result.lastMixerL}
+                areaHa={result.lastAreaHa}
+                products={result.activeProducts}
+                mode="last"
+              />
+            )}
+          </section>
+        )}
+
         <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-5 text-amber-950">
           <div className="flex items-start gap-2">
             <ShieldAlert className="mt-0.5 shrink-0" size={18}/>
@@ -296,6 +323,35 @@ function LoadCard({ title, subtitle, products, mode, tone }: { title: string; su
       ) : (
         <span className="mt-2 block text-xs text-slate-500">Informe as doses para ver a quantidade de cada produto.</span>
       )}
+    </div>
+  );
+}
+
+function RecipeCard({ title, finalLiters, areaHa, products, mode }: { title: string; finalLiters: number; areaHa: number; products: CalculatedProduct[]; mode: "full" | "last" }) {
+  return (
+    <div className="mt-3 rounded-2xl border border-violet-200 bg-white p-4">
+      <strong className="text-sm text-violet-950">{title}</strong>
+      <span className="mt-1 block text-xs text-slate-500">Volume final: {format(finalLiters, 1)} L • Área: {format(areaHa, 2)} ha</span>
+
+      <div className="mt-3 grid gap-2">
+        {products.map((product) => {
+          const amount = mode === "full" ? product.full : product.last;
+          return (
+            <div key={product.id} className="flex items-center justify-between gap-3 rounded-xl bg-violet-50 px-3 py-2.5">
+              <span className="min-w-0 truncate font-bold text-slate-700">{product.label}</span>
+              <strong className="shrink-0 text-slate-950">{format(amount.value, 3)} {amount.unit}</strong>
+            </div>
+          );
+        })}
+      </div>
+
+      <ol className="mt-4 grid gap-2 text-sm leading-5 text-slate-700">
+        <li><strong>1.</strong> Separe e confira os produtos e as quantidades desta carga.</li>
+        <li><strong>2.</strong> Coloque água suficiente para iniciar a agitação/recirculação, sem completar o volume final.</li>
+        <li><strong>3.</strong> Adicione os produtos na sequência indicada na bula, receita agronômica ou pelo responsável técnico.</li>
+        <li><strong>4.</strong> Complete com água até <strong>{format(finalLiters, 1)} L de volume final</strong>.</li>
+        <li><strong>5.</strong> Mantenha a agitação conforme a orientação dos produtos e confira a homogeneidade antes do uso.</li>
+      </ol>
     </div>
   );
 }
