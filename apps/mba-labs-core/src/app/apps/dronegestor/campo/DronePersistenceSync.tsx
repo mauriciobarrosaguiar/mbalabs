@@ -2,7 +2,11 @@
 
 import { useEffect } from "react";
 
-const REVISION_KEY = "dronegestor:serverRevision:v4";
+const REVISION_KEY = "dronegestor:syncRevision:v4";
+const LEGACY_REVISION_KEY = "dronegestor:serverRevision:v4";
+const DIRTY_KEY = "dronegestor:syncDirty:v4";
+const CONFLICT_KEY = "dronegestor:syncConflict:v4";
+
 const STORAGE = {
   mission: "dronegestor:mission:v2",
   settings: "dronegestor:settings:v2",
@@ -11,16 +15,23 @@ const STORAGE = {
   occurrences: "dronegestor:occurrences:v2",
   weather: "dronegestor:weather",
   progressHa: "dronegestor:progress:v2",
+  tankRecords: "dronegestor:tankRecords:v4",
   insightAccepted: "dronegestor:insightAccepted:v2",
   riskAccepted: "dronegestor:riskAccepted:v2",
   currentView: "dronegestor:view:v3",
   operationStarted: "dronegestor:started:v3",
   paused: "dronegestor:paused:v3",
+  missionStatus: "dronegestor:missionStatus:v4",
   startedAt: "dronegestor:startedAt:v4",
-  finalizedAt: "dronegestor:finalizedAt:v4"
+  endedAt: "dronegestor:endedAt:v4"
 } as const;
 
 type LocalState = Record<keyof typeof STORAGE, unknown>;
+export type DroneSyncConflict = {
+  remoteRevision: number;
+  remoteState: Record<string, unknown> | null;
+  detectedAt: string;
+};
 
 function safeParse(value: string | null) {
   if (value === null) return null;
@@ -35,9 +46,27 @@ export function snapshotDroneLocalState(overrides: Partial<LocalState> = {}) {
   return { ...state, ...overrides };
 }
 
+export function getDroneSyncConflict(): DroneSyncConflict | null {
+  try {
+    const raw = localStorage.getItem(CONFLICT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as DroneSyncConflict;
+    if (!Number.isFinite(parsed?.remoteRevision)) return null;
+    return parsed;
+  } catch { return null; }
+}
+
 function fingerprint(value: unknown) { return JSON.stringify(value); }
-function localRevision() { const parsed = Number(localStorage.getItem(REVISION_KEY) || 0); return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0; }
-function setLocalRevision(revision: number) { localStorage.setItem(REVISION_KEY, String(Math.max(0, Math.trunc(revision)))); }
+function localRevision() {
+  const current = Number(localStorage.getItem(REVISION_KEY) || localStorage.getItem(LEGACY_REVISION_KEY) || 0);
+  return Number.isFinite(current) && current >= 0 ? Math.trunc(current) : 0;
+}
+function setLocalRevision(revision: number) {
+  localStorage.setItem(REVISION_KEY, String(Math.max(0, Math.trunc(revision))));
+  localStorage.removeItem(LEGACY_REVISION_KEY);
+}
+function markDirty(value: boolean) { localStorage.setItem(DIRTY_KEY, value ? "1" : "0"); }
+function isDirty() { return localStorage.getItem(DIRTY_KEY) === "1"; }
 
 function applyRemoteState(state: Record<string, unknown>, revision: number) {
   for (const [name, key] of Object.entries(STORAGE) as Array<[keyof typeof STORAGE, string]>) {
@@ -48,15 +77,27 @@ function applyRemoteState(state: Record<string, unknown>, revision: number) {
     else localStorage.setItem(key, JSON.stringify(value));
   }
   setLocalRevision(revision);
+  markDirty(false);
+  localStorage.removeItem(CONFLICT_KEY);
 }
 
-function hasMeaningfulLocalState() {
+function meaningfulLocalState() {
   const state = snapshotDroneLocalState();
   const mission = state.mission && typeof state.mission === "object" ? state.mission as Record<string, unknown> : null;
-  return Boolean(mission && (mission.cultura || mission.area || mission.ordemServicoId)) || Boolean(state.operationStarted) || Number(state.progressHa || 0) > 0;
+  return Boolean(
+    mission && (mission.cultura || mission.area || mission.ordemServicoId) ||
+    state.operationStarted || Number(state.progressHa || 0) > 0 ||
+    (Array.isArray(state.tankRecords) && state.tankRecords.length > 0)
+  );
 }
 
-async function putState(baseRevision: number) {
+function saveConflict(remoteRevision: number, remoteState: Record<string, unknown> | null) {
+  const conflict: DroneSyncConflict = { remoteRevision, remoteState, detectedAt: new Date().toISOString() };
+  localStorage.setItem(CONFLICT_KEY, JSON.stringify(conflict));
+  window.dispatchEvent(new CustomEvent("dronegestor:sync-conflict", { detail: conflict }));
+}
+
+async function pushState(baseRevision: number) {
   const response = await fetch("/api/dronegestor/state", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -64,13 +105,16 @@ async function putState(baseRevision: number) {
     cache: "no-store"
   });
   const payload = await response.json().catch(() => null);
-  if (response.status === 409 && payload?.state) {
-    applyRemoteState(payload.state as Record<string, unknown>, Number(payload.revision || 0));
-    return { conflict: true };
+  if (response.status === 409) {
+    saveConflict(Number(payload?.revision || 0), payload?.state && typeof payload.state === "object" ? payload.state : null);
+    return { conflict: true, revision: Number(payload?.revision || 0) };
   }
   if (!response.ok) throw new Error(payload?.error || "Falha ao sincronizar DroneGestor.");
-  setLocalRevision(Number(payload?.revision || baseRevision + 1));
-  return { conflict: false };
+  const revision = Number(payload?.revision || baseRevision + 1);
+  setLocalRevision(revision);
+  markDirty(false);
+  localStorage.removeItem(CONFLICT_KEY);
+  return { conflict: false, revision };
 }
 
 export async function finalizeDroneOperation(overrides: Partial<LocalState> = {}) {
@@ -85,62 +129,84 @@ export async function finalizeDroneOperation(overrides: Partial<LocalState> = {}
   return response.json();
 }
 
-export function markDroneStateChanged() { return new Date().toISOString(); }
+export function markDroneStateChanged() {
+  markDirty(true);
+  return new Date().toISOString();
+}
 
 export function DronePersistenceSync() {
   useEffect(() => {
     let disposed = false;
     let syncing = false;
     let initialized = false;
-    let lastSyncedFingerprint = "";
+    let baseline = fingerprint(snapshotDroneLocalState());
 
     async function hydrate() {
       try {
         const response = await fetch("/api/dronegestor/state", { cache: "no-store" });
-        if (!response.ok) { initialized = true; lastSyncedFingerprint = fingerprint(snapshotDroneLocalState()); return; }
+        if (!response.ok) {
+          initialized = true;
+          baseline = fingerprint(snapshotDroneLocalState());
+          return;
+        }
         const payload = await response.json();
         if (disposed) return;
         const remoteRevision = Number(payload?.revision || 0);
         const currentRevision = localRevision();
         const remoteState = payload?.state && typeof payload.state === "object" ? payload.state as Record<string, unknown> : null;
+        const localState = snapshotDroneLocalState();
+        const localFp = fingerprint(localState);
+        const remoteFp = remoteState ? fingerprint(remoteState) : "";
 
-        if (remoteState && remoteRevision !== currentRevision) {
+        if (!remoteState) {
+          if (meaningfulLocalState()) {
+            markDirty(true);
+            const result = await pushState(0);
+            if (result.conflict) return;
+          } else {
+            setLocalRevision(remoteRevision);
+            markDirty(false);
+          }
+        } else if (currentRevision === 0 && !meaningfulLocalState()) {
           applyRemoteState(remoteState, remoteRevision);
           window.location.reload();
           return;
-        }
-
-        if (!remoteState && hasMeaningfulLocalState()) {
-          const result = await putState(0);
-          if (result.conflict) { window.location.reload(); return; }
-        } else if (remoteState) {
-          const localFp = fingerprint(snapshotDroneLocalState());
-          const remoteFp = fingerprint(remoteState);
-          if (localFp !== remoteFp) {
-            const result = await putState(currentRevision);
-            if (result.conflict) { window.location.reload(); return; }
+        } else if (remoteRevision !== currentRevision) {
+          if (localFp === remoteFp || !meaningfulLocalState()) {
+            applyRemoteState(remoteState, remoteRevision);
+            window.location.reload();
+            return;
           }
+          saveConflict(remoteRevision, remoteState);
+        } else if (localFp !== remoteFp || isDirty()) {
+          markDirty(true);
+          const result = await pushState(currentRevision);
+          if (result.conflict) return;
         }
 
         initialized = true;
-        lastSyncedFingerprint = fingerprint(snapshotDroneLocalState());
+        baseline = fingerprint(snapshotDroneLocalState());
       } catch {
         initialized = true;
-        lastSyncedFingerprint = fingerprint(snapshotDroneLocalState());
+        baseline = fingerprint(snapshotDroneLocalState());
       }
     }
 
     async function sync() {
-      if (disposed || syncing || !initialized || !navigator.onLine) return;
+      if (disposed || syncing || !initialized || !navigator.onLine || getDroneSyncConflict()) return;
       const currentFingerprint = fingerprint(snapshotDroneLocalState());
-      if (currentFingerprint === lastSyncedFingerprint) return;
+      if (currentFingerprint !== baseline) {
+        baseline = currentFingerprint;
+        markDirty(true);
+      }
+      if (!isDirty()) return;
       syncing = true;
       try {
-        const result = await putState(localRevision());
-        if (result.conflict) { window.location.reload(); return; }
-        lastSyncedFingerprint = currentFingerprint;
+        const result = await pushState(localRevision());
+        if (result.conflict) return;
+        baseline = fingerprint(snapshotDroneLocalState());
       } catch {
-        // Mantém o estado local para a próxima tentativa.
+        markDirty(true);
       } finally {
         syncing = false;
       }
