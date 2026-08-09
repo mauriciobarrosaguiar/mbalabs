@@ -1,6 +1,7 @@
 import { requireAppAccess } from "@/lib/core-data";
 import { DroneGestorAppV3 } from "./DroneGestorAppV3";
 import { DroneMissionContextReset } from "./DroneMissionContextReset";
+import { DroneOsLifecycleSync } from "./DroneOsLifecycleSync";
 import { DronePersistenceSync } from "./DronePersistenceSync";
 import { DroneWeatherSync } from "./DroneWeatherSync";
 
@@ -24,6 +25,7 @@ export default async function DroneGestorCampoPage() {
         canManage={canManageDroneStandards(current.tipo, current.isAdminMaster)}
       />
       <DronePersistenceSync />
+      <DroneOsLifecycleSync />
       <DroneWeatherSync />
     </>
   );
