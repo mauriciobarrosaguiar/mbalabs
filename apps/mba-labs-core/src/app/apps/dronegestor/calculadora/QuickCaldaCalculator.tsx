@@ -164,21 +164,28 @@ export function QuickCaldaCalculator() {
               <div className="grid grid-cols-2 gap-3">
                 <Result label="Calda total" value={`${format(result.totalSprayL, 1)} L`}/>
                 <Result label="Misturas" value={`${result.mixes}`}/>
-                <Result label="Cada carga cheia cobre" value={`${format(result.areaPerMixer, 2)} ha`}/>
-                <Result label={result.hasPartial ? "Última carga" : "Carga padrão"} value={`${format(result.lastMixerL, 1)} L`}/>
+                <Result label={result.fullMixes > 0 ? "Cada carga cheia cobre" : "Carga única cobre"} value={`${format(result.fullMixes > 0 ? result.areaPerMixer : result.lastAreaHa, 2)} ha`}/>
+                <Result label={result.hasPartial ? (result.fullMixes > 0 ? "Última carga" : "Carga única") : "Carga padrão"} value={`${format(result.lastMixerL, 1)} L`}/>
               </div>
 
               <div className="mt-4 rounded-2xl border border-emerald-200 bg-white p-4">
                 <strong className="text-base text-emerald-950">Preparo fácil</strong>
+                <p className="mt-1 text-sm font-bold text-slate-700">
+                  {result.fullMixes === 0 && result.hasPartial
+                    ? `Faça 1 carga de ${format(result.lastMixerL, 1)} L.`
+                    : result.hasPartial
+                      ? `Faça ${result.fullMixes} carga(s) cheia(s) + 1 carga final de ${format(result.lastMixerL, 1)} L.`
+                      : `Faça ${result.fullMixes} carga(s) cheia(s) de ${format(result.mixerL, 1)} L.`}
+                </p>
                 <div className="mt-3 grid gap-3 text-sm">
-                  <div className="rounded-xl bg-emerald-50 p-3 text-emerald-950">
+                  {result.fullMixes > 0 && <div className="rounded-xl bg-emerald-50 p-3 text-emerald-950">
                     <strong>Carga cheia — {format(result.mixerL, 1)} L de calda final</strong>
                     <span className="mt-1 block text-xs text-emerald-800">Cobre aproximadamente {format(result.areaPerMixer, 2)} ha.</span>
                     <ProductList products={result.productResults} mode="full"/>
-                  </div>
+                  </div>}
                   {result.hasPartial && <div className="rounded-xl bg-amber-50 p-3 text-amber-950">
-                    <strong>Última carga — {format(result.lastMixerL, 1)} L de calda final</strong>
-                    <span className="mt-1 block text-xs text-amber-800">Cobre os {format(result.lastAreaHa, 2)} ha restantes.</span>
+                    <strong>{result.fullMixes > 0 ? "Última carga" : "Carga única"} — {format(result.lastMixerL, 1)} L de calda final</strong>
+                    <span className="mt-1 block text-xs text-amber-800">Cobre {format(result.lastAreaHa, 2)} ha.</span>
                     <ProductList products={result.productResults} mode="last"/>
                   </div>}
                 </div>
