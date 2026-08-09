@@ -11,6 +11,15 @@ export default function CaldaFacilPublicPage() {
     <>
       <QuickCaldaCalculatorV3 />
       <style>{`
+        html,
+        body,
+        input,
+        select,
+        textarea,
+        button {
+          color-scheme: light only;
+        }
+
         a[aria-label="Voltar para a MBA Labs"] {
           display: none !important;
         }
