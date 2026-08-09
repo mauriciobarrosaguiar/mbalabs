@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, Drone, History, MapPinned, Sprout } from "lucide-react";
+import { BookOpenCheck, Calculator, ClipboardList, Drone, History, MapPinned, Sprout } from "lucide-react";
 import { requireAppAccess } from "@/lib/core-data";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +22,11 @@ export default async function DroneGestorPage() {
             <Action href="/apps/dronegestor/gestao" icon={<ClipboardList size={24}/>} title="Clientes e OS" text="Clientes, fazendas, talhões e ordens de serviço vinculadas à aplicação." />
             <Action href="/apps/dronegestor/historico" icon={<History size={24}/>} title="Histórico" text="Aplicações concluídas, hectares, ocorrências e exportação dos registros." />
           </div>
+        </section>
+
+        <section className="grid gap-3 sm:grid-cols-2">
+          <Action href="/apps/dronegestor/calculadora" icon={<Calculator size={22}/>} title="Calda Fácil" text="Calcule misturador, vazão, doses, sequência e receita por carga." />
+          <Action href="/apps/dronegestor/produtos" icon={<BookOpenCheck size={22}/>} title="Produtos e bulas" text="Pesquise no catálogo oficial e veja o status de revisão da bula." />
         </section>
 
         <section className="grid gap-3 sm:grid-cols-3">
