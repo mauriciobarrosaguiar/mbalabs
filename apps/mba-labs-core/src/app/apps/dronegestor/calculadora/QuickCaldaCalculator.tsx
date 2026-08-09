@@ -55,9 +55,6 @@ export function QuickCaldaCalculator() {
 
     return {
       ready: areaHa > 0 && lHa > 0 && tankL > 0,
-      areaHa,
-      lHa,
-      tankL,
       totalSprayL,
       areaPerTank,
       tanks,
@@ -78,33 +75,33 @@ export function QuickCaldaCalculator() {
   }
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,#052e16_0%,#065f46_22%,#f8fafc_22%,#f8fafc_100%)] px-3 py-5 sm:px-6 sm:py-8">
-      <div className="mx-auto grid w-full max-w-2xl gap-4">
-        <header className="rounded-[28px] border border-emerald-200 bg-white p-5 shadow-xl shadow-emerald-950/10">
-          <div className="flex items-center gap-3">
-            <Link href="/apps/dronegestor/campo" className="grid size-11 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-700" aria-label="Voltar para o DroneGestor">
+    <main className="min-h-screen bg-[linear-gradient(180deg,#052e16_0%,#065f46_18%,#f8fafc_18%,#f8fafc_100%)] px-3 py-4 [-webkit-text-size-adjust:100%] [text-size-adjust:100%] sm:px-6 sm:py-8">
+      <div className="mx-auto grid w-full max-w-xl gap-4">
+        <header className="rounded-[26px] border border-emerald-200 bg-white p-4 shadow-xl shadow-emerald-950/10 sm:p-5">
+          <div className="flex items-start gap-3">
+            <Link href="/apps/dronegestor/campo" className="mt-0.5 grid size-11 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700" aria-label="Voltar para o DroneGestor">
               <ArrowLeft size={20}/>
             </Link>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[.12em] text-emerald-700"><Calculator size={16}/> DroneGestor Agro</div>
-              <h1 className="mt-1 text-2xl font-black text-slate-950">Calculadora rápida de calda</h1>
-              <p className="mt-1 text-sm text-slate-600">Preencha só 3 dados. O resultado aparece automaticamente.</p>
+              <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.12em] text-emerald-700 sm:text-xs"><Calculator size={15}/> DroneGestor Agro</div>
+              <h1 className="mt-1 max-w-full !text-[28px] !leading-[1.02] font-black tracking-[-0.035em] text-slate-950 sm:!text-[34px]">Calculadora rápida de calda</h1>
+              <p className="mt-2 text-[14px] leading-5 text-slate-600 sm:text-sm">Preencha só 3 dados. O resultado aparece automaticamente.</p>
             </div>
           </div>
         </header>
 
-        <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="grid gap-3 sm:grid-cols-3">
+        <section className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="grid gap-4 sm:grid-cols-3">
             <NumberInput label="1. Área" value={area} onChange={setArea} suffix="ha" placeholder="Ex.: 10"/>
             <NumberInput label="2. Volume" value={volume} onChange={setVolume} suffix="L/ha" placeholder="Ex.: 10"/>
             <NumberInput label="3. Tanque" value={tank} onChange={setTank} suffix="L" placeholder="Ex.: 40"/>
           </div>
         </section>
 
-        <section className="rounded-[28px] border border-emerald-200 bg-emerald-50 p-5">
-          <div className="mb-4 flex items-center gap-2 text-emerald-950"><Droplets size={20}/><strong>Resultado</strong></div>
+        <section className="rounded-[26px] border border-emerald-200 bg-emerald-50 p-4 sm:p-5">
+          <div className="mb-4 flex items-center gap-2 text-emerald-950"><Droplets size={20}/><strong className="text-base">Resultado</strong></div>
           {!result.ready ? (
-            <p className="rounded-2xl bg-white px-4 py-5 text-center text-sm font-bold text-slate-500">Informe área, L/ha e capacidade do tanque.</p>
+            <p className="rounded-2xl bg-white px-4 py-5 text-center text-sm font-bold leading-5 text-slate-500">Informe área, L/ha e capacidade do tanque.</p>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Result label="Calda total" value={`${format(result.totalSprayL, 1)} L`}/>
@@ -115,18 +112,18 @@ export function QuickCaldaCalculator() {
           )}
         </section>
 
-        <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+        <section className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex items-start gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-700"><FlaskConical size={19}/></span>
-            <div>
+            <div className="min-w-0">
               <strong className="text-slate-950">Produto — opcional</strong>
-              <p className="mt-1 text-sm text-slate-500">Só preencha se já tiver a dose definida na receita/bula/orientação técnica.</p>
+              <p className="mt-1 text-sm leading-5 text-slate-500">Só preencha se já tiver a dose definida na receita, bula ou orientação técnica.</p>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-[1fr_140px] gap-2">
+          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_150px]">
             <NumberInput label="Dose" value={dose} onChange={setDose} suffix="" placeholder="Ex.: 500"/>
             <label className="grid gap-1.5 text-sm font-bold text-slate-700">Unidade
-              <select className="min-h-12 rounded-xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-emerald-500" value={doseUnit} onChange={(e)=>setDoseUnit(e.target.value as DoseUnit)}>
+              <select className="min-h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-[16px] font-semibold text-slate-900 outline-none focus:border-emerald-500" value={doseUnit} onChange={(e)=>setDoseUnit(e.target.value as DoseUnit)}>
                 {(["mL/ha","L/ha","g/ha","kg/ha","mL/100L","g/100L"] as DoseUnit[]).map((unit)=><option key={unit} value={unit}>{unit}</option>)}
               </select>
             </label>
@@ -138,20 +135,20 @@ export function QuickCaldaCalculator() {
           </div>}
         </section>
 
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-5 text-amber-950">
           <strong>Cálculo matemático.</strong> Esta tela não recomenda dose nem substitui receita, bula, RT ou conferência de compatibilidade da mistura.
         </div>
 
-        <button onClick={clear} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 font-black text-slate-700"><RotateCcw size={18}/> Limpar calculadora</button>
+        <button onClick={clear} className="mb-4 flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 font-black text-slate-700"><RotateCcw size={18}/> Limpar calculadora</button>
       </div>
     </main>
   );
 }
 
 function NumberInput({label,value,onChange,suffix,placeholder}:{label:string;value:string;onChange:(value:string)=>void;suffix:string;placeholder?:string}) {
-  return <label className="grid gap-1.5 text-sm font-bold text-slate-700">{label}<div className="flex min-h-12 overflow-hidden rounded-xl border border-slate-200 bg-white focus-within:border-emerald-500"><input inputMode="decimal" type="number" min="0" step="any" className="min-w-0 flex-1 px-3 text-lg font-black text-slate-950 outline-none" value={value} placeholder={placeholder} onChange={(e)=>onChange(e.target.value)}/>{suffix&&<span className="grid place-items-center border-l border-slate-200 bg-slate-50 px-3 text-xs font-black text-slate-500">{suffix}</span>}</div></label>;
+  return <label className="grid gap-1.5 text-sm font-bold text-slate-700">{label}<div className="flex min-h-12 overflow-hidden rounded-xl border border-slate-200 bg-white focus-within:border-emerald-500"><input inputMode="decimal" type="number" min="0" step="any" className="min-w-0 flex-1 px-3 text-[16px] font-black text-slate-950 outline-none placeholder:font-bold placeholder:text-slate-400" value={value} placeholder={placeholder} onChange={(e)=>onChange(e.target.value)}/>{suffix&&<span className="grid shrink-0 place-items-center border-l border-slate-200 bg-slate-50 px-3 text-xs font-black text-slate-500">{suffix}</span>}</div></label>;
 }
 
 function Result({label,value}:{label:string;value:string}) {
-  return <div className="rounded-2xl border border-white bg-white p-4 shadow-sm"><span className="block text-xs font-bold uppercase tracking-wide text-slate-500">{label}</span><strong className="mt-1 block text-xl font-black text-slate-950">{value}</strong></div>;
+  return <div className="min-w-0 rounded-2xl border border-white bg-white p-3 shadow-sm sm:p-4"><span className="block text-[10px] font-bold uppercase leading-4 tracking-wide text-slate-500 sm:text-xs">{label}</span><strong className="mt-1 block break-words text-lg font-black leading-6 text-slate-950 sm:text-xl">{value}</strong></div>;
 }
