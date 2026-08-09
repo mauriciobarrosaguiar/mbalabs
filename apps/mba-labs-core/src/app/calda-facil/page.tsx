@@ -3,7 +3,12 @@ import { QuickCaldaCalculatorV3 } from "../apps/dronegestor/calculadora/QuickCal
 
 export const metadata: Metadata = {
   title: "Calda Fácil",
-  description: "Calculadora de calda simples e pública da MBA Labs."
+  description: "Calculadora de calda simples e pública da MBA Labs.",
+  manifest: "/calda-facil.webmanifest",
+  icons: {
+    icon: "/calda-facil-icon.svg",
+    apple: "/calda-facil-icon.svg"
+  }
 };
 
 export default function CaldaFacilPublicPage() {
