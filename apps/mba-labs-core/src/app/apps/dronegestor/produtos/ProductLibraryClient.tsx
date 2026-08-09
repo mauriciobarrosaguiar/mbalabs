@@ -7,16 +7,16 @@ import type { ProductCatalogItem, ProductVerificationStatus } from "../calculado
 
 const SEQUENCE_GROUPS = [
   ["", "Sem grupo definido"],
-  ["COND", "Condicionador / corretor de água"],
-  ["WG_WDG_DF", "WG / WDG / DF"],
+  ["Condicionador / corretor de água", "Condicionador / corretor de água"],
+  ["WG / WDG / DF", "WG / WDG / DF"],
   ["WP", "WP"],
-  ["SG_SP", "SG / SP"],
-  ["SC_SE_CS", "SC / SE / CS"],
+  ["SG / SP", "SG / SP"],
+  ["SC / SE / CS", "SC / SE / CS"],
   ["OD", "OD"],
-  ["EC_EW_ME", "EC / EW / ME"],
+  ["EC / EW / ME", "EC / EW / ME"],
   ["SL", "SL"],
-  ["ADJ_OIL", "Óleo / adjuvante"],
-  ["BIO_FERT_OTHER", "Biológico / fertilizante / outro — sem ordem automática"]
+  ["Óleo / adjuvante", "Óleo / adjuvante"],
+  ["Biológico / fertilizante / outra formulação", "Biológico / fertilizante / outro — sem ordem automática"]
 ] as const;
 
 type EditState = {
