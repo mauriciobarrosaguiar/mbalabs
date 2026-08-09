@@ -1,5 +1,5 @@
 import { requireAppAccess } from "@/lib/core-data";
-import { DroneGestaoClientV2 } from "./DroneGestaoClientV2";
+import { DroneGestaoClientV3 } from "./DroneGestaoClientV3";
 
 export const dynamic = "force-dynamic";
 
@@ -10,5 +10,5 @@ function canManageDrone(tipo: string, isAdminMaster: boolean) {
 
 export default async function DroneGestorGestaoPage() {
   const current = await requireAppAccess("dronegestor", "/apps/dronegestor/gestao");
-  return <DroneGestaoClientV2 canManage={canManageDrone(current.tipo, current.isAdminMaster)} />;
+  return <DroneGestaoClientV3 canManage={canManageDrone(current.tipo, current.isAdminMaster)} />;
 }

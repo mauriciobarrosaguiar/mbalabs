@@ -26,20 +26,23 @@ export function DroneMissionContextReset() {
         talhaoNome: current.talhaoNome ?? "",
         cultura: current.cultura ?? "",
         alvo: current.alvo ?? "",
+        tipoAtividade: "pulverizacao",
         area: Number(current.area) || 0,
         drone: "",
+        registroAnac: "",
+        pontaModelo: "",
         volume: 0,
         tanque: 0,
         faixa: 0,
         velocidadeKmh: 0,
         alturaM: 0,
         produtos: [{ id: "produto-1", nome: "", dose: 0, unidade: "mL/ha" }],
-        distanciaSensivel: 0,
+        distanciaSensivel: null,
         semAreaSensivel: false,
-        ventoCampoKmh: 0,
+        ventoCampoKmh: null,
         direcaoVentoCampo: "",
-        temperaturaCampo: 0,
-        umidadeCampo: 0,
+        temperaturaCampo: null,
+        umidadeCampo: null,
         climaCampoConfirmado: false,
         climaCampoMedidoEm: "",
         tempoAbastecimentoMin: 0,
@@ -57,17 +60,19 @@ export function DroneMissionContextReset() {
       localStorage.setItem("dronegestor:checklist:v2", JSON.stringify({ area:false, pessoasAnimais:false, obstaculos:false, drone:false, controle:false, pulverizacao:false, clima:false, documentos:false }));
       localStorage.setItem("dronegestor:occurrences:v2", JSON.stringify([]));
       localStorage.setItem("dronegestor:progress:v2", JSON.stringify(0));
+      localStorage.setItem("dronegestor:tankRecords:v4", JSON.stringify([]));
       localStorage.setItem("dronegestor:insightAccepted:v2", JSON.stringify(false));
       localStorage.setItem("dronegestor:riskAccepted:v2", JSON.stringify(false));
       localStorage.setItem("dronegestor:started:v3", JSON.stringify(false));
       localStorage.setItem("dronegestor:paused:v3", JSON.stringify(false));
+      localStorage.setItem("dronegestor:missionStatus:v4", JSON.stringify("preparacao"));
+      localStorage.setItem("dronegestor:startedAt:v4", JSON.stringify(""));
+      localStorage.setItem("dronegestor:endedAt:v4", JSON.stringify(""));
       localStorage.setItem("dronegestor:view:v3", "nova");
       localStorage.removeItem("dronegestor:weather");
       localStorage.removeItem("dronegestor:operationId:v3");
       localStorage.removeItem("dronegestor:lastFinalizedOperationId:v3");
-      // Importante: a fila dronegestor:finalizationQueue:v4 NÃO é apagada aqui.
-      // Ela pertence às operações concluídas offline anteriores, não à nova OS.
-      localStorage.setItem("dronegestor:updatedAt:v2", new Date().toISOString());
+      localStorage.setItem("dronegestor:syncDirty:v4", "1");
       localStorage.setItem(RESET_MARKER, osId);
     } catch {
       // Se o cache local estiver inconsistente, o app continua com o fluxo normal.
