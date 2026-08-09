@@ -1,0 +1,63 @@
+name: Build Calda Facil APK
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/calda-facil-android/**"
+      - "apps/mba-labs-core/src/app/calda-facil/**"
+      - "apps/mba-labs-core/src/app/apps/dronegestor/calculadora/**"
+      - ".github/workflows/calda-facil-apk.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/calda-facil-android/**"
+      - "apps/mba-labs-core/src/app/calda-facil/**"
+      - "apps/mba-labs-core/src/app/apps/dronegestor/calculadora/**"
+      - ".github/workflows/calda-facil-apk.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/calda-facil-android
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Android 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Build APK
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Nomear APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk CaldaFacil.apk
+
+      - name: Publicar artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: CaldaFacil-APK
+          path: apps/calda-facil-android/CaldaFacil.apk
+          if-no-files-found: error
+          retention-days: 30
