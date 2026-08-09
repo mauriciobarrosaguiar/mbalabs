@@ -11,6 +11,7 @@ type Settings = {
   margemPreventiva: number;
   exigirConfirmacao: boolean;
   protocoloBordaduraCigarrinha: boolean;
+  bloquearMargemPreventiva: boolean;
 };
 
 type Context = {
@@ -25,7 +26,8 @@ const defaults: Settings = {
   insightsObrigatorios: true,
   margemPreventiva: 90,
   exigirConfirmacao: true,
-  protocoloBordaduraCigarrinha: false
+  protocoloBordaduraCigarrinha: false,
+  bloquearMargemPreventiva: true
 };
 
 function normalizeType(value: string) {
@@ -64,7 +66,8 @@ function sanitize(value: unknown): Settings {
     insightsObrigatorios: source.insightsObrigatorios !== false,
     margemPreventiva: Number.isFinite(margin) ? Math.max(0, Math.min(5000, margin)) : defaults.margemPreventiva,
     exigirConfirmacao: source.exigirConfirmacao !== false,
-    protocoloBordaduraCigarrinha: source.protocoloBordaduraCigarrinha === true
+    protocoloBordaduraCigarrinha: source.protocoloBordaduraCigarrinha === true,
+    bloquearMargemPreventiva: source.bloquearMargemPreventiva !== false
   };
 }
 
@@ -112,7 +115,7 @@ export async function POST(request: NextRequest) {
       usuario_id: current.usuarioId,
       app_slug: "dronegestor",
       acao: ACTION,
-      detalhes: { settings, updatedAt: now, updatedByType: current.tipo }
+      detalhes: { settings, updatedAt: now, updatedByType: current.tipo, version: 2 }
     });
     if (error) throw error;
 
