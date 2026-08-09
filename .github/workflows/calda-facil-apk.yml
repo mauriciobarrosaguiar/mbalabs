@@ -2,6 +2,12 @@ name: Build Calda Facil APK
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/calda-facil-android/**"
+      - "apps/mba-labs-core/src/app/calda-facil/**"
+      - "apps/mba-labs-core/src/app/apps/dronegestor/calculadora/**"
+      - ".github/workflows/calda-facil-apk.yml"
   push:
     branches:
       - main
