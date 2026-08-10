@@ -15,6 +15,16 @@ export const metadata: Metadata = {
 export default function DroneGestorCalculadoraPage() {
   return (
     <>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            window.addEventListener("beforeinstallprompt", function (event) {
+              event.preventDefault();
+              window.__caldaInstallPrompt = event;
+            });
+          `
+        }}
+      />
       <PwaInstallAndUpdate />
       <QuickCaldaCalculatorV3 />
       <style>{`
