@@ -42,6 +42,7 @@ type WhatsappSummary = {
 const SEMI_AUTO_EVENT = "mba-cotacoes:whatsapp-semi-auto";
 const PREPARE_WHATSAPP_EVENT = "mba-cotacoes:whatsapp-prepare-window";
 const RELEASE_WHATSAPP_EVENT = "mba-cotacoes:whatsapp-release-window";
+const WHATSAPP_STATUS_EVENT = "mba-cotacoes:whatsapp-status-updated";
 
 export function BackButton({ fallbackHref, label = "Voltar" }: { fallbackHref: string; label?: string }) {
   const router = useRouter();
@@ -144,6 +145,9 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
       }
 
       setWhatsappSummary(whatsapp);
+      window.dispatchEvent(new CustomEvent(WHATSAPP_STATUS_EVENT, {
+        detail: { quotationId, results: whatsapp.results ?? [] },
+      }));
       showWhatsappResult(whatsapp, "Cotação enviada em massa aos vendedores.");
 
       const failedVendorIds = (whatsapp.results ?? [])
