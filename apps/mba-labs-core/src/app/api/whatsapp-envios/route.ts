@@ -8,6 +8,7 @@ import {
   sendQuotationLinksByQuotation,
   sendWhatsAppMbaCotacoes,
   sendWinnerOrderLinksByQuotation,
+  type WhatsappEnvio,
   type WhatsappTipoEnvio,
 } from "@/modules/cotacoes/lib/whatsapp/mba-cotacoes";
 
@@ -16,6 +17,15 @@ type Body = {
   quotationId?: string;
   tipoEnvio?: WhatsappTipoEnvio;
   vendedorId?: string;
+};
+
+type DeliveryRow = {
+  id: string;
+  provider_message_id?: string | null;
+  delivery_status?: string | null;
+  entregue_em?: string | null;
+  lido_em?: string | null;
+  status_atualizado_em?: string | null;
 };
 
 export async function GET(request: NextRequest) {
@@ -28,18 +38,19 @@ export async function GET(request: NextRequest) {
     const auth = await getCurrentAuthContext();
     const access = await ensureQuotationAccess(auth, quotationId);
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
-    const envios = await listWhatsappEnvios({ quotationId, tipoEnvio, vendedorId });
+    const envios = await listWhatsappEnvios({ quotationId, tipoEnvio, vendedorId }) as WhatsappEnvio[];
     if (envios.length === 0) return NextResponse.json({ envios });
 
     const supabase = createSupabaseAdminClient();
-    const { data: deliveryRows, error: deliveryError } = await supabase
+    const { data, error: deliveryError } = await supabase
       .from("cot_whatsapp_envios")
       .select("id, provider_message_id, delivery_status, entregue_em, lido_em, status_atualizado_em")
-      .in("id", envios.map((envio) => envio.id));
+      .in("id", envios.map((envio: WhatsappEnvio) => envio.id));
 
-    if (deliveryError || !deliveryRows) return NextResponse.json({ envios });
-    const deliveryById = new Map(deliveryRows.map((row) => [row.id, row]));
-    const enriched = envios.map((envio) => {
+    if (deliveryError || !data) return NextResponse.json({ envios });
+    const deliveryRows = data as unknown as DeliveryRow[];
+    const deliveryById = new Map<string, DeliveryRow>(deliveryRows.map((row: DeliveryRow) => [row.id, row]));
+    const enriched = envios.map((envio: WhatsappEnvio) => {
       const delivery = deliveryById.get(envio.id);
       return {
         ...envio,
@@ -117,14 +128,7 @@ async function confirmManualSend(input: { quotationId: string; tipoEnvio: Whatsa
   const now = new Date().toISOString();
   const { error: updateError } = await supabase
     .from("cot_whatsapp_envios")
-    .update({
-      status: "enviado",
-      erro: null,
-      enviado_por: "manual_whatsapp",
-      enviado_em: now,
-      delivery_status: "manual_confirmed",
-      status_atualizado_em: now,
-    })
+    .update({ status: "enviado", erro: null, enviado_por: "manual_whatsapp", enviado_em: now, delivery_status: "manual_confirmed", status_atualizado_em: now })
     .eq("id", envio.id);
   if (updateError) throw updateError;
 
