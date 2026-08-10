@@ -1,21 +1,14 @@
 import type { Metadata } from "next";
 import { QuickCaldaCalculatorV3 } from "../apps/dronegestor/calculadora/QuickCaldaCalculatorV3";
-import { InstallAppButton } from "./InstallAppButton";
 
 export const metadata: Metadata = {
   title: "Calda Fácil",
-  description: "Calculadora de calda simples e pública da MBA Labs.",
-  manifest: "/calda-facil.webmanifest",
-  icons: {
-    icon: "/calda-facil-icon.svg",
-    apple: "/calda-facil-icon.svg"
-  }
+  description: "Calculadora de calda simples e pública da MBA Labs."
 };
 
 export default function CaldaFacilPublicPage() {
   return (
     <>
-      <InstallAppButton />
       <QuickCaldaCalculatorV3 />
       <style>{`
         html,
