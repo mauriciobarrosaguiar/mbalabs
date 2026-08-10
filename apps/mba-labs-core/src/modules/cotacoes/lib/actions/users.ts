@@ -19,7 +19,7 @@ export async function createUserAccessAction(formData: FormData) {
   const role = readEnum(formData, "role", profileRoles, "COMPRADOR");
   const status = readEnum(formData, "status", statuses, "ativo");
   const tenantId = normalizeOptionalId(String(formData.get("tenantId") ?? ""));
-  const temporaryPassword = String(formData.get("temporaryPassword") || "Alterar@123");
+  const temporaryPassword = readSecureTemporaryPassword(formData);
   const mustChangePassword = formData.get("mustChangePassword") !== "false";
 
   const supabase = createSupabaseAdminClient();
@@ -164,6 +164,14 @@ async function upsertTenantUser(
 function readRequired(formData: FormData, name: string) {
   const value = String(formData.get(name) ?? "").trim();
   if (!value) throw new Error(`Campo obrigatorio ausente: ${name}`);
+  return value;
+}
+
+function readSecureTemporaryPassword(formData: FormData) {
+  const value = String(formData.get("temporaryPassword") ?? "").trim();
+  if (!value) throw new Error("Informe uma senha provisoria exclusiva para este usuario.");
+  if (value === "Alterar@123") throw new Error("A senha padrao Alterar@123 nao pode ser usada em clientes reais.");
+  if (value.length < 10) throw new Error("A senha provisoria deve ter pelo menos 10 caracteres.");
   return value;
 }
 

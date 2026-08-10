@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSessionProfile } from "@/lib/core-data";
 import {
   createDistributor,
   createLaboratory,
@@ -28,11 +29,31 @@ import {
   updateSupplier,
   updateTenant,
 } from "@/modules/cotacoes/lib/data/repository";
+import { getCurrentAuthContext, isTenantSuspended } from "@/modules/cotacoes/lib/auth/session";
 import { isSupabaseWriteConfigured } from "@/modules/cotacoes/lib/runtime-mode";
+import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/server";
 import type { Distributor, Laboratory, MonthlySubscription, Pharmacy, Product, SubscriptionPlan, Supplier, Tenant } from "@/modules/cotacoes/lib/types";
 
 type Entity = "products" | "suppliers" | "distributors" | "laboratories" | "tenants" | "pharmacies" | "plans" | "monthly_subscriptions";
 type Row = Record<string, unknown> & { id?: string };
+type CrudAuth = { isSuperAdmin: boolean; tenantId?: string };
+
+const adminOnlyEntities = new Set<Entity>(["tenants", "plans", "monthly_subscriptions"]);
+const tenantTables: Partial<Record<Entity, string>> = {
+  products: "products",
+  suppliers: "suppliers",
+  distributors: "distributors",
+  laboratories: "laboratories",
+  pharmacies: "pharmacies",
+};
+
+class RouteError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
 
 export async function POST(
   request: NextRequest,
@@ -58,15 +79,16 @@ export async function DELETE(
 
   try {
     const entity = parseEntity((await params).entity);
+    const auth = await authorizeCrud(entity);
     const { id } = await request.json() as { id?: string };
-    if (!id) return NextResponse.json({ error: "ID obrigatorio." }, { status: 400 });
+    if (!id) throw new RouteError("ID obrigatorio.", 400);
+    if (!auth.isSuperAdmin && auth.tenantId) {
+      await assertEntityOwnership(entity, id, auth.tenantId);
+    }
     await deleteByEntity(entity, id);
     return NextResponse.json({ ok: true, row: { id, status: "inativo" } });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Erro ao inativar registro." },
-      { status: 500 },
-    );
+    return errorResponse(error, "Erro ao inativar registro.");
   }
 }
 
@@ -81,25 +103,92 @@ async function mutate(
 
   try {
     const entity = parseEntity((await params).entity);
+    const auth = await authorizeCrud(entity);
     const { id, data } = await request.json() as { id?: string; data?: Row };
-    if (!data) return NextResponse.json({ error: "Dados obrigatorios." }, { status: 400 });
-    if (operation === "update" && !id) return NextResponse.json({ error: "ID obrigatorio." }, { status: 400 });
+    if (!data) throw new RouteError("Dados obrigatorios.", 400);
+    if (operation === "update" && !id) throw new RouteError("ID obrigatorio.", 400);
 
-    await assertNoDuplicateEntity(entity, data, operation === "update" ? id : undefined);
+    const scopedData: Row = auth.isSuperAdmin || !auth.tenantId
+      ? { ...data }
+      : { ...data, tenantId: auth.tenantId };
+
+    if (operation === "update" && id && !auth.isSuperAdmin && auth.tenantId) {
+      await assertEntityOwnership(entity, id, auth.tenantId);
+    }
+
+    await assertNoDuplicateEntity(entity, scopedData, operation === "update" ? id : undefined);
 
     const saved = operation === "create"
-      ? await createByEntity(entity, data)
-      : await updateByEntity(entity, id!, data);
+      ? await createByEntity(entity, scopedData)
+      : await updateByEntity(entity, id!, scopedData);
 
     if (!saved) throw new Error("Supabase nao retornou o registro salvo.");
 
-    return NextResponse.json({ ok: true, row: normalizeRow(entity, saved, data) });
+    return NextResponse.json({ ok: true, row: normalizeRow(entity, saved, scopedData) });
   } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Erro ao salvar registro." },
-      { status: 500 },
-    );
+    return errorResponse(error, "Erro ao salvar registro.");
   }
+}
+
+async function authorizeCrud(entity: Entity): Promise<CrudAuth> {
+  const session = await getSessionProfile();
+  if (!session.user || !session.profile) {
+    throw new RouteError("Sessao expirada ou usuario nao autenticado.", 401);
+  }
+
+  const coreType = String(session.profile.tipo ?? "");
+  const isCoreSuperAdmin = coreType === "super_admin" || coreType === "admin_master";
+  const hasCotacoesAccess = isCoreSuperAdmin || (session.appsLiberados ?? []).some((app) => (
+    (app.slug === "mba-cotacoes" || app.slug === "mbacotacoes") && app.canAccess
+  ));
+  if (!hasCotacoesAccess) {
+    throw new RouteError("Usuario sem acesso ao MBA Cotacoes.", 403);
+  }
+
+  const auth = await getCurrentAuthContext();
+  if (!auth.isAuthenticated || !auth.profile || !auth.isActive) {
+    throw new RouteError("Usuario inativo ou sem perfil valido.", 403);
+  }
+
+  if (auth.isSuperAdmin || isCoreSuperAdmin) {
+    return { isSuperAdmin: true };
+  }
+
+  if (adminOnlyEntities.has(entity)) {
+    throw new RouteError("Operacao restrita ao ADMIN MBA.", 403);
+  }
+
+  if (!auth.tenantAccess || isTenantSuspended(auth.tenantAccess.tenantStatus)) {
+    throw new RouteError("Empresa sem acesso ativo ao MBA Cotacoes.", 403);
+  }
+
+  return { isSuperAdmin: false, tenantId: auth.tenantAccess.tenantId };
+}
+
+async function assertEntityOwnership(entity: Entity, id: string, tenantId: string) {
+  const table = tenantTables[entity];
+  if (!table) throw new RouteError("Operacao restrita ao ADMIN MBA.", 403);
+
+  const supabase = createSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from(table)
+    .select("id,tenant_id")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new RouteError("Registro nao encontrado.", 404);
+  if (!data.tenant_id || data.tenant_id !== tenantId) {
+    throw new RouteError("Registro pertence a outra empresa ou ao catalogo global.", 403);
+  }
+}
+
+function errorResponse(error: unknown, fallback: string) {
+  const status = error instanceof RouteError ? error.status : 500;
+  return NextResponse.json(
+    { error: error instanceof Error ? error.message : fallback },
+    { status },
+  );
 }
 
 function parseEntity(value: string): Entity {
@@ -116,7 +205,7 @@ function parseEntity(value: string): Entity {
     return value;
   }
 
-  throw new Error("Entidade nao suportada.");
+  throw new RouteError("Entidade nao suportada.", 400);
 }
 
 async function createByEntity(entity: Entity, row: Row) {
@@ -132,7 +221,7 @@ async function createByEntity(entity: Entity, row: Row) {
   if (entity === "pharmacies") return createPharmacy(pharmacyPayload(row) as Parameters<typeof createPharmacy>[0]);
   if (entity === "plans") return createSubscriptionPlan(planPayload(row) as Parameters<typeof createSubscriptionPlan>[0]);
   if (entity === "monthly_subscriptions") return createMonthlySubscription(monthlySubscriptionPayload(row) as Parameters<typeof createMonthlySubscription>[0]);
-  throw new Error("Entidade nao suportada.");
+  throw new RouteError("Entidade nao suportada.", 400);
 }
 
 async function updateByEntity(entity: Entity, id: string, row: Row) {
@@ -144,7 +233,7 @@ async function updateByEntity(entity: Entity, id: string, row: Row) {
   if (entity === "pharmacies") return updatePharmacy(id, pharmacyPayload(row));
   if (entity === "plans") return updateSubscriptionPlan(id, planPayload(row));
   if (entity === "monthly_subscriptions") return updateMonthlySubscription(id, monthlySubscriptionPayload(row));
-  throw new Error("Entidade nao suportada.");
+  throw new RouteError("Entidade nao suportada.", 400);
 }
 
 async function deleteByEntity(entity: Entity, id: string) {
@@ -156,7 +245,7 @@ async function deleteByEntity(entity: Entity, id: string) {
   if (entity === "pharmacies") return deletePharmacy(id);
   if (entity === "plans") return deleteSubscriptionPlan(id);
   if (entity === "monthly_subscriptions") return deleteMonthlySubscription(id);
-  throw new Error("Entidade nao suportada.");
+  throw new RouteError("Entidade nao suportada.", 400);
 }
 
 async function assertNoDuplicateEntity(entity: Entity, row: Row, editingId?: string) {
@@ -178,9 +267,9 @@ async function assertNoDuplicateEntity(entity: Entity, row: Row, editingId?: str
     });
 
     if (duplicated) {
-      throw new Error(whatsapp && onlyDigits(duplicated.whatsapp) === whatsapp
+      throw new RouteError(whatsapp && onlyDigits(duplicated.whatsapp) === whatsapp
         ? "Ja existe vendedor/fornecedor cadastrado com este WhatsApp."
-        : "Ja existe vendedor/fornecedor cadastrado com este CPF.");
+        : "Ja existe vendedor/fornecedor cadastrado com este CPF.", 409);
     }
   }
 
@@ -202,7 +291,7 @@ async function assertNoDuplicateEntity(entity: Entity, row: Row, editingId?: str
     });
 
     if (duplicated) {
-      throw new Error("Produto duplicado: use outro EAN ou outro laboratorio para cadastrar uma excecao.");
+      throw new RouteError("Produto duplicado: use outro EAN ou outro laboratorio para cadastrar uma excecao.", 409);
     }
   }
 }
@@ -211,12 +300,12 @@ async function productPayload(row: Row): Promise<Partial<Product>> {
   const nome = text(row.nome);
   const ean = text(row.ean);
   if (!nome && !ean && !text(row.laboratorio) && text(row.status)) {
-    return { status: text(row.status) as Product["status"] };
+    return { status: text(row.status) as Product["status"], tenantId: text(row.tenantId) || undefined };
   }
   const laboratorioId = await resolveProductLaboratoryId(row);
-  if (!ean) throw new Error("EAN obrigatorio.");
-  if (!nome) throw new Error("Produto obrigatorio.");
-  if (!laboratorioId) throw new Error("Laboratorio obrigatorio.");
+  if (!ean) throw new RouteError("EAN obrigatorio.", 400);
+  if (!nome) throw new RouteError("Produto obrigatorio.", 400);
+  if (!laboratorioId) throw new RouteError("Laboratorio obrigatorio.", 400);
 
   return {
     nome,
