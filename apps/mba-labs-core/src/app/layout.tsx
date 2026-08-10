@@ -19,6 +19,8 @@ const routeThemeScript = `
   var systemPrefixes = [
     "/apps",
     "/cotacoes",
+    "/cotacao",
+    "/licitacao",
     "/lavagestor",
     "/bikecomanda",
     "/lexgestor",
