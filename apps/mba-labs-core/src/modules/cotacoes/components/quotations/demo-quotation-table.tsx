@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { CheckCircle2, Copy, Eye, FileText, Link2, MoreHorizontal, Pencil, ReceiptText, Send, Trash2, XCircle } from "lucide-react";
+import { CheckCircle2, Copy, Eye, MoreHorizontal, Pencil, Trash2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -37,7 +37,6 @@ import { formatDate } from "@/modules/cotacoes/lib/formatters";
 import { labelFrom, quotationStatusLabels } from "@/modules/cotacoes/lib/labels";
 import {
   canFinishQuotation,
-  canGenerateQuotationOrders,
   isQuotationClosed,
 } from "@/modules/cotacoes/lib/quotation-status";
 import {
@@ -202,30 +201,6 @@ export function DemoQuotationTable({
     router.refresh();
   }
 
-  async function reopenLinks(row: QuotationRow) {
-    if (isQuotationClosed(row.status)) {
-      toast.error("Cotação cancelada ou finalizada não permite gerar novos links.");
-      return;
-    }
-    if (row.source === "localStorage") {
-      if (row.itemCount === 0 || row.supplierCount === 0) {
-        toast.error("Adicione pelo menos 1 item e 1 fornecedor antes de gerar links.");
-        return;
-      }
-      updateLocalRow(row.id, { status: "open" });
-      toast.success("Cotação local marcada como aberta. Abra os detalhes para copiar os links.");
-      return;
-    }
-
-    const payload = await mutateQuotation("PATCH", { id: row.id, action: "reopen_links" });
-    if (!payload) return;
-    setServerRows((current) => current.map((quotation) => (
-      quotation.id === row.id ? { ...quotation, status: "waiting_responses" } : quotation
-    )));
-    toast.success("Links liberados para reenvio.");
-    router.refresh();
-  }
-
   function updateLocalRow(id: string, patch: Partial<StoredDemoQuotation>) {
     const nextRows = localRows.map((quotation) => (
       quotation.id === id ? { ...quotation, ...patch } : quotation
@@ -274,9 +249,9 @@ export function DemoQuotationTable({
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-52">
                   <DropdownMenuItem asChild>
-                    <Link href={`${base}/${quotation.id}`}><Eye className="h-4 w-4" />Abrir</Link>
+                    <Link href={`${base}/${quotation.id}`}><Eye className="h-4 w-4" />Abrir cotação</Link>
                   </DropdownMenuItem>
                   {!isQuotationClosed(quotation.status) ? (
                     <DropdownMenuItem asChild>
@@ -286,31 +261,10 @@ export function DemoQuotationTable({
                   <DropdownMenuItem onSelect={(event) => { event.preventDefault(); void duplicate(quotation); }}>
                     <Copy className="h-4 w-4" />Duplicar
                   </DropdownMenuItem>
-                  {!isQuotationClosed(quotation.status) ? (
-                    <DropdownMenuItem onSelect={(event) => { event.preventDefault(); void reopenLinks(quotation); }}>
-                      <Link2 className="h-4 w-4" />Liberar envio
-                    </DropdownMenuItem>
-                  ) : null}
-                  {quotation.status !== "draft" ? (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link href={`${base}/${quotation.id}/respostas`}><Send className="h-4 w-4" />Ver respostas</Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href={`${base}/${quotation.id}/analise`}><FileText className="h-4 w-4" />Ver análise</Link>
-                      </DropdownMenuItem>
-                      {canGenerateQuotationOrders(quotation.status) ? (
-                        <DropdownMenuItem asChild>
-                          <Link href={`${base}/${quotation.id}/pedidos`}><ReceiptText className="h-4 w-4" />Gerar pedido</Link>
-                        </DropdownMenuItem>
-                      ) : null}
-                    </>
-                  ) : null}
                   <DropdownMenuSeparator />
                   {canFinish(quotation.status) ? (
                     <DropdownMenuItem onSelect={(event) => { event.preventDefault(); setPendingFinish(quotation); }}>
-                      <CheckCircle2 className="h-4 w-4" />Finalizar Cotação
+                      <CheckCircle2 className="h-4 w-4" />Finalizar
                     </DropdownMenuItem>
                   ) : null}
                   {canFinish(quotation.status) ? (
