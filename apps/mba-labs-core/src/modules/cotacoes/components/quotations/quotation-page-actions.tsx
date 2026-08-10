@@ -23,7 +23,9 @@ import type { ModuleType, QuotationStatus } from "@/modules/cotacoes/lib/types";
 
 type PageKey = "detail" | "new" | "edit" | "responses" | "analysis" | "orders";
 type WhatsappAction = "send_quotation_links" | "send_winner_orders";
-type WhatsappSummary = { total?: number; enviado?: number; falhou?: number; ignorado?: number };
+type WhatsappResult = { vendedorId?: string; status?: string };
+type WhatsappSummary = { total?: number; enviado?: number; falhou?: number; ignorado?: number; results?: WhatsappResult[] };
+const SEMI_AUTO_EVENT = "mba-cotacoes:whatsapp-semi-auto";
 
 export function BackButton({ fallbackHref, label = "Voltar" }: { fallbackHref: string; label?: string }) {
   const router = useRouter();
@@ -85,7 +87,17 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
   async function generateLinks() {
     const payload = await mutate("reopen_links");
     if (!payload) return;
-    showWhatsappResult(await runWhatsapp("send_quotation_links"), "Cotação enviada aos vendedores.");
+    const whatsapp = await runWhatsapp("send_quotation_links");
+    showWhatsappResult(whatsapp, "Cotação enviada aos vendedores.");
+    const failedVendorIds = (whatsapp?.results ?? [])
+      .filter((result) => result.status === "falhou" && result.vendedorId)
+      .map((result) => String(result.vendedorId));
+    if (failedVendorIds.length > 0) {
+      toast.info("A Evolution falhou em alguns envios. A fila semiautomática foi preparada abaixo.");
+      window.dispatchEvent(new CustomEvent(SEMI_AUTO_EVENT, {
+        detail: { quotationId, vendedorIds: failedVendorIds },
+      }));
+    }
     router.refresh();
   }
 
