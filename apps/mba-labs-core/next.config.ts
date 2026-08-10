@@ -35,6 +35,22 @@ const nextConfig: NextConfig = {
       {
         source: "/calda-facil/:path*",
         headers: noCacheHeaders
+      },
+      {
+        source: "/apps/dronegestor/calculadora",
+        headers: noCacheHeaders
+      },
+      {
+        source: "/apps/dronegestor/calculadora/:path*",
+        headers: noCacheHeaders
+      },
+      {
+        source: "/api/dronegestor/calculadora/version",
+        headers: noCacheHeaders
+      },
+      {
+        source: "/drone-calculadora-sw.js",
+        headers: noCacheHeaders
       }
     ];
   }
