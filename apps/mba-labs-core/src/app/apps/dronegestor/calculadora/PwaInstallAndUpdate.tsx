@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, RefreshCw, X } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 type InstallPromptEvent = Event & {
@@ -10,13 +10,16 @@ type InstallPromptEvent = Event & {
 
 type VersionPayload = { version?: string };
 
+type WindowWithInstallPrompt = Window & {
+  __caldaInstallPrompt?: InstallPromptEvent;
+};
+
 const VERSION_KEY = "calda-facil-pwa-version";
 const VERSION_URL = "/api/dronegestor/calculadora/version";
 
 export function PwaInstallAndUpdate() {
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
 
   const checkVersion = useCallback(async (firstCheck = false) => {
@@ -48,25 +51,33 @@ export function PwaInstallAndUpdate() {
       (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
     setInstalled(standalone);
 
+    const cachedPrompt = (window as WindowWithInstallPrompt).__caldaInstallPrompt;
+    if (cachedPrompt) setInstallPrompt(cachedPrompt);
+
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/drone-calculadora-sw.js", {
           scope: "/apps/dronegestor/calculadora",
           updateViaCache: "none"
         })
-        .then((registration) => registration.update())
+        .then(async (registration) => {
+          await registration.update();
+          await navigator.serviceWorker.ready;
+        })
         .catch(() => undefined);
     }
 
     const handleBeforeInstall = (event: Event) => {
       event.preventDefault();
-      setInstallPrompt(event as InstallPromptEvent);
+      const promptEvent = event as InstallPromptEvent;
+      (window as WindowWithInstallPrompt).__caldaInstallPrompt = promptEvent;
+      setInstallPrompt(promptEvent);
     };
 
     const handleInstalled = () => {
       setInstalled(true);
       setInstallPrompt(null);
-      setShowHelp(false);
+      delete (window as WindowWithInstallPrompt).__caldaInstallPrompt;
     };
 
     const handleFocus = () => void checkVersion(false);
@@ -92,15 +103,21 @@ export function PwaInstallAndUpdate() {
   }, [checkVersion]);
 
   async function install() {
-    if (!installPrompt) {
-      setShowHelp(true);
-      return;
+    const promptEvent = installPrompt || (window as WindowWithInstallPrompt).__caldaInstallPrompt;
+
+    // O navegador só permite abrir o instalador nativo quando o evento de
+    // instalação está disponível. Não mostramos mais instruções manuais.
+    if (!promptEvent) return;
+
+    await promptEvent.prompt();
+    const choice = await promptEvent.userChoice;
+
+    if (choice.outcome === "accepted") {
+      setInstalled(true);
     }
 
-    await installPrompt.prompt();
-    const choice = await installPrompt.userChoice;
-    if (choice.outcome === "accepted") setInstalled(true);
     setInstallPrompt(null);
+    delete (window as WindowWithInstallPrompt).__caldaInstallPrompt;
   }
 
   async function applyUpdate() {
@@ -126,23 +143,6 @@ export function PwaInstallAndUpdate() {
         >
           <Download size={19} strokeWidth={2.5} />
         </button>
-      )}
-
-      {showHelp && !installed && (
-        <div className="fixed inset-x-4 top-16 z-[90] mx-auto max-w-sm rounded-[18px] border border-[#dce5da] bg-white p-4 text-[#1d2b21] shadow-[0_14px_38px_rgba(16,37,24,0.2)]">
-          <button
-            type="button"
-            onClick={() => setShowHelp(false)}
-            className="absolute right-3 top-3 grid size-8 place-items-center rounded-full text-[#6d776f] hover:bg-[#f2f5ef]"
-            aria-label="Fechar"
-          >
-            <X size={17} />
-          </button>
-          <strong className="block pr-9 text-[15px] font-black">Instalar Calda Fácil</strong>
-          <p className="mt-1.5 text-[13px] font-medium leading-5 text-[#667169]">
-            No Chrome, toque no menu ⋮ e escolha <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.
-          </p>
-        </div>
       )}
 
       {updateAvailable && (
