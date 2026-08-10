@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, CheckCircle2, Link2, MessageSquareText, ReceiptText, Trophy } from "lucide-react";
+import { ArrowLeft, CheckCircle2, MessageSquareText, ReceiptText, Send, Trophy } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "@/modules/cotacoes/components/dashboard/status-badge";
 import {
@@ -42,11 +42,13 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
   const [confirmFinish, setConfirmFinish] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const base = moduleType === "pharmacy" ? "/cotacoes/cotacoes-farmacia" : "/cotacoes/licitacoes";
-  const canGenerateLinks = !isQuotationClosed(localStatus);
+  const canSendInBulk = !isQuotationClosed(localStatus);
   const canFinish = canFinishQuotation(localStatus);
   const canViewOrders = canGenerateQuotationOrders(localStatus);
+  const isDetail = currentPage === "detail";
 
   async function mutate(action: "finish" | "reopen_links") {
+    if (loadingAction) return null;
     setLoadingAction(action);
     try {
       const response = await fetch("/api/cotacoes/quotations", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: quotationId, action }) });
@@ -84,21 +86,36 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
     router.push(`${base}/${quotationId}/analise`);
   }
 
-  async function generateLinks() {
-    const payload = await mutate("reopen_links");
-    if (!payload) return;
-    const whatsapp = await runWhatsapp("send_quotation_links");
-    showWhatsappResult(whatsapp, "Cotação enviada aos vendedores.");
-    const failedVendorIds = (whatsapp?.results ?? [])
-      .filter((result) => result.status === "falhou" && result.vendedorId)
-      .map((result) => String(result.vendedorId));
-    if (failedVendorIds.length > 0) {
-      toast.info("A Evolution falhou em alguns envios. A fila semiautomática foi preparada abaixo.");
-      window.dispatchEvent(new CustomEvent(SEMI_AUTO_EVENT, {
-        detail: { quotationId, vendedorIds: failedVendorIds },
-      }));
+  async function sendInBulk() {
+    if (loadingAction) return;
+    setLoadingAction("bulk_send");
+    try {
+      const response = await fetch("/api/cotacoes/quotations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: quotationId, action: "reopen_links" }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Não foi possível liberar os links da cotação.");
+      if (payload.status) setLocalStatus(payload.status as QuotationStatus);
+
+      const whatsapp = await runWhatsapp("send_quotation_links");
+      showWhatsappResult(whatsapp, "Cotação enviada em massa aos vendedores.");
+      const failedVendorIds = (whatsapp?.results ?? [])
+        .filter((result) => result.status === "falhou" && result.vendedorId)
+        .map((result) => String(result.vendedorId));
+      if (failedVendorIds.length > 0) {
+        toast.info("Alguns envios automáticos falharam. A fila semiautomática foi preparada abaixo.");
+        window.dispatchEvent(new CustomEvent(SEMI_AUTO_EVENT, {
+          detail: { quotationId, vendedorIds: failedVendorIds },
+        }));
+      }
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao enviar a cotação em massa.");
+    } finally {
+      setLoadingAction(null);
     }
-    router.refresh();
   }
 
   return (
@@ -109,12 +126,42 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
           <StatusBadge status={localStatus} label={labelFrom(quotationStatusLabels, localStatus)} />
         </div>
         <div className="flex flex-wrap gap-2">
-          {currentPage !== "detail" ? <Button asChild variant="outline"><Link href={`${base}/${quotationId}`}>Ver cotação</Link></Button> : null}
-          {canGenerateLinks ? <Button type="button" variant="outline" onClick={() => void generateLinks()} disabled={loadingAction === "reopen_links"}><Link2 className="h-4 w-4" />Enviar cotação aos vendedores</Button> : null}
-          {currentPage !== "responses" ? <Button asChild variant="outline"><Link href={`${base}/${quotationId}/respostas`}><MessageSquareText className="h-4 w-4" />Ver respostas</Link></Button> : null}
-          {currentPage !== "analysis" ? <Button asChild variant="outline"><Link href={`${base}/${quotationId}/analise`}><Trophy className="h-4 w-4" />{moduleType === "pharmacy" ? "Ver vencedores" : "Ver análise"}</Link></Button> : null}
-          {canFinish ? <Button type="button" onClick={() => setConfirmFinish(true)} disabled={loadingAction === "finish"}><CheckCircle2 className="h-4 w-4" />Finalizar Cotação</Button> : null}
-          {canViewOrders && currentPage !== "orders" ? <Button asChild><Link href={`${base}/${quotationId}/pedidos`}><ReceiptText className="h-4 w-4" />{isQuotationGenerated(localStatus) ? "Ver pedidos" : "Gerar pedido"}</Link></Button> : null}
+          {!isDetail ? (
+            <Button asChild variant="outline">
+              <Link href={`${base}/${quotationId}`}>Cotação</Link>
+            </Button>
+          ) : null}
+
+          {isDetail && canSendInBulk ? (
+            <Button type="button" onClick={() => void sendInBulk()} disabled={Boolean(loadingAction)}>
+              <Send className="h-4 w-4" />
+              {loadingAction === "bulk_send" ? "Enviando..." : "Enviar em massa aos vendedores"}
+            </Button>
+          ) : null}
+
+          {isDetail ? (
+            <Button asChild variant="outline">
+              <Link href={`${base}/${quotationId}/respostas`}><MessageSquareText className="h-4 w-4" />Respostas</Link>
+            </Button>
+          ) : null}
+
+          {isDetail ? (
+            <Button asChild variant="outline">
+              <Link href={`${base}/${quotationId}/analise`}><Trophy className="h-4 w-4" />{moduleType === "pharmacy" ? "Vencedores" : "Análise"}</Link>
+            </Button>
+          ) : null}
+
+          {isDetail && canFinish ? (
+            <Button type="button" variant="outline" onClick={() => setConfirmFinish(true)} disabled={Boolean(loadingAction)}>
+              <CheckCircle2 className="h-4 w-4" />Finalizar
+            </Button>
+          ) : null}
+
+          {canViewOrders && (isDetail || currentPage === "analysis") ? (
+            <Button asChild variant="outline">
+              <Link href={`${base}/${quotationId}/pedidos`}><ReceiptText className="h-4 w-4" />{isQuotationGenerated(localStatus) ? "Pedidos" : "Gerar pedido"}</Link>
+            </Button>
+          ) : null}
         </div>
       </div>
       <AlertDialog open={confirmFinish} onOpenChange={setConfirmFinish}>

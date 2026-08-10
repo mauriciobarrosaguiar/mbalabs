@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Copy, Download, ExternalLink, FileSpreadsheet, MessageCircle, Plus, Search, Send, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { JudgmentTypeSelect } from "@/modules/cotacoes/components/forms/judgment-type-select";
@@ -97,6 +98,11 @@ type GeneratedLink = {
   status: "pendente" | "aberto" | "rascunho" | "respondido" | "expirado" | "revogado" | "cancelado";
 };
 
+type PersistResult = {
+  quotationId?: string;
+  links: Array<{ supplierId: string; token: string; url: string }>;
+};
+
 type ParsedSheet = {
   fileName: string;
   columns: string[];
@@ -143,7 +149,10 @@ export function NewQuotationForm({
   laboratories?: Laboratory[];
   suppliers?: Supplier[];
 }) {
+  const router = useRouter();
+  const submissionLockRef = useRef(false);
   const isBidding = moduleType === "bidding";
+  const base = moduleType === "pharmacy" ? "/cotacoes/cotacoes-farmacia" : "/cotacoes/licitacoes";
   const supplierOptions = useMemo<SupplierOption[]>(() => {
     if (suppliers.length > 0) {
       return suppliers
@@ -180,6 +189,7 @@ export function NewQuotationForm({
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>(() => supplierOptions.map((supplier) => supplier.id));
   const [links, setLinks] = useState<GeneratedLink[]>([]);
   const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const selectedSuppliers = useMemo(
     () => supplierOptions.filter((supplier) => selectedSupplierIds.includes(supplier.id)),
@@ -259,46 +269,78 @@ export function NewQuotationForm({
     goToStep(step + 1);
   }
 
-  async function saveDraft() {
-    await persist("draft");
-    toast.success(hasSupabaseBrowserConfig() ? "Rascunho salvo no Supabase" : "Rascunho salvo no modo demonstração");
-  }
-
-  async function generateLinks() {
+  async function createAndSendQuotation() {
+    if (submissionLockRef.current || submitting || saving) return;
     if (!draft.deadlineAt) {
-      toast.error("Informe a data limite antes de gerar links.");
+      toast.error("Informe a data limite antes de enviar a cotação.");
       return;
     }
     if (isPastDeadline(draft.deadlineAt)) {
-      toast.error("Informe uma data limite futura para gerar links.");
+      toast.error("Informe uma data limite futura para enviar a cotação.");
       return;
     }
     if (items.length === 0) {
-      toast.error("Adicione pelo menos 1 item antes de gerar links.");
+      toast.error("Adicione pelo menos 1 item antes de enviar a cotação.");
       return;
     }
     if (selectedSuppliers.length === 0) {
-      toast.error("Selecione pelo menos 1 fornecedor antes de gerar links.");
-      return;
-    }
-    const remoteLinks = await persist("waiting_responses");
-    if (remoteLinks.length > 0) {
-      setLinks(remoteLinks.map((link) => ({ ...link, status: "pendente" })));
-      toast.success("Cotação salva e links públicos gerados");
+      toast.error("Selecione pelo menos 1 fornecedor antes de enviar a cotação.");
       return;
     }
 
-    if (hasSupabaseBrowserConfig() || !isLocalBrowser()) {
-      return;
-    }
+    submissionLockRef.current = true;
+    setSubmitting(true);
+    try {
+      const persisted = await persist("waiting_responses");
 
-    const generated = selectedSuppliers.map((supplier) => {
-      const token = `${isBidding ? "licitacao" : "farmacia"}-${supplier.id.replace("supplier-", "")}-${crypto.randomUUID().slice(0, 8)}`;
-      const url = `${window.location.origin}/${isBidding ? "licitacao" : "cotacao"}/responder/${token}`;
-      return { supplierId: supplier.id, token, url, status: "pendente" as const };
-    });
-    setLinks(generated);
-    toast.success("Links públicos gerados");
+      if (hasSupabaseBrowserConfig()) {
+        if (!persisted.quotationId) return;
+        if (persisted.links.length > 0) {
+          setLinks(persisted.links.map((link) => ({ ...link, status: "pendente" })));
+        }
+
+        await sendWhatsappInBulk(persisted.quotationId);
+        toast.success("Cotação criada. Abrindo os detalhes...");
+        router.replace(`${base}/${persisted.quotationId}`);
+        return;
+      }
+
+      if (!isLocalBrowser()) return;
+      const generated = selectedSuppliers.map((supplier) => {
+        const token = `${isBidding ? "licitacao" : "farmacia"}-${supplier.id.replace("supplier-", "")}-${crypto.randomUUID().slice(0, 8)}`;
+        const url = `${window.location.origin}/${isBidding ? "licitacao" : "cotacao"}/responder/${token}`;
+        return { supplierId: supplier.id, token, url, status: "pendente" as const };
+      });
+      setLinks(generated);
+      toast.success("Cotação criada e links públicos gerados.");
+    } finally {
+      setSubmitting(false);
+      submissionLockRef.current = false;
+    }
+  }
+
+  async function sendWhatsappInBulk(quotationId: string) {
+    try {
+      const response = await fetch("/api/whatsapp-envios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send_quotation_links", quotationId }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Falha no envio automático por WhatsApp.");
+      const whatsapp = payload.whatsapp as { enviado?: number; falhou?: number; ignorado?: number } | undefined;
+      if (Number(whatsapp?.falhou ?? 0) > 0) {
+        toast.warning(`Cotação criada, mas ${whatsapp?.falhou} envio(s) por WhatsApp falharam. Você poderá reenviar na tela da cotação.`);
+      } else if (Number(whatsapp?.enviado ?? 0) > 0) {
+        toast.success("Cotação enviada em massa aos vendedores.");
+      } else if (Number(whatsapp?.ignorado ?? 0) > 0) {
+        toast.info("Cotação criada. Nenhum novo WhatsApp precisou ser enviado.");
+      }
+    } catch (error) {
+      toast.warning(error instanceof Error
+        ? `${error.message} A cotação foi criada e poderá ser reenviada pela tela de detalhes.`
+        : "A cotação foi criada, mas o WhatsApp não foi enviado. Você poderá reenviar pela tela de detalhes.");
+    }
   }
 
   function revokeGeneratedLink(token: string) {
@@ -318,7 +360,7 @@ export function NewQuotationForm({
     toast.success("Novo token gerado.");
   }
 
-  async function persist(status: "draft" | "waiting_responses") {
+  async function persist(status: "draft" | "waiting_responses"): Promise<PersistResult> {
     if (hasSupabaseBrowserConfig()) {
       setSaving(true);
       try {
@@ -335,10 +377,13 @@ export function NewQuotationForm({
         });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error ?? "Não foi possível salvar no Supabase.");
-        return payload.links as Array<{ supplierId: string; token: string; url: string }>;
+        return {
+          quotationId: typeof payload.quotation?.id === "string" ? payload.quotation.id : undefined,
+          links: Array.isArray(payload.links) ? payload.links : [],
+        };
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Erro ao salvar no Supabase.");
-        return [] as Array<{ supplierId: string; token: string; url: string }>;
+        return { links: [] };
       } finally {
         setSaving(false);
       }
@@ -346,11 +391,12 @@ export function NewQuotationForm({
 
     if (!isLocalBrowser()) {
       toast.error("Supabase não configurado. Em produção, a cotação precisa ser gravada no banco real.");
-      return [] as Array<{ supplierId: string; token: string; url: string }>;
+      return { links: [] };
     }
 
+    const demoId = `demo-${isBidding ? "licitacao" : "farmacia"}-${Date.now()}`;
     saveDemoQuotationToLocalStorage(moduleType, {
-      id: `demo-${isBidding ? "licitacao" : "farmacia"}-${Date.now()}`,
+      id: demoId,
       moduleType,
       status,
       draft,
@@ -358,7 +404,7 @@ export function NewQuotationForm({
       suppliers: selectedSupplierIds,
       createdAt: new Date().toISOString(),
     });
-    return [] as Array<{ supplierId: string; token: string; url: string }>;
+    return { quotationId: demoId, links: [] };
   }
 
   return (
@@ -410,37 +456,22 @@ export function NewQuotationForm({
         />
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
-        <Button type="button" variant="outline" onClick={saveDraft} disabled={saving}>
-          Salvar rascunho
-        </Button>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          {step > 1 ? (
-            <Button type="button" variant="outline" onClick={() => goToStep(step - 1, "replace")}>
-              Voltar
-            </Button>
-          ) : null}
-          {step < 4 ? (
-            <Button type="button" onClick={next}>
-              Próximo
-            </Button>
-          ) : (
-            <>
-              {links.length > 0 ? (
-                <Button asChild type="button" variant="outline">
-                  <a href={links[0]?.url} target="_blank" rel="noreferrer">
-                    <ExternalLink className="h-4 w-4" />
-                    Abrir cotação
-                  </a>
-                </Button>
-              ) : null}
-              <Button type="button" onClick={generateLinks} disabled={saving}>
-                <Send className="h-4 w-4" />
-                {saving ? "Salvando..." : "Enviar cotação"}
-              </Button>
-            </>
-          )}
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+        {step > 1 ? (
+          <Button type="button" variant="outline" onClick={() => goToStep(step - 1, "replace")} disabled={submitting || saving}>
+            Voltar
+          </Button>
+        ) : null}
+        {step < 4 ? (
+          <Button type="button" onClick={next}>
+            Próximo
+          </Button>
+        ) : (
+          <Button type="button" onClick={() => void createAndSendQuotation()} disabled={submitting || saving}>
+            <Send className="h-4 w-4" />
+            {submitting || saving ? "Criando e enviando..." : "Criar e enviar cotação"}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -1087,7 +1118,7 @@ function StepReview({
                     </Button>
                     <Button asChild type="button" variant="outline" size="sm">
                       <a href={link.url} target="_blank" rel="noreferrer">
-                        <ExternalLink className="h-4 w-4" />Abrir cotação
+                        <ExternalLink className="h-4 w-4" />Visualizar link
                       </a>
                     </Button>
                     <Button asChild type="button" variant="outline" size="sm">

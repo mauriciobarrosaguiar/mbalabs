@@ -7,6 +7,8 @@ import styles from "./RouteThemeController.module.css";
 const SYSTEM_ROUTE_PREFIXES = [
   "/apps",
   "/cotacoes",
+  "/cotacao",
+  "/licitacao",
   "/lavagestor",
   "/bikecomanda",
   "/lexgestor",
