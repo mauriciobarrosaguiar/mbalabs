@@ -37,12 +37,13 @@ export async function POST(request: NextRequest) {
       isSuperAdmin: auth.isSuperAdmin,
     });
     const result = await createSupabaseQuotation({ ...body, moduleType, tenantId });
+    const publicPrefix = moduleType === "bidding" ? "licitacao" : "cotacao";
     return NextResponse.json({
       ...result,
       links: result.sessions.map((session: { supplierId?: string; publicToken: string }) => ({
         supplierId: session.supplierId,
         token: session.publicToken,
-        url: `${request.nextUrl.origin}/cotacoes/responder/${session.publicToken}`,
+        url: `${request.nextUrl.origin}/${publicPrefix}/responder/${session.publicToken}`,
       })),
     });
   } catch (error) {
