@@ -12,7 +12,7 @@ import {
 } from "@/modules/cotacoes/lib/whatsapp/mba-cotacoes";
 
 type Body = {
-  action?: "send_quotation_links" | "send_winner_orders" | "resend";
+  action?: "send_quotation_links" | "send_winner_orders" | "resend" | "confirm_manual";
   quotationId?: string;
   tipoEnvio?: WhatsappTipoEnvio;
   vendedorId?: string;
@@ -55,6 +55,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, orders, whatsapp });
     }
 
+    if (body.action === "confirm_manual") {
+      if (!body.tipoEnvio || !body.vendedorId) return NextResponse.json({ error: "Tipo de envio e vendedor são obrigatórios para confirmar o envio manual." }, { status: 400 });
+      const envio = await confirmManualSend({ quotationId: body.quotationId, tipoEnvio: body.tipoEnvio, vendedorId: body.vendedorId });
+      return NextResponse.json({ ok: true, envio });
+    }
+
     if (body.action === "resend" || (body.tipoEnvio && body.vendedorId)) {
       if (!body.tipoEnvio || !body.vendedorId) return NextResponse.json({ error: "Tipo de envio e vendedor são obrigatórios para reenviar." }, { status: 400 });
       if (body.tipoEnvio === "link_cotacao") {
@@ -71,6 +77,34 @@ export async function POST(request: NextRequest) {
     console.error("Erro no envio automático de WhatsApp", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Erro no envio automático de WhatsApp." }, { status: 500 });
   }
+}
+
+async function confirmManualSend(input: { quotationId: string; tipoEnvio: WhatsappTipoEnvio; vendedorId: string }) {
+  const supabase = createSupabaseAdminClient();
+  const { data: envio, error: findError } = await supabase
+    .from("cot_whatsapp_envios")
+    .select("id, telefone")
+    .eq("cotacao_id", input.quotationId)
+    .eq("tipo_envio", input.tipoEnvio)
+    .eq("vendedor_id", input.vendedorId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (findError) throw findError;
+  if (!envio) throw new Error("Não foi encontrado um envio automático anterior para registrar a confirmação manual.");
+
+  const { error: updateError } = await supabase
+    .from("cot_whatsapp_envios")
+    .update({
+      status: "enviado",
+      erro: null,
+      enviado_por: "manual_whatsapp",
+      enviado_em: new Date().toISOString(),
+    })
+    .eq("id", envio.id);
+  if (updateError) throw updateError;
+
+  return { vendedorId: input.vendedorId, telefone: envio.telefone, status: "enviado", enviadoPor: "manual_whatsapp" };
 }
 
 async function resendQuotationLink(input: { quotationId: string; vendedorId: string; origin: string }) {
