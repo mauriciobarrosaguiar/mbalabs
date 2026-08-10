@@ -1,0 +1,21 @@
+{
+  "id": "/apps/dronegestor/calculadora",
+  "name": "Calda Fácil",
+  "short_name": "Calda Fácil",
+  "description": "Calculadora de calda da MBA Labs",
+  "start_url": "/apps/dronegestor/calculadora",
+  "scope": "/apps/dronegestor/calculadora",
+  "display": "standalone",
+  "background_color": "#fbfaf3",
+  "theme_color": "#047857",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/calda-facil-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
