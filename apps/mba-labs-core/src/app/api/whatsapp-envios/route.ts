@@ -29,7 +29,28 @@ export async function GET(request: NextRequest) {
     const access = await ensureQuotationAccess(auth, quotationId);
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
     const envios = await listWhatsappEnvios({ quotationId, tipoEnvio, vendedorId });
-    return NextResponse.json({ envios });
+    if (envios.length === 0) return NextResponse.json({ envios });
+
+    const supabase = createSupabaseAdminClient();
+    const { data: deliveryRows, error: deliveryError } = await supabase
+      .from("cot_whatsapp_envios")
+      .select("id, provider_message_id, delivery_status, entregue_em, lido_em, status_atualizado_em")
+      .in("id", envios.map((envio) => envio.id));
+
+    if (deliveryError || !deliveryRows) return NextResponse.json({ envios });
+    const deliveryById = new Map(deliveryRows.map((row) => [row.id, row]));
+    const enriched = envios.map((envio) => {
+      const delivery = deliveryById.get(envio.id);
+      return {
+        ...envio,
+        providerMessageId: delivery?.provider_message_id ?? undefined,
+        deliveryStatus: delivery?.delivery_status ?? undefined,
+        entregueEm: delivery?.entregue_em ?? undefined,
+        lidoEm: delivery?.lido_em ?? undefined,
+        statusAtualizadoEm: delivery?.status_atualizado_em ?? undefined,
+      };
+    });
+    return NextResponse.json({ envios: enriched });
   } catch {
     return NextResponse.json({ envios: [] });
   }
@@ -93,18 +114,21 @@ async function confirmManualSend(input: { quotationId: string; tipoEnvio: Whatsa
   if (findError) throw findError;
   if (!envio) throw new Error("Não foi encontrado um envio automático anterior para registrar a confirmação manual.");
 
+  const now = new Date().toISOString();
   const { error: updateError } = await supabase
     .from("cot_whatsapp_envios")
     .update({
       status: "enviado",
       erro: null,
       enviado_por: "manual_whatsapp",
-      enviado_em: new Date().toISOString(),
+      enviado_em: now,
+      delivery_status: "manual_confirmed",
+      status_atualizado_em: now,
     })
     .eq("id", envio.id);
   if (updateError) throw updateError;
 
-  return { vendedorId: input.vendedorId, telefone: envio.telefone, status: "enviado", enviadoPor: "manual_whatsapp" };
+  return { vendedorId: input.vendedorId, telefone: envio.telefone, status: "enviado", enviadoPor: "manual_whatsapp", deliveryStatus: "manual_confirmed" };
 }
 
 async function resendQuotationLink(input: { quotationId: string; vendedorId: string; origin: string }) {
