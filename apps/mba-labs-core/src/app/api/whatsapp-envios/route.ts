@@ -8,6 +8,8 @@ import {
   sendQuotationLinksByQuotation,
   sendWhatsAppMbaCotacoes,
   sendWinnerOrderLinksByQuotation,
+  type SendWhatsAppResult,
+  type WhatsappEnvio,
   type WhatsappTipoEnvio,
 } from "@/modules/cotacoes/lib/whatsapp/mba-cotacoes";
 
@@ -16,6 +18,15 @@ type Body = {
   quotationId?: string;
   tipoEnvio?: WhatsappTipoEnvio;
   vendedorId?: string;
+};
+
+type DeliveryRow = {
+  id: string;
+  provider_message_id?: string | null;
+  delivery_status?: string | null;
+  entregue_em?: string | null;
+  lido_em?: string | null;
+  status_atualizado_em?: string | null;
 };
 
 export async function GET(request: NextRequest) {
@@ -28,8 +39,30 @@ export async function GET(request: NextRequest) {
     const auth = await getCurrentAuthContext();
     const access = await ensureQuotationAccess(auth, quotationId);
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
-    const envios = await listWhatsappEnvios({ quotationId, tipoEnvio, vendedorId });
-    return NextResponse.json({ envios });
+    const envios = await listWhatsappEnvios({ quotationId, tipoEnvio, vendedorId }) as WhatsappEnvio[];
+    if (envios.length === 0) return NextResponse.json({ envios });
+
+    const supabase = createSupabaseAdminClient();
+    const { data, error: deliveryError } = await supabase
+      .from("cot_whatsapp_envios")
+      .select("id, provider_message_id, delivery_status, entregue_em, lido_em, status_atualizado_em")
+      .in("id", envios.map((envio: WhatsappEnvio) => envio.id));
+
+    if (deliveryError || !data) return NextResponse.json({ envios });
+    const deliveryRows = data as unknown as DeliveryRow[];
+    const deliveryById = new Map<string, DeliveryRow>(deliveryRows.map((row: DeliveryRow) => [row.id, row]));
+    const enriched = envios.map((envio: WhatsappEnvio) => {
+      const delivery = deliveryById.get(envio.id);
+      return {
+        ...envio,
+        providerMessageId: delivery?.provider_message_id ?? undefined,
+        deliveryStatus: delivery?.delivery_status ?? undefined,
+        entregueEm: delivery?.entregue_em ?? undefined,
+        lidoEm: delivery?.lido_em ?? undefined,
+        statusAtualizadoEm: delivery?.status_atualizado_em ?? undefined,
+      };
+    });
+    return NextResponse.json({ envios: enriched });
   } catch {
     return NextResponse.json({ envios: [] });
   }
@@ -46,12 +79,14 @@ export async function POST(request: NextRequest) {
 
     if (body.action === "send_quotation_links") {
       const whatsapp = await sendQuotationLinksByQuotation({ quotationId: body.quotationId, origin });
+      await persistProviderMessageIds(body.quotationId, "link_cotacao", whatsapp.results);
       return NextResponse.json({ ok: true, whatsapp });
     }
 
     if (body.action === "send_winner_orders") {
       const orders = await generatePurchaseOrders(body.quotationId, access.tenantId);
       const whatsapp = await sendWinnerOrderLinksByQuotation({ quotationId: body.quotationId, origin, orders });
+      await persistProviderMessageIds(body.quotationId, "resultado_cotacao", whatsapp.results);
       return NextResponse.json({ ok: true, orders, whatsapp });
     }
 
@@ -65,10 +100,12 @@ export async function POST(request: NextRequest) {
       if (!body.tipoEnvio || !body.vendedorId) return NextResponse.json({ error: "Tipo de envio e vendedor são obrigatórios para reenviar." }, { status: 400 });
       if (body.tipoEnvio === "link_cotacao") {
         const result = await resendQuotationLink({ quotationId: body.quotationId, vendedorId: body.vendedorId, origin });
+        await persistProviderMessageIds(body.quotationId, "link_cotacao", [result]);
         return NextResponse.json({ ok: true, whatsapp: summarizeSingle(result) });
       }
       const orders = await generatePurchaseOrders(body.quotationId, access.tenantId);
       const whatsapp = await sendWinnerOrderLinksByQuotation({ quotationId: body.quotationId, origin, orders, vendedorId: body.vendedorId, forceResend: true });
+      await persistProviderMessageIds(body.quotationId, "resultado_cotacao", whatsapp.results);
       return NextResponse.json({ ok: true, orders, whatsapp });
     }
 
@@ -77,6 +114,22 @@ export async function POST(request: NextRequest) {
     console.error("Erro no envio automático de WhatsApp", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Erro no envio automático de WhatsApp." }, { status: 500 });
   }
+}
+
+async function persistProviderMessageIds(quotationId: string, tipoEnvio: WhatsappTipoEnvio, results: SendWhatsAppResult[]) {
+  const valid = results.filter((result) => Boolean(result.providerMessageId && result.vendedorId));
+  if (valid.length === 0) return;
+  const supabase = createSupabaseAdminClient();
+  const now = new Date().toISOString();
+  await Promise.all(valid.map(async (result) => {
+    const { error } = await supabase
+      .from("cot_whatsapp_envios")
+      .update({ provider_message_id: result.providerMessageId, delivery_status: "sent", status_atualizado_em: now })
+      .eq("cotacao_id", quotationId)
+      .eq("vendedor_id", result.vendedorId)
+      .eq("tipo_envio", tipoEnvio);
+    if (error) console.warn("[MBA Cotações] Não foi possível gravar provider_message_id", error.message);
+  }));
 }
 
 async function confirmManualSend(input: { quotationId: string; tipoEnvio: WhatsappTipoEnvio; vendedorId: string }) {
@@ -93,18 +146,14 @@ async function confirmManualSend(input: { quotationId: string; tipoEnvio: Whatsa
   if (findError) throw findError;
   if (!envio) throw new Error("Não foi encontrado um envio automático anterior para registrar a confirmação manual.");
 
+  const now = new Date().toISOString();
   const { error: updateError } = await supabase
     .from("cot_whatsapp_envios")
-    .update({
-      status: "enviado",
-      erro: null,
-      enviado_por: "manual_whatsapp",
-      enviado_em: new Date().toISOString(),
-    })
+    .update({ status: "enviado", erro: null, enviado_por: "manual_whatsapp", enviado_em: now, delivery_status: "manual_confirmed", status_atualizado_em: now })
     .eq("id", envio.id);
   if (updateError) throw updateError;
 
-  return { vendedorId: input.vendedorId, telefone: envio.telefone, status: "enviado", enviadoPor: "manual_whatsapp" };
+  return { vendedorId: input.vendedorId, telefone: envio.telefone, status: "enviado", enviadoPor: "manual_whatsapp", deliveryStatus: "manual_confirmed" };
 }
 
 async function resendQuotationLink(input: { quotationId: string; vendedorId: string; origin: string }) {

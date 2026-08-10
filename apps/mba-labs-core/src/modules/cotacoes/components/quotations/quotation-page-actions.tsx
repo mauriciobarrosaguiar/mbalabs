@@ -30,6 +30,10 @@ type WhatsappResult = {
   enviadoPor?: string;
   enviadoEm?: string;
   erro?: string;
+  deliveryStatus?: string;
+  entregueEm?: string;
+  lidoEm?: string;
+  statusAtualizadoEm?: string;
 };
 type WhatsappSummary = {
   total?: number;
@@ -70,15 +74,25 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
     if (!isDetail) return;
     let active = true;
     const query = new URLSearchParams({ quotationId, tipoEnvio: "link_cotacao" });
-    fetch(`/api/whatsapp-envios?${query.toString()}`)
-      .then((response) => response.json())
-      .then((payload) => {
+
+    async function loadWhatsappStatus() {
+      try {
+        const response = await fetch(`/api/whatsapp-envios?${query.toString()}`, { cache: "no-store" });
+        const payload = await response.json();
         if (!active) return;
         const envios = Array.isArray(payload.envios) ? payload.envios as WhatsappResult[] : [];
         if (envios.length > 0) setWhatsappSummary(summaryFromEnvios(envios));
-      })
-      .catch(() => undefined);
-    return () => { active = false; };
+      } catch {
+        // O status é complementar; falha de polling não deve interromper a cotação.
+      }
+    }
+
+    void loadWhatsappStatus();
+    const interval = window.setInterval(() => void loadWhatsappStatus(), 5000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, [isDetail, quotationId]);
 
   async function mutate(action: "finish" | "reopen_links") {
@@ -252,6 +266,9 @@ function WhatsappSendSummary({ summary }: { summary: WhatsappSummary }) {
   const evolutionSent = results.filter((result) => result.status === "enviado" && result.enviadoPor === "evolution_api").length;
   const manualSent = results.filter((result) => result.status === "enviado" && result.enviadoPor === "manual_whatsapp").length;
   const alreadySent = results.filter((result) => result.status === "enviado" && result.skipped).length;
+  const delivered = results.filter((result) => ["delivered", "read", "played"].includes(result.deliveryStatus ?? "")).length;
+  const read = results.filter((result) => ["read", "played"].includes(result.deliveryStatus ?? "")).length;
+  const deliveryTracked = results.filter((result) => Boolean(result.deliveryStatus) && result.enviadoPor === "evolution_api").length;
   const failed = Number(summary.falhou ?? results.filter((result) => result.status === "falhou").length);
   const totalSent = Number(summary.enviado ?? results.filter((result) => result.status === "enviado").length);
   const currentEvolutionSent = results.filter((result) => result.status === "enviado" && result.enviadoPor === "evolution_api" && !result.skipped).length;
@@ -269,6 +286,13 @@ function WhatsappSendSummary({ summary }: { summary: WhatsappSummary }) {
         {alreadySent > 0 ? `Já enviados anteriormente: ${alreadySent}. ` : ""}
         {failed > 0 ? `Falharam: ${failed}. A fila manual será usada somente para estes vendedores.` : "Nenhuma falha pendente neste resultado."}
       </p>
+      {evolutionSent > 0 ? (
+        <p className="text-xs leading-5 opacity-90">
+          {deliveryTracked > 0
+            ? `Status Evolution: ${delivered} entregue(s) · ${read} lido(s). Atualização automática a cada poucos segundos.`
+            : "Status Evolution: aguardando retorno de entrega/leitura pelo webhook."}
+        </p>
+      ) : null}
     </div>
   );
 }
