@@ -1,29 +1,5 @@
-import type { Metadata } from "next";
-import { QuickCaldaCalculatorV3 } from "../apps/dronegestor/calculadora/QuickCaldaCalculatorV3";
-
-export const metadata: Metadata = {
-  title: "Calda Fácil",
-  description: "Calculadora de calda simples e pública da MBA Labs."
-};
+import { redirect } from "next/navigation";
 
 export default function CaldaFacilPublicPage() {
-  return (
-    <>
-      <QuickCaldaCalculatorV3 />
-      <style>{`
-        html,
-        body,
-        input,
-        select,
-        textarea,
-        button {
-          color-scheme: light only;
-        }
-
-        a[aria-label="Voltar para a MBA Labs"] {
-          display: none !important;
-        }
-      `}</style>
-    </>
-  );
+  redirect("/apps/dronegestor/calculadora");
 }
