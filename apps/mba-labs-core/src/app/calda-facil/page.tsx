@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { QuickCaldaCalculatorV3 } from "../apps/dronegestor/calculadora/QuickCaldaCalculatorV3";
+import { InstallAppButton } from "./InstallAppButton";
 
 export const metadata: Metadata = {
   title: "Calda Fácil",
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
 export default function CaldaFacilPublicPage() {
   return (
     <>
+      <InstallAppButton />
       <QuickCaldaCalculatorV3 />
       <style>{`
         html,
