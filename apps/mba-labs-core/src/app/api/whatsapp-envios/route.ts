@@ -8,6 +8,7 @@ import {
   sendQuotationLinksByQuotation,
   sendWhatsAppMbaCotacoes,
   sendWinnerOrderLinksByQuotation,
+  type SendWhatsAppResult,
   type WhatsappEnvio,
   type WhatsappTipoEnvio,
 } from "@/modules/cotacoes/lib/whatsapp/mba-cotacoes";
@@ -78,12 +79,14 @@ export async function POST(request: NextRequest) {
 
     if (body.action === "send_quotation_links") {
       const whatsapp = await sendQuotationLinksByQuotation({ quotationId: body.quotationId, origin });
+      await persistProviderMessageIds(body.quotationId, "link_cotacao", whatsapp.results);
       return NextResponse.json({ ok: true, whatsapp });
     }
 
     if (body.action === "send_winner_orders") {
       const orders = await generatePurchaseOrders(body.quotationId, access.tenantId);
       const whatsapp = await sendWinnerOrderLinksByQuotation({ quotationId: body.quotationId, origin, orders });
+      await persistProviderMessageIds(body.quotationId, "resultado_cotacao", whatsapp.results);
       return NextResponse.json({ ok: true, orders, whatsapp });
     }
 
@@ -97,10 +100,12 @@ export async function POST(request: NextRequest) {
       if (!body.tipoEnvio || !body.vendedorId) return NextResponse.json({ error: "Tipo de envio e vendedor são obrigatórios para reenviar." }, { status: 400 });
       if (body.tipoEnvio === "link_cotacao") {
         const result = await resendQuotationLink({ quotationId: body.quotationId, vendedorId: body.vendedorId, origin });
+        await persistProviderMessageIds(body.quotationId, "link_cotacao", [result]);
         return NextResponse.json({ ok: true, whatsapp: summarizeSingle(result) });
       }
       const orders = await generatePurchaseOrders(body.quotationId, access.tenantId);
       const whatsapp = await sendWinnerOrderLinksByQuotation({ quotationId: body.quotationId, origin, orders, vendedorId: body.vendedorId, forceResend: true });
+      await persistProviderMessageIds(body.quotationId, "resultado_cotacao", whatsapp.results);
       return NextResponse.json({ ok: true, orders, whatsapp });
     }
 
@@ -109,6 +114,22 @@ export async function POST(request: NextRequest) {
     console.error("Erro no envio automático de WhatsApp", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Erro no envio automático de WhatsApp." }, { status: 500 });
   }
+}
+
+async function persistProviderMessageIds(quotationId: string, tipoEnvio: WhatsappTipoEnvio, results: SendWhatsAppResult[]) {
+  const valid = results.filter((result) => Boolean(result.providerMessageId && result.vendedorId));
+  if (valid.length === 0) return;
+  const supabase = createSupabaseAdminClient();
+  const now = new Date().toISOString();
+  await Promise.all(valid.map(async (result) => {
+    const { error } = await supabase
+      .from("cot_whatsapp_envios")
+      .update({ provider_message_id: result.providerMessageId, delivery_status: "sent", status_atualizado_em: now })
+      .eq("cotacao_id", quotationId)
+      .eq("vendedor_id", result.vendedorId)
+      .eq("tipo_envio", tipoEnvio);
+    if (error) console.warn("[MBA Cotações] Não foi possível gravar provider_message_id", error.message);
+  }));
 }
 
 async function confirmManualSend(input: { quotationId: string; tipoEnvio: WhatsappTipoEnvio; vendedorId: string }) {
