@@ -18,13 +18,14 @@ export async function createSupplierSessionsAction() {
 export async function generateQuotationLinksAction(payload: Parameters<typeof createSupabaseQuotation>[0] & { moduleType: ModuleType }) {
   const result = await createSupabaseQuotation(payload);
   const appUrl = resolvePublicAppUrl();
+  const prefix = payload.moduleType === "bidding" ? "licitacao" : "cotacao";
 
   return {
     ...result,
     links: result.sessions.map((session: { supplierId?: string; publicToken: string }) => ({
       supplierId: session.supplierId,
       token: session.publicToken,
-      url: `${appUrl}/cotacoes/responder/${session.publicToken}`,
+      url: `${appUrl}/${prefix}/responder/${session.publicToken}`,
     })),
   };
 }
