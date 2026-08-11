@@ -8,6 +8,7 @@ import { Button } from "@/modules/cotacoes/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/modules/cotacoes/components/ui/card";
 import { SellerResponseForm } from "@/modules/cotacoes/components/quotations/seller-response-form";
 import { WinnerOrderForm } from "@/modules/cotacoes/components/quotations/winner-order-form";
+import { SafeFileUploadBoundary } from "@/modules/cotacoes/components/security/safe-file-upload-boundary";
 import { formatCurrency, formatDate, formatDateTime } from "@/modules/cotacoes/lib/formatters";
 import {
   canUsePublicResponseRepository,
@@ -149,23 +150,25 @@ export async function VendorResponsePage({
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          <SellerResponseForm
-            token={token}
-            moduleType={moduleType}
-            items={items}
-            sellerDefaults={{
-              name: session.sellerName,
-              company: session.sellerCompany,
-              whatsapp: session.sellerWhatsapp,
-              email: session.sellerEmail,
-            }}
-            initialResponse={response}
-            initialResponseItems={responseItems}
-            lockedReason={lockedReason}
-            buyerName={buyerName}
-            quotationName={quotation.name}
-            deadlineAt={quotation.deadlineAt}
-          />
+          <SafeFileUploadBoundary>
+            <SellerResponseForm
+              token={token}
+              moduleType={moduleType}
+              items={items}
+              sellerDefaults={{
+                name: session.sellerName,
+                company: session.sellerCompany,
+                whatsapp: session.sellerWhatsapp,
+                email: session.sellerEmail,
+              }}
+              initialResponse={response}
+              initialResponseItems={responseItems}
+              lockedReason={lockedReason}
+              buyerName={buyerName}
+              quotationName={quotation.name}
+              deadlineAt={quotation.deadlineAt}
+            />
+          </SafeFileUploadBoundary>
           <div className="flex items-start gap-3 rounded-md bg-slate-50 p-4 text-sm text-muted-foreground">
             <LockKeyhole className="mt-0.5 h-4 w-4 text-teal-700" />
             <p>
