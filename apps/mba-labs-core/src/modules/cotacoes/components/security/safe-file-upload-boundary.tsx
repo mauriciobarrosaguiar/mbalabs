@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type ChangeEvent, type ReactNode } from "react";
+import { useRef, type FormEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -49,7 +49,7 @@ type ValidationResult =
 export function SafeFileUploadBoundary({ children }: { children: ReactNode }) {
   const validatingInputs = useRef(new WeakSet<HTMLInputElement>());
 
-  async function handleFileChangeCapture(event: ChangeEvent<HTMLDivElement>) {
+  async function handleFileChangeCapture(event: FormEvent<HTMLDivElement>) {
     const input = event.target;
     if (!(input instanceof HTMLInputElement) || input.type !== "file") return;
 
