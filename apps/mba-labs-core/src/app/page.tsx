@@ -44,8 +44,8 @@ type Benefit = {
 
 const benefits: Benefit[] = [
   {
-    title: "Implantação rápida",
-    description: "Seu sistema no ar em dias, não em meses — com dados migrados e equipe treinada.",
+    title: "Implantação objetiva",
+    description: "Entramos em produção por etapas, com homologação antes de liberar cada solução para clientes reais.",
     icon: Zap
   },
   {
@@ -55,12 +55,12 @@ const benefits: Benefit[] = [
   },
   {
     title: "Decisões com dados",
-    description: "Relatórios claros e indicadores em tempo real para você enxergar o negócio de verdade.",
+    description: "Relatórios claros e indicadores para você enxergar o negócio e acompanhar a operação.",
     icon: ChartLine
   },
   {
-    title: "Segurança e backup",
-    description: "Seus dados protegidos e disponíveis, com backups automáticos e acesso controlado.",
+    title: "Acesso controlado",
+    description: "Acesso por usuário, regras por empresa e revisão contínua de segurança antes de ampliar cada produto.",
     icon: ShieldCheck
   },
   {
@@ -88,50 +88,48 @@ export default async function HomePage() {
   const products: Product[] = [
     {
       name: cotacoes?.name || "MBA Cotações",
-      category: "Vendas & Orçamentos",
+      category: "Disponível · Vendas & Orçamentos",
       description:
         cotacoes?.description ||
-        "Monte cotações profissionais em segundos, acompanhe negociações e converta mais propostas em vendas fechadas.",
+        "Crie cotações, receba respostas de fornecedores, analise vencedores e gere pedidos em um fluxo único.",
       href: cotacoes?.href || "/apps/mbacotacoes",
       icon: FileText,
       tone: "tonePurple",
       wide: true
     },
     {
+      name: "Portal Associativo",
+      category: "Disponível · Associações & Clubes",
+      description: "Gestão de associados, financeiro, comprovantes, comunicados, permissões e relatórios em um único portal.",
+      href: "/portal-associativo",
+      icon: Users,
+      tone: "toneAmber"
+    },
+    {
       name: lavagestor?.name || "LavaGestor",
-      category: "Estética Automotiva",
+      category: "Em finalização · Estética Automotiva",
       description:
-        lavagestor?.description ||
-        "Fila de serviços, comandas e financeiro de lava-jatos e estéticas automotivas em um só painel.",
+        "Fluxo de clientes, veículos, lavagens, comissões, pagamentos e relatórios em homologação para operação comercial.",
       href: lavagestor?.href || "/apps/lavagestor",
       icon: Droplets,
       tone: "toneCyan"
     },
     {
       name: bikecomanda?.name || "BikeComanda",
-      category: "Bicicletarias & Oficinas",
+      category: "Em finalização · Bicicletarias & Oficinas",
       description:
-        bikecomanda?.description ||
-        "Ordens de serviço, peças e histórico de manutenção para lojas e oficinas de bicicletas.",
+        "Comandas, clientes, bicicletas, serviços e financeiro em processo de integração nativa ao ecossistema MBA Labs.",
       href: bikecomanda?.href || "/apps/bikecomanda",
       icon: Bike,
       tone: "toneGreen"
     },
     {
       name: "LexGestor",
-      category: "Escritórios Jurídicos",
-      description: "Processos, prazos, clientes e documentos organizados com segurança para rotinas jurídicas.",
-      href: "/lexgestor",
+      category: "Em revisão de segurança · Escritórios Jurídicos",
+      description: "Módulo jurídico temporariamente em homologação de segurança antes da liberação para novos clientes reais.",
+      href: "/login",
       icon: Scale,
       tone: "tonePink"
-    },
-    {
-      name: "Portal Associativo",
-      category: "Associações & Clubes",
-      description: "Gestão de associados, mensalidades, comunicados e eventos em um portal moderno e simples.",
-      href: "/portal-associativo",
-      icon: Users,
-      tone: "toneAmber"
     }
   ];
 
@@ -185,7 +183,7 @@ export default async function HomePage() {
         <div className={`${styles.container} ${styles.heroGrid}`}>
           <div>
             <span className={styles.badge}>
-              <Sparkles size={14} /> Uma fábrica de sistemas sob medida
+              <Sparkles size={14} /> Sistemas SaaS para rotinas reais
             </span>
             <h1 className={styles.heroTitle}>
               Sistemas que fazem
@@ -193,8 +191,8 @@ export default async function HomePage() {
               seu negócio <span className={styles.gradientText}>rodar de verdade.</span>
             </h1>
             <p className={styles.heroText}>
-              A MBA Labs desenvolve plataformas de gestão sob medida para setores específicos — de cotações a lava-jatos,
-              de bicicletarias a escritórios jurídicos e associações. Menos planilha, mais controle.
+              A MBA Labs desenvolve plataformas de gestão para nichos específicos. Cada solução passa por homologação
+              antes de ser liberada para clientes, com foco em operação simples, controle e evolução contínua.
             </p>
 
             <div className={styles.heroButtons}>
@@ -208,13 +206,13 @@ export default async function HomePage() {
 
             <div className={styles.stats}>
               <div className={styles.stat}>
-                <strong>5</strong>
-                sistemas em operação
+                <strong>2</strong>
+                soluções disponíveis
               </div>
               <span className={styles.statDivider} aria-hidden />
               <div className={styles.stat}>
-                <strong>100%</strong>
-                foco em nichos reais
+                <strong>3</strong>
+                módulos em homologação
               </div>
               <span className={styles.statDivider} aria-hidden />
               <div className={styles.stat}>
@@ -225,11 +223,11 @@ export default async function HomePage() {
           </div>
 
           <div className={styles.floatingArea} aria-label="Sistemas da MBA Labs">
-            <FloatingCard className={styles.floatCotacoes} icon={FileText} name="MBA Cotações" />
-            <FloatingCard className={styles.floatLava} icon={Droplets} name="LavaGestor" />
-            <FloatingCard className={styles.floatBike} icon={Bike} name="BikeComanda" />
-            <FloatingCard className={styles.floatLex} icon={Scale} name="LexGestor" />
-            <FloatingCard className={styles.floatPortal} icon={Users} name="Portal Associativo" />
+            <FloatingCard className={styles.floatCotacoes} icon={FileText} name="MBA Cotações · disponível" />
+            <FloatingCard className={styles.floatPortal} icon={Users} name="Portal Associativo · disponível" />
+            <FloatingCard className={styles.floatLava} icon={Droplets} name="LavaGestor · finalização" />
+            <FloatingCard className={styles.floatBike} icon={Bike} name="BikeComanda · finalização" />
+            <FloatingCard className={styles.floatLex} icon={Scale} name="LexGestor · revisão" />
           </div>
         </div>
       </section>
@@ -239,11 +237,11 @@ export default async function HomePage() {
           <div className={styles.sectionHead}>
             <div>
               <span className={styles.kicker}>Nosso ecossistema</span>
-              <h2 className={styles.sectionTitle}>Cinco sistemas, cada um construído para um negócio real.</h2>
+              <h2 className={styles.sectionTitle}>Soluções em estágios claros de disponibilidade.</h2>
             </div>
             <p className={styles.sectionIntro}>
-              Nenhum sistema genérico. Cada produto da MBA Labs nasce da rotina de um setor específico — por isso resolve
-              de verdade.
+              Aqui você vê o que já está disponível para operação e o que ainda está em finalização ou revisão antes de
+              receber novos clientes.
             </p>
           </div>
 
@@ -309,10 +307,10 @@ export default async function HomePage() {
       <section className={styles.ctaSection} id="contato">
         <div className={styles.container}>
           <div className={styles.ctaCard}>
-            <h2 className={styles.ctaTitle}>Pronto para colocar seu negócio no piloto certo?</h2>
+            <h2 className={styles.ctaTitle}>Quer conhecer uma solução já disponível?</h2>
             <p className={styles.ctaText}>
-              Conte para a nossa equipe o que você precisa e receba uma demonstração personalizada do sistema mais
-              adequado ao seu negócio.
+              Fale com a MBA Labs para conhecer os sistemas liberados para operação ou acompanhar os módulos que ainda
+              estão em homologação.
             </p>
             <div className={styles.ctaActions}>
               <a className={styles.primaryButton} href={whatsappHref} target="_blank" rel="noreferrer">
@@ -341,7 +339,7 @@ export default async function HomePage() {
               </span>
             </Link>
             <p className={styles.footerDescription}>
-              Sistemas de gestão sob medida para negócios que precisam de mais controle e menos planilha.
+              Sistemas de gestão para negócios que precisam de mais controle, menos planilha e uma operação mais simples.
             </p>
           </div>
 
