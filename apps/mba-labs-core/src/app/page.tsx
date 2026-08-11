@@ -248,9 +248,10 @@ export default async function HomePage() {
           <div className={styles.productsGrid}>
             {products.map((product) => {
               const Icon = product.icon;
+              const toneClass = product.tone === "tonePurple" ? "" : styles[product.tone];
               return (
                 <article
-                  className={`${styles.productCard} ${styles[product.tone]} ${product.wide ? styles.productWide : ""}`}
+                  className={`${styles.productCard} ${toneClass} ${product.wide ? styles.productWide : ""}`}
                   key={product.name}
                 >
                   <span className={styles.productGlow} aria-hidden />
