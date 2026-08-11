@@ -44,7 +44,7 @@ export const defaultSiteConfig: SiteConfig = {
   primaryButtonText: "Conhecer sistemas",
   whatsappButtonText: "Falar no WhatsApp",
   whatsappUrl:
-    "https://wa.me/5500000000000?text=Ol%C3%A1%2C%20quero%20conhecer%20os%20sistemas%20da%20MBA%20Labs.",
+    "https://wa.me/5563984326004?text=Ol%C3%A1%2C%20quero%20conhecer%20os%20sistemas%20da%20MBA%20Labs.",
   sideEyebrow: "Operação sob controle",
   sideTitle: "Um app para cada frente do seu negócio",
   sideText:
