@@ -99,12 +99,13 @@ export function InstallAppCard() {
       </div>
 
       <button
-        className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-cyan-300 px-4 py-3 text-sm font-black text-slate-950 transition hover:bg-cyan-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200"
+        className="mt-4 grid size-10 place-items-center rounded-xl bg-cyan-300 text-slate-950 transition hover:bg-cyan-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200"
         type="button"
         onClick={handleInstall}
+        aria-label="Instalar aplicativo MBA Labs"
+        title="Instalar aplicativo MBA Labs"
       >
         <Download size={18} />
-        Instalar aplicativo MBA Labs
       </button>
 
       <p className="mt-2 text-center text-xs leading-5 text-slate-400">
