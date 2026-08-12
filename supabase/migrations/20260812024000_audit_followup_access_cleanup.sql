@@ -23,3 +23,46 @@ set
   ativo = false,
   updated_at = now()
 where slug = 'chama-diarista';
+
+-- Sincroniza o catálogo persistido com os módulos que já existem no Core.
+-- Nenhum cliente recebe acesso automaticamente; isso depende dos vínculos por empresa/usuário.
+insert into public.core_apps (slug, nome, descricao, url_path, url_interna, status, ativo, ordem)
+values
+  (
+    'dronegestor',
+    'Calculadora de Calda',
+    'Calculadora para volume de calda, múltiplos produtos, doses, sequência e receita de preparo.',
+    '/apps/dronegestor/calculadora',
+    '/apps/dronegestor/calculadora',
+    'ativo',
+    true,
+    80
+  ),
+  (
+    'mba-escola',
+    'MBA Escola',
+    'Comunicação, atividades, reuniões e acompanhamento entre escola e famílias.',
+    '/mba-escola',
+    '/mba-escola',
+    'ativo',
+    true,
+    90
+  ),
+  (
+    'google-empresas',
+    'Google Empresas',
+    'Painel privado para cadastrar, autorizar, criar e verificar Perfis da Empresa no Google.',
+    '/google-empresas',
+    '/google-empresas',
+    'ativo',
+    true,
+    100
+  )
+on conflict (slug) do update
+set
+  nome = excluded.nome,
+  descricao = excluded.descricao,
+  url_path = excluded.url_path,
+  url_interna = excluded.url_interna,
+  ordem = excluded.ordem,
+  updated_at = now();
