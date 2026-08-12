@@ -13,7 +13,7 @@ export default async function SetupAdminPage({
   const params = await searchParams;
   const setupKey = firstParam(params.key) ?? "";
   const requiredKey = process.env.SETUP_ADMIN_SECRET?.trim();
-  const isKeyValid = !requiredKey || setupKey === requiredKey;
+  const isKeyValid = Boolean(requiredKey) && setupKey === requiredKey;
   const adminExists = await hasAdminMaster();
 
   return (
@@ -26,14 +26,14 @@ export default async function SetupAdminPage({
           <div className="grid gap-2">
             <p className="eyebrow">Configuração inicial</p>
             <h1 className="text-3xl font-black">
-              {adminExists ? "Configuração inicial já realizada" : "Cadastrar Admin Master"}
+              {adminExists ? "Configuração inicial já realizada" : "Acesso restrito"}
             </h1>
             <p className="text-sm leading-6 text-slate-300">
               {adminExists
                 ? "O acesso principal da MBA Labs já foi configurado."
                 : isKeyValid
                   ? "Crie o primeiro usuário principal para começar a usar o portal."
-                  : "Acesso restrito para configuração inicial."}
+                  : "A configuração inicial só pode ser aberta com a chave administrativa definida no ambiente seguro."}
             </p>
           </div>
           {adminExists ? (
@@ -42,7 +42,11 @@ export default async function SetupAdminPage({
             </Link>
           ) : isKeyValid ? (
             <SetupAdminForm setupKey={setupKey} />
-          ) : null}
+          ) : (
+            <Link className="button-primary w-fit" href="/login">
+              Ir para login
+            </Link>
+          )}
         </section>
       </div>
     </main>
@@ -55,14 +59,16 @@ async function hasAdminMaster() {
     const { count, error } = await supabase
       .from("core_usuarios")
       .select("id", { count: "exact", head: true })
-      .in("tipo", ["super_admin", "admin_master"]);
+      .in("tipo", ["super_admin", "admin_master"])
+      .eq("status", "ativo");
 
     if (error) {
-      return false;
+      return true;
     }
 
     return (count ?? 0) > 0;
   } catch {
-    return false;
+    // Em caso de falha do banco, falhe fechado para não expor o bootstrap.
+    return true;
   }
 }
