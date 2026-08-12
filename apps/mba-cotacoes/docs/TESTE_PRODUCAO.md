@@ -1,3 +1,11 @@
+# ARQUIVO HISTÓRICO — NÃO USAR COMO CHECKLIST ATUAL DE PRODUÇÃO
+
+Este documento pertence ao workspace legado `apps/mba-cotacoes`. As rotas `/app/*` e o domínio `mbacotacoes.vercel.app` abaixo são referências antigas.
+
+Para a versão atual, use `apps/mba-labs-core/src/modules/cotacoes` e as rotas do Core em `https://www.mbalabs.com.br/cotacoes`, além dos aliases públicos `/cotacao/*` e `/licitacao/*`.
+
+---
+
 # Checklist de Teste de Producao
 
 ## Preparacao
