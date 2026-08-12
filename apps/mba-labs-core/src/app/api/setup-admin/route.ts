@@ -14,7 +14,9 @@ export async function POST(request: Request) {
     const requiredKey = process.env.SETUP_ADMIN_SECRET?.trim();
     const providedKey = requestUrl.searchParams.get("key")?.trim();
 
-    if (requiredKey && providedKey !== requiredKey) {
+    // A rota de bootstrap nunca deve funcionar sem uma chave configurada.
+    // Isso evita que a remoção acidental dos admins reabra o cadastro público.
+    if (!requiredKey || providedKey !== requiredKey) {
       return NextResponse.json({ error: "Acesso restrito para configuração inicial." }, { status: 403 });
     }
 
@@ -35,7 +37,8 @@ export async function POST(request: Request) {
     const { count, error: countError } = await supabase
       .from("core_usuarios")
       .select("id", { count: "exact", head: true })
-      .in("tipo", ["super_admin", "admin_master"]);
+      .in("tipo", ["super_admin", "admin_master"])
+      .eq("status", "ativo");
 
     if (countError) {
       return NextResponse.json({ error: countError.message }, { status: 500 });
@@ -59,7 +62,7 @@ export async function POST(request: Request) {
 
     if (authError || !authData.user) {
       return NextResponse.json(
-        { error: authError?.message ?? "Nao foi possivel criar usuario no Auth." },
+        { error: authError?.message ?? "Não foi possível criar usuário no Auth." },
         { status: 500 }
       );
     }
@@ -70,7 +73,7 @@ export async function POST(request: Request) {
         {
           nome: "Outros",
           slug: "outros",
-          descricao: "Categoria geral para empresas nao classificadas.",
+          descricao: "Categoria geral para empresas não classificadas.",
           status: "ativa"
         },
         { onConflict: "slug" }
@@ -81,7 +84,7 @@ export async function POST(request: Request) {
     if (categoriaError || !categoria) {
       await supabase.auth.admin.deleteUser(authData.user.id);
       return NextResponse.json(
-        { error: categoriaError?.message ?? "Nao foi possivel criar categoria inicial." },
+        { error: categoriaError?.message ?? "Não foi possível criar categoria inicial." },
         { status: 500 }
       );
     }
@@ -103,7 +106,7 @@ export async function POST(request: Request) {
     if (empresaError || !empresa) {
       await supabase.auth.admin.deleteUser(authData.user.id);
       return NextResponse.json(
-        { error: empresaError?.message ?? "Nao foi possivel criar empresa." },
+        { error: empresaError?.message ?? "Não foi possível criar empresa." },
         { status: 500 }
       );
     }
