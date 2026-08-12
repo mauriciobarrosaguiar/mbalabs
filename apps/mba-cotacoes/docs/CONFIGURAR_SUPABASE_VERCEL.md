@@ -1,3 +1,11 @@
+# ARQUIVO HISTÓRICO — NÃO USAR PARA CONFIGURAR A PRODUÇÃO ATUAL
+
+Este guia descreve a antiga execução standalone do MBA Cotações. O sistema atual roda integrado ao `mba-labs-core`, no projeto Vercel principal e no Supabase central do MBA Labs.
+
+Não crie um novo projeto Supabase, não use `mbacotacoes.vercel.app` e não rode o setup de admin deste workspace para a produção atual. Consulte `apps/mba-labs-core/src/modules/cotacoes/README.md` e a configuração do Core.
+
+---
+
 # Configurar Supabase e Vercel
 
 Este guia prepara o CotaFarma Web para rodar em produção com dados reais.
