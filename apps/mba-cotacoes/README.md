@@ -1,72 +1,79 @@
-# MBA Cotacoes
+# MBA Cotações — legado temporário
 
-App de cotacoes farmaceuticas e compras de licitacao dentro do monorepo MBA Labs.
+> **Status:** LEGACY / somente compatibilidade e comparação durante a Fase 1 de unificação.
+>
+> **Não implementar novas funcionalidades neste workspace.** A versão canônica do MBA Cotações está integrada ao MBA Labs Core.
 
-Local correto no repositorio:
+## Fonte canônica
+
+A implementação oficial usada pela plataforma e pelo fluxo de acesso do MBA Labs é:
 
 ```text
-apps/mba-cotacoes
+apps/mba-labs-core/src/modules/cotacoes
 ```
 
-## Stack
+Rotas da aplicação:
 
-- Next.js App Router
-- TypeScript
-- Tailwind CSS
-- shadcn/ui
-- Supabase Postgres/Auth/Storage
-- Workspace compartilhado `@mba-labs/shared`
+```text
+apps/mba-labs-core/src/app/cotacoes
+```
 
-## Rodar localmente
+APIs específicas do módulo:
 
-Na raiz do monorepo:
+```text
+apps/mba-labs-core/src/app/api/cotacoes
+```
+
+Entrada pelo portal:
+
+```text
+/apps/mbacotacoes -> /cotacoes
+```
+
+A entrada passa pelo controle central de autenticação, empresa, assinatura e permissão do MBA Labs.
+
+## Por que este workspace ainda existe?
+
+`apps/mba-cotacoes` foi a implementação separada original e ainda é mantido temporariamente como referência durante a consolidação. Ele não deve ser tratado como a fonte oficial de novas alterações.
+
+Antes de removê-lo, a Fase 1 exige:
+
+1. comparar componentes, serviços e APIs com a versão do Core;
+2. identificar qualquer comportamento útil que exista apenas aqui;
+3. migrar somente o que realmente estiver faltando no Core;
+4. validar o fluxo completo em Preview e produção;
+5. preservar documentação ou testes úteis;
+6. só então remover este workspace e regenerar o lockfile.
+
+## Diferenças já confirmadas
+
+A versão do Core contém recursos que não existem neste workspace, incluindo controle de acesso específico à cotação, camada de segurança para upload e integração mais nova do WhatsApp/Evolution. Em várias telas e serviços, os arquivos do Core também são versões mais recentes e completas.
+
+O arquivo `src/lib/actions/auth.ts` deste workspace é uma exceção esperada: ele existia para delegar login ao portal central quando o app rodava isoladamente. No Core, essa responsabilidade já pertence ao próprio MBA Labs e não deve ser copiada de volta.
+
+## Uso de emergência
+
+Os comandos legados foram mantidos temporariamente apenas para comparação/rollback técnico:
 
 ```bash
-npm install
-npm run dev:cotacoes
+npm run dev:cotacoes:legacy
+npm run build:cotacoes:legacy
 ```
 
-O app roda em `http://localhost:3001`.
+Os comandos normais `dev:cotacoes` e `build:cotacoes` passam a apontar para a implementação canônica no Core.
 
-Para build do app:
+## Banco de dados
 
-```bash
-npm run build:cotacoes
+O banco continua sendo o Supabase unificado do MBA Labs, com autenticação e autorização ligadas às estruturas `core_*` e às tabelas operacionais do Cotações. A existência deste diretório legado **não significa que existe um segundo banco em produção**.
+
+## Regra para manutenção
+
+Se uma correção for necessária no MBA Cotações, procure primeiro a implementação equivalente em:
+
+```text
+apps/mba-labs-core/src/modules/cotacoes
+apps/mba-labs-core/src/app/cotacoes
+apps/mba-labs-core/src/app/api/cotacoes
 ```
 
-## Login MBA Labs
-
-O MBA Cotacoes usa o mesmo Supabase/Auth do MBA Labs. O fluxo principal de acesso e:
-
-1. Entrar no login central do MBA Labs: `/login`.
-2. Fazer login com o usuario do core.
-3. Acessar o card "MBA Cotacoes" no dashboard MBA Labs.
-4. Abrir o app com a sessao ja criada pelo core.
-
-Dentro deste app, `/login` e `/api/auth/login` redirecionam para o login central definido em `NEXT_PUBLIC_CORE_URL`, retornando ao caminho `/cotacoes` do MBA Labs.
-
-## Variaveis
-
-Copie `.env.example` para `.env.local` quando precisar rodar isolado.
-
-Principais variaveis:
-
-- `NEXT_PUBLIC_APP_URL`: URL local/publica do MBA Cotacoes.
-- `NEXT_PUBLIC_CORE_URL`: URL do MBA Labs core, usado para o login central.
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`: usada no servidor para sincronizar a ponte entre `core_*` e as tabelas operacionais legadas do Cotacoes.
-- `NEXT_PUBLIC_APP_SLUG=mba-cotacoes`
-
-As variaveis `EFI_*` continuam reservadas para a integracao Efi/Pix existente.
-
-## Banco
-
-O app usa o banco unificado do MBA Labs. A autenticacao e permissao partem das tabelas `core_*`.
-
-As tabelas operacionais originais do MBA Cotacoes continuam no historico de migrations deste app (`supabase/migrations`) para preservar o sistema existente. A migration do monorepo `supabase/migrations/20260612120000_cotacoes_core_bridge.sql` cria a ponte com:
-
-- `tenants.core_empresa_id`
-- `users_profile.core_usuario_id`
-
-Nao coloque chaves reais em arquivos versionados.
+Não aplicar correções novas somente em `apps/mba-cotacoes`.
