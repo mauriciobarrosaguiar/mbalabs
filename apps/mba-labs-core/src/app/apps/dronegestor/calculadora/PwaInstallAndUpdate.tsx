@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, RefreshCw } from "lucide-react";
+import { Download, LogIn, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 type InstallPromptEvent = Event & {
@@ -16,6 +16,7 @@ type WindowWithInstallPrompt = Window & {
 
 const VERSION_KEY = "calda-facil-pwa-version";
 const VERSION_URL = "/api/dronegestor/calculadora/version";
+const DRONEGESTOR_LOGIN_URL = "/login?next=%2Fapps%2Fdronegestor";
 
 export function PwaInstallAndUpdate() {
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
@@ -133,17 +134,29 @@ export function PwaInstallAndUpdate() {
 
   return (
     <>
-      {!installed && (
-        <button
-          type="button"
-          onClick={install}
-          className="fixed right-4 top-4 z-[80] grid size-10 place-items-center rounded-full border border-white/20 bg-[#0b5f3c]/92 text-white shadow-[0_5px_18px_rgba(0,0,0,0.18)] backdrop-blur transition active:scale-95 sm:right-6 sm:top-6"
-          aria-label="Instalar Calda Fácil"
-          title="Instalar aplicativo"
+      <div className="fixed right-4 top-4 z-[80] flex items-center gap-2 sm:right-6 sm:top-6">
+        <a
+          href={DRONEGESTOR_LOGIN_URL}
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/12 px-4 text-[13px] font-extrabold text-white shadow-[0_5px_18px_rgba(0,0,0,0.14)] backdrop-blur transition hover:bg-white/18 active:scale-95"
+          aria-label="Entrar no DroneGestor"
+          title="Entrar no DroneGestor"
         >
-          <Download size={19} strokeWidth={2.5} />
-        </button>
-      )}
+          <LogIn size={17} strokeWidth={2.4} />
+          <span>Login</span>
+        </a>
+
+        {!installed && (
+          <button
+            type="button"
+            onClick={install}
+            className="grid size-10 place-items-center rounded-full border border-white/20 bg-[#0b5f3c]/92 text-white shadow-[0_5px_18px_rgba(0,0,0,0.18)] backdrop-blur transition active:scale-95"
+            aria-label="Instalar Calda Fácil"
+            title="Instalar aplicativo"
+          >
+            <Download size={19} strokeWidth={2.5} />
+          </button>
+        )}
+      </div>
 
       {updateAvailable && (
         <div className="fixed bottom-4 left-1/2 z-[95] flex w-[calc(100%-2rem)] max-w-md -translate-x-1/2 items-center gap-3 rounded-[18px] border border-[#d7e5d7] bg-white px-4 py-3 text-[#1d2b21] shadow-[0_14px_38px_rgba(16,37,24,0.22)]">
