@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ExternalLink, FileSpreadsheet, Printer, RefreshCcw, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Download, ExternalLink, FileSpreadsheet, Printer, RefreshCcw, TriangleAlert } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 type Product = { nome?: string; dose?: number; unidade?: string };
@@ -75,11 +75,11 @@ export function DroneMonthlyOfficialReport({userName}:{userName:string}) {
   return <main className="min-h-screen bg-slate-100 px-3 py-5 text-slate-950 sm:px-6 sm:py-8">
     <style>{`@media print { body{background:white!important} .no-print{display:none!important} .print-sheet{box-shadow:none!important;border:0!important;margin:0!important;max-width:none!important;padding:0!important} @page{size:A4 landscape;margin:10mm} input{border:0!important;padding:0!important;background:white!important} }`}</style>
     <div className="no-print mx-auto mb-4 flex w-full max-w-7xl flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-3"><Link href="/apps/dronegestor" className="grid size-11 place-items-center rounded-xl border border-slate-300 bg-white text-slate-700" aria-label="Voltar"><ArrowLeft size={19}/></Link><div><strong className="block text-xl">Relatório mensal MAPA</strong><span className="text-sm text-slate-600">Espelho para conferência e impressão</span></div></div>
-      <div className="flex flex-wrap gap-2"><input type="month" value={month} onChange={(e)=>setMonth(e.target.value)} className="min-h-11 rounded-xl border border-slate-300 bg-white px-3"/><button onClick={()=>void load()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 font-black"><RefreshCcw size={16}/>Atualizar</button><button onClick={()=>window.print()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 font-black text-white"><Printer size={17}/>Imprimir / PDF</button></div>
+      <div className="flex items-center gap-3"><Link href="/apps/dronegestor" className="grid size-11 place-items-center rounded-xl border border-slate-300 bg-white text-slate-700" aria-label="Voltar"><ArrowLeft size={19}/></Link><div><strong className="block text-xl">Relatório mensal MAPA</strong><span className="text-sm text-slate-600">Campos oficiais para conferência, impressão e XLSX</span></div></div>
+      <div className="flex flex-wrap gap-2"><input type="month" value={month} onChange={(e)=>setMonth(e.target.value)} className="min-h-11 rounded-xl border border-slate-300 bg-white px-3"/><button onClick={()=>void load()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 font-black"><RefreshCcw size={16}/>Atualizar</button><a href={`/api/dronegestor/relatorio-mensal/xlsx?month=${encodeURIComponent(month)}`} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 font-black text-emerald-900 no-underline"><Download size={17}/>Baixar XLSX</a><button onClick={()=>window.print()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 font-black text-white"><Printer size={17}/>Imprimir / PDF</button></div>
     </div>
 
-    <section className="no-print mx-auto mb-4 w-full max-w-7xl rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><TriangleAlert className="mr-2 inline" size={18}/><strong>Importante:</strong> o MAPA informa que, em 2026, a remessa oficial deve usar a planilha versão 01-01-2026 e ser enviada no processo SEI “Relatório Mensal Aviação Agrícola”. Esta tela reproduz os campos obrigatórios do art. 11 da Portaria MAPA 298/2021 para conferência e impressão; ela não protocola o relatório no SEI nem substitui a planilha oficial. <a href={MAPA_MONTHLY_URL} target="_blank" rel="noreferrer" className="ml-1 inline-flex items-center gap-1 font-black underline">Abrir página oficial <ExternalLink size={13}/></a></section>
+    <section className="no-print mx-auto mb-4 w-full max-w-7xl rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><TriangleAlert className="mr-2 inline" size={18}/><strong>Importante:</strong> o MAPA informa que, em 2026, a remessa oficial deve usar a planilha versão 01-01-2026 e ser enviada no processo SEI “Relatório Mensal Aviação Agrícola”. Esta tela e o XLSX gerado pelo DroneGestor organizam os campos obrigatórios do art. 11 da Portaria MAPA 298/2021; enquanto o arquivo oficial 01-01-2026 não estiver incorporado ao sistema, faça a conferência final antes do protocolo. <a href={MAPA_MONTHLY_URL} target="_blank" rel="noreferrer" className="ml-1 inline-flex items-center gap-1 font-black underline">Abrir página oficial <ExternalLink size={13}/></a></section>
 
     <section className="print-sheet mx-auto w-full max-w-7xl rounded-2xl border border-slate-300 bg-white p-5 shadow-sm sm:p-7">
       <header className="border-b-2 border-slate-950 pb-4 text-center"><div className="text-xs font-black uppercase tracking-[.14em]">Ministério da Agricultura e Pecuária — Aviação Agrícola</div><h1 className="mt-1 text-2xl font-black">RELATÓRIO MENSAL DE ATIVIDADES — ARP (DRONE)</h1><p className="mt-1 text-sm">Competência: <strong className="capitalize">{monthLabel}</strong> • Base legal: Portaria MAPA nº 298/2021, art. 11</p></header>
@@ -98,7 +98,7 @@ export function DroneMonthlyOfficialReport({userName}:{userName:string}) {
       <div className="mt-8 grid grid-cols-2 gap-10 text-center text-xs"><div className="border-t border-slate-500 pt-2">Responsável pelo preenchimento</div><div className="border-t border-slate-500 pt-2">Responsável técnico / conferência</div></div>
     </section>
 
-    <div className="no-print mx-auto mt-4 flex w-full max-w-7xl items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600"><FileSpreadsheet size={16}/><span>Após conferir, use a planilha oficial 2026 disponibilizada pelo MAPA para a remessa via SEI.</span></div>
+    <div className="no-print mx-auto mt-4 flex w-full max-w-7xl items-center gap-2 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-600"><FileSpreadsheet size={16}/><span>O XLSX gerado já consolida os dados da competência. A submissão oficial continua sendo feita pelo processo SEI indicado pelo MAPA.</span></div>
   </main>;
 }
 
