@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type MissionProduct = { id: string; nome: string; dose: number; unidade: string };
 type Mission = { produtos?: MissionProduct[]; sarpasNumero?: string; sarpasSituacao?: string; sarpasConfirmado?: boolean } & Record<string, unknown>;
+type VerificationStatus = "verified" | "no_explicit_order" | "review_required";
 type ProductResult = {
   key: string;
   name: string;
@@ -12,7 +13,7 @@ type ProductResult = {
   activeIngredient?: string;
   formulation?: string;
   holder?: string;
-  verification?: { status?: "verified" | "no_explicit_order" | "review_required"; sourceTitle?: string };
+  verification?: { status?: VerificationStatus; sourceTitle?: string };
 };
 
 type View = "inicio" | "nova" | "calda" | "estrategia" | "seguranca" | "controle" | "calibracao" | "checklist" | "sarpas" | "execucao" | "relatorios" | "config";
@@ -35,7 +36,7 @@ function isLocked() {
   } catch { return false; }
 }
 
-function verificationLabel(status?: ProductResult["verification"]["status"]) {
+function verificationLabel(status?: VerificationStatus) {
   if (status === "verified") return "Revisado pelo RT";
   if (status === "no_explicit_order") return "Fonte revisada";
   return "Identificação oficial";
