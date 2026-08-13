@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, MapPinned, X } from "lucide-react";
+import { Check, CircleHelp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { DroneMapEvidence } from "./DroneMapEvidence";
 
@@ -25,6 +25,8 @@ type Phase = {
   views: View[];
 };
 
+type Tip = { title: string; text: string };
+
 const VIEW_KEY = "dronegestor:view:v3";
 
 const phases: Phase[] = [
@@ -36,14 +38,29 @@ const phases: Phase[] = [
   { number: 6, label: "Aplicar", detail: "Execução e finalização", views: ["execucao", "relatorios"] }
 ];
 
+const tips: Record<View, Tip> = {
+  inicio: { title: "O que fazer agora?", text: "Escolha uma OS para trabalhar ou retome a operação que já estava em andamento." },
+  nova: { title: "1. Confira, não redigite", text: "OS, talhão e drone cadastrado devem preencher o máximo possível. Complete somente o que estiver faltando para esta aplicação." },
+  calda: { title: "2. Confira o cálculo", text: "Veja total de calda, cargas e produto por carga. Dose vem da receita/bula; a calculadora só faz a matemática." },
+  estrategia: { title: "3. Leia a orientação", text: "Esta é uma subetapa de Segurança. Confirme que a receita, bula e orientação técnica foram verificadas antes de seguir." },
+  seguranca: { title: "3. Segurança no local", text: "Registre o mapa usado, confira área sensível e informe vento, direção, temperatura e umidade medidos no talhão." },
+  controle: { title: "4. Apenas confira os ajustes", text: "Você não precisa decorar fórmulas. Compare os valores calculados com o controle do drone e corrija qualquer divergência antes da calibração." },
+  calibracao: { title: "4. Calibre na ordem", text: "Faça exatamente nesta sequência: eliminar o ar, calibrar o fluxômetro e depois calibrar a bomba." },
+  checklist: { title: "4. Faça a volta no equipamento", text: "Marque cada item somente depois de olhar e conferir fisicamente. O clima já vem da etapa de Segurança." },
+  sarpas: { title: "5. Liberação para voo", text: "Consulte o sistema oficial. Use “dispensado” ou “não aplicável” somente quando essa conclusão estiver realmente confirmada para o caso." },
+  execucao: { title: "6. Registre o que realmente aconteceu", text: "A cada abastecimento, informe hectares efetivamente aplicados e volume realmente utilizado. Use Ocorrência para qualquer desvio." },
+  relatorios: { title: "6. Finalização", text: "Confira área, volume, ocorrências e arquivos salvos. O histórico deve refletir o que foi executado no campo." },
+  config: { title: "Configuração da empresa", text: "Padrões internos pertencem ao ADMIN/RT. Eles orientam e podem bloquear a operação, mas não substituem legislação, bula ou receita." }
+};
+
 const validViews = new Set<View>([
   "inicio", "nova", "calda", "estrategia", "seguranca", "controle", "calibracao", "checklist", "sarpas", "execucao", "relatorios", "config"
 ]);
 
 const exactTextReplacements = new Map<string, string>([
-  ["Estratégia e insight", "Segurança • orientação"],
+  ["Estratégia e insight", "Segurança • orientação técnica"],
   ["Mapa e segurança", "Segurança • mapa e clima"],
-  ["Parâmetros do controle", "Equipamento • ajustes"],
+  ["Parâmetros do controle", "Equipamento • conferir ajustes"],
   ["Calibração", "Equipamento • calibração"],
   ["Checklist pré-voo", "Equipamento • checklist"],
   ["SARPAS", "Liberação para voo"],
@@ -52,7 +69,11 @@ const exactTextReplacements = new Map<string, string>([
   ["Ver estratégia", "Continuar para segurança"],
   ["Analisar segurança", "Conferir mapa e clima"],
   ["Dados / rascunho", "Finalização"],
-  ["Calcular calda", "Calda"]
+  ["Calcular calda", "Calda"],
+  ["Dispensado após conferência oficial aplicável", "Dispensado — somente após conferência oficial"],
+  ["Não aplicável ao caso após conferência", "Não aplicável — somente após conferência do caso"],
+  ["Usar nuvem", "Usar versão salva na nuvem"],
+  ["Manter aparelho", "Usar versão deste aparelho"]
 ]);
 
 function readView(): View {
@@ -88,7 +109,6 @@ function simplifyVisibleLabels(view: View) {
 
 export function DroneSimpleFlowUX() {
   const [view, setView] = useState<View>("inicio");
-  const [mapOpen, setMapOpen] = useState(false);
 
   useEffect(() => {
     let lastView = readView();
@@ -115,6 +135,7 @@ export function DroneSimpleFlowUX() {
   }, []);
 
   const activePhase = useMemo(() => phaseFor(view), [view]);
+  const tip = tips[view];
   const showMap = ["estrategia", "seguranca", "execucao", "relatorios"].includes(view);
 
   return (
@@ -126,7 +147,7 @@ export function DroneSimpleFlowUX() {
               <strong className="text-sm font-black">
                 {activePhase ? `Fase ${activePhase.number} de 6 — ${activePhase.label}` : "Fluxo simples em 6 fases"}
               </strong>
-              <p className="mt-0.5 text-[11px] leading-4 text-emerald-100/70">
+              <p className="mt-0.5 text-[11px] leading-4 text-emerald-100/80">
                 {activePhase?.detail || "O sistema mantém as travas técnicas, mas mostra só o necessário para executar."}
               </p>
             </div>
@@ -144,7 +165,7 @@ export function DroneSimpleFlowUX() {
                       ? "border-emerald-300 bg-emerald-300 text-emerald-950"
                       : done
                         ? "border-emerald-500/40 bg-emerald-800 text-emerald-50"
-                        : "border-emerald-700 bg-emerald-950/60 text-emerald-100/60"
+                        : "border-emerald-700 bg-emerald-950/60 text-emerald-100/70"
                   }`}
                 >
                   <span className="mx-auto grid size-5 place-items-center rounded-full bg-current/10 text-[10px] font-black">
@@ -155,41 +176,18 @@ export function DroneSimpleFlowUX() {
               );
             })}
           </div>
+
+          <div className="mt-3 flex gap-2 rounded-xl border border-emerald-700 bg-emerald-950/55 px-3 py-2.5">
+            <CircleHelp size={17} className="mt-0.5 shrink-0 text-emerald-300" />
+            <div>
+              <strong className="block text-xs font-black text-white">{tip.title}</strong>
+              <p className="mt-0.5 text-[11px] leading-4 text-emerald-100/80">{tip.text}</p>
+            </div>
+          </div>
         </div>
       </section>
 
-      {showMap && (
-        <button
-          type="button"
-          onClick={() => setMapOpen(true)}
-          className="fixed bottom-24 right-4 z-[70] inline-flex min-h-12 items-center gap-2 rounded-full border border-emerald-200 bg-emerald-700 px-4 text-sm font-black text-white shadow-xl shadow-emerald-950/25 active:scale-95"
-        >
-          <MapPinned size={19} />
-          Mapa do voo
-        </button>
-      )}
-
-      {mapOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:justify-center sm:p-5">
-          <div className="max-h-[88vh] w-full overflow-y-auto rounded-t-[28px] bg-white p-4 shadow-2xl sm:max-w-xl sm:rounded-[28px] sm:p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <strong className="block text-lg font-black text-slate-950">Mapa usado no voo</strong>
-                <p className="mt-1 text-xs leading-5 text-slate-500">Tire uma foto da tela do controle ou carregue uma imagem já salva.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMapOpen(false)}
-                className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700"
-                aria-label="Fechar mapa do voo"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <DroneMapEvidence />
-          </div>
-        </div>
-      )}
+      {showMap && <DroneMapEvidence />}
     </>
   );
 }
