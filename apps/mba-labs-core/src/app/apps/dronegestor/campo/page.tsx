@@ -2,6 +2,7 @@ import { requireAppAccess } from "@/lib/core-data";
 import { DroneEquipmentPicker } from "./DroneEquipmentPicker";
 import { DroneGestorAppV3 } from "./DroneGestorAppV3";
 import { DroneMissionContextReset } from "./DroneMissionContextReset";
+import { DroneMissionGateHint } from "./DroneMissionGateHint";
 import { DroneOsLifecycleSync } from "./DroneOsLifecycleSync";
 import { DronePersistenceSync } from "./DronePersistenceSync";
 import { DroneProductMissionPicker } from "./DroneProductMissionPicker";
@@ -27,6 +28,7 @@ export default async function DroneGestorCampoPage() {
       <DroneMissionContextReset />
       <DroneEquipmentPicker canManage={canManage} />
       <DroneSimpleFlowUX />
+      <DroneMissionGateHint />
       <DroneRegulatoryGuard />
       <DroneProductMissionPicker />
       <DroneSarpasStateBridge />
