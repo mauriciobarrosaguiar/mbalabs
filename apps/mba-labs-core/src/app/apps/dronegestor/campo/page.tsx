@@ -6,6 +6,7 @@ import { DroneOsLifecycleSync } from "./DroneOsLifecycleSync";
 import { DronePersistenceSync } from "./DronePersistenceSync";
 import { DroneProductMissionPicker } from "./DroneProductMissionPicker";
 import { DroneRegulatoryGuard } from "./DroneRegulatoryGuard";
+import { DroneSarpasStateBridge } from "./DroneSarpasStateBridge";
 import { DroneSimpleFlowUX } from "./DroneSimpleFlowUX";
 import { DroneWeatherSync } from "./DroneWeatherSync";
 
@@ -28,6 +29,7 @@ export default async function DroneGestorCampoPage() {
       <DroneSimpleFlowUX />
       <DroneRegulatoryGuard />
       <DroneProductMissionPicker />
+      <DroneSarpasStateBridge />
       <DroneGestorAppV3
         userName={pilotName}
         userType={current.tipo}

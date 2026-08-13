@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DroneMonthlyOfficialReport } from "./DroneMonthlyOfficialReport";
+import { OfficialMapTemplateManager } from "./OfficialMapTemplateManager";
 
 const HEADER_KEY="dronegestor:monthlyReportHeader:v1";
 
@@ -31,5 +32,5 @@ export function DroneMonthlyReportProfileBridge({userName}:{userName:string}){
     })();
   },[userName]);
   if(!ready)return <main className="min-h-screen bg-[#f4f8f1] p-6 text-center text-sm font-bold text-[#4b665a]">Preparando relatório...</main>;
-  return <DroneMonthlyOfficialReport userName={userName}/>;
+  return <><div className="bg-slate-100 px-3 pt-5 sm:px-6 sm:pt-8"><OfficialMapTemplateManager/></div><DroneMonthlyOfficialReport userName={userName}/></>;
 }

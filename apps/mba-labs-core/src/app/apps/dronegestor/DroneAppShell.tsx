@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenCheck, ClipboardList, Drone, FileSpreadsheet, FileText, Home, Map, Settings2, SlidersHorizontal, X } from "lucide-react";
+import { BookOpenCheck, ClipboardList, Drone, FileSpreadsheet, FileText, FolderCheck, Home, Map, PlaneTakeoff, Settings2, SlidersHorizontal, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
 
@@ -9,15 +9,17 @@ const primary = [
   { href: "/apps/dronegestor", label: "Início", icon: Home, match: (p:string)=>p === "/apps/dronegestor" },
   { href: "/apps/dronegestor/campo", label: "Operação", icon: Drone, match: (p:string)=>p.startsWith("/apps/dronegestor/campo") },
   { href: "/apps/dronegestor/regulacao", label: "Segurança", icon: Map, match: (p:string)=>p.startsWith("/apps/dronegestor/regulacao") },
-  { href: "/apps/dronegestor/fichas", label: "Dados", icon: FileText, match: (p:string)=>p.startsWith("/apps/dronegestor/fichas") || p.startsWith("/apps/dronegestor/historico") },
+  { href: "/apps/dronegestor/fichas", label: "Dados", icon: FileText, match: (p:string)=>p.startsWith("/apps/dronegestor/fichas") || p.startsWith("/apps/dronegestor/historico") || p.startsWith("/apps/dronegestor/pacote-operacao") },
 ] as const;
 
 const moreItems = [
+  { href: "/apps/dronegestor/documentos", title: "SARPAS e documentos", text: "Autorização, SISANT e anexos da operação.", icon: PlaneTakeoff },
+  { href: "/apps/dronegestor/pacote-operacao", title: "Pacote da operação", text: "Dossiê e pendências da OS ativa.", icon: FolderCheck },
   { href: "/apps/dronegestor/gestao", title: "Clientes, áreas e OS", text: "Prepare a operação antes de ir ao campo.", icon: ClipboardList },
   { href: "/apps/dronegestor/produtos", title: "Produtos e bulas", text: "Consulte cadastro e revisão técnica.", icon: BookOpenCheck },
   { href: "/apps/dronegestor/equipamentos", title: "Drones e equipamentos", text: "Cadastre os equipamentos e padrões.", icon: Settings2 },
   { href: "/apps/dronegestor/perfil-operacional", title: "Perfil operacional", text: "Dados da empresa, operador e RT.", icon: FileText },
-  { href: "/apps/dronegestor/relatorio-mensal", title: "Relatório mensal MAPA", text: "Consolidação mensal e impressão.", icon: FileSpreadsheet },
+  { href: "/apps/dronegestor/relatorio-mensal", title: "Relatório mensal MAPA", text: "Consolidação, PDF e XLSX mensal.", icon: FileSpreadsheet },
 ] as const;
 
 export function DroneAppShell({ children }: { children: ReactNode }) {
@@ -51,7 +53,7 @@ export function DroneAppShell({ children }: { children: ReactNode }) {
     </nav>
 
     {moreOpen && <div className="fixed inset-0 z-[120] flex items-end bg-slate-950/40 backdrop-blur-[2px] md:hidden" onClick={()=>setMoreOpen(false)}>
-      <section className="w-full rounded-t-[30px] bg-[#f7faf5] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-2xl" onClick={(e)=>e.stopPropagation()}>
+      <section className="max-h-[82vh] w-full overflow-y-auto rounded-t-[30px] bg-[#f7faf5] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-2xl" onClick={(e)=>e.stopPropagation()}>
         <div className="mx-auto max-w-lg">
           <div className="flex items-center justify-between gap-3 pb-3">
             <div><p className="text-xs font-black uppercase tracking-[.16em] text-[#087a55]">DroneGestor</p><h2 className="text-xl font-black text-[#103d2f]">Mais opções</h2></div>

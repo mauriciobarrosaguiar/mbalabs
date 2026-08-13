@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenCheck, ChevronRight, ClipboardList, Drone, FileSpreadsheet, FileText, History, MapPinned, Rocket, Scale, Settings2, Sprout, Thermometer, Wind } from "lucide-react";
+import { BookOpenCheck, ChevronRight, ClipboardList, Drone, FileSpreadsheet, FileText, FolderCheck, History, MapPinned, PlaneTakeoff, Rocket, Scale, Settings2, Sprout, Thermometer, Wind } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 type Mission = { area?:number; cultura?:string; alvo?:string; ordemServicoNumero?:string; fazendaNome?:string; talhaoNome?:string };
@@ -62,16 +62,18 @@ export function DroneHomeDashboard({ userName, canManage }: { userName:string; c
       <section className="grid gap-3 sm:grid-cols-2">
         <Action href="/apps/dronegestor/campo" icon={<Rocket size={25}/>} title="Começar ou continuar operação" text="Calda, segurança, equipamento, SARPAS, voo e finalização." primary/>
         <Action href="/apps/dronegestor/gestao" icon={<ClipboardList size={25}/>} title="Preparar uma operação" text="Cadastre cliente, fazenda, talhão e abra uma OS."/>
-        <Action href="/apps/dronegestor/regulacao" icon={<Scale size={25}/>} title="Segurança e regras" text="Consulte regra legal, padrão interno e orientações por Estado."/>
+        <Action href="/apps/dronegestor/documentos" icon={<PlaneTakeoff size={25}/>} title="SARPAS e documentos" text="Acompanhe autorização, SISANT e anexos obrigatórios da OS."/>
+        <Action href="/apps/dronegestor/pacote-operacao" icon={<FolderCheck size={25}/>} title="Pacote da operação" text="Veja o dossiê completo e tudo que ainda falta para fechar a OS."/>
+        <Action href="/apps/dronegestor/regulacao" icon={<Scale size={25}/>} title="Segurança e regras" text="Consulte MAPA, ANAC, DECEA, regra estadual e padrão interno."/>
         <Action href="/apps/dronegestor/fichas" icon={<History size={25}/>} title="Operações realizadas" text="Abra fichas, mapas, registros e histórico das aplicações."/>
         <Action href="/apps/dronegestor/produtos" icon={<BookOpenCheck size={25}/>} title="Produtos e bulas" text="Busque produto e informações técnicas revisadas."/>
-        <Action href="/apps/dronegestor/relatorio-mensal" icon={<FileSpreadsheet size={25}/>} title="Relatório mensal MAPA" text="Consolide o mês e prepare a impressão para conferência."/>
+        <Action href="/apps/dronegestor/relatorio-mensal" icon={<FileSpreadsheet size={25}/>} title="Relatório mensal MAPA" text="Consolide o mês, imprima e gere o XLSX para conferência/remessa."/>
         {canManage && <Action href="/apps/dronegestor/equipamentos" icon={<Settings2 size={25}/>} title="Drones e equipamentos" text="Cadastre o drone uma vez e reutilize os parâmetros."/>}
         {canManage && <Action href="/apps/dronegestor/perfil-operacional" icon={<FileText size={25}/>} title="Perfil operacional" text="Dados da empresa, operador e responsável técnico."/>}
       </section>
 
       <section className="mt-7 rounded-[26px] border border-[#dce8df] bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-2xl bg-[#e9f5ed] text-[#087a55]"><MapPinned size={21}/></span><div><strong className="block text-sm font-black text-[#103d2f]">Fluxo simples para quem está no campo</strong><p className="mt-1 text-xs leading-5 text-[#718078]">Local → drone → OS → calda → segurança → liberação → aplicação. O sistema guarda a parte técnica sem obrigar o piloto a decorar o processo.</p></div></div>
+        <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-2xl bg-[#e9f5ed] text-[#087a55]"><MapPinned size={21}/></span><div><strong className="block text-sm font-black text-[#103d2f]">Fluxo simples para quem está no campo</strong><p className="mt-1 text-xs leading-5 text-[#718078]">Local → drone → OS → calda → segurança → documentos/liberação → aplicação → pacote final. O sistema guarda a parte técnica sem obrigar o piloto a decorar o processo.</p></div></div>
       </section>
     </div>
   </main>;
