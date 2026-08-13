@@ -1,0 +1,70 @@
+"use client";
+
+import Link from "next/link";
+import { ArrowLeft, Loader2, Plus, Trash2, UsersRound } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
+
+type Pilot={id:string;nome:string;cpf:string;telefone:string;email:string;observacoes:string};
+const empty={nome:"",cpf:"",telefone:"",email:"",observacoes:""};
+
+export function DronePilotsManager(){
+  const [items,setItems]=useState<Pilot[]>([]);
+  const [form,setForm]=useState(empty);
+  const [canManage,setCanManage]=useState(false);
+  const [loading,setLoading]=useState(true);
+  const [saving,setSaving]=useState(false);
+  const [open,setOpen]=useState(false);
+  const [message,setMessage]=useState("");
+
+  async function load(){
+    setLoading(true);
+    try{
+      const response=await fetch("/api/dronegestor/pilotos",{cache:"no-store"});
+      const payload=await response.json();
+      if(!response.ok)throw new Error(payload?.error||"Falha ao carregar pilotos.");
+      setItems(payload.items||[]);
+      setCanManage(Boolean(payload.canManage));
+    }catch(error){setMessage(error instanceof Error?error.message:"Falha ao carregar pilotos.");}
+    finally{setLoading(false);}
+  }
+  useEffect(()=>{void load()},[]);
+
+  async function submit(event:FormEvent){
+    event.preventDefault();
+    if(!canManage||saving)return;
+    setSaving(true);setMessage("");
+    try{
+      const response=await fetch("/api/dronegestor/pilotos",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(form)});
+      const payload=await response.json();
+      if(!response.ok)throw new Error(payload?.error||"Falha ao cadastrar piloto.");
+      setForm(empty);setOpen(false);setMessage("Piloto cadastrado.");await load();
+    }catch(error){setMessage(error instanceof Error?error.message:"Falha ao cadastrar piloto.");}
+    finally{setSaving(false);}
+  }
+
+  async function remove(id:string){
+    if(!canManage||!window.confirm("Inativar este piloto? O histórico das operações será preservado."))return;
+    setSaving(true);
+    try{
+      const response=await fetch("/api/dronegestor/pilotos",{method:"DELETE",headers:{"content-type":"application/json"},body:JSON.stringify({id})});
+      const payload=await response.json();
+      if(!response.ok)throw new Error(payload?.error||"Falha ao inativar piloto.");
+      setMessage("Piloto inativado.");await load();
+    }catch(error){setMessage(error instanceof Error?error.message:"Falha ao inativar piloto.");}
+    finally{setSaving(false);}
+  }
+
+  return <main className="min-h-screen bg-[#f4f8f1] px-3 pb-28 pt-4 text-[#143d31] sm:px-6 sm:py-8"><div className="mx-auto grid w-full max-w-3xl gap-4">
+    <header className="flex items-center gap-3"><Link href="/apps/dronegestor/perfil-operacional" aria-label="Voltar" className="grid size-11 shrink-0 place-items-center rounded-2xl border border-[#d9e5dc] bg-white text-[#315d4d]"><ArrowLeft size={20}/></Link><div className="min-w-0"><p className="text-xs font-black uppercase tracking-[.16em] text-[#087a55]">Equipe</p><h1 className="text-2xl font-black">Pilotos</h1><p className="mt-1 text-sm text-[#718078]">Cadastro simples para organizar as operações.</p></div></header>
+
+    <section className="rounded-[26px] border border-[#dce7df] bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-2xl bg-[#e8f4eb] text-[#087a55]"><UsersRound size={22}/></span><div><strong className="block text-lg">{items.length} {items.length===1?"piloto ativo":"pilotos ativos"}</strong><span className="text-xs text-[#718078]">Equipe vinculada ao DroneGestor.</span></div></div>{canManage&&<button type="button" onClick={()=>setOpen(v=>!v)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#087a55] px-3 text-sm font-black text-white"><Plus size={17}/><span className="hidden sm:inline">Novo piloto</span></button>}</div>
+      {open&&canManage&&<form onSubmit={submit} className="mt-4 grid gap-3 border-t border-[#e4ece7] pt-4"><div className="grid gap-3 sm:grid-cols-2"><Field label="Nome *" value={form.nome} set={v=>setForm({...form,nome:v})} required/><Field label="CPF" value={form.cpf} set={v=>setForm({...form,cpf:v})}/><Field label="Telefone" value={form.telefone} set={v=>setForm({...form,telefone:v})}/><Field label="E-mail" value={form.email} set={v=>setForm({...form,email:v})} type="email"/></div><label className="grid gap-1.5"><span className="text-xs font-black text-[#4e675d]">Observação</span><textarea rows={2} value={form.observacoes} onChange={e=>setForm({...form,observacoes:e.target.value})} className="w-full rounded-xl border border-[#d8e3db] bg-white p-3 text-sm"/></label><button disabled={saving} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-black text-white disabled:opacity-50">{saving?<Loader2 className="animate-spin" size={17}/>:<Plus size={17}/>}Cadastrar piloto</button></form>}
+    </section>
+
+    {message&&<p className="rounded-2xl border border-[#dce7df] bg-white px-4 py-3 text-sm font-bold">{message}</p>}
+    {loading?<div className="grid min-h-36 place-items-center rounded-2xl bg-white"><Loader2 className="animate-spin text-[#087a55]"/></div>:items.length===0?<div className="rounded-[26px] border border-dashed border-[#cbded2] bg-white p-8 text-center"><strong>Nenhum piloto cadastrado.</strong><p className="mt-2 text-sm text-[#718078]">No modo solo você não precisa cadastrar ninguém.</p></div>:<div className="grid gap-2">{items.map(item=><article key={item.id} className="flex items-start justify-between gap-3 rounded-2xl border border-[#dce7df] bg-white p-4"><div className="min-w-0"><strong className="block truncate">{item.nome}</strong><p className="mt-1 text-xs text-[#718078]">{[item.cpf,item.telefone,item.email].filter(Boolean).join(" • ")||"Sem dados complementares"}</p>{item.observacoes&&<p className="mt-1 text-xs text-[#5d7167]">{item.observacoes}</p>}</div>{canManage&&<button type="button" disabled={saving} onClick={()=>void remove(item.id)} className="grid size-10 shrink-0 place-items-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label={`Inativar ${item.nome}`}><Trash2 size={17}/></button>}</article>)}</div>}
+  </div></main>;
+}
+
+function Field({label,value,set,type="text",required=false}:{label:string;value:string;set:(v:string)=>void;type?:string;required?:boolean}){return <label className="grid gap-1.5"><span className="text-xs font-black text-[#4e675d]">{label}</span><input required={required} type={type} value={value} onChange={e=>set(e.target.value)} className="min-h-11 w-full rounded-xl border border-[#d8e3db] bg-white px-3 text-sm"/></label>}
