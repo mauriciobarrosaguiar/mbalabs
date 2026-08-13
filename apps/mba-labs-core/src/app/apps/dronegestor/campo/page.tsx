@@ -7,6 +7,7 @@ import { DroneOsLifecycleSync } from "./DroneOsLifecycleSync";
 import { DronePersistenceSync } from "./DronePersistenceSync";
 import { DroneProductMissionPicker } from "./DroneProductMissionPicker";
 import { DroneRegulatoryGuard } from "./DroneRegulatoryGuard";
+import { DroneResolveRoute } from "./DroneResolveRoute";
 import { DroneSarpasStateBridge } from "./DroneSarpasStateBridge";
 import { DroneSimpleFlowUX } from "./DroneSimpleFlowUX";
 import { DroneWeatherSync } from "./DroneWeatherSync";
@@ -26,6 +27,7 @@ export default async function DroneGestorCampoPage() {
   return (
     <>
       <DroneMissionContextReset />
+      <DroneResolveRoute />
       <DroneEquipmentPicker canManage={canManage} />
       <DroneSimpleFlowUX />
       <DroneMissionGateHint />
