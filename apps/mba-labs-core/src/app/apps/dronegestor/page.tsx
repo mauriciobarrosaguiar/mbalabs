@@ -1,12 +1,18 @@
 import Link from "next/link";
-import { ClipboardList, Drone, History, MapPinned, Sprout } from "lucide-react";
+import { ClipboardList, Drone, History, MapPinned, Settings2, Sprout } from "lucide-react";
 import { requireAppAccess } from "@/lib/core-data";
 
 export const dynamic = "force-dynamic";
 
+function canManageEquipment(tipo: string, isAdminMaster: boolean) {
+  const normalized = tipo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replaceAll(" ", "_");
+  return isAdminMaster || ["admin_empresa", "responsavel_tecnico", "rt"].includes(normalized);
+}
+
 export default async function DroneGestorPage() {
   const current = await requireAppAccess("dronegestor", "/apps/dronegestor");
   const primeiroNome = (current.usuario.nome || "Piloto").split(" ")[0];
+  const canManage = canManageEquipment(current.tipo, current.isAdminMaster);
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#ecfdf5_0%,#f8fafc_46%,#eef2f7_100%)] px-4 py-7 sm:px-6 sm:py-10">
@@ -17,17 +23,19 @@ export default async function DroneGestorPage() {
             <h1 className="mt-4 text-3xl font-black tracking-tight sm:text-4xl">Olá, {primeiroNome}.</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50/80 sm:text-base">Você não precisa decorar o processo. Escolha o que vai fazer e o DroneGestor conduz a operação passo a passo.</p>
           </div>
-          <div className="grid gap-3 p-4 sm:grid-cols-3 sm:p-6">
-            <Action href="/apps/dronegestor/campo" icon={<Drone size={24}/>} title="Começar ou continuar operação" text="Siga o passo a passo de calda, segurança, equipamento, SARPAS, voo e finalização." primary />
+          <div className={`grid gap-3 p-4 sm:grid-cols-2 sm:p-6 ${canManage ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+            <Action href="/apps/dronegestor/campo" icon={<Drone size={24}/>} title="Começar ou continuar operação" text="Escolha o drone e siga calda, segurança, equipamento, liberação, voo e finalização." primary />
             <Action href="/apps/dronegestor/gestao" icon={<ClipboardList size={24}/>} title="Preparar uma operação" text="Cadastre cliente, fazenda e talhão e crie a ordem de serviço (OS)." />
             <Action href="/apps/dronegestor/historico" icon={<History size={24}/>} title="Ver operações feitas" text="Consulte aplicações concluídas, hectares, ocorrências e registros salvos." />
+            {canManage && <Action href="/apps/dronegestor/equipamentos" icon={<Settings2 size={24}/>} title="Drones e equipamentos" text="Cadastre cada drone uma vez para preencher automaticamente os dados no campo." />}
           </div>
         </section>
 
-        <section className="grid gap-3 sm:grid-cols-3">
+        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Mini icon={<MapPinned size={19}/>} title="1. Cadastre o local" text="Cliente, fazenda e talhão. Faça isso uma vez e reutilize depois." />
-          <Mini icon={<ClipboardList size={19}/>} title="2. Crie a OS" text="Informe o serviço que será feito e escolha o talhão." />
-          <Mini icon={<Drone size={19}/>} title="3. Siga o passo a passo" text="No campo, o sistema mostra o que conferir antes de liberar o voo." />
+          <Mini icon={<Drone size={19}/>} title="2. Cadastre o drone" text="Tanque, ANAC, bico e padrões ficam salvos para não digitar de novo." />
+          <Mini icon={<ClipboardList size={19}/>} title="3. Crie a OS" text="Informe o serviço e escolha o talhão. O piloto recebe o necessário." />
+          <Mini icon={<Sprout size={19}/>} title="4. Siga o passo a passo" text="No campo, escolha o drone e o sistema preenche os dados técnicos salvos." />
         </section>
       </div>
     </main>

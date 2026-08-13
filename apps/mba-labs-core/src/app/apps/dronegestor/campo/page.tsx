@@ -1,4 +1,5 @@
 import { requireAppAccess } from "@/lib/core-data";
+import { DroneEquipmentPicker } from "./DroneEquipmentPicker";
 import { DroneGestorAppV3 } from "./DroneGestorAppV3";
 import { DroneMissionContextReset } from "./DroneMissionContextReset";
 import { DroneOsLifecycleSync } from "./DroneOsLifecycleSync";
@@ -16,15 +17,17 @@ function canManageDroneStandards(tipo: string, isAdminMaster: boolean) {
 export default async function DroneGestorCampoPage() {
   const current = await requireAppAccess("dronegestor", "/apps/dronegestor/campo");
   const pilotName = current.usuario.nome || "Piloto";
+  const canManage = canManageDroneStandards(current.tipo, current.isAdminMaster);
 
   return (
     <>
       <DroneMissionContextReset />
+      <DroneEquipmentPicker canManage={canManage} />
       <DroneSimpleFlowUX />
       <DroneGestorAppV3
         userName={pilotName}
         userType={current.tipo}
-        canManage={canManageDroneStandards(current.tipo, current.isAdminMaster)}
+        canManage={canManage}
       />
       <DronePersistenceSync />
       <DroneOsLifecycleSync />
