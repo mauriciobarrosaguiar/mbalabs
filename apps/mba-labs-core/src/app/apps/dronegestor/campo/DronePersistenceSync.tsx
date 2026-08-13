@@ -14,6 +14,7 @@ const STORAGE = {
   checklist: "dronegestor:checklist:v2",
   occurrences: "dronegestor:occurrences:v2",
   weather: "dronegestor:weather",
+  mapEvidence: "dronegestor:mapEvidence:v1",
   progressHa: "dronegestor:progress:v2",
   tankRecords: "dronegestor:tankRecords:v4",
   insightAccepted: "dronegestor:insightAccepted:v2",
