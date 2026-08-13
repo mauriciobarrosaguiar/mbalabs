@@ -2,6 +2,7 @@
 
 import { Check, CircleHelp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { DroneGeoMapEvidence } from "./DroneGeoMapEvidence";
 import { DroneMapEvidence } from "./DroneMapEvidence";
 
 type View =
@@ -43,7 +44,7 @@ const tips: Record<View, Tip> = {
   nova: { title: "1. Confira, não redigite", text: "OS, talhão e drone cadastrado devem preencher o máximo possível. Complete somente o que estiver faltando para esta aplicação." },
   calda: { title: "2. Confira o cálculo", text: "Veja total de calda, cargas e produto por carga. Dose vem da receita/bula; a calculadora só faz a matemática." },
   estrategia: { title: "3. Leia a orientação", text: "Esta é uma subetapa de Segurança. Confirme que a receita, bula e orientação técnica foram verificadas antes de seguir." },
-  seguranca: { title: "3. Segurança no local", text: "Registre o mapa usado, confira área sensível e informe vento, direção, temperatura e umidade medidos no talhão." },
+  seguranca: { title: "3. Segurança no local", text: "Registre o mapa usado, confira o polígono se houver, área sensível e informe vento, direção, temperatura e umidade medidos no talhão." },
   controle: { title: "4. Apenas confira os ajustes", text: "Você não precisa decorar fórmulas. Compare os valores calculados com o controle do drone e corrija qualquer divergência antes da calibração." },
   calibracao: { title: "4. Calibre na ordem", text: "Faça exatamente nesta sequência: eliminar o ar, calibrar o fluxômetro e depois calibrar a bomba." },
   checklist: { title: "4. Faça a volta no equipamento", text: "Marque cada item somente depois de olhar e conferir fisicamente. O clima já vem da etapa de Segurança." },
@@ -187,6 +188,7 @@ export function DroneSimpleFlowUX() {
         </div>
       </section>
 
+      {view === "seguranca" && <div className="bg-[#f8fafc] px-3 pb-1 sm:px-5"><div className="mx-auto w-full max-w-3xl"><DroneGeoMapEvidence /></div></div>}
       {showMap && <DroneMapEvidence />}
     </>
   );
