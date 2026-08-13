@@ -29,53 +29,56 @@ export default async function PortalAvisosPage({
 
   return (
     <PortalAssociativoShell activePath="/portal-associativo/avisos" can={(section) => canPortalAccess(data.perfil, section)} companyName={data.companyName} roleLabel={data.perfilLabel} userName={data.current.usuario.nome}>
-      <section className="grid gap-6">
-        <PageHeader eyebrow="Portal Associativo" title="Avisos" description="Publique comunicados por prioridade, período, perfil, inadimplência ou unidade." actions={<BackButton href="/portal-associativo" />} />
+      <section className="grid gap-5">
+        <PageHeader eyebrow="Portal Associativo" title="Avisos" description="Comunicados da associação." actions={<BackButton href="/portal-associativo" />} />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
-        <div className="flex flex-wrap gap-2"><Link className={situation === "ativos" ? "button-primary" : "button-secondary"} href="/portal-associativo/avisos?situacao=ativos">Ativos e rascunhos</Link><Link className={situation === "expirados" ? "button-primary" : "button-secondary"} href="/portal-associativo/avisos?situacao=expirados">Expirados</Link></div>
+        <div className="flex flex-wrap gap-2"><Link className={situation === "ativos" ? "button-primary" : "button-secondary"} href="/portal-associativo/avisos?situacao=ativos">Ativos</Link><Link className={situation === "expirados" ? "button-primary" : "button-secondary"} href="/portal-associativo/avisos?situacao=expirados">Expirados</Link></div>
 
         {canWrite ? (
-          <form action={savePortalAviso}>
-            <input name="id" type="hidden" value={String(editing?.id ?? "")} />
-            <ResourceForm
-              title={editing ? "Editar aviso" : "Novo aviso"}
-              actions={
-                <>
-                  <SubmitButton>Salvar aviso</SubmitButton>
-                  {editing ? <Link className="button-secondary" href="/portal-associativo/avisos">Cancelar</Link> : null}
-                </>
-              }
-            >
-              <FormInput label="Título" name="titulo" defaultValue={String(editing?.titulo ?? "")} required />
-              <FormSelect
-                label="Prioridade"
-                name="prioridade"
-                defaultValue={String(editing?.prioridade ?? "media")}
-                options={[{ value: "baixa", label: "Baixa" }, { value: "media", label: "Média" }, { value: "alta", label: "Alta" }, { value: "urgente", label: "Urgente" }]}
-              />
-              <FormSelect
-                label="Enviar aviso para"
-                name="publico"
-                defaultValue={String(editing?.publico ?? "todos")}
-                options={[
-                  { value: "todos", label: "Todos" },
-                  { value: "adimplentes", label: "Adimplentes" },
-                  { value: "inadimplentes", label: "Inadimplentes" },
-                  { value: "pessoa", label: "Associado específico" },
-                  { value: "unidade", label: "Unidade específica" },
-                  { value: "diretoria", label: "Diretoria/Administração" }
-                ]}
-              />
-              <FormSelect label="Associado específico (quando escolhido acima)" name="pessoa_id" defaultValue={String(editing?.pessoa_id ?? "")} options={personOptions} />
-              <FormSelect label="Unidade específica (quando escolhida acima)" name="unidade_id" defaultValue={String(editing?.unidade_id ?? "")} options={unitOptions} />
-              <FormInput label="Link do portal" name="link_portal" defaultValue={String(editing?.link_portal ?? "/portal-associativo/painel-associado")} />
-              <FormDateInput label="Visível de" name="visivel_de" defaultValue={String(editing?.visivel_de ?? "")} />
-              <FormDateInput label="Visível até" name="visivel_ate" defaultValue={String(editing?.visivel_ate ?? "")} />
-              <FormSelect label="Status" name="status" defaultValue={String(editing?.status ?? "ativo")} options={[{ value: "ativo", label: "Ativo" }, { value: "inativo", label: "Inativo" }, { value: "rascunho", label: "Rascunho" }]} />
-              <FormCheckbox label="Mostrar no painel do associado" name="mostrar_painel" defaultChecked={editing?.mostrar_painel !== false} />
-              <FormTextarea label="Mensagem" name="mensagem" defaultValue={String(editing?.mensagem ?? "")} />
-            </ResourceForm>
-          </form>
+          <details className="panel p-4" open={Boolean(editing)}>
+            <summary className="cursor-pointer text-base font-black">{editing ? "Editar aviso" : "Criar aviso"}</summary>
+            <form action={savePortalAviso} className="mt-4">
+              <input name="id" type="hidden" value={String(editing?.id ?? "")} />
+              <ResourceForm
+                title={editing ? "Editar aviso" : "Novo aviso"}
+                actions={
+                  <>
+                    <SubmitButton>Salvar aviso</SubmitButton>
+                    {editing ? <Link className="button-secondary" href="/portal-associativo/avisos">Cancelar</Link> : null}
+                  </>
+                }
+              >
+                <FormInput label="Título" name="titulo" defaultValue={String(editing?.titulo ?? "")} required />
+                <FormSelect
+                  label="Prioridade"
+                  name="prioridade"
+                  defaultValue={String(editing?.prioridade ?? "media")}
+                  options={[{ value: "baixa", label: "Baixa" }, { value: "media", label: "Média" }, { value: "alta", label: "Alta" }, { value: "urgente", label: "Urgente" }]}
+                />
+                <FormSelect
+                  label="Enviar aviso para"
+                  name="publico"
+                  defaultValue={String(editing?.publico ?? "todos")}
+                  options={[
+                    { value: "todos", label: "Todos" },
+                    { value: "adimplentes", label: "Adimplentes" },
+                    { value: "inadimplentes", label: "Inadimplentes" },
+                    { value: "pessoa", label: "Associado específico" },
+                    { value: "unidade", label: "Unidade específica" },
+                    { value: "diretoria", label: "Diretoria/Administração" }
+                  ]}
+                />
+                <FormSelect label="Associado específico" name="pessoa_id" defaultValue={String(editing?.pessoa_id ?? "")} options={personOptions} />
+                <FormSelect label="Unidade específica" name="unidade_id" defaultValue={String(editing?.unidade_id ?? "")} options={unitOptions} />
+                <FormInput label="Link do portal" name="link_portal" defaultValue={String(editing?.link_portal ?? "/portal-associativo/painel-associado")} />
+                <FormDateInput label="Visível de" name="visivel_de" defaultValue={String(editing?.visivel_de ?? "")} />
+                <FormDateInput label="Visível até" name="visivel_ate" defaultValue={String(editing?.visivel_ate ?? "")} />
+                <FormSelect label="Status" name="status" defaultValue={String(editing?.status ?? "ativo")} options={[{ value: "ativo", label: "Ativo" }, { value: "inativo", label: "Inativo" }, { value: "rascunho", label: "Rascunho" }]} />
+                <FormCheckbox label="Mostrar no painel do associado" name="mostrar_painel" defaultChecked={editing?.mostrar_painel !== false} />
+                <FormTextarea label="Mensagem" name="mensagem" defaultValue={String(editing?.mensagem ?? "")} />
+              </ResourceForm>
+            </form>
+          </details>
         ) : null}
 
         <DataTable
