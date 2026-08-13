@@ -8,7 +8,7 @@ import { type ReactNode, useState } from "react";
 const primary = [
   { href: "/apps/dronegestor", label: "Início", icon: Home, match: (p:string)=>p === "/apps/dronegestor" },
   { href: "/apps/dronegestor/campo", label: "Operação", icon: Drone, match: (p:string)=>p.startsWith("/apps/dronegestor/campo") },
-  { href: "/apps/dronegestor/regulacao", label: "Segurança", icon: Map, match: (p:string)=>p.startsWith("/apps/dronegestor/regulacao") },
+  { href: "/apps/dronegestor/regulacao", label: "Regras", icon: Map, match: (p:string)=>p.startsWith("/apps/dronegestor/regulacao") },
   { href: "/apps/dronegestor/fichas", label: "Dados", icon: FileText, match: (p:string)=>p.startsWith("/apps/dronegestor/fichas") || p.startsWith("/apps/dronegestor/historico") || p.startsWith("/apps/dronegestor/pacote-operacao") },
 ] as const;
 
@@ -27,15 +27,16 @@ export function DroneAppShell({ children }: { children: ReactNode }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const publicCalculator = pathname === "/apps/dronegestor/calculadora";
   const printView = pathname.startsWith("/apps/dronegestor/relatorio-mensal");
+  const fieldFlow = pathname.startsWith("/apps/dronegestor/campo");
 
   if (publicCalculator) return <>{children}</>;
 
   const moreActive = moreItems.some((item)=>pathname.startsWith(item.href));
 
-  return <div className="min-h-screen pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0">
+  return <div className={`min-h-screen ${fieldFlow ? "pb-0" : "pb-[calc(5.5rem+env(safe-area-inset-bottom))]"} md:pb-0`}>
     {children}
 
-    <nav className={`drone-mobile-nav fixed inset-x-0 bottom-0 z-[80] border-t border-[#d8e4db] bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_26px_rgba(4,50,35,.08)] backdrop-blur-xl md:hidden ${printView ? "print:hidden" : ""}`} aria-label="Navegação do DroneGestor">
+    {!fieldFlow && <nav className={`drone-mobile-nav fixed inset-x-0 bottom-0 z-[80] border-t border-[#d8e4db] bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_26px_rgba(4,50,35,.08)] backdrop-blur-xl md:hidden ${printView ? "print:hidden" : ""}`} aria-label="Navegação do DroneGestor">
       <div className="mx-auto grid h-[74px] max-w-lg grid-cols-5">
         {primary.map((item) => {
           const active = item.match(pathname);
@@ -50,9 +51,9 @@ export function DroneAppShell({ children }: { children: ReactNode }) {
           <span className="text-[11px] font-bold leading-none">Mais</span>
         </button>
       </div>
-    </nav>
+    </nav>}
 
-    {moreOpen && <div className="fixed inset-0 z-[120] flex items-end bg-slate-950/40 backdrop-blur-[2px] md:hidden" onClick={()=>setMoreOpen(false)}>
+    {!fieldFlow && moreOpen && <div className="fixed inset-0 z-[120] flex items-end bg-slate-950/40 backdrop-blur-[2px] md:hidden" onClick={()=>setMoreOpen(false)}>
       <section className="max-h-[82vh] w-full overflow-y-auto rounded-t-[30px] bg-[#f7faf5] px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-2xl" onClick={(e)=>e.stopPropagation()}>
         <div className="mx-auto max-w-lg">
           <div className="flex items-center justify-between gap-3 pb-3">
