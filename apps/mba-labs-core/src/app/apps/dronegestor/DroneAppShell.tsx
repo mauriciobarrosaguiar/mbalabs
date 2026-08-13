@@ -14,7 +14,7 @@ const primary = [
 
 const moreItems = [
   { href: "/apps/dronegestor/documentos", title: "SARPAS e documentos", text: "Autorização, SISANT e anexos da operação.", icon: PlaneTakeoff },
-  { href: "/apps/dronegestor/pacote-operacao", title: "Pacote da operação", text: "Dossiê e pendências da OS ativa.", icon: FolderCheck },
+  { href: "/apps/dronegestor/pacote-operacao", title: "Finalizar operação", text: "Confira pendências, salve para regularizar ou encerre a OS quando estiver completa.", icon: FolderCheck },
   { href: "/apps/dronegestor/gestao", title: "Clientes, áreas e OS", text: "Prepare a operação antes de ir ao campo.", icon: ClipboardList },
   { href: "/apps/dronegestor/produtos", title: "Produtos e bulas", text: "Consulte cadastro e revisão técnica.", icon: BookOpenCheck },
   { href: "/apps/dronegestor/equipamentos", title: "Drones e equipamentos", text: "Cadastre os equipamentos e padrões.", icon: Settings2 },
