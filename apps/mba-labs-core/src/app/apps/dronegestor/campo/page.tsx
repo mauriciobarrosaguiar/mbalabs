@@ -1,9 +1,9 @@
 import { requireAppAccess } from "@/lib/core-data";
 import { DroneGestorAppV3 } from "./DroneGestorAppV3";
-import { DroneMapEvidence } from "./DroneMapEvidence";
 import { DroneMissionContextReset } from "./DroneMissionContextReset";
 import { DroneOsLifecycleSync } from "./DroneOsLifecycleSync";
 import { DronePersistenceSync } from "./DronePersistenceSync";
+import { DroneSimpleFlowUX } from "./DroneSimpleFlowUX";
 import { DroneWeatherSync } from "./DroneWeatherSync";
 
 export const dynamic = "force-dynamic";
@@ -20,12 +20,12 @@ export default async function DroneGestorCampoPage() {
   return (
     <>
       <DroneMissionContextReset />
+      <DroneSimpleFlowUX />
       <DroneGestorAppV3
         userName={pilotName}
         userType={current.tipo}
         canManage={canManageDroneStandards(current.tipo, current.isAdminMaster)}
       />
-      <DroneMapEvidence />
       <DronePersistenceSync />
       <DroneOsLifecycleSync />
       <DroneWeatherSync />
