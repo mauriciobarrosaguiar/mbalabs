@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, FileSpreadsheet, Printer, RefreshCcw, TriangleAlert } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, ExternalLink, FileSpreadsheet, Printer, RefreshCcw, TriangleAlert } from "lucide-react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 type Product = { nome?: string; dose?: number; unidade?: string };
 type Summary = {
@@ -12,6 +12,7 @@ type Summary = {
 type HistoryItem = { id:string; created_at:string; detalhes?: { finalizedAt?:string; summary?:Summary } };
 type HeaderData = { operador:string; registroMapa:string; processoSei:string; responsavelTecnico:string };
 const HEADER_KEY = "dronegestor:monthlyReportHeader:v1";
+const MAPA_MONTHLY_URL = "https://www.gov.br/agricultura/pt-br/assuntos/insumos-agropecuarios/aviacao-agricola/relatorios-mensais/relatorios-mensais";
 
 function currentMonth() { return new Date().toISOString().slice(0,7); }
 function monthRange(month:string) { const [year, m] = month.split("-").map(Number); const start = new Date(Date.UTC(year, m-1, 1)); const end = new Date(Date.UTC(year, m, 1)); return { start:start.toISOString(), end:end.toISOString() }; }
@@ -27,9 +28,10 @@ export function DroneMonthlyOfficialReport({userName}:{userName:string}) {
   const [loading,setLoading] = useState(true);
   const [error,setError] = useState("");
   const [header,setHeader] = useState<HeaderData>({operador:"",registroMapa:"",processoSei:"",responsavelTecnico:""});
+  const [headerReady,setHeaderReady] = useState(false);
 
-  useEffect(()=>setHeader(loadHeader()),[]);
-  useEffect(()=>{ localStorage.setItem(HEADER_KEY,JSON.stringify(header)); },[header]);
+  useEffect(()=>{ setHeader(loadHeader()); setHeaderReady(true); },[]);
+  useEffect(()=>{ if(headerReady) localStorage.setItem(HEADER_KEY,JSON.stringify(header)); },[header,headerReady]);
 
   async function load() {
     setLoading(true); setError("");
@@ -77,7 +79,7 @@ export function DroneMonthlyOfficialReport({userName}:{userName:string}) {
       <div className="flex flex-wrap gap-2"><input type="month" value={month} onChange={(e)=>setMonth(e.target.value)} className="min-h-11 rounded-xl border border-slate-300 bg-white px-3"/><button onClick={()=>void load()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 font-black"><RefreshCcw size={16}/>Atualizar</button><button onClick={()=>window.print()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 font-black text-white"><Printer size={17}/>Imprimir / PDF</button></div>
     </div>
 
-    <section className="no-print mx-auto mb-4 w-full max-w-7xl rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><TriangleAlert className="mr-2 inline" size={18}/><strong>Importante:</strong> o MAPA informa que, em 2026, a remessa oficial deve usar a planilha versão 01-01-2026 e ser enviada no processo SEI “Relatório Mensal Aviação Agrícola”. Esta tela reproduz os campos obrigatórios do art. 11 da Portaria MAPA 298/2021 para conferência e impressão; ela não protocola o relatório no SEI nem substitui a planilha oficial.</section>
+    <section className="no-print mx-auto mb-4 w-full max-w-7xl rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><TriangleAlert className="mr-2 inline" size={18}/><strong>Importante:</strong> o MAPA informa que, em 2026, a remessa oficial deve usar a planilha versão 01-01-2026 e ser enviada no processo SEI “Relatório Mensal Aviação Agrícola”. Esta tela reproduz os campos obrigatórios do art. 11 da Portaria MAPA 298/2021 para conferência e impressão; ela não protocola o relatório no SEI nem substitui a planilha oficial. <a href={MAPA_MONTHLY_URL} target="_blank" rel="noreferrer" className="ml-1 inline-flex items-center gap-1 font-black underline">Abrir página oficial <ExternalLink size={13}/></a></section>
 
     <section className="print-sheet mx-auto w-full max-w-7xl rounded-2xl border border-slate-300 bg-white p-5 shadow-sm sm:p-7">
       <header className="border-b-2 border-slate-950 pb-4 text-center"><div className="text-xs font-black uppercase tracking-[.14em]">Ministério da Agricultura e Pecuária — Aviação Agrícola</div><h1 className="mt-1 text-2xl font-black">RELATÓRIO MENSAL DE ATIVIDADES — ARP (DRONE)</h1><p className="mt-1 text-sm">Competência: <strong className="capitalize">{monthLabel}</strong> • Base legal: Portaria MAPA nº 298/2021, art. 11</p></header>
@@ -101,4 +103,4 @@ export function DroneMonthlyOfficialReport({userName}:{userName:string}) {
 }
 
 function Field({label,value,onChange,placeholder}:{label:string;value:string;onChange:(value:string)=>void;placeholder:string}) { return <label className="grid gap-1 text-xs font-bold"><span>{label}</span><input value={value} onChange={(e)=>onChange(e.target.value)} placeholder={placeholder} className="min-h-10 rounded-lg border border-slate-300 px-2 text-sm placeholder:text-slate-400"/></label>; }
-function Cell({children}:{children:React.ReactNode}) { return <td className="border border-slate-400 px-2 py-2 align-top">{children}</td>; }
+function Cell({children}:{children:ReactNode}) { return <td className="border border-slate-400 px-2 py-2 align-top">{children}</td>; }
