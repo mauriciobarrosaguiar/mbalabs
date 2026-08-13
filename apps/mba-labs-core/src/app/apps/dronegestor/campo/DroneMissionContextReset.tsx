@@ -4,6 +4,13 @@ import { useLayoutEffect } from "react";
 
 const RESET_MARKER = "dronegestor:contextResetForOs:v1";
 
+function readBoolean(key: string) {
+  try { return Boolean(JSON.parse(localStorage.getItem(key) || "false")); } catch { return false; }
+}
+function readStatus() {
+  try { return String(JSON.parse(localStorage.getItem("dronegestor:missionStatus:v4") || '"rascunho"') || "rascunho"); } catch { return "rascunho"; }
+}
+
 export function DroneMissionContextReset() {
   useLayoutEffect(() => {
     try {
@@ -12,6 +19,15 @@ export function DroneMissionContextReset() {
       const current = JSON.parse(raw) as Record<string, unknown>;
       const osId = typeof current.ordemServicoId === "string" ? current.ordemServicoId : "";
       if (!osId || localStorage.getItem(RESET_MARKER) === osId) return;
+
+      // Retomar uma OS já iniciada não pode apagar progresso, horários, clima ou registros reais.
+      // A sincronização V4 é responsável por comparar aparelho/nuvem e abrir conflito se necessário.
+      const status = readStatus();
+      const started = readBoolean("dronegestor:started:v3");
+      if (started || ["em_execucao", "pausada", "suspensa", "pendente_sync", "finalizada"].includes(status)) {
+        localStorage.setItem(RESET_MARKER, osId);
+        return;
+      }
 
       const cleanMission = {
         ordemServicoId: osId,

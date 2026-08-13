@@ -75,14 +75,14 @@ export default function DroneGestorLayout({ children }: { children: ReactNode })
           .dronegestor-ui .mobile-hide-scrollbar { scrollbar-width: none; }
           .dronegestor-ui .mobile-hide-scrollbar::-webkit-scrollbar { display: none; }
 
-          /* Gestão: no celular as quatro seções viram uma grade 2x2, sem aba escondida para a direita. */
-          .dronegestor-ui .flex.gap-2.overflow-x-auto:has(> button) {
+          /* Gestão: somente o grupo direto de quatro abas administrativas vira grade 2x2. */
+          .dronegestor-ui main > div > div.flex.gap-2.overflow-x-auto:has(> button:nth-child(4)):not(:has(> button:nth-child(5))) {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             width: 100%;
             overflow: visible;
           }
-          .dronegestor-ui .flex.gap-2.overflow-x-auto:has(> button) > button {
+          .dronegestor-ui main > div > div.flex.gap-2.overflow-x-auto:has(> button:nth-child(4)):not(:has(> button:nth-child(5))) > button {
             width: 100%;
             min-width: 0;
             min-height: 3.5rem;
@@ -118,7 +118,7 @@ export default function DroneGestorLayout({ children }: { children: ReactNode })
 
         @media (max-width: 380px) {
           .dronegestor-ui h1 { font-size: clamp(1.65rem, 8.2vw, 2rem) !important; }
-          .dronegestor-ui .flex.gap-2.overflow-x-auto:has(> button) > button { font-size: .9rem; }
+          .dronegestor-ui main > div > div.flex.gap-2.overflow-x-auto:has(> button:nth-child(4)):not(:has(> button:nth-child(5))) > button { font-size: .9rem; }
         }
 
         @media print {

@@ -19,6 +19,11 @@ function monthRange(month:string) { const [year, m] = month.split("-").map(Numbe
 function durationHours(start?:string,end?:string) { if(!start||!end) return 0; const a=Date.parse(start),b=Date.parse(end); return Number.isFinite(a)&&Number.isFinite(b)&&b>=a ? (b-a)/3600000 : 0; }
 function n(value:unknown, decimals=2) { const parsed=Number(value); return new Intl.NumberFormat("pt-BR",{minimumFractionDigits:decimals,maximumFractionDigits:decimals}).format(Number.isFinite(parsed)?parsed:0); }
 function loadHeader():HeaderData { try { return { operador:"",registroMapa:"",processoSei:"",responsavelTecnico:"",...JSON.parse(localStorage.getItem(HEADER_KEY)||"{}") }; } catch { return {operador:"",registroMapa:"",processoSei:"",responsavelTecnico:""}; } }
+function operationTimestamp(item:HistoryItem) {
+  const candidates=[item.detalhes?.summary?.finalizadaEm,item.detalhes?.finalizedAt,item.created_at];
+  for(const value of candidates){if(!value)continue;const parsed=Date.parse(value);if(Number.isFinite(parsed))return parsed;}
+  return NaN;
+}
 
 type ReportRow = { municipioUf:string; arp:string; areaHa:number; horas:number; atividade:string; produto:string; volumeL:number; dose:string };
 
@@ -37,11 +42,15 @@ export function DroneMonthlyOfficialReport({userName}:{userName:string}) {
     setLoading(true); setError("");
     try {
       const range=monthRange(month);
-      const params=new URLSearchParams({history:"1",limit:"500",offset:"0",start:range.start,end:range.end});
+      // A competência é definida pela data real de término da aplicação, não pela hora em que o celular sincronizou.
+      // Busca uma janela ampla e filtra pelo summary.finalizadaEm (fallback para finalizedAt/created_at apenas para registros legados).
+      const params=new URLSearchParams({history:"1",limit:"500",offset:"0"});
       const response=await fetch(`/api/dronegestor/state?${params.toString()}`,{cache:"no-store"});
       const payload=await response.json().catch(()=>null);
       if(!response.ok) throw new Error(payload?.error||"Falha ao carregar o relatório mensal.");
-      setItems(Array.isArray(payload?.items)?payload.items:[]);
+      const start=Date.parse(range.start),end=Date.parse(range.end);
+      const all=(Array.isArray(payload?.items)?payload.items:[]) as HistoryItem[];
+      setItems(all.filter((item)=>{const ts=operationTimestamp(item);return Number.isFinite(ts)&&ts>=start&&ts<end;}));
     } catch (e) { setError(e instanceof Error?e.message:"Falha ao carregar o relatório mensal."); }
     finally { setLoading(false); }
   }
@@ -93,7 +102,7 @@ export function DroneMonthlyOfficialReport({userName}:{userName:string}) {
 
       {loading?<div className="py-16 text-center font-bold">Carregando...</div>:error?<div className="mt-5 rounded-xl bg-red-50 p-4 font-bold text-red-700">{error}</div>:<div className="mt-5 overflow-x-auto"><table className="w-full border-collapse text-[11px]"><thead><tr className="bg-slate-100">{["Município/UF","ARP / identificação ANAC","Área aplicada (ha)","Horas de execução (h)","Tipo de atividade","Marca comercial","Volume aplicado (L)","Dosagem aplicada"].map((h)=><th key={h} className="border border-slate-400 px-2 py-2 text-left font-black">{h}</th>)}</tr></thead><tbody>{rows.length?rows.map((row,index)=><tr key={index}><Cell>{row.municipioUf}</Cell><Cell>{row.arp}</Cell><Cell>{row.areaHa?n(row.areaHa):""}</Cell><Cell>{row.horas?n(row.horas):""}</Cell><Cell>{row.atividade}</Cell><Cell>{row.produto}</Cell><Cell>{row.volumeL?n(row.volumeL,1):""}</Cell><Cell>{row.dose}</Cell></tr>):<tr><td colSpan={8} className="border border-slate-400 px-3 py-10 text-center text-sm font-black">NENHUMA ATIVIDADE REALIZADA</td></tr>}</tbody><tfoot>{rows.length>0&&<tr className="font-black"><td colSpan={2} className="border border-slate-400 px-2 py-2 text-right">TOTAL DO MÊS</td><Cell>{n(totals.area)}</Cell><Cell>{n(totals.hours)}</Cell><td colSpan={2} className="border border-slate-400"></td><Cell>{n(totals.volume,1)}</Cell><td className="border border-slate-400"></td></tr>}</tfoot></table></div>}
 
-      <div className="mt-5 grid gap-2 text-[10px] leading-4 text-slate-600"><p><strong>Critério de horas:</strong> calculadas a partir dos horários reais de início e término registrados em cada operação.</p><p><strong>Volume:</strong> utiliza o volume real de calda registrado nas cargas; quando ausente, usa o volume planejado salvo na operação. A conferência final deve ser feita antes da remessa.</p><p><strong>Fonte oficial 2026:</strong> página “Relatórios Mensais” do MAPA, atualizada em 27/02/2026, informa o uso da planilha versão 01-01-2026 e remessa via SEI.</p></div>
+      <div className="mt-5 grid gap-2 text-[10px] leading-4 text-slate-600"><p><strong>Critério de competência:</strong> a aplicação entra no mês pela data real de término registrada no campo, não pela data de sincronização do celular.</p><p><strong>Critério de horas:</strong> calculadas a partir dos horários reais de início e término registrados em cada operação.</p><p><strong>Volume:</strong> utiliza o volume real de calda registrado nas cargas; quando ausente, usa o volume planejado salvo na operação. A conferência final deve ser feita antes da remessa.</p><p><strong>Fonte oficial 2026:</strong> página “Relatórios Mensais” do MAPA, atualizada em 27/02/2026, informa o uso da planilha versão 01-01-2026 e remessa via SEI.</p></div>
 
       <div className="mt-8 grid grid-cols-2 gap-10 text-center text-xs"><div className="border-t border-slate-500 pt-2">Responsável pelo preenchimento</div><div className="border-t border-slate-500 pt-2">Responsável técnico / conferência</div></div>
     </section>
