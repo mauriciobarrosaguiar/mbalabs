@@ -106,8 +106,6 @@ export function PwaInstallAndUpdate() {
   async function install() {
     const promptEvent = installPrompt || (window as WindowWithInstallPrompt).__caldaInstallPrompt;
 
-    // O navegador só permite abrir o instalador nativo quando o evento de
-    // instalação está disponível. Não mostramos mais instruções manuais.
     if (!promptEvent) return;
 
     await promptEvent.prompt();
@@ -134,28 +132,30 @@ export function PwaInstallAndUpdate() {
 
   return (
     <>
-      <div className="fixed right-4 top-4 z-[80] flex items-center gap-2 sm:right-6 sm:top-6">
-        <a
-          href={DRONEGESTOR_LOGIN_URL}
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/12 px-4 text-[13px] font-extrabold text-white shadow-[0_5px_18px_rgba(0,0,0,0.14)] backdrop-blur transition hover:bg-white/18 active:scale-95"
-          aria-label="Entrar no DroneGestor"
-          title="Entrar no DroneGestor"
-        >
-          <LogIn size={17} strokeWidth={2.4} />
-          <span>Login</span>
-        </a>
-
-        {!installed && (
-          <button
-            type="button"
-            onClick={install}
-            className="grid size-10 place-items-center rounded-full border border-white/20 bg-[#0b5f3c]/92 text-white shadow-[0_5px_18px_rgba(0,0,0,0.18)] backdrop-blur transition active:scale-95"
-            aria-label="Instalar Calda Fácil"
-            title="Instalar aplicativo"
+      <div className="sticky top-0 z-[80] w-full border-b border-white/10 bg-[#076a40]/95 backdrop-blur">
+        <div className="mx-auto flex min-h-14 w-full max-w-2xl items-center justify-end gap-2 px-4 sm:px-6">
+          <a
+            href={DRONEGESTOR_LOGIN_URL}
+            className="inline-flex min-h-9 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 text-[13px] font-extrabold text-white transition hover:bg-white/15 active:scale-95"
+            aria-label="Entrar no DroneGestor"
+            title="Entrar no DroneGestor"
           >
-            <Download size={19} strokeWidth={2.5} />
-          </button>
-        )}
+            <LogIn size={16} strokeWidth={2.4} />
+            <span>Login</span>
+          </a>
+
+          {!installed && (
+            <button
+              type="button"
+              onClick={install}
+              className="grid size-9 place-items-center rounded-full border border-white/20 bg-white/10 text-white transition hover:bg-white/15 active:scale-95"
+              aria-label="Instalar Calda Fácil"
+              title="Instalar aplicativo"
+            >
+              <Download size={18} strokeWidth={2.5} />
+            </button>
+          )}
+        </div>
       </div>
 
       {updateAvailable && (
