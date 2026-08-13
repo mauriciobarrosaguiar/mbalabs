@@ -70,6 +70,7 @@ export function DroneMissionContextReset() {
       localStorage.setItem("dronegestor:endedAt:v4", JSON.stringify(""));
       localStorage.setItem("dronegestor:view:v3", "nova");
       localStorage.removeItem("dronegestor:weather");
+      localStorage.removeItem("dronegestor:mapEvidence:v1");
       localStorage.removeItem("dronegestor:operationId:v3");
       localStorage.removeItem("dronegestor:lastFinalizedOperationId:v3");
       localStorage.setItem("dronegestor:syncDirty:v4", "1");
