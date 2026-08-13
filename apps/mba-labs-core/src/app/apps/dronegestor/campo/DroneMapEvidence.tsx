@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, CheckCircle2, ImageUp, Loader2, MapPinned } from "lucide-react";
+import { Camera, CheckCircle2, ImageUp, Loader2, MapPinned, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 type Evidence = {
@@ -34,38 +34,51 @@ function getMission(): MissionContext {
   }
 }
 
-export function DroneMapEvidence({ disabled = false }: { disabled?: boolean }) {
+export function DroneMapEvidence() {
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+  const [open, setOpen] = useState(false);
   const [evidence, setEvidence] = useState<Evidence | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      const mission = getMission();
-      const query = mission.ordemServicoId ? `?osId=${encodeURIComponent(mission.ordemServicoId)}` : "";
-      try {
-        const response = await fetch(`/api/dronegestor/mapa${query}`, { cache: "no-store" });
-        const payload = await response.json().catch(() => null);
-        if (!cancelled && response.ok) {
-          setEvidence(payload?.evidence ?? null);
-          if (payload?.evidence) localStorage.setItem(EVIDENCE_KEY, JSON.stringify(payload.evidence));
-        }
-      } catch {
-        // A operação continua funcionando mesmo sem conexão.
-      } finally {
-        if (!cancelled) setLoading(false);
+  async function loadEvidence() {
+    setLoading(true);
+    const mission = getMission();
+    const query = mission.ordemServicoId ? `?osId=${encodeURIComponent(mission.ordemServicoId)}` : "";
+    try {
+      const response = await fetch(`/api/dronegestor/mapa${query}`, { cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+      if (response.ok) {
+        setEvidence(payload?.evidence ?? null);
+        if (payload?.evidence) localStorage.setItem(EVIDENCE_KEY, JSON.stringify(payload.evidence));
       }
+    } catch {
+      const cached = localStorage.getItem(EVIDENCE_KEY);
+      if (cached) {
+        try { setEvidence(JSON.parse(cached) as Evidence); } catch { /* ignore */ }
+      }
+    } finally {
+      setLoading(false);
     }
-    void load();
-    return () => { cancelled = true; };
+  }
+
+  useEffect(() => {
+    const cached = localStorage.getItem(EVIDENCE_KEY);
+    if (cached) {
+      try { setEvidence(JSON.parse(cached) as Evidence); } catch { /* ignore */ }
+    }
   }, []);
 
+  async function openPanel() {
+    setOpen(true);
+    setMessage("");
+    await loadEvidence();
+  }
+
   async function upload(file: File | undefined, source: "camera" | "arquivo") {
-    if (!file || disabled || uploading) return;
+    if (!file || uploading) return;
     setMessage("");
     setUploading(true);
     const mission = getMission();
@@ -95,81 +108,108 @@ export function DroneMapEvidence({ disabled = false }: { disabled?: boolean }) {
   }
 
   return (
-    <section className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4">
-      <div className="flex items-start gap-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-700 text-white">
-          <MapPinned size={20} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <strong className="block text-sm font-black text-emerald-950">Mapa usado no voo</strong>
-          <p className="mt-1 text-xs leading-5 text-emerald-900/75">
-            Fotografe a tela do controle ou carregue a imagem do mapa realmente utilizado nesta aplicação.
-          </p>
-        </div>
-      </div>
+    <>
+      <button
+        type="button"
+        onClick={() => void openPanel()}
+        className="fixed bottom-24 right-4 z-[55] inline-flex min-h-11 items-center gap-2 rounded-full border border-emerald-200 bg-white px-4 text-sm font-black text-emerald-800 shadow-lg shadow-emerald-950/15 active:scale-95 sm:right-6"
+        aria-label="Registrar mapa usado no voo"
+      >
+        <MapPinned size={18} />
+        <span>Mapa do voo</span>
+        {evidence && <CheckCircle2 size={16} className="text-emerald-600" />}
+      </button>
 
-      {loading ? (
-        <div className="mt-4 flex min-h-20 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white text-sm font-bold text-emerald-800">
-          <Loader2 className="animate-spin" size={17} /> Carregando mapa...
-        </div>
-      ) : evidence?.url ? (
-        <div className="mt-4 overflow-hidden rounded-2xl border border-emerald-200 bg-white">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={evidence.url} alt="Mapa usado no voo" className="max-h-72 w-full object-contain" />
-          <div className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-800">
-            <CheckCircle2 size={16} />
-            <span className="truncate">
-              {evidence.ordemServicoNumero || evidence.talhaoNome || "Imagem do mapa salva"}
-            </span>
-          </div>
-        </div>
-      ) : (
-        <div className="mt-4 rounded-xl border border-dashed border-emerald-300 bg-white px-4 py-5 text-center text-xs font-semibold text-slate-500">
-          Nenhuma imagem do mapa registrada nesta operação.
+      {open && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/55 p-3 backdrop-blur-sm sm:items-center">
+          <section className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-[26px] border border-emerald-200 bg-[#f8fbf5] p-4 shadow-2xl sm:p-5">
+            <div className="flex items-start gap-3">
+              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-emerald-700 text-white">
+                <MapPinned size={22} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <strong className="block text-base font-black text-emerald-950">Mapa usado no voo</strong>
+                <p className="mt-1 text-sm leading-5 text-emerald-900/75">
+                  Tire uma foto da tela do controle ou carregue a imagem do mapa realmente utilizado na aplicação.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="grid size-9 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-slate-600"
+                aria-label="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="mt-4 flex min-h-24 items-center justify-center gap-2 rounded-2xl border border-emerald-200 bg-white text-sm font-bold text-emerald-800">
+                <Loader2 className="animate-spin" size={18} /> Carregando mapa...
+              </div>
+            ) : evidence?.url ? (
+              <div className="mt-4 overflow-hidden rounded-2xl border border-emerald-200 bg-white">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={evidence.url} alt="Mapa usado no voo" className="max-h-72 w-full object-contain" />
+                <div className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-800">
+                  <CheckCircle2 size={16} />
+                  <span className="truncate">{evidence.ordemServicoNumero || evidence.talhaoNome || "Imagem do mapa salva"}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-dashed border-emerald-300 bg-white px-4 py-6 text-center text-sm font-semibold text-slate-500">
+                Nenhuma imagem do mapa registrada nesta operação.
+              </div>
+            )}
+
+            <input
+              ref={cameraRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              capture="environment"
+              className="hidden"
+              onChange={(event) => void upload(event.target.files?.[0], "camera")}
+            />
+            <input
+              ref={galleryRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(event) => void upload(event.target.files?.[0], "arquivo")}
+            />
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => cameraRef.current?.click()}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-3 text-sm font-black text-white disabled:opacity-50"
+              >
+                {uploading ? <Loader2 className="animate-spin" size={18} /> : <Camera size={18} />}
+                Tirar foto
+              </button>
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => galleryRef.current?.click()}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-3 text-sm font-black text-emerald-800 disabled:opacity-50"
+              >
+                <ImageUp size={18} /> Carregar foto
+              </button>
+            </div>
+
+            {message && (
+              <p className={`mt-3 rounded-xl px-3 py-2 text-sm font-bold ${message.startsWith("Mapa registrado") ? "bg-emerald-100 text-emerald-900" : "bg-red-50 text-red-700"}`}>
+                {message}
+              </p>
+            )}
+
+            <p className="mt-3 text-xs leading-5 text-slate-500">
+              A imagem fica privada e vinculada ao usuário/empresa e à OS quando houver uma OS selecionada.
+            </p>
+          </section>
         </div>
       )}
-
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        capture="environment"
-        className="hidden"
-        onChange={(event) => void upload(event.target.files?.[0], "camera")}
-      />
-      <input
-        ref={galleryRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        className="hidden"
-        onChange={(event) => void upload(event.target.files?.[0], "arquivo")}
-      />
-
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          disabled={disabled || uploading}
-          onClick={() => cameraRef.current?.click()}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-3 text-sm font-black text-white disabled:opacity-50"
-        >
-          {uploading ? <Loader2 className="animate-spin" size={18} /> : <Camera size={18} />}
-          Tirar foto
-        </button>
-        <button
-          type="button"
-          disabled={disabled || uploading}
-          onClick={() => galleryRef.current?.click()}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-3 text-sm font-black text-emerald-800 disabled:opacity-50"
-        >
-          <ImageUp size={18} /> Carregar foto
-        </button>
-      </div>
-
-      {message && (
-        <p className={`mt-3 text-xs font-bold ${message.startsWith("Mapa registrado") ? "text-emerald-800" : "text-red-700"}`}>
-          {message}
-        </p>
-      )}
-    </section>
+    </>
   );
 }
