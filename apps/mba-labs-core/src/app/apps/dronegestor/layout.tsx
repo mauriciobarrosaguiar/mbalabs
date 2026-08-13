@@ -1,31 +1,38 @@
 import type { ReactNode } from "react";
+import { DroneActiveOperationBridge } from "./DroneActiveOperationBridge";
 import { DroneAppShell } from "./DroneAppShell";
 
 export default function DroneGestorLayout({ children }: { children: ReactNode }) {
   return (
     <div className="dronegestor-ui min-h-screen overflow-x-hidden bg-[#f4f8f1] text-slate-950">
+      <DroneActiveOperationBridge />
       <DroneAppShell>{children}</DroneAppShell>
       <style>{`
         .dronegestor-ui {
+          width: 100%;
+          max-width: 100vw;
           color-scheme: light;
           -webkit-text-size-adjust: 100%;
           text-size-adjust: 100%;
           overflow-x: clip;
         }
         .dronegestor-ui *, .dronegestor-ui *::before, .dronegestor-ui *::after { box-sizing: border-box; }
-        .dronegestor-ui main, .dronegestor-ui section, .dronegestor-ui article, .dronegestor-ui div { min-width: 0; }
-        .dronegestor-ui img, .dronegestor-ui svg { max-width: 100%; }
+        .dronegestor-ui main, .dronegestor-ui section, .dronegestor-ui article, .dronegestor-ui header, .dronegestor-ui footer, .dronegestor-ui nav, .dronegestor-ui div { min-width: 0; max-width: 100%; }
+        .dronegestor-ui img, .dronegestor-ui svg, .dronegestor-ui video, .dronegestor-ui canvas { max-width: 100%; height: auto; }
         .dronegestor-ui h1, .dronegestor-ui h2, .dronegestor-ui h3 {
           max-width: 100%;
           overflow-wrap: anywhere;
           word-break: normal;
         }
-        .dronegestor-ui p, .dronegestor-ui label, .dronegestor-ui strong { overflow-wrap: break-word; }
-        .dronegestor-ui button, .dronegestor-ui a { min-width: 0; max-width: 100%; }
+        .dronegestor-ui p, .dronegestor-ui label, .dronegestor-ui strong, .dronegestor-ui span { overflow-wrap: break-word; }
+        .dronegestor-ui button, .dronegestor-ui a { min-width: 0; max-width: 100%; white-space: normal; }
+        .dronegestor-ui .overflow-x-auto { max-width: 100%; }
 
         .dronegestor-ui input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
         .dronegestor-ui select,
         .dronegestor-ui textarea {
+          width: 100%;
+          min-width: 0;
           color: #0f172a;
           background-color: #ffffff;
           -webkit-text-fill-color: #0f172a;
@@ -34,6 +41,7 @@ export default function DroneGestorLayout({ children }: { children: ReactNode })
         }
 
         .dronegestor-ui input[type="file"] {
+          width: 100%;
           max-width: 100%;
           min-width: 0;
           overflow: hidden;
@@ -65,15 +73,22 @@ export default function DroneGestorLayout({ children }: { children: ReactNode })
           .dronegestor-ui textarea { font-size: 16px; }
 
           .dronegestor-ui h1 {
-            font-size: clamp(1.8rem, 8.5vw, 2.35rem) !important;
-            line-height: 1.02 !important;
+            font-size: clamp(1.65rem, 7.8vw, 2.25rem) !important;
+            line-height: 1.05 !important;
             letter-spacing: -0.035em;
           }
+          .dronegestor-ui h2 { line-height: 1.12; }
 
+          .dronegestor-ui main { padding-left: .75rem !important; padding-right: .75rem !important; }
           .dronegestor-ui header .flex.gap-2 { flex-wrap: wrap; }
+          .dronegestor-ui .flex.items-center.justify-between,
+          .dronegestor-ui .flex.items-start.justify-between { column-gap: .65rem; }
           .dronegestor-ui button, .dronegestor-ui a { -webkit-tap-highlight-color: transparent; }
           .dronegestor-ui .mobile-hide-scrollbar { scrollbar-width: none; }
           .dronegestor-ui .mobile-hide-scrollbar::-webkit-scrollbar { display: none; }
+
+          .dronegestor-ui [class*="grid-cols-2"]:not(.drone-mobile-nav) { grid-template-columns: minmax(0, 1fr) !important; }
+          .dronegestor-ui [class*="sm:grid-cols-2"] { grid-template-columns: minmax(0, 1fr); }
 
           /* Gestão: somente o grupo direto de quatro abas administrativas vira grade 2x2. */
           .dronegestor-ui main > div > div.flex.gap-2.overflow-x-auto:has(> button:nth-child(4)):not(:has(> button:nth-child(5))) {
@@ -99,6 +114,16 @@ export default function DroneGestorLayout({ children }: { children: ReactNode })
             grid-template-columns: minmax(0, 1fr) !important;
           }
 
+          /* Ações largas e modais nunca podem ultrapassar a largura útil do celular. */
+          .dronegestor-ui [class*="fixed"][class*="inset-0"] > section,
+          .dronegestor-ui [role="dialog"] {
+            width: calc(100vw - 1rem) !important;
+            max-width: calc(100vw - 1rem) !important;
+          }
+          .dronegestor-ui .drone-mobile-stack { grid-template-columns: minmax(0,1fr) !important; }
+          .dronegestor-ui .drone-mobile-actions { display: grid !important; grid-template-columns: minmax(0,1fr) !important; width: 100%; }
+          .dronegestor-ui .drone-mobile-actions > * { width: 100%; justify-content: center; }
+
           .dronegestor-ui button[aria-label="Registrar mapa usado no voo"] {
             left: 1rem !important;
             right: auto !important;
@@ -117,7 +142,7 @@ export default function DroneGestorLayout({ children }: { children: ReactNode })
         }
 
         @media (max-width: 380px) {
-          .dronegestor-ui h1 { font-size: clamp(1.65rem, 8.2vw, 2rem) !important; }
+          .dronegestor-ui h1 { font-size: clamp(1.55rem, 7.8vw, 1.95rem) !important; }
           .dronegestor-ui main > div > div.flex.gap-2.overflow-x-auto:has(> button:nth-child(4)):not(:has(> button:nth-child(5))) > button { font-size: .9rem; }
         }
 
