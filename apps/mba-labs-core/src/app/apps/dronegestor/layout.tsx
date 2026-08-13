@@ -48,6 +48,21 @@ export default function DroneGestorLayout({ children }: { children: ReactNode })
           .dronegestor-ui button, .dronegestor-ui a { -webkit-tap-highlight-color: transparent; }
           .dronegestor-ui .mobile-hide-scrollbar { scrollbar-width: none; }
           .dronegestor-ui .mobile-hide-scrollbar::-webkit-scrollbar { display: none; }
+          .dronegestor-ui button[aria-label="Registrar mapa usado no voo"] {
+            left: 1rem !important;
+            right: auto !important;
+            bottom: calc(5.75rem + env(safe-area-inset-bottom)) !important;
+            width: 3.25rem !important;
+            height: 3.25rem !important;
+            min-height: 3.25rem !important;
+            padding: 0 !important;
+            justify-content: center !important;
+            border-radius: 999px !important;
+            background: #087a55 !important;
+            color: white !important;
+            border-color: #d2efde !important;
+          }
+          .dronegestor-ui button[aria-label="Registrar mapa usado no voo"] > span { display: none !important; }
         }
 
         @media print {
