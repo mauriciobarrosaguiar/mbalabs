@@ -4,8 +4,8 @@ import Link from "next/link";
 import { ArrowLeft, Building2, CheckCircle2, Loader2, Save, ShieldCheck, UserRoundCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-type Profile={operadorNome:string;cpfCnpj:string;registroMapa:string;processoSei:string;rtNome:string;rtConselho:string;rtRegistro:string;email:string;telefone:string;observacoes:string};
-const empty:Profile={operadorNome:"",cpfCnpj:"",registroMapa:"",processoSei:"",rtNome:"",rtConselho:"",rtRegistro:"",email:"",telefone:"",observacoes:""};
+type Profile={modoOperacao:"solo"|"equipe";operadorNome:string;cpfCnpj:string;registroMapa:string;processoSei:string;rtNome:string;rtConselho:string;rtRegistro:string;email:string;telefone:string;observacoes:string};
+const empty:Profile={modoOperacao:"solo",operadorNome:"",cpfCnpj:"",registroMapa:"",processoSei:"",rtNome:"",rtConselho:"",rtRegistro:"",email:"",telefone:"",observacoes:""};
 
 export function DroneOperationalProfile(){
   const [profile,setProfile]=useState<Profile>(empty); const [canManage,setCanManage]=useState(false); const [loading,setLoading]=useState(true); const [saving,setSaving]=useState(false); const [message,setMessage]=useState("");
