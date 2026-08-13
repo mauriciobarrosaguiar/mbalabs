@@ -45,20 +45,28 @@ export function DroneEquipmentPicker({ canManage }: { canManage: boolean }) {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    setSelectedId(localStorage.getItem(EQUIPMENT_KEY) || "");
     fetch("/api/dronegestor/equipamentos", { cache: "no-store" })
       .then(async (response) => {
         const payload = await response.json().catch(() => null);
         if (!response.ok) throw new Error(payload?.error || "Falha ao carregar equipamentos.");
         const next = (payload.items ?? []) as Equipment[];
         setItems(next);
+
         const current = localStorage.getItem(EQUIPMENT_KEY) || "";
-        if (current && !next.some((item) => item.entityId === current)) {
+        const mission = readJson<Record<string, any>>(MISSION_KEY, {});
+        const missionEquipmentId = String(mission.equipamentoId || "");
+        const started = Boolean(readJson(STARTED_KEY, false));
+        const currentExists = Boolean(current && next.some((item) => item.entityId === current));
+        const belongsToThisMission = Boolean(currentExists && (started || current === missionEquipmentId));
+
+        if (belongsToThisMission) {
+          setSelectedId(current);
+        } else {
           localStorage.removeItem(EQUIPMENT_KEY);
           localStorage.removeItem(EQUIPMENT_NAME_KEY);
           setSelectedId("");
+          if (next.length > 0) setOpen(true);
         }
-        if (!current && next.length > 0) setOpen(true);
       })
       .catch((error) => setMessage(error instanceof Error ? error.message : "Falha ao carregar equipamentos."))
       .finally(() => setLoading(false));
@@ -140,7 +148,7 @@ export function DroneEquipmentPicker({ canManage }: { canManage: boolean }) {
           <section className="max-h-[85vh] w-full overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-2xl sm:max-w-lg sm:rounded-[28px] sm:p-6">
             <div className="flex items-start gap-3">
               <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-100 text-emerald-700"><Drone size={24}/></span>
-              <div className="min-w-0 flex-1"><span className="text-xs font-black uppercase tracking-[.12em] text-emerald-700">Antes de continuar</span><h2 className="mt-1 text-2xl font-black text-slate-950">Qual drone será usado?</h2><p className="mt-1 text-sm leading-5 text-slate-500">Escolha uma vez. Tanque, ANAC, bico e parâmetros padrão entram automaticamente.</p></div>
+              <div className="min-w-0 flex-1"><span className="text-xs font-black uppercase tracking-[.12em] text-emerald-700">Antes de continuar</span><h2 className="mt-1 text-2xl font-black text-slate-950">Qual drone será usado?</h2><p className="mt-1 text-sm leading-5 text-slate-500">Escolha uma vez nesta operação. Tanque, ANAC, bico e parâmetros padrão entram automaticamente.</p></div>
               {selected && <button onClick={() => setOpen(false)} className="grid size-9 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-600" aria-label="Fechar"><X size={17}/></button>}
             </div>
 
