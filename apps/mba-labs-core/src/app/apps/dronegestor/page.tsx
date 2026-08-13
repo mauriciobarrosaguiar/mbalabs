@@ -27,7 +27,7 @@ export default async function DroneGestorPage() {
             <Action href="/apps/dronegestor/campo" icon={<Drone size={24}/>} title="Começar ou continuar operação" text="Escolha o drone e siga calda, segurança, equipamento, liberação, voo e finalização." primary />
             <Action href="/apps/dronegestor/gestao" icon={<ClipboardList size={24}/>} title="Preparar uma operação" text="Cadastre cliente, fazenda e talhão e crie a ordem de serviço (OS)." />
             <Action href="/apps/dronegestor/produtos" icon={<BookOpenCheck size={24}/>} title="Produtos e bulas" text="Consulte produto, registro e revisão técnica sem transformar a biblioteca em recomendação de dose." />
-            <Action href="/apps/dronegestor/historico" icon={<History size={24}/>} title="Ver operações feitas" text="Consulte aplicações concluídas, hectares, ocorrências e registros salvos." />
+            <Action href="/apps/dronegestor/fichas" icon={<History size={24}/>} title="Ver operações feitas" text="Abra uma ficha simples de cada aplicação, com mapa e conferências. O histórico/CSV continua disponível lá dentro." />
             {canManage && <Action href="/apps/dronegestor/equipamentos" icon={<Settings2 size={24}/>} title="Drones e equipamentos" text="Cadastre cada drone uma vez para preencher automaticamente os dados no campo." />}
           </div>
         </section>
