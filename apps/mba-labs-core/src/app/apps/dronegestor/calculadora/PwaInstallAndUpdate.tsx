@@ -132,7 +132,15 @@ export function PwaInstallAndUpdate() {
 
   return (
     <>
-      <div className="sticky top-0 z-[80] w-full border-b border-white/10 bg-[#076a40]/95 backdrop-blur">
+      <div
+        aria-hidden="true"
+        className="w-full bg-[#076a40]"
+        style={{ height: "calc(3.5rem + env(safe-area-inset-top))" }}
+      />
+      <div
+        className="fixed inset-x-0 top-0 z-[80] w-full border-b border-white/10 bg-[#076a40]/95 backdrop-blur"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
         <div className="mx-auto flex min-h-14 w-full max-w-2xl items-center justify-end gap-2 px-4 sm:px-6">
           <a
             href={DRONEGESTOR_LOGIN_URL}
