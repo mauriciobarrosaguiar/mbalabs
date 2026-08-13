@@ -4,6 +4,7 @@ import { DroneGestorAppV3 } from "./DroneGestorAppV3";
 import { DroneMissionContextReset } from "./DroneMissionContextReset";
 import { DroneOsLifecycleSync } from "./DroneOsLifecycleSync";
 import { DronePersistenceSync } from "./DronePersistenceSync";
+import { DroneProductMissionPicker } from "./DroneProductMissionPicker";
 import { DroneSimpleFlowUX } from "./DroneSimpleFlowUX";
 import { DroneWeatherSync } from "./DroneWeatherSync";
 
@@ -24,6 +25,7 @@ export default async function DroneGestorCampoPage() {
       <DroneMissionContextReset />
       <DroneEquipmentPicker canManage={canManage} />
       <DroneSimpleFlowUX />
+      <DroneProductMissionPicker />
       <DroneGestorAppV3
         userName={pilotName}
         userType={current.tipo}
