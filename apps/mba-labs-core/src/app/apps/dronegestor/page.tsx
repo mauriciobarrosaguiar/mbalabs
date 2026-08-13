@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpenCheck, ClipboardList, Drone, History, MapPinned, Settings2, Sprout } from "lucide-react";
+import { BookOpenCheck, ClipboardList, Drone, FileSpreadsheet, History, MapPinned, Scale, Settings2, Sprout } from "lucide-react";
 import { requireAppAccess } from "@/lib/core-data";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +30,11 @@ export default async function DroneGestorPage() {
             <Action href="/apps/dronegestor/fichas" icon={<History size={24}/>} title="Ver operações feitas" text="Abra uma ficha simples de cada aplicação, com mapa e conferências. O histórico/CSV continua disponível lá dentro." />
             {canManage && <Action href="/apps/dronegestor/equipamentos" icon={<Settings2 size={24}/>} title="Drones e equipamentos" text="Cadastre cada drone uma vez para preencher automaticamente os dados no campo." />}
           </div>
+        </section>
+
+        <section className="grid gap-3 sm:grid-cols-2">
+          <Action href="/apps/dronegestor/regulacao" icon={<Scale size={24}/>} title="Regras e segurança por Estado" text="Veja o que é regra legal, o que é padrão interno e quais pontos ainda exigem conferência do RT/órgão estadual." />
+          <Action href="/apps/dronegestor/relatorio-mensal" icon={<FileSpreadsheet size={24}/>} title="Relatório mensal MAPA" text="Consolide as operações do mês nos campos obrigatórios e imprima o espelho para conferência antes da remessa oficial pelo SEI." />
         </section>
 
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
