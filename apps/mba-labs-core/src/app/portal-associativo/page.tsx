@@ -48,11 +48,11 @@ export default async function PortalAssociativoPage() {
         <MessageBanner error={dashboard.error ?? undefined} />
 
         <section className="rounded-2xl border border-border bg-card p-2 shadow-sm sm:p-3">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-7">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
             <QuickAction href="/portal-associativo/pessoas#cadastro" label="Associados" icon={UserPlus} />
-            <QuickAction href="/portal-associativo/unidades#cadastro" label="Chácaras/Lotes" icon={Building2} />
-            <QuickAction href="/portal-associativo/financeiro#mensalidades-lote" label="Gerar mensalidade" icon={CircleDollarSign} />
-            <QuickAction href="/portal-associativo/inadimplentes" label="Ver atrasados" icon={TriangleAlert} />
+            <QuickAction href="/portal-associativo/unidades#cadastro" label="Unidades" icon={Building2} />
+            <QuickAction href="/portal-associativo/financeiro#mensalidades-lote" label="Mensalidade" icon={CircleDollarSign} />
+            <QuickAction href="/portal-associativo/inadimplentes" label="Atrasados" icon={TriangleAlert} />
             <QuickAction href="/portal-associativo/financeiro?status=aguardando_aprovacao" label="Aprovar" icon={CheckCheck} badge={dashboard.metrics.comprovantesPendentes} />
             <QuickAction href="/portal-associativo/transferencias" label="Transferir" icon={Repeat} />
             <QuickAction href="/portal-associativo/configuracoes#pix-manual" label="PIX" icon={Settings} />
@@ -201,9 +201,9 @@ export default async function PortalAssociativoPage() {
 
 function QuickAction({ href, icon: Icon, label, badge }: { href: string; icon: ComponentType<{ className?: string }>; label: string; badge?: number }) {
   return (
-    <Link className="relative flex min-h-12 items-center gap-2 rounded-xl border border-border bg-card p-2 text-xs font-black shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:bg-primary/5 sm:min-h-14 sm:text-sm" href={href}>
+    <Link className="relative flex min-h-12 min-w-0 items-center gap-2 rounded-xl border border-border bg-card p-2 text-xs font-black shadow-sm transition hover:-translate-y-0.5 hover:border-primary hover:bg-primary/5 sm:min-h-14 sm:text-sm" href={href}>
       <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><Icon className="h-4 w-4" aria-hidden /></span>
-      <span className="leading-tight">{label}</span>
+      <span className="min-w-0 truncate leading-tight">{label}</span>
       {badge ? <span className="absolute right-2 top-2 grid min-h-5 min-w-5 place-items-center rounded-full bg-rose-600 px-1 text-[10px] text-white">{badge}</span> : null}
     </Link>
   );
@@ -243,13 +243,16 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   return (
     <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
       <h2 className="text-base font-black">{title}</h2>
-      <div className="mt-3">{children}</div>
+      <div className="mt-4">{children}</div>
     </section>
   );
 }
 
 function MiniRanking({ rows }: { rows: Array<{ label: string; total: number }> }) {
-  if (rows.length === 0) return <p className="text-sm text-muted-foreground">Nenhum valor vencido encontrado.</p>;
+  if (rows.length === 0) {
+    return <p className="text-sm text-muted-foreground">Nenhum valor vencido encontrado.</p>;
+  }
+
   return (
     <div className="grid gap-2">
       {rows.map((row) => (
