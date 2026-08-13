@@ -1,56 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { Scale, ShieldAlert, ShieldCheck, TriangleAlert } from "lucide-react";
+import { Check, Pencil, Scale, ShieldAlert, ShieldCheck, TriangleAlert, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { getRulesForUf } from "@/lib/dronegestor-regulations";
 
-type Mission = { uf?: string; distanciaSensivel?: number | null; semAreaSensivel?: boolean } & Record<string, unknown>;
-type Settings = { margemPreventiva?: number; bloquearMargemPreventiva?: boolean };
-const VIEWS = new Set(["estrategia", "seguranca"]);
+type Mission={uf?:string;distanciaSensivel?:number|null;semAreaSensivel?:boolean}&Record<string,unknown>;
+type Settings={margemPreventiva?:number;bloquearMargemPreventiva?:boolean;insightsObrigatorios?:boolean;exigirConfirmacao?:boolean;protocoloBordaduraCigarrinha?:boolean};
+const VIEWS=new Set(["estrategia","seguranca"]);
+function readMission():Mission{try{return JSON.parse(localStorage.getItem("dronegestor:mission:v2")||"{}") as Mission}catch{return{}}}
+function readView(){try{return localStorage.getItem("dronegestor:view:v3")||"inicio"}catch{return"inicio"}}
 
-function readMission(): Mission { try { return JSON.parse(localStorage.getItem("dronegestor:mission:v2") || "{}") as Mission; } catch { return {}; } }
-function readView() { try { return localStorage.getItem("dronegestor:view:v3") || "inicio"; } catch { return "inicio"; } }
-
-export function DroneRegulatoryGuard() {
-  const [mission, setMission] = useState<Mission>({});
-  const [view, setView] = useState("inicio");
-  const [settings, setSettings] = useState<Settings>({ margemPreventiva: 90, bloquearMargemPreventiva: true });
-
-  useEffect(() => {
-    const sync = () => { setMission(readMission()); setView(readView()); };
-    sync();
-    const interval = window.setInterval(sync, 450);
-    fetch("/api/dronegestor/config", { cache: "no-store" }).then((res)=>res.json()).then((payload)=>{ if (payload?.settings) setSettings(payload.settings); }).catch(()=>undefined);
-    return () => window.clearInterval(interval);
-  }, []);
-
-  const rules = useMemo(() => getRulesForUf(mission.uf), [mission.uf]);
-  if (!VIEWS.has(view)) return null;
-
-  const distance = mission.distanciaSensivel == null ? null : Number(mission.distanciaSensivel);
-  const legalMinimum = rules.federalMinimumM;
-  const internalMinimum = Math.max(0, Number(settings.margemPreventiva ?? 90) || 0);
-  const legalProblem = !mission.semAreaSensivel && distance != null && distance < legalMinimum;
-  const internalProblem = !mission.semAreaSensivel && distance != null && settings.bloquearMargemPreventiva !== false && distance < internalMinimum;
-  const goReview = rules.uf === "GO" && rules.state.some((rule)=>rule.applicability === "review");
-
-  return <section className="border-b border-emerald-900/20 bg-[#07110d] px-3 py-3 text-white sm:px-5">
-    <div className="mx-auto grid w-full max-w-3xl gap-2">
-      <div className="flex items-start gap-3 rounded-2xl border border-emerald-700 bg-emerald-950/80 p-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-800"><Scale size={19}/></span>
-        <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><strong className="text-sm">Regra da operação • {rules.uf || "UF não informada"}</strong><span className="rounded-full bg-emerald-800 px-2 py-1 text-[10px] font-black">fonte verificada 12/08/2026</span></div><p className="mt-1 text-xs leading-5 text-emerald-100/85">Federal para ARP: <strong>20 m</strong> nas situações do art. 9º da Portaria MAPA 298/2021, sem reduzir restrições maiores de bula/receita/legislação específica.</p><p className="mt-1 text-xs leading-5 text-emerald-100/85">Padrão interno da empresa: <strong>{internalMinimum} m</strong>{settings.bloquearMargemPreventiva === false ? " (orientativo)" : " (bloqueio interno)"}. Este valor não é apresentado como lei.</p></div>
-        <ShieldCheck className="shrink-0 text-emerald-300" size={20}/>
-      </div>
-
-      {legalProblem && <Alert danger title="Abaixo do mínimo federal cadastrado" text={`A distância registrada (${distance} m) está abaixo dos ${legalMinimum} m da regra federal geral para ARP. Não prossiga sem corrigir a situação ou confirmar formalmente uma exceção legal aplicável.`}/>} 
-      {!legalProblem && internalProblem && <Alert title="Abaixo do padrão interno" text={`A distância registrada (${distance} m) supera ou não viola o piso federal mostrado, mas está abaixo da margem preventiva interna de ${internalMinimum} m configurada pela empresa.`}/>} 
-      {goReview && <Alert title="Goiás exige conferência adicional" text="A lei estadual vigente traz 500 m/250 m para 'pulverização aérea', mas define essa modalidade por avião, hidroavião e helicóptero. O DroneGestor não aplica esses números automaticamente a ARP sem confirmação da Agrodefesa/RT."/>}
-      {!rules.state.length && rules.uf && <div className="rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs leading-5 text-slate-200">Nenhuma regra estadual específica de ARP está cadastrada como verificada para {rules.uf}. Isso não significa que não exista regra estadual/local; confira a legislação aplicável ao caso.</div>}
-
-      <Link href="/apps/dronegestor/regulacao" className="justify-self-start text-xs font-black text-emerald-300 underline underline-offset-4">Ver fontes e detalhes das regras</Link>
-    </div>
-  </section>;
+export function DroneRegulatoryGuard({canManage=false}:{canManage?:boolean}){
+  const[mission,setMission]=useState<Mission>({}),[view,setView]=useState("inicio"),[settings,setSettings]=useState<Settings>({margemPreventiva:90,bloquearMargemPreventiva:true}),[editing,setEditing]=useState(false),[draftMargin,setDraftMargin]=useState("90"),[saving,setSaving]=useState(false),[message,setMessage]=useState("");
+  useEffect(()=>{const sync=()=>{setMission(readMission());setView(readView())};sync();const interval=window.setInterval(sync,450);fetch("/api/dronegestor/config",{cache:"no-store"}).then(res=>res.json()).then(payload=>{if(payload?.settings){setSettings(payload.settings);setDraftMargin(String(payload.settings.margemPreventiva??90))}}).catch(()=>undefined);return()=>window.clearInterval(interval)},[]);
+  const rules=useMemo(()=>getRulesForUf(mission.uf),[mission.uf]);
+  if(!VIEWS.has(view))return null;
+  const distance=mission.distanciaSensivel==null?null:Number(mission.distanciaSensivel),legalMinimum=rules.federalMinimumM,internalMinimum=Math.max(0,Number(settings.margemPreventiva??90)||0),legalProblem=!mission.semAreaSensivel&&distance!=null&&distance<legalMinimum,internalProblem=!mission.semAreaSensivel&&distance!=null&&settings.bloquearMargemPreventiva!==false&&distance<internalMinimum,goReview=rules.uf==="GO"&&rules.state.some(rule=>rule.applicability==="review");
+  async function saveMargin(){const value=Number(draftMargin);if(!Number.isFinite(value)||value<0||value>5000){setMessage("Informe uma margem entre 0 e 5.000 m.");return}setSaving(true);setMessage("");try{const next={...settings,margemPreventiva:value};const response=await fetch("/api/dronegestor/config",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({settings:next}),cache:"no-store"});const payload=await response.json().catch(()=>null);if(!response.ok)throw new Error(payload?.error||"Não foi possível salvar a margem.");setSettings(payload.settings||next);localStorage.setItem("dronegestor:settings:v2",JSON.stringify(payload.settings||next));setEditing(false);setMessage("Margem preventiva atualizada. A segurança será recalculada.");window.setTimeout(()=>window.location.reload(),650)}catch(error){setMessage(error instanceof Error?error.message:"Falha ao salvar a margem.")}finally{setSaving(false)}}
+  return <section className="border-b border-emerald-900/20 bg-[#07110d] px-3 py-3 text-white sm:px-5"><div className="mx-auto grid w-full max-w-3xl gap-2"><div className="flex items-start gap-3 rounded-2xl border border-emerald-700 bg-emerald-950/80 p-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-800"><Scale size={19}/></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><strong className="text-sm">Regra da operação • {rules.uf||"UF não informada"}</strong><span className="rounded-full bg-emerald-800 px-2 py-1 text-[10px] font-black">referência cadastrada</span></div><p className="mt-1 text-xs leading-5 text-emerald-100/85">A regra legal aplicável deve ser conferida para a operação. O valor abaixo é um <strong>padrão preventivo interno</strong> para APP e outras áreas de risco e não substitui lei, bula, receita ou orientação do RT.</p></div><ShieldCheck className="shrink-0 text-emerald-300" size={20}/></div>
+  <div className="rounded-2xl border border-emerald-800 bg-emerald-950/55 p-3"><div className="flex items-center justify-between gap-3"><div><strong className="text-sm">Margem preventiva para APP/áreas de risco</strong><p className="mt-0.5 text-xs text-emerald-100/70">Vem do padrão da empresa e pode ser ajustada pelo gestor/RT.</p></div>{!editing&&canManage&&<button type="button" onClick={()=>{setDraftMargin(String(internalMinimum));setEditing(true)}} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl border border-emerald-700 bg-emerald-900 px-3 text-xs font-black text-white"><Pencil size={14}/>Editar</button>}</div>{editing?<div className="mt-3 grid grid-cols-[1fr_auto_auto] gap-2"><div className="relative"><input inputMode="decimal" type="number" min="0" max="5000" value={draftMargin} onChange={event=>setDraftMargin(event.target.value)} className="min-h-10 w-full rounded-xl border border-emerald-700 bg-white px-3 pr-10 text-right font-black text-slate-950"/><span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-slate-500">m</span></div><button disabled={saving} onClick={()=>void saveMargin()} className="grid min-h-10 min-w-10 place-items-center rounded-xl bg-emerald-500 text-emerald-950 disabled:opacity-50" aria-label="Salvar margem"><Check size={17}/></button><button disabled={saving} onClick={()=>setEditing(false)} className="grid min-h-10 min-w-10 place-items-center rounded-xl border border-emerald-700 text-emerald-100" aria-label="Cancelar"><X size={17}/></button></div>:<div className="mt-2 flex items-end gap-2"><strong className="text-2xl">{internalMinimum} m</strong><span className="pb-1 text-xs text-emerald-100/65">{settings.bloquearMargemPreventiva===false?"orientativo":"bloqueio interno ativo"}</span></div>}{message&&<p className="mt-2 text-xs font-bold text-amber-200">{message}</p>}</div>
+  {legalProblem&&<Alert danger title="Abaixo do mínimo cadastrado" text={`A distância registrada (${distance} m) está abaixo dos ${legalMinimum} m da referência federal cadastrada. Não prossiga sem corrigir a situação ou confirmar formalmente uma exceção aplicável.`}/>} {!legalProblem&&internalProblem&&<Alert title="Abaixo do padrão preventivo" text={`A distância registrada (${distance} m) está abaixo da margem preventiva interna de ${internalMinimum} m configurada pela empresa.`}/>} {goReview&&<Alert title="Conferência estadual adicional" text="Existe regra estadual cadastrada para revisão. Confirme a aplicação ao caso com a fonte oficial e o RT antes de liberar o voo."/>}{!rules.state.length&&rules.uf&&<div className="rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-xs leading-5 text-slate-200">Nenhuma regra estadual específica está cadastrada como verificada para {rules.uf}. Isso não significa ausência de regra estadual ou local.</div>}<Link href="/apps/dronegestor/regulacao" className="justify-self-start text-xs font-black text-emerald-300 underline underline-offset-4">Ver fontes e detalhes das regras</Link></div></section>
 }
-
-function Alert({title,text,danger=false}:{title:string;text:string;danger?:boolean}) { return <div className={`flex gap-2 rounded-xl border px-3 py-2 text-xs leading-5 ${danger?"border-red-700 bg-red-950/80 text-red-100":"border-amber-700 bg-amber-950/70 text-amber-100"}`}>{danger?<ShieldAlert className="mt-0.5 shrink-0" size={17}/>:<TriangleAlert className="mt-0.5 shrink-0" size={17}/>}<div><strong className="block">{title}</strong>{text}</div></div>; }
+function Alert({title,text,danger=false}:{title:string;text:string;danger?:boolean}){return <div className={`flex gap-2 rounded-xl border px-3 py-2 text-xs leading-5 ${danger?"border-red-700 bg-red-950/80 text-red-100":"border-amber-700 bg-amber-950/70 text-amber-100"}`}>{danger?<ShieldAlert className="mt-0.5 shrink-0" size={17}/>:<TriangleAlert className="mt-0.5 shrink-0" size={17}/>}<div><strong className="block">{title}</strong>{text}</div></div>}
