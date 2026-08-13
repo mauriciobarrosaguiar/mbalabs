@@ -18,7 +18,7 @@ function readJson<T>(key: string, fallback: T): T {
 function activeStatus() {
   const status = String(readJson(STATUS_KEY, "rascunho") || "rascunho");
   const started = Boolean(readJson("dronegestor:started:v3", false));
-  return started || ["preparacao", "em_preparacao", "em_execucao", "pausada", "suspensa", "pendente_regularizacao", "pendente_sync"].includes(status);
+  return started || ["preparacao", "em_preparacao", "em_execucao", "pausada", "suspensa", "pendente_regularizacao", "pendente_sync", "finalizada"].includes(status);
 }
 
 function compactMission(source: Record<string, any>) {
