@@ -139,16 +139,19 @@ export const internalApps: InternalAppDefinition[] = [
   },
   {
     slug: "dronegestor",
-    name: "Calculadora de Calda",
-    description: "Calculadora simples para volume de calda, misturador, múltiplos produtos, doses, sequência e receita de preparo.",
-    urlPath: "/apps/dronegestor/calculadora",
+    name: "DroneGestor",
+    description: "Gestão simples da operação com drone agrícola: OS, calda, segurança, checklist, SARPAS, execução e histórico.",
+    urlPath: "/apps/dronegestor",
     alternatePaths: [
-      { label: "Calculadora de Calda - /apps/dronegestor/calculadora", value: "/apps/dronegestor/calculadora" },
-      { label: "Entrada compatível - /apps/dronegestor", value: "/apps/dronegestor" },
-      { label: "Atalho compatível - /dronegestor", value: "/dronegestor" }
+      { label: "Entrada do DroneGestor - /apps/dronegestor", value: "/apps/dronegestor" },
+      { label: "Operação de campo - /apps/dronegestor/campo", value: "/apps/dronegestor/campo" },
+      { label: "Clientes e OS - /apps/dronegestor/gestao", value: "/apps/dronegestor/gestao" },
+      { label: "Histórico - /apps/dronegestor/historico", value: "/apps/dronegestor/historico" },
+      { label: "Calculadora pública - /apps/dronegestor/calculadora", value: "/apps/dronegestor/calculadora" }
     ],
     profileOptions: [
       { label: "Admin da empresa", value: "admin_empresa" },
+      { label: "Gestor operacional", value: "gestor_operacional" },
       { label: "Responsável técnico", value: "responsavel_tecnico" },
       { label: "Piloto", value: "piloto" },
       { label: "Aplicador CAAR", value: "aplicador_caar" },
