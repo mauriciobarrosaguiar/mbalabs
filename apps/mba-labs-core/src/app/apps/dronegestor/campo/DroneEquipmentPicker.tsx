@@ -67,6 +67,11 @@ export function DroneEquipmentPicker({ canManage }: { canManage: boolean }) {
   const selected = useMemo(() => items.find((item) => item.entityId === selectedId) ?? null, [items, selectedId]);
   const operationStarted = typeof window !== "undefined" ? Boolean(readJson(STARTED_KEY, false)) : false;
 
+  function openSelector() {
+    setManualDismissed(false);
+    setOpen(true);
+  }
+
   function apply(item: Equipment) {
     if (operationStarted) {
       setMessage("A operação já foi iniciada. Finalize ou suspenda antes de trocar o drone.");
@@ -92,7 +97,6 @@ export function DroneEquipmentPicker({ canManage }: { canManage: boolean }) {
     localStorage.setItem(EQUIPMENT_KEY, item.entityId);
     localStorage.setItem(EQUIPMENT_NAME_KEY, item.data.nome);
 
-    // Trocar equipamento invalida conferências dependentes da configuração técnica.
     localStorage.setItem("dronegestor:calibration:v2", JSON.stringify({ ar: false, fluxometro: false, bomba: false }));
     localStorage.setItem("dronegestor:checklist:v2", JSON.stringify({ area: false, pessoasAnimais: false, obstaculos: false, drone: false, controle: false, pulverizacao: false, clima: false, documentos: false }));
     localStorage.setItem("dronegestor:insightAccepted:v2", JSON.stringify(false));
@@ -126,7 +130,7 @@ export function DroneEquipmentPicker({ canManage }: { canManage: boolean }) {
             <span className="block text-[10px] font-black uppercase tracking-[.12em] text-emerald-700">Drone da operação</span>
             <strong className="block truncate text-sm text-slate-950">{selected ? `${selected.data.nome} • ${selected.data.marca} ${selected.data.modelo}` : "Selecione o equipamento"}</strong>
           </div>
-          <button disabled={operationStarted} onClick={() => setOpen(true)} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 disabled:cursor-not-allowed disabled:opacity-45">{selected ? "Trocar" : "Selecionar"}<ChevronDown size={15}/></button>
+          <button disabled={operationStarted} onClick={openSelector} className="inline-flex min-h-9 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700 disabled:cursor-not-allowed disabled:opacity-45">{selected ? "Trocar" : "Selecionar"}<ChevronDown size={15}/></button>
         </div>
         {message && <div className="mx-auto mt-2 max-w-3xl rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-800">{message}</div>}
       </div>
