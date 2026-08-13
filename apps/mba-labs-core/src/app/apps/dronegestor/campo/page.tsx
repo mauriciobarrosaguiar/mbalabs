@@ -5,6 +5,7 @@ import { DroneMissionContextReset } from "./DroneMissionContextReset";
 import { DroneMissionGateHint } from "./DroneMissionGateHint";
 import { DroneOsLifecycleSync } from "./DroneOsLifecycleSync";
 import { DronePersistenceSync } from "./DronePersistenceSync";
+import { DronePilotPermissionBridge } from "./DronePilotPermissionBridge";
 import { DroneProductMissionPicker } from "./DroneProductMissionPicker";
 import { DroneRegulatoryGuard } from "./DroneRegulatoryGuard";
 import { DroneSarpasStateBridge } from "./DroneSarpasStateBridge";
@@ -22,24 +23,18 @@ export default async function DroneGestorCampoPage() {
   const current = await requireAppAccess("dronegestor", "/apps/dronegestor/campo");
   const pilotName = current.usuario.nome || "Piloto";
   const canManage = canManageDroneStandards(current.tipo, current.isAdminMaster);
-
-  return (
-    <>
-      <DroneMissionContextReset />
-      <DroneEquipmentPicker canManage={canManage} />
-      <DroneSimpleFlowUX />
-      <DroneMissionGateHint />
-      <DroneRegulatoryGuard canManage={canManage} />
-      <DroneProductMissionPicker />
-      <DroneSarpasStateBridge />
-      <DroneGestorAppV3
-        userName={pilotName}
-        userType={current.tipo}
-        canManage={canManage}
-      />
-      <DronePersistenceSync />
-      <DroneOsLifecycleSync />
-      <DroneWeatherSync />
-    </>
-  );
+  return <>
+    <DroneMissionContextReset />
+    <DroneEquipmentPicker canManage={canManage} />
+    <DroneSimpleFlowUX />
+    <DroneMissionGateHint />
+    <DroneRegulatoryGuard canManage={canManage} />
+    <DroneProductMissionPicker />
+    <DroneSarpasStateBridge />
+    <DronePilotPermissionBridge currentUserId={current.usuario.id} canManage={canManage} />
+    <DroneGestorAppV3 userName={pilotName} userType={current.tipo} canManage={canManage} />
+    <DronePersistenceSync />
+    <DroneOsLifecycleSync />
+    <DroneWeatherSync />
+  </>;
 }
