@@ -29,7 +29,7 @@ export default async function DroneGestorCampoPage() {
       <DroneEquipmentPicker canManage={canManage} />
       <DroneSimpleFlowUX />
       <DroneMissionGateHint />
-      <DroneRegulatoryGuard />
+      <DroneRegulatoryGuard canManage={canManage} />
       <DroneProductMissionPicker />
       <DroneSarpasStateBridge />
       <DroneGestorAppV3
