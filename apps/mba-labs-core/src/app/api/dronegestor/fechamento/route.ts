@@ -32,12 +32,10 @@ function buildMissing(snapshot:Record<string,any>,docs:any[],sarpasRow:any,mapRo
   const m=obj(snapshot.mission),missing:string[]=[];
   const add=(condition:boolean,label:string)=>{if(!condition&&!missing.includes(label))missing.push(label);};
   add(Boolean(m.ordemServicoId),"OS vinculada à aplicação");
-  add(Boolean(text(m.clienteNome)),"Cliente identificado");
+  add(Boolean(text(m.clienteNome)),"Cliente/responsável da propriedade identificado");
   add(Boolean(text(m.fazendaNome)),"Fazenda identificada");
   add(Boolean(text(m.talhaoNome)),"Talhão identificado");
   add(Boolean(text(m.municipio)&&text(m.uf)),"Município e UF da propriedade");
-  add(Boolean(text(m.proprietarioNome)),"Responsável/proprietário da fazenda");
-  add(Boolean(text(m.enderecoPropriedade)),"Endereço/localização cadastral da fazenda");
   add(Boolean(text(m.cultura)&&text(m.alvo)&&num(m.area)>0),"Cultura, alvo e área");
   add(Boolean(text(m.drone)&&text(m.registroAnac)&&text(m.pontaModelo)),"Drone, identificação ANAC e bico/atomizador");
   const products=Array.isArray(m.produtos)?m.produtos:[];
