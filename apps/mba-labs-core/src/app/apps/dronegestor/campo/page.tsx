@@ -3,6 +3,7 @@ import { DroneEquipmentPicker } from "./DroneEquipmentPicker";
 import { DroneGestorAppV3 } from "./DroneGestorAppV3";
 import { DroneMissionContextReset } from "./DroneMissionContextReset";
 import { DroneMissionGateHint } from "./DroneMissionGateHint";
+import { DroneMixerCalculator } from "./DroneMixerCalculator";
 import { DroneOsLifecycleSync } from "./DroneOsLifecycleSync";
 import { DronePersistenceSync } from "./DronePersistenceSync";
 import { DronePilotPermissionBridge } from "./DronePilotPermissionBridge";
@@ -32,6 +33,7 @@ export default async function DroneGestorCampoPage() {
     <DroneProductMissionPicker />
     <DroneSarpasStateBridge />
     <DronePilotPermissionBridge currentUserId={current.usuario.id} canManage={canManage} />
+    <DroneMixerCalculator />
     <DroneGestorAppV3 userName={pilotName} userType={current.tipo} canManage={canManage} />
     <DronePersistenceSync />
     <DroneOsLifecycleSync />
