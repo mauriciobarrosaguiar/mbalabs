@@ -67,7 +67,7 @@ export function DroneHomeDashboard({ userName, canManage }: { userName:string; c
       <div className="mb-3 mt-7 flex items-end justify-between gap-3 px-1"><h2 className="text-sm font-black uppercase tracking-[.18em] text-[#64756c]">O que você quer fazer</h2></div>
       <section className="grid gap-3 sm:grid-cols-2">
         <Action href="/apps/dronegestor/campo" icon={<Rocket size={25}/>} title="Começar ou continuar operação" text="Calda, segurança, equipamento, SARPAS, voo e conclusão em campo." primary/>
-        <Action href="/apps/dronegestor/gestao" icon={<ClipboardList size={25}/>} title="Preparar uma operação" text="Cadastre cliente, fazenda, talhão, abra a OS e defina o piloto."/>
+        <Action href="/apps/dronegestor/gestao" icon={<ClipboardList size={25}/>} title={canManage?"Painel do gestor e OS":"Minhas ordens de serviço"} text={canManage?"Veja quem está aplicando, o que está parado, SARPAS pendente e OS que precisam de ação.":"Veja as ordens atribuídas a você e prepare a execução."}/>
         <Action href="/apps/dronegestor/documentos" icon={<PlaneTakeoff size={25}/>} title="SARPAS e documentos" text="Acompanhe autorização, SISANT e anexos obrigatórios da OS."/>
         <Action href="/apps/dronegestor/pacote-operacao" icon={<FolderCheck size={25}/>} title="Finalizar operação" text="Regularize pendências e encerre a OS somente quando o pacote estiver completo."/>
         <Action href="/apps/dronegestor/regulacao" icon={<Scale size={25}/>} title="Segurança e regras" text="Consulte MAPA, ANAC, DECEA, regra estadual e padrão interno."/>
