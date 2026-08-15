@@ -9,7 +9,22 @@ export const dynamic = "force-dynamic";
 export default async function PortalAssociadoPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const data = await getPortalAssociadoPanel();
-  const cobrancasVencidas = (data.cobrancasAbertas as Array<Record<string, unknown>>).filter(isOverdue);
+
+  const openRaw = (data.cobrancasAbertas as Array<Record<string, unknown>>).filter((row) => !isPaidLike(row));
+  const aguardandoRaw = (data.cobrancasAguardandoAprovacao as Array<Record<string, unknown>>).filter((row) => !isPaidLike(row));
+  const recusadasRaw = (data.cobrancasRecusadas as Array<Record<string, unknown>>).filter((row) => !isPaidLike(row));
+  const paidRaw = [
+    ...(data.cobrancasPagas as Array<Record<string, unknown>>),
+    ...(data.cobrancasAbertas as Array<Record<string, unknown>>).filter(isPaidLike),
+    ...(data.cobrancasAguardandoAprovacao as Array<Record<string, unknown>>).filter(isPaidLike),
+    ...(data.cobrancasRecusadas as Array<Record<string, unknown>>).filter(isPaidLike)
+  ];
+
+  const cobrancasAbertas = uniqueRows(openRaw);
+  const cobrancasAguardandoAprovacao = uniqueRows(aguardandoRaw);
+  const cobrancasRecusadas = uniqueRows(recusadasRaw);
+  const cobrancasPagas = uniqueRows(paidRaw);
+  const cobrancasVencidas = cobrancasAbertas.filter(isOverdue);
 
   return (
     <PortalAssociativoShell
@@ -23,14 +38,14 @@ export default async function PortalAssociadoPage({ searchParams }: { searchPara
         <PageHeader
           eyebrow="Portal Associativo"
           title="Painel do associado"
-          description="Acompanhe cobranças, unidades, recibos e documentos."
+          description="Cobranças, recibos, unidades e documentos."
         />
         <MessageBanner ok={firstParam(params.ok)} error={firstParam(params.error) ?? data.error ?? undefined} />
 
         {cobrancasVencidas.length ? (
           <a className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-950 shadow-sm" href="#minhas-cobrancas">
             <strong className="block text-base">Você tem {cobrancasVencidas.length} cobrança(s) vencida(s)</strong>
-            <span className="mt-1 block text-sm">Toque aqui para ver e enviar o comprovante.</span>
+            <span className="mt-1 block text-sm">Toque aqui para pagar ou enviar comprovante.</span>
           </a>
         ) : null}
 
@@ -44,98 +59,46 @@ export default async function PortalAssociadoPage({ searchParams }: { searchPara
 
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
           <SummaryCard label="Unidades" value={data.unidades.length} />
-          <SummaryCard label="Abertas" value={data.cobrancasAbertas.length} />
+          <SummaryCard label="Abertas" value={cobrancasAbertas.length} />
           <SummaryCard label="Vencidas" value={cobrancasVencidas.length} />
-          <SummaryCard label="Em análise" value={data.cobrancasAguardandoAprovacao.length} />
-          <SummaryCard label="Pagas" value={data.cobrancasPagas.length} />
+          <SummaryCard label="Em análise" value={cobrancasAguardandoAprovacao.length} />
+          <SummaryCard label="Pagas" value={cobrancasPagas.length} />
         </div>
 
         <div id="minhas-cobrancas">
           <Panel title="Cobranças abertas">
-            <CardGrid rows={data.cobrancasAbertas as Array<Record<string, unknown>>} empty="Não há cobranças abertas.">
-              {(row) => {
-                const overdue = isOverdue(row);
-                return (
-                  <article className={`grid gap-3 rounded-2xl border p-4 ${overdue ? "border-red-200 bg-red-50" : "border-border bg-white"}`}>
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <strong className="block text-lg">{String(row.descricao ?? "Cobrança")}</strong>
-                        <p className="text-sm text-muted-foreground">{displayUnit(row.unidade)}</p>
-                      </div>
-                      <span className={overdue ? "rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-700" : "rounded-full bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700"}>
-                        {overdue ? "Vencida" : String(row.status ?? "aberta")}
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Info label="Valor" value={formatMoney(row.valor_total)} />
-                      <Info label="Vencimento" value={formatDate(row.data_vencimento)} />
-                    </div>
-                    {row.pix_copia_cola ? (
-                      <div className="rounded-xl border border-border bg-white p-3">
-                        <span className="block text-xs font-bold uppercase text-muted-foreground">PIX copia e cola</span>
-                        <code className="mt-1 block select-all break-words text-xs">{String(row.pix_copia_cola)}</code>
-                        <button className="button-secondary mt-3" data-copy-pix={String(row.pix_copia_cola)} type="button">Copiar PIX</button>
-                      </div>
-                    ) : null}
-                    {data.pixManual.ativo ? (
-                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm">
-                        <strong className="block">PIX da associação</strong>
-                        <p className="mt-1">Chave: <span className="select-all font-mono">{String(data.pixManual.chave)}</span></p>
-                        <button className="button-secondary mt-3" data-copy-pix={String(data.pixManual.chave)} type="button">Copiar chave PIX</button>
-                      </div>
-                    ) : (
-                      <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">Pagamento ainda não configurado.</p>
-                    )}
-                    <details className="rounded-xl border border-border bg-white p-3">
-                      <summary className="cursor-pointer font-bold">Enviar comprovante</summary>
-                      <form action="/api/portal-associativo/comprovantes/upload" className="mt-3 grid gap-3" method="post" encType="multipart/form-data">
-                        <input name="cobranca_id" type="hidden" value={String(row.id)} />
-                        <label className="grid gap-1 text-sm font-semibold">Arquivo<input className="input" name="arquivo" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required /></label>
-                        <label className="grid gap-1 text-sm font-semibold">Data do pagamento<input className="input" name="data_pagamento_informada" type="date" /></label>
-                        <label className="grid gap-1 text-sm font-semibold">Valor informado<input className="input" name="valor_informado" type="number" min="0.01" step="0.01" /></label>
-                        <label className="grid gap-1 text-sm font-semibold">Observação<textarea className="input min-h-20" name="observacao_associado" /></label>
-                        <button className="button-primary" type="submit">Enviar comprovante</button>
-                      </form>
-                    </details>
-                    {row.mensagem_whatsapp ? (
-                      <Link className="button-primary w-fit" href={`https://wa.me/?text=${encodeURIComponent(String(row.mensagem_whatsapp))}`} target="_blank">WhatsApp</Link>
-                    ) : null}
-                  </article>
-                );
-              }}
-            </CardGrid>
-          </Panel>
-        </div>
-
-        <div id="minhas-unidades">
-          <Panel title="Minhas unidades">
-            <CardGrid rows={data.unidades as Array<Record<string, unknown>>} empty="Nenhuma unidade vinculada ao seu cadastro.">
-              {(row) => (
-                <article className="rounded-2xl border border-border bg-white p-4">
-                  <strong className="block text-lg">{unitPanelLabel(row)}</strong>
-                  <p className="mt-1 text-sm text-muted-foreground">{String(row.tipo_unidade ?? "-")} · {String(row.status_unidade ?? "-")}</p>
-                  {Array.isArray(row.papeis) && row.papeis.length ? <p className="mt-2 text-sm"><b>Papéis:</b> {row.papeis.map(String).join(", ")}</p> : null}
-                </article>
-              )}
+            <CardGrid rows={cobrancasAbertas} empty="Não há cobranças abertas.">
+              {(row) => <OpenChargeCard row={row} pixManual={data.pixManual as Record<string, unknown>} companyName={data.companyName} />}
             </CardGrid>
           </Panel>
         </div>
 
         <Panel title="Comprovantes em análise">
-          <CardGrid rows={data.cobrancasAguardandoAprovacao as Array<Record<string, unknown>>} empty="Nenhum comprovante aguardando análise.">
-            {(row) => <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><strong>{String(row.descricao ?? "Cobrança")}</strong><p className="mt-1 text-sm">{displayUnit(row.unidade)} · {formatMoney(row.valor_total)}</p><p className="mt-2 text-sm font-semibold">Comprovante enviado. A administração irá conferir.</p></article>}
+          <CardGrid rows={cobrancasAguardandoAprovacao} empty="Nenhum comprovante aguardando análise.">
+            {(row) => (
+              <article className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <strong>{String(row.descricao ?? "Cobrança")}</strong>
+                <p className="mt-1 text-sm">{displayUnit(row.unidade)} · {formatMoney(row.valor_total)}</p>
+                <p className="mt-2 text-sm font-semibold">Comprovante enviado. A administração irá conferir.</p>
+              </article>
+            )}
           </CardGrid>
         </Panel>
 
         <Panel title="Comprovantes recusados">
-          <CardGrid rows={data.cobrancasRecusadas as Array<Record<string, unknown>>} empty="Nenhum comprovante recusado.">
-            {(row) => <article className="rounded-2xl border border-red-200 bg-red-50 p-4"><strong>{String(row.descricao ?? "Cobrança")}</strong><p className="mt-2 text-sm"><b>Motivo:</b> {String(row.motivo_recusa ?? "Procure a administração.")}</p></article>}
+          <CardGrid rows={cobrancasRecusadas} empty="Nenhum comprovante recusado.">
+            {(row) => (
+              <article className="rounded-2xl border border-red-200 bg-red-50 p-4">
+                <strong>{String(row.descricao ?? "Cobrança")}</strong>
+                <p className="mt-2 text-sm"><b>Motivo:</b> {String(row.motivo_recusa ?? "Procure a administração.")}</p>
+              </article>
+            )}
           </CardGrid>
         </Panel>
 
         <div id="meus-recibos">
           <Panel title="Pagas e recibos">
-            <CardGrid rows={data.cobrancasPagas as Array<Record<string, unknown>>} empty="Nenhuma cobrança paga encontrada.">
+            <CardGrid rows={cobrancasPagas} empty="Nenhuma cobrança paga encontrada.">
               {(row) => (
                 <article className="grid gap-3 rounded-2xl border border-border bg-white p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -151,6 +114,20 @@ export default async function PortalAssociadoPage({ searchParams }: { searchPara
                     <Info label="Forma" value={String(row.forma_pagamento ?? "-")} />
                   </div>
                   <Link className="button-secondary w-fit" href={`/api/portal-associativo/recibos/${row.id}`} target="_blank">Recibo PDF</Link>
+                </article>
+              )}
+            </CardGrid>
+          </Panel>
+        </div>
+
+        <div id="minhas-unidades">
+          <Panel title="Minhas unidades">
+            <CardGrid rows={data.unidades as Array<Record<string, unknown>>} empty="Nenhuma unidade vinculada ao seu cadastro.">
+              {(row) => (
+                <article className="rounded-2xl border border-border bg-white p-4">
+                  <strong className="block text-lg">{unitPanelLabel(row)}</strong>
+                  <p className="mt-1 text-sm text-muted-foreground">{String(row.tipo_unidade ?? "-")} · {String(row.status_unidade ?? "-")}</p>
+                  {Array.isArray(row.papeis) && row.papeis.length ? <p className="mt-2 text-sm"><b>Papéis:</b> {row.papeis.map(String).join(", ")}</p> : null}
                 </article>
               )}
             </CardGrid>
@@ -205,6 +182,53 @@ export default async function PortalAssociadoPage({ searchParams }: { searchPara
   );
 }
 
+function OpenChargeCard({ row, pixManual, companyName }: { row: Record<string, unknown>; pixManual: Record<string, unknown>; companyName: string }) {
+  const overdue = isOverdue(row);
+  const pixManualAtivo = Boolean(pixManual.ativo && pixManual.chave);
+  const pixValue = String(row.pix_copia_cola || pixManual.chave || "");
+  const mensagemWhatsApp = String(row.mensagem_whatsapp || buildFallbackWhatsappMessage(row, companyName, pixValue));
+
+  return (
+    <article className={`grid gap-3 rounded-2xl border p-4 ${overdue ? "border-red-200 bg-red-50" : "border-border bg-white"}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <strong className="block text-lg">{String(row.descricao ?? "Cobrança")}</strong>
+          <p className="text-sm text-muted-foreground">{displayUnit(row.unidade)}</p>
+        </div>
+        <span className={overdue ? "rounded-full bg-red-100 px-2 py-1 text-xs font-bold text-red-700" : "rounded-full bg-blue-100 px-2 py-1 text-xs font-bold text-blue-700"}>
+          {overdue ? "Vencida" : "Aberta"}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Info label="Valor" value={formatMoney(row.valor_total)} />
+        <Info label="Vencimento" value={formatDate(row.data_vencimento)} />
+      </div>
+      {pixValue ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm">
+          <strong className="block">PIX</strong>
+          {pixManualAtivo ? <p className="mt-1">Recebedor: {String(pixManual.recebedor || "Associação")}</p> : null}
+          <p className="mt-1">Chave: <span className="select-all font-mono">{pixValue}</span></p>
+          <button className="button-secondary mt-3" data-copy-pix={pixValue} type="button">Copiar PIX</button>
+        </div>
+      ) : (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm">Pagamento ainda não configurado.</p>
+      )}
+      <details className="rounded-xl border border-border bg-white p-3">
+        <summary className="cursor-pointer font-bold">Enviar comprovante</summary>
+        <form action="/api/portal-associativo/comprovantes/upload" className="mt-3 grid gap-3" method="post" encType="multipart/form-data">
+          <input name="cobranca_id" type="hidden" value={String(row.id)} />
+          <label className="grid gap-1 text-sm font-semibold">Arquivo<input className="input" name="arquivo" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" required /></label>
+          <label className="grid gap-1 text-sm font-semibold">Data do pagamento<input className="input" name="data_pagamento_informada" type="date" /></label>
+          <label className="grid gap-1 text-sm font-semibold">Valor informado<input className="input" name="valor_informado" type="number" min="0.01" step="0.01" /></label>
+          <label className="grid gap-1 text-sm font-semibold">Observação<textarea className="input min-h-20" name="observacao_associado" /></label>
+          <button className="button-primary" type="submit">Enviar comprovante</button>
+        </form>
+      </details>
+      <Link className="button-primary w-fit" href={`https://wa.me/?text=${encodeURIComponent(mensagemWhatsApp)}`} target="_blank">WhatsApp</Link>
+    </article>
+  );
+}
+
 const copyPixScript = `
 document.addEventListener("click", function (event) {
   var target = event.target;
@@ -243,16 +267,30 @@ function CardGrid({ rows, empty, children }: { rows: Array<Record<string, unknow
 }
 
 function Info({ label, value }: { label: string; value: string }) {
-  return <div><span className="block text-[11px] font-bold uppercase text-muted-foreground">{label}</span><strong className="break-words text-sm">{value}</strong></div>;
+  return <div><span className="block text-[11px] font-bold uppercase text-muted-foreground">{label}</span><strong className="break-words text-base">{value}</strong></div>;
 }
 
 function isOverdue(row: Record<string, unknown>) {
-  const status = String(row.status ?? "").toLowerCase();
-  if (!row.data_vencimento || status === "paga" || status === "cancelada") return false;
+  if (isPaidLike(row)) return false;
+  if (String(row.status) === "cancelada") return false;
+  if (!row.data_vencimento) return false;
   const due = new Date(String(row.data_vencimento));
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return Number.isFinite(due.getTime()) && due < today;
+}
+
+function isPaidLike(row: Record<string, unknown>) {
+  if (String(row.status) === "paga") return true;
+  if (row.data_pagamento) return true;
+  const valorPago = Number(row.valor_pago ?? 0);
+  return Number.isFinite(valorPago) && valorPago > 0;
+}
+
+function uniqueRows(rows: Array<Record<string, unknown>>) {
+  const map = new Map<string, Record<string, unknown>>();
+  rows.forEach((row, index) => map.set(String(row.id ?? index), row));
+  return Array.from(map.values());
 }
 
 function unitPanelLabel(row: Record<string, unknown>) {
@@ -266,4 +304,14 @@ function displayUnit(value: unknown) {
   const raw = String(value ?? "-").trim();
   if (!raw || raw === "-") return "Unidade";
   return raw.startsWith("Unidade ") || raw.startsWith("Chácara ") || raw.startsWith("Lote ") ? raw : `Unidade ${raw}`;
+}
+
+function buildFallbackWhatsappMessage(row: Record<string, unknown>, companyName: string, pix: string) {
+  return [
+    `Olá! Aqui é da ${companyName}.`,
+    `Identificamos a cobrança ${String(row.descricao ?? "Mensalidade")} no valor de ${formatMoney(row.valor_total)}.`,
+    `Vencimento: ${formatDate(row.data_vencimento)}.`,
+    pix ? `PIX: ${pix}` : "",
+    "Após pagar, envie o comprovante pelo Portal Associativo."
+  ].filter(Boolean).join("\n\n");
 }
