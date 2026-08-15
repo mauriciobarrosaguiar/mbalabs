@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
+import {
+  droneOsErrorResponse,
+  requireDroneOsAccess,
+  scopeDroneOsQuery,
+} from "@/lib/dronegestor-os-access";
 
 export const dynamic = "force-dynamic";
 
-const OS_ACTION = "ordem_servico";
 const DOC_ACTION = "documento_operacao_v1";
 const SARPAS_ACTION = "sarpas_operacao_v1";
 const MAP_ACTION = "mapa_voo_evidencia";
@@ -13,109 +17,407 @@ const OS_EVENT_ACTION = "ordem_servico_evento";
 const STATE_ACTION = "estado_campo_v2";
 const FINALIZED_ACTION = "operacao_finalizada";
 
-type Context = { userId:string; userName:string; empresaId:string|null; canManage:boolean };
-function normalize(v:string){return v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replaceAll(" ","_");}
-function text(v:unknown,max=240){return typeof v==="string"?v.trim().slice(0,max):"";}
-function num(v:unknown){const n=Number(v);return Number.isFinite(n)?n:0;}
-function obj(v:unknown):Record<string,any>{return v&&typeof v==="object"&&!Array.isArray(v)?v as Record<string,any>:{};}
-function scope(q:any,c:Context){return c.empresaId?q.eq("empresa_id",c.empresaId):q.eq("usuario_id",c.userId);}
-async function context():Promise<{current:Context|null;response:NextResponse|null}>{
-  const s=await getSessionProfile();
-  if(!s.user||!s.profile)return{current:null,response:NextResponse.json({ok:false,error:"Autenticação necessária."},{status:401})};
-  const t=normalize(s.profile.tipo||""),master=["super_admin","admin_master"].includes(t),allowed=(s.appsLiberados??[]).some(a=>a.slug==="dronegestor"&&a.canAccess);
-  if(!master&&!allowed)return{current:null,response:NextResponse.json({ok:false,error:"Acesso ao DroneGestor não liberado."},{status:403})};
-  return{current:{userId:s.profile.id,userName:s.profile.nome||"Piloto",empresaId:s.profile.empresa_id,canManage:master||["admin_empresa","responsavel_tecnico","rt"].includes(t)},response:null};
+type Context = { userId: string; userName: string; empresaId: string | null; canManage: boolean };
+function normalize(v: string) {
+  return v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replaceAll(" ", "_");
 }
-async function findOs(admin:any,c:Context,osId:string){let q=admin.from("core_logs").select("id,detalhes,created_at").eq("app_slug","dronegestor").eq("acao",OS_ACTION).contains("detalhes",{entityId:osId}).limit(1);q=scope(q,c);const{data,error}=await q.maybeSingle();if(error)throw error;return data;}
-async function docsFor(admin:any,c:Context,osId:string){let q=admin.from("core_logs").select("detalhes").eq("app_slug","dronegestor").eq("acao",DOC_ACTION).limit(500);q=scope(q,c);const{data,error}=await q;if(error)throw error;return(data??[]).map((r:any)=>r.detalhes??{}).filter((d:any)=>text(d.ordemServicoId,120)===osId);}
-async function latestFor(admin:any,c:Context,action:string,osId:string){let q=admin.from("core_logs").select("detalhes,created_at").eq("app_slug","dronegestor").eq("acao",action).order("created_at",{ascending:false}).limit(500);q=scope(q,c);const{data,error}=await q;if(error)throw error;return(data??[]).find((r:any)=>text(r?.detalhes?.ordemServicoId,120)===osId)||null;}
-async function storedStateForOs(admin:any,c:Context,osId:string){
-  let q=admin.from("core_logs").select("detalhes,created_at").eq("app_slug","dronegestor").eq("acao",FINALIZED_ACTION).order("created_at",{ascending:false}).limit(500);q=scope(q,c);const finalResult=await q;if(finalResult.error)throw finalResult.error;
-  const finalized=(finalResult.data??[]).find((r:any)=>{const d=obj(r.detalhes),summary=obj(d.summary),state=obj(d.state);return text(summary.ordemServicoId,120)===osId||text(obj(state.mission).ordemServicoId,120)===osId;});
-  if(finalized)return{state:obj(finalized.detalhes?.state),source:"servidor_finalizado"};
-  let liveQ=admin.from("core_logs").select("detalhes,created_at").eq("app_slug","dronegestor").eq("acao",STATE_ACTION).order("created_at",{ascending:false}).limit(500);liveQ=scope(liveQ,c);const liveResult=await liveQ;if(liveResult.error)throw liveResult.error;
-  const live=(liveResult.data??[]).find((r:any)=>text(obj(obj(r.detalhes).state).mission?.ordemServicoId,120)===osId);
-  return live?{state:obj(live.detalhes?.state),source:"servidor_sincronizado"}:{state:{},source:"dispositivo"};
+function text(v: unknown, max = 240) {
+  return typeof v === "string" ? v.trim().slice(0, max) : "";
 }
-function allTrue(value:unknown){const o=obj(value),values=Object.values(o);return values.length>0&&values.every(Boolean);}
-function withOsComplements(snapshot:Record<string,any>,osData:Record<string,any>,osId:string){const mission=obj(snapshot.mission);return{...snapshot,mission:{...mission,ordemServicoId:osId,responsavelPropriedade:text(osData.responsavelPropriedade,180)||text(mission.responsavelPropriedade,180),enderecoPropriedade:text(osData.enderecoPropriedade,240)||text(mission.enderecoPropriedade,240)}}}
-function buildMissing(snapshot:Record<string,any>,docs:any[],sarpasRow:any,mapRow:any,osData:Record<string,any>){
-  const m=obj(snapshot.mission),missing:string[]=[];
-  const add=(condition:boolean,label:string)=>{if(!condition&&!missing.includes(label))missing.push(label);};
-  const osStatus=text(osData.status)||"aberta";
-  add(["campo_concluido","concluida"].includes(osStatus),"Aplicação em campo concluída pelo piloto");
-  add(Boolean(m.ordemServicoId),"OS vinculada à aplicação");
-  add(Boolean(text(m.clienteNome)),"Cliente/responsável da propriedade identificado");
-  add(Boolean(text(m.fazendaNome)),"Fazenda identificada");
-  add(Boolean(text(m.talhaoNome)),"Talhão identificado");
-  add(Boolean(text(m.municipio)&&text(m.uf)),"Município e UF da propriedade");
-  add(Boolean(text(m.responsavelPropriedade)||text(osData.responsavelPropriedade)),"Responsável/proprietário da propriedade");
-  add(Boolean(text(m.enderecoPropriedade)||text(osData.enderecoPropriedade)),"Endereço ou referência cadastral da propriedade");
-  add(Boolean(text(m.cultura)&&text(m.alvo)&&num(m.area)>0),"Cultura, alvo e área");
-  add(Boolean(text(m.drone)&&text(m.registroAnac)&&text(m.pontaModelo)),"Drone, identificação ANAC e bico/atomizador");
-  const products=Array.isArray(m.produtos)?m.produtos:[];
-  add(Boolean(products.length&&products.every((p:any)=>text(p?.nome)&&num(p?.dose)>0&&text(p?.unidade))),"Produtos, doses e unidades");
-  add(allTrue(snapshot.calibration),"Calibração completa");
-  add(allTrue(snapshot.checklist),"Checklist pré-voo completo");
-  add(Boolean(snapshot.riskAccepted),"Confirmação de risco");
-  const weather=obj(snapshot.weather);
-  add(Number.isFinite(Number(weather.latitude))&&Number.isFinite(Number(weather.longitude)),"GPS da operação");
-  add(num(snapshot.progressHa)>=Math.max(0,num(m.area)-0.01),"100% da área real registrada");
-  add(Array.isArray(snapshot.tankRecords)&&snapshot.tankRecords.length>0,"Cargas/abastecimentos reais registrados");
-  const types=new Set(docs.map((d:any)=>text(d.tipo,80)));
-  if((text(m.tipoAtividade)||"pulverizacao")==="pulverizacao")add(types.has("receituario"),"Receituário agronômico anexado");
-  add(types.has("sisant_certidao"),"Certidão SISANT/ANAC anexada");
-  const sarpas=obj(sarpasRow?.detalhes),sarpasStatus=text(sarpas.status)||text(m.sarpasSituacao);
-  add(sarpasStatus==="autorizado","Autorização SARPAS conferida");
-  if(sarpasStatus==="autorizado"){
-    add(Boolean(text(sarpas.numero)||text(m.sarpasNumero)),"Referência SARPAS registrada");
-    add(types.has("sarpas_autorizacao"),"Comprovante da autorização SARPAS anexado");
+function num(v: unknown) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+function obj(v: unknown): Record<string, any> {
+  return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, any>) : {};
+}
+async function context(): Promise<{ current: Context | null; response: NextResponse | null }> {
+  const s = await getSessionProfile();
+  if (!s.user || !s.profile)
+    return {
+      current: null,
+      response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }),
+    };
+  const t = normalize(s.profile.tipo || "");
+  const master = ["super_admin", "admin_master"].includes(t);
+  const allowed = (s.appsLiberados ?? []).some((a) => a.slug === "dronegestor" && a.canAccess);
+  if (!master && !allowed)
+    return {
+      current: null,
+      response: NextResponse.json(
+        { ok: false, error: "Acesso ao DroneGestor não liberado." },
+        { status: 403 },
+      ),
+    };
+  return {
+    current: {
+      userId: s.profile.id,
+      userName: s.profile.nome || "Piloto",
+      empresaId: s.profile.empresa_id,
+      canManage: master || ["admin_empresa", "responsavel_tecnico", "rt"].includes(t),
+    },
+    response: null,
+  };
+}
+async function docsFor(admin: any, c: Context, osId: string) {
+  let q = admin
+    .from("core_logs")
+    .select("detalhes")
+    .eq("app_slug", "dronegestor")
+    .eq("acao", DOC_ACTION)
+    .contains("detalhes", { ordemServicoId: osId })
+    .limit(500);
+  q = scopeDroneOsQuery(q, c);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data ?? []).map((r: any) => r.detalhes ?? {});
+}
+async function latestFor(admin: any, c: Context, action: string, osId: string) {
+  let q = admin
+    .from("core_logs")
+    .select("detalhes,created_at")
+    .eq("app_slug", "dronegestor")
+    .eq("acao", action)
+    .contains("detalhes", { ordemServicoId: osId })
+    .order("created_at", { ascending: false })
+    .limit(1);
+  q = scopeDroneOsQuery(q, c);
+  const { data, error } = await q.maybeSingle();
+  if (error) throw error;
+  return data ?? null;
+}
+async function storedStateForOs(admin: any, c: Context, osId: string) {
+  let q = admin
+    .from("core_logs")
+    .select("detalhes,created_at")
+    .eq("app_slug", "dronegestor")
+    .eq("acao", FINALIZED_ACTION)
+    .order("created_at", { ascending: false })
+    .limit(500);
+  q = scopeDroneOsQuery(q, c);
+  const finalResult = await q;
+  if (finalResult.error) throw finalResult.error;
+  const finalized = (finalResult.data ?? []).find((r: any) => {
+    const d = obj(r.detalhes);
+    const summary = obj(d.summary);
+    const state = obj(d.state);
+    return (
+      text(summary.ordemServicoId, 120) === osId ||
+      text(obj(state.mission).ordemServicoId, 120) === osId
+    );
+  });
+  if (finalized) return { state: obj(finalized.detalhes?.state), source: "servidor_finalizado" };
+
+  let liveQ = admin
+    .from("core_logs")
+    .select("detalhes,created_at")
+    .eq("app_slug", "dronegestor")
+    .eq("acao", STATE_ACTION)
+    .order("created_at", { ascending: false })
+    .limit(500);
+  liveQ = scopeDroneOsQuery(liveQ, c);
+  const liveResult = await liveQ;
+  if (liveResult.error) throw liveResult.error;
+  const live = (liveResult.data ?? []).find(
+    (r: any) => text(obj(obj(r.detalhes).state).mission?.ordemServicoId, 120) === osId,
+  );
+  return live
+    ? { state: obj(live.detalhes?.state), source: "servidor_sincronizado" }
+    : { state: {}, source: "dispositivo" };
+}
+function allTrue(value: unknown) {
+  const o = obj(value);
+  const values = Object.values(o);
+  return values.length > 0 && values.every(Boolean);
+}
+function withOsComplements(snapshot: Record<string, any>, osData: Record<string, any>, osId: string) {
+  const mission = obj(snapshot.mission);
+  return {
+    ...snapshot,
+    mission: {
+      ...mission,
+      ordemServicoId: osId,
+      responsavelPropriedade:
+        text(osData.responsavelPropriedade, 180) || text(mission.responsavelPropriedade, 180),
+      enderecoPropriedade:
+        text(osData.enderecoPropriedade, 240) || text(mission.enderecoPropriedade, 240),
+    },
+  };
+}
+function buildMissing(
+  snapshot: Record<string, any>,
+  docs: any[],
+  sarpasRow: any,
+  mapRow: any,
+  osData: Record<string, any>,
+) {
+  const m = obj(snapshot.mission);
+  const missing: string[] = [];
+  const add = (condition: boolean, label: string) => {
+    if (!condition && !missing.includes(label)) missing.push(label);
+  };
+  const osStatus = text(osData.status) || "aberta";
+  add(["campo_concluido", "concluida"].includes(osStatus), "Aplicação em campo concluída pelo piloto");
+  add(Boolean(m.ordemServicoId), "OS vinculada à aplicação");
+  add(Boolean(text(m.clienteNome)), "Cliente/responsável da propriedade identificado");
+  add(Boolean(text(m.fazendaNome)), "Fazenda identificada");
+  add(Boolean(text(m.talhaoNome)), "Talhão identificado");
+  add(Boolean(text(m.municipio) && text(m.uf)), "Município e UF da propriedade");
+  add(
+    Boolean(text(m.responsavelPropriedade) || text(osData.responsavelPropriedade)),
+    "Responsável/proprietário da propriedade",
+  );
+  add(
+    Boolean(text(m.enderecoPropriedade) || text(osData.enderecoPropriedade)),
+    "Endereço ou referência cadastral da propriedade",
+  );
+  add(Boolean(text(m.cultura) && text(m.alvo) && num(m.area) > 0), "Cultura, alvo e área");
+  add(
+    Boolean(text(m.drone) && text(m.registroAnac) && text(m.pontaModelo)),
+    "Drone, identificação ANAC e bico/atomizador",
+  );
+  const products = Array.isArray(m.produtos) ? m.produtos : [];
+  add(
+    Boolean(
+      products.length &&
+        products.every((p: any) => text(p?.nome) && num(p?.dose) > 0 && text(p?.unidade)),
+    ),
+    "Produtos, doses e unidades",
+  );
+  add(allTrue(snapshot.calibration), "Calibração completa");
+  add(allTrue(snapshot.checklist), "Checklist pré-voo completo");
+  add(Boolean(snapshot.riskAccepted), "Confirmação de risco");
+  const weather = obj(snapshot.weather);
+  add(
+    Number.isFinite(Number(weather.latitude)) && Number.isFinite(Number(weather.longitude)),
+    "GPS da operação",
+  );
+  add(num(snapshot.progressHa) >= Math.max(0, num(m.area) - 0.01), "100% da área real registrada");
+  add(
+    Array.isArray(snapshot.tankRecords) && snapshot.tankRecords.length > 0,
+    "Cargas/abastecimentos reais registrados",
+  );
+  const types = new Set(docs.map((d: any) => text(d.tipo, 80)));
+  if ((text(m.tipoAtividade) || "pulverizacao") === "pulverizacao")
+    add(types.has("receituario"), "Receituário agronômico anexado");
+  add(types.has("sisant_certidao"), "Certidão SISANT/ANAC anexada");
+  const sarpas = obj(sarpasRow?.detalhes);
+  const sarpasStatus = text(sarpas.status) || text(m.sarpasSituacao);
+  add(sarpasStatus === "autorizado", "Autorização SARPAS conferida");
+  if (sarpasStatus === "autorizado") {
+    add(Boolean(text(sarpas.numero) || text(m.sarpasNumero)), "Referência SARPAS registrada");
+    add(types.has("sarpas_autorizacao"), "Comprovante da autorização SARPAS anexado");
   }
-  add(Boolean(mapRow)||types.has("mapa_aplicacao"),"Mapa/evidência do voo enviado");
+  add(Boolean(mapRow) || types.has("mapa_aplicacao"), "Mapa/evidência do voo enviado");
   return missing;
 }
-async function updateClosureMeta(admin:any,c:Context,os:any,osData:Record<string,any>,status:string,missing:string[]){
-  const now=new Date().toISOString();
-  const nextData={...osData,fechamentoStatus:status,pendenciasFechamento:missing,fechamentoAtualizadoEm:now,fechamentoAtualizadoPor:c.userName};
-  const nextDetails={...(os.detalhes??{}),updatedAt:now,data:nextData};
-  const{error}=await admin.from("core_logs").update({detalhes:nextDetails}).eq("id",os.id);if(error)throw error;
-  return {now,nextData,nextDetails};
+async function updateClosureMeta(
+  admin: any,
+  c: Context,
+  os: any,
+  osData: Record<string, any>,
+  status: string,
+  missing: string[],
+) {
+  const now = new Date().toISOString();
+  const nextData = {
+    ...osData,
+    fechamentoStatus: status,
+    pendenciasFechamento: missing,
+    fechamentoAtualizadoEm: now,
+    fechamentoAtualizadoPor: c.userName,
+  };
+  const nextDetails = { ...(os.detalhes ?? {}), updatedAt: now, data: nextData };
+  const { error } = await admin.from("core_logs").update({ detalhes: nextDetails }).eq("id", os.id);
+  if (error) throw error;
+  return { now, nextData, nextDetails };
 }
 
-export async function POST(request:NextRequest){
-  try{
-    const a=await context();if(a.response)return a.response;const c=a.current!,body=await request.json(),action=text(body?.action,40),clientSnapshot=obj(body?.snapshot),clientMission=obj(clientSnapshot.mission),osId=text(body?.osId||clientMission.ordemServicoId,120);
-    if(!osId)return NextResponse.json({ok:false,error:"Nenhuma OS foi selecionada."},{status:400});
-    const admin=createSupabaseAdminClient() as any,os=await findOs(admin,c,osId);
-    if(!os||os.detalhes?.ativo===false)return NextResponse.json({ok:false,error:"OS não encontrada ou inativa."},{status:404});
-    const osData=obj(os.detalhes?.data),osStatus=text(osData.status)||"aberta",assigned=text(osData.pilotoId||osData.pilotoResponsavelId,120);
-    if(!c.canManage&&assigned&&assigned!==c.userId)return NextResponse.json({ok:false,error:"Esta OS pertence a outro piloto."},{status:403});
-    if(osStatus==="cancelada")return NextResponse.json({ok:false,status:"cancelada",osStatus,missing:["OS cancelada"],error:"A OS está cancelada e não pode ser encerrada."},{status:409});
-    if(osStatus==="concluida")return NextResponse.json({ok:true,status:"concluida",osStatus:"concluida",closed:true,missing:[],snapshotSource:"servidor"});
+export async function POST(request: NextRequest) {
+  try {
+    const access = await context();
+    if (access.response) return access.response;
+    const c = access.current!;
+    const body = await request.json();
+    const action = text(body?.action, 40);
+    const clientSnapshot = obj(body?.snapshot);
+    const clientMission = obj(clientSnapshot.mission);
+    const osId = text(body?.osId || clientMission.ordemServicoId, 120);
+    if (!osId)
+      return NextResponse.json({ ok: false, error: "Nenhuma OS foi selecionada." }, { status: 400 });
 
-    const [docs,sarpasRow,mapRow,stored]=await Promise.all([docsFor(admin,c,osId),latestFor(admin,c,SARPAS_ACTION,osId),latestFor(admin,c,MAP_ACTION,osId),storedStateForOs(admin,c,osId)]);
-    const baseSnapshot=Object.keys(stored.state).length?stored.state:clientSnapshot,snapshot=withOsComplements(baseSnapshot,osData,osId);
-    const missing=buildMissing(snapshot,docs,sarpasRow,mapRow,osData);
-    const closureStatus=missing.length?"pendente_regularizacao":"pronto";
+    const admin = createSupabaseAdminClient() as any;
+    const osAccess = await requireDroneOsAccess(admin, c, osId);
+    const os = osAccess.row;
+    const osData = osAccess.data;
+    const osStatus = text(osData.status) || "aberta";
 
-    if(action==="save_pending"){
-      const updated=await updateClosureMeta(admin,c,os,osData,closureStatus,missing);
-      const details={osId,osNumero:text(osData.numero),osStatus,missing,savedAt:updated.now,savedBy:c.userName,status:closureStatus,snapshotSource:stored.source};
-      const{error}=await admin.from("core_logs").insert({empresa_id:c.empresaId,usuario_id:c.userId,app_slug:"dronegestor",acao:PENDING_ACTION,detalhes:details});if(error)throw error;
-      return NextResponse.json({ok:true,status:closureStatus,osStatus,missing,snapshotSource:stored.source});
+    if (osStatus === "cancelada")
+      return NextResponse.json(
+        {
+          ok: false,
+          status: "cancelada",
+          osStatus,
+          missing: ["OS cancelada"],
+          error: "A OS está cancelada e não pode ser encerrada.",
+        },
+        { status: 409 },
+      );
+    if (osStatus === "concluida")
+      return NextResponse.json({
+        ok: true,
+        status: "concluida",
+        osStatus: "concluida",
+        closed: true,
+        missing: [],
+        snapshotSource: "servidor",
+      });
+
+    const [docs, sarpasRow, mapRow, stored] = await Promise.all([
+      docsFor(admin, c, osId),
+      latestFor(admin, c, SARPAS_ACTION, osId),
+      latestFor(admin, c, MAP_ACTION, osId),
+      storedStateForOs(admin, c, osId),
+    ]);
+    const baseSnapshot = Object.keys(stored.state).length ? stored.state : clientSnapshot;
+    const snapshot = withOsComplements(baseSnapshot, osData, osId);
+    const missing = buildMissing(snapshot, docs, sarpasRow, mapRow, osData);
+    const closureStatus = missing.length ? "pendente_regularizacao" : "pronto";
+
+    if (action === "save_pending") {
+      const updated = await updateClosureMeta(admin, c, os, osData, closureStatus, missing);
+      const details = {
+        osId,
+        osNumero: text(osData.numero),
+        osStatus,
+        missing,
+        savedAt: updated.now,
+        savedBy: c.userName,
+        status: closureStatus,
+        snapshotSource: stored.source,
+      };
+      const { error } = await admin.from("core_logs").insert({
+        empresa_id: c.empresaId,
+        usuario_id: c.userId,
+        app_slug: "dronegestor",
+        acao: PENDING_ACTION,
+        detalhes: details,
+      });
+      if (error) throw error;
+      return NextResponse.json({
+        ok: true,
+        status: closureStatus,
+        osStatus,
+        missing,
+        snapshotSource: stored.source,
+      });
     }
 
-    if(action==="finalize"){
-      if(osStatus!=="campo_concluido")return NextResponse.json({ok:false,status:"pendente_regularizacao",osStatus,missing,error:"A OS só pode ser encerrada depois que o piloto concluir a aplicação em campo."},{status:409});
-      if(!Object.keys(stored.state).length)return NextResponse.json({ok:false,status:"pendente_regularizacao",osStatus,missing:["Dados do campo ainda não chegaram ao servidor"],error:"Aguarde a sincronização do celular do piloto antes de encerrar esta OS."},{status:409});
-      if(missing.length){await updateClosureMeta(admin,c,os,osData,"pendente_regularizacao",missing);return NextResponse.json({ok:false,status:"pendente_regularizacao",osStatus,missing,error:"Ainda existem informações obrigatórias para regularizar antes do encerramento da OS."},{status:409});}
-      const now=new Date().toISOString(),nextData={...osData,status:"concluida",fechamentoStatus:"concluida",pendenciasFechamento:[],fechamentoAtualizadoEm:now,fechamentoAtualizadoPor:c.userName,finalizadaEm:now};
-      const nextDetails={...(os.detalhes??{}),updatedAt:now,data:nextData};
-      const{error}=await admin.from("core_logs").update({detalhes:nextDetails}).eq("id",os.id);if(error)throw error;
-      await admin.from("core_logs").insert({empresa_id:c.empresaId,usuario_id:c.userId,app_slug:"dronegestor",acao:OS_EVENT_ACTION,detalhes:{osId,evento:"concluida",at:now,usuarioId:c.userId,usuarioNome:c.userName,statusAnterior:"campo_concluido",fechamentoValidado:true,snapshotSource:stored.source}});
-      return NextResponse.json({ok:true,status:"concluida",osStatus:"concluida",closed:true,missing:[],snapshotSource:stored.source});
+    if (action === "finalize") {
+      // Em equipe, o encerramento documental é responsabilidade do gestor/RT.
+      // Em modo solo (sem empresa), o próprio operador pode encerrar a sua OS.
+      if (c.empresaId && !c.canManage)
+        return NextResponse.json(
+          {
+            ok: false,
+            status: "pendente_regularizacao",
+            osStatus,
+            missing,
+            error: "O campo já pode ser concluído pelo piloto. O encerramento definitivo da OS deve ser feito pelo gestor/RT.",
+          },
+          { status: 403 },
+        );
+      if (osStatus !== "campo_concluido")
+        return NextResponse.json(
+          {
+            ok: false,
+            status: "pendente_regularizacao",
+            osStatus,
+            missing,
+            error: "A OS só pode ser encerrada depois que o piloto concluir a aplicação em campo.",
+          },
+          { status: 409 },
+        );
+      if (!Object.keys(stored.state).length)
+        return NextResponse.json(
+          {
+            ok: false,
+            status: "pendente_regularizacao",
+            osStatus,
+            missing: ["Dados do campo ainda não chegaram ao servidor"],
+            error: "Aguarde a sincronização do celular do piloto antes de encerrar esta OS.",
+          },
+          { status: 409 },
+        );
+      if (missing.length) {
+        await updateClosureMeta(admin, c, os, osData, "pendente_regularizacao", missing);
+        return NextResponse.json(
+          {
+            ok: false,
+            status: "pendente_regularizacao",
+            osStatus,
+            missing,
+            error: "Ainda existem informações obrigatórias para regularizar antes do encerramento da OS.",
+          },
+          { status: 409 },
+        );
+      }
+
+      const now = new Date().toISOString();
+      const nextData = {
+        ...osData,
+        status: "concluida",
+        fechamentoStatus: "concluida",
+        pendenciasFechamento: [],
+        fechamentoAtualizadoEm: now,
+        fechamentoAtualizadoPor: c.userName,
+        finalizadaEm: now,
+      };
+      const nextDetails = { ...(os.detalhes ?? {}), updatedAt: now, data: nextData };
+      const { error } = await admin.from("core_logs").update({ detalhes: nextDetails }).eq("id", os.id);
+      if (error) throw error;
+      const event = await admin.from("core_logs").insert({
+        empresa_id: c.empresaId,
+        usuario_id: c.userId,
+        app_slug: "dronegestor",
+        acao: OS_EVENT_ACTION,
+        detalhes: {
+          osId,
+          evento: "concluida",
+          at: now,
+          usuarioId: c.userId,
+          usuarioNome: c.userName,
+          statusAnterior: "campo_concluido",
+          fechamentoValidado: true,
+          snapshotSource: stored.source,
+        },
+      });
+      if (event.error) console.error("DroneGestor: falha ao registrar evento de encerramento", event.error);
+      return NextResponse.json({
+        ok: true,
+        status: "concluida",
+        osStatus: "concluida",
+        closed: true,
+        missing: [],
+        snapshotSource: stored.source,
+      });
     }
 
-    return NextResponse.json({ok:true,status:closureStatus,osStatus,closed:false,missing,snapshotSource:stored.source});
-  }catch(error){return NextResponse.json({ok:false,error:error instanceof Error?error.message:"Falha ao validar fechamento."},{status:500});}
+    return NextResponse.json({
+      ok: true,
+      status: closureStatus,
+      osStatus,
+      closed: false,
+      missing,
+      snapshotSource: stored.source,
+    });
+  } catch (error) {
+    const accessError = droneOsErrorResponse(error);
+    if (accessError)
+      return NextResponse.json({ ok: false, error: accessError.message }, { status: accessError.status });
+    return NextResponse.json(
+      { ok: false, error: error instanceof Error ? error.message : "Falha ao validar fechamento." },
+      { status: 500 },
+    );
+  }
 }
