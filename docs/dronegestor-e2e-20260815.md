@@ -4,13 +4,13 @@
 
 **NÃO APROVADO PARA LIBERAÇÃO FINAL AINDA.**
 
-O código corrigido passa TypeScript, lint específico e build completo. A produção atualmente publicada está `READY`, mas ainda corresponde ao commit-base anterior. O preview das novas correções, os logins separados dos perfis fake e o fluxo operacional completo continuam pendentes; portanto, não é correto declarar aprovação final.
+O código corrigido passa testes automatizados, TypeScript, lint específico e build completo. O PR e o preview foram publicados, mas os logins separados dos perfis fake e o fluxo operacional completo ainda não foram executados no preview autenticado; portanto, não é correto declarar aprovação final.
 
 ## Ambiente e isolamento
 
 - Branch local: `codex/dronegestor-e2e-20260815-recovered`.
 - Base: `787696e`.
-- Commits desta rodada: `f7fa2de` e `cccbc16`.
+- PR: [#110](https://github.com/mauriciobarrosaguiar/mbalabs/pull/110), mantido como rascunho.
 - Projeto Supabase: MBA Labs, sem secrets registrados no repositório ou neste documento.
 - Empresa fake: `E2E TESTE - DroneGestor QA`.
 - Nenhum cliente, fazenda, talhão, equipamento, OS, documento, mapa, SARPAS ou operação E2E foi criado até esta revisão.
@@ -39,6 +39,8 @@ Os quatro usuários permanecem ativos porque a exclusão quebraria a continuidad
 | Produção: início, perfil, equipamentos, gestão, equipe, documentos, histórico, pacote e campo | INSPEÇÃO SOMENTE LEITURA CONCLUÍDA |
 | Produção: erros de runtime do DroneGestor nas últimas 24 h | NENHUM ENCONTRADO |
 | Perfis fake e vínculos no banco | CONFIRMADOS |
+| Criação/vínculo de piloto: sucesso, senha curta, outra empresa, usuário inativo e rollback | PASSOU em 8 testes automatizados |
+| Integridade das permissões DroneGestor no Supabase | PASSOU: 0 empresa incorreta, 0 permissão ativa para usuário inativo e 0 perfil desconhecido |
 | Dados E2E operacionais no banco | ZERO |
 | Registros legados finalizados sem OS | 2, PRESERVADOS E OCULTOS |
 | Gestor versus piloto com sessões separadas | PENDENTE — credenciais fake indisponíveis para login seguro |
@@ -58,7 +60,7 @@ Os quatro usuários permanecem ativos porque a exclusão quebraria a continuidad
 
 ### Alto
 
-- O cadastro de piloto dentro do DroneGestor criava somente uma ficha operacional; o gestor ainda precisava sair do app e criar o login no painel geral da MBA Labs. Agora a mesma ação cria Auth, usuário da empresa, perfil `piloto` e ficha operacional, com rollback se alguma etapa falhar e bloqueio de e-mail pertencente a outra empresa.
+- O cadastro de piloto dentro do DroneGestor criava somente uma ficha operacional; o gestor ainda precisava sair do app e criar o login no painel geral da MBA Labs. Agora a mesma ação cria Auth, usuário da empresa, perfil `piloto` e ficha operacional, com rollback se alguma etapa falhar e bloqueio de e-mail pertencente a outra empresa. A rotina foi isolada e coberta por oito testes de comportamento, sem criar contas reais adicionais.
 - Piloto sem cadastro operacional podia herdar permissões permissivas para upload/finalização. A ausência do vínculo agora nega a ação.
 - Mapa por geometria aceitava consulta sem OS e não validava o vínculo do piloto. GET/POST agora exigem OS, escopo e permissão.
 - Gestor podia preparar OS de equipe sem definir piloto. O servidor agora bloqueia e informa a próxima ação.
@@ -93,21 +95,20 @@ Os quatro usuários permanecem ativos porque a exclusão quebraria a continuidad
 
 - Branch: criada localmente.
 - Commits: criados localmente.
-- Push/PR: pendente; o cliente `gh` não está disponível neste ambiente de trabalho.
-- Preview: pendente, pois a integração direta exige o pacote completo de arquivos e a branch ainda não foi publicada.
+- PR: [#110](https://github.com/mauriciobarrosaguiar/mbalabs/pull/110), aberto como rascunho e sem merge.
+- Preview publicado: `https://mbalabs-llwbz7eys-emsgenericosto-3419s-projects.vercel.app`; a versão anterior desta branch ficou `READY` e uma nova validação será exigida após esta bateria automatizada.
 - Produção atual: `READY` no commit-base `787696e`.
 - Migration RLS: versionada e não aplicada.
 
 ## Próxima sequência obrigatória
 
-1. Publicar a branch e abrir PR.
-2. Aguardar preview `READY`.
-3. Restabelecer, por procedimento seguro, o acesso aos quatro usuários fake.
-4. Executar E2E-001 e E2E-002 completos no preview, incluindo celular, offline e conflito.
-5. Aplicar/testar a migration RLS somente no ambiente aprovado.
-6. Revisar o PDF e confirmar isolamento entre OS.
-7. Aprovar PR, fazer merge e confirmar produção `READY`.
-8. Desativar ou manter os perfis fake conforme os relacionamentos criados e registrar a decisão.
+1. Aguardar o novo preview ficar `READY`.
+2. Restabelecer, por procedimento seguro, o acesso aos quatro usuários fake.
+3. Executar E2E-001 e E2E-002 completos no preview, incluindo celular, offline e conflito.
+4. Aplicar/testar a migration RLS somente no ambiente aprovado.
+5. Revisar o PDF e confirmar isolamento entre OS.
+6. Aprovar PR, fazer merge e confirmar produção `READY`.
+7. Desativar ou manter os perfis fake conforme os relacionamentos criados e registrar a decisão.
 
 ## Pendência de segurança do ambiente
 

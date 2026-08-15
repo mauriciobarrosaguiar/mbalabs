@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
+import { createOrLinkPilotAccount, PilotAccountError } from "@/lib/dronegestor-pilot-account";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 const ACTION = "piloto_operacional_v1";
-const PILOT_PROFILE = "piloto";
 
 type Permissions = {
   executarOs: boolean;
@@ -38,12 +38,6 @@ type Context = {
   empresaId: string | null;
   canManage: boolean;
 };
-
-type PermissionSnapshot = {
-  id: string;
-  perfil_app: string;
-  status: string;
-} | null;
 
 const defaultPermissions: Permissions = {
   executarOs: true,
@@ -203,130 +197,10 @@ async function linkUser(admin: any, current: Context, pilot: Pilot, appId: strin
   return { ...pilot, usuarioId: permissionResult.data?.id ? String(userResult.data.id) : "" };
 }
 
-async function rollbackCreatedAccount(admin: any, coreUserId: string, authUserId: string) {
-  if (coreUserId) await admin.from("core_usuarios").delete().eq("id", coreUserId);
-  if (authUserId) await admin.auth.admin.deleteUser(authUserId).catch(() => undefined);
-}
-
-async function restorePermission(admin: any, userId: string, appId: string, snapshot: PermissionSnapshot) {
-  if (!snapshot) {
-    await admin.from("core_usuario_app_permissoes").delete().eq("usuario_id", userId).eq("app_id", appId);
-    return;
-  }
-  await admin
-    .from("core_usuario_app_permissoes")
-    .update({ perfil_app: snapshot.perfil_app, status: snapshot.status })
-    .eq("id", snapshot.id);
-}
-
-async function createOrLinkPilotAccount(
-  admin: any,
-  current: Context,
-  appId: string,
-  input: { nome: string; email: string; telefone: string; senhaAcesso: string },
-) {
-  const existingResult = await admin
-    .from("core_usuarios")
-    .select("id,empresa_id,status,auth_user_id")
-    .ilike("email", input.email)
-    .limit(1)
-    .maybeSingle();
-  if (existingResult.error) throw existingResult.error;
-
-  const existing = existingResult.data;
-  if (existing && existing.empresa_id !== current.empresaId) {
-    throw new ApiError("Este e-mail já pertence a outra empresa. Use outro e-mail ou fale com o suporte.", 409);
-  }
-  if (existing && existing.status !== "ativo") {
-    throw new ApiError("Este acesso está inativo ou bloqueado. Reative o usuário antes de vinculá-lo como piloto.", 409);
-  }
-
-  let authUserId = "";
-  let coreUserId = existing?.id ? String(existing.id) : "";
-  let createdAccount = false;
-
-  if (!existing) {
-    if (input.senhaAcesso.length < 8) {
-      throw new ApiError("Crie uma senha inicial com pelo menos 8 caracteres.", 400);
-    }
-
-    const authResult = await admin.auth.admin.createUser({
-      email: input.email,
-      password: input.senhaAcesso,
-      email_confirm: true,
-      user_metadata: { nome: input.nome },
-    });
-    if (authResult.error || !authResult.data.user) {
-      const duplicated = /already|registered|exists|unique/i.test(authResult.error?.message ?? "");
-      throw new ApiError(
-        duplicated
-          ? "Este e-mail já possui um acesso. Use o mesmo e-mail cadastrado na empresa ou fale com o suporte."
-          : "Não foi possível criar o acesso do piloto. Tente novamente.",
-        duplicated ? 409 : 503,
-      );
-    }
-    authUserId = authResult.data.user.id;
-
-    const coreResult = await admin
-      .from("core_usuarios")
-      .insert({
-        auth_user_id: authUserId,
-        empresa_id: current.empresaId,
-        nome: input.nome,
-        email: input.email,
-        telefone: input.telefone || null,
-        tipo: "usuario",
-        tipo_global: "usuario",
-        status: "ativo",
-      })
-      .select("id")
-      .single();
-    if (coreResult.error || !coreResult.data?.id) {
-      await rollbackCreatedAccount(admin, "", authUserId);
-      throw new ApiError("O acesso não foi concluído e nenhuma conta foi mantida. Tente novamente.", 500);
-    }
-    coreUserId = String(coreResult.data.id);
-    createdAccount = true;
-  }
-
-  const previousPermission = await admin
-    .from("core_usuario_app_permissoes")
-    .select("id,perfil_app,status")
-    .eq("usuario_id", coreUserId)
-    .eq("app_id", appId)
-    .maybeSingle();
-  if (previousPermission.error) {
-    if (createdAccount) await rollbackCreatedAccount(admin, coreUserId, authUserId);
-    throw previousPermission.error;
-  }
-
-  const permissionResult = await admin.from("core_usuario_app_permissoes").upsert(
-    {
-      usuario_id: coreUserId,
-      empresa_id: current.empresaId,
-      app_id: appId,
-      perfil_app: PILOT_PROFILE,
-      status: "ativo",
-    },
-    { onConflict: "usuario_id,app_id" },
-  );
-  if (permissionResult.error) {
-    if (createdAccount) await rollbackCreatedAccount(admin, coreUserId, authUserId);
-    throw new ApiError("Não foi possível liberar o DroneGestor para este piloto. Nenhum acesso incompleto foi mantido.", 500);
-  }
-
-  return {
-    usuarioId: coreUserId,
-    createdAccount,
-    rollback: async () => {
-      if (createdAccount) await rollbackCreatedAccount(admin, coreUserId, authUserId);
-      else await restorePermission(admin, coreUserId, appId, (previousPermission.data as PermissionSnapshot) ?? null);
-    },
-  };
-}
-
 function errorResponse(error: unknown, fallback: string) {
-  if (error instanceof ApiError) return NextResponse.json({ ok: false, error: error.message }, { status: error.status });
+  if (error instanceof ApiError || error instanceof PilotAccountError) {
+    return NextResponse.json({ ok: false, error: error.message }, { status: error.status });
+  }
   return NextResponse.json({ ok: false, error: fallback }, { status: 500 });
 }
 
