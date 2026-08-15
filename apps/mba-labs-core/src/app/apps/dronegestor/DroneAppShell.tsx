@@ -33,7 +33,7 @@ export function DroneAppShell({ children }: { children: ReactNode }) {
 
   const moreActive = moreItems.some((item)=>pathname.startsWith(item.href));
 
-  return <div className={`min-h-screen ${fieldFlow ? "pb-0" : "pb-[calc(5.5rem+env(safe-area-inset-bottom))]"} md:pb-0`}>
+  return <div className={`min-h-screen ${fieldFlow ? "drone-field-flow pb-0" : "pb-[calc(5.5rem+env(safe-area-inset-bottom))]"} md:pb-0`}>
     {children}
 
     {!fieldFlow && <nav className={`drone-mobile-nav fixed inset-x-0 bottom-0 z-[80] border-t border-[#d8e4db] bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_26px_rgba(4,50,35,.08)] backdrop-blur-xl md:hidden ${printView ? "print:hidden" : ""}`} aria-label="Navegação do DroneGestor">
