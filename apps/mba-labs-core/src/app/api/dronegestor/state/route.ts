@@ -5,7 +5,6 @@ import {
   DroneOsAccessError,
   droneOsErrorResponse,
   requireDroneOsAccess,
-  scopeDroneOsQuery,
 } from "@/lib/dronegestor-os-access";
 
 export const dynamic = "force-dynamic";
@@ -91,6 +90,12 @@ function accessContext(current: ApiContext) {
     empresaId: current.empresaId,
     canManage: companyHistoryRole(current),
   };
+}
+function finalizedOsId(row: any) {
+  const details = objectValue(row?.detalhes);
+  const summary = objectValue(details.summary);
+  const state = objectValue(details.state);
+  return textValue(summary.ordemServicoId) || textValue(objectValue(state.mission).ordemServicoId);
 }
 
 async function getContext(): Promise<{ current: ApiContext | null; response: NextResponse | null }> {
@@ -340,7 +345,6 @@ async function pilotCanFinalize(admin: any, current: ApiContext) {
   query = scopeQuery(query, current);
   const { data, error } = await query.maybeSingle();
   if (error) throw error;
-  // Compatibilidade com piloto já existente antes do cadastro operacional.
   if (!data) return true;
   return data.detalhes?.permissoes?.finalizarOperacao !== false;
 }
@@ -370,10 +374,7 @@ async function validateServerPreflight(
     .limit(500);
   docsQuery = scopeQuery(docsQuery, current);
 
-  const [sarpasResult, docsResult] = await Promise.all([
-    sarpasQuery.maybeSingle(),
-    docsQuery,
-  ]);
+  const [sarpasResult, docsResult] = await Promise.all([sarpasQuery.maybeSingle(), docsQuery]);
   if (sarpasResult.error) throw sarpasResult.error;
   if (docsResult.error) throw docsResult.error;
 
@@ -437,7 +438,8 @@ async function setFieldCompleted(
       operationId,
     },
   });
-  if (event.error) console.error("DroneGestor: falha ao registrar evento campo_concluido", event.error);
+  if (event.error)
+    console.error("DroneGestor: falha ao registrar evento campo_concluido", event.error);
 }
 
 export async function GET(request: NextRequest) {
@@ -449,7 +451,10 @@ export async function GET(request: NextRequest) {
 
     if (request.nextUrl.searchParams.get("history") === "1") {
       const requestedLimit = Number(request.nextUrl.searchParams.get("limit") || 200);
-      const limit = Math.max(1, Math.min(500, Number.isFinite(requestedLimit) ? requestedLimit : 200));
+      const limit = Math.max(
+        1,
+        Math.min(500, Number.isFinite(requestedLimit) ? requestedLimit : 200),
+      );
       const requestedOffset = Number(request.nextUrl.searchParams.get("offset") || 0);
       const offset = Math.max(0, Number.isFinite(requestedOffset) ? requestedOffset : 0);
       let query = admin
@@ -468,12 +473,16 @@ export async function GET(request: NextRequest) {
       else query = query.eq("usuario_id", current.usuario.id);
       const { data, error } = await query;
       if (error) throw error;
-      const items = data ?? [];
+      const rawItems = data ?? [];
+      // Registros antigos de teste, criados antes da OS obrigatória, são preservados no banco
+      // mas não aparecem no histórico operacional normal do piloto/gestor.
+      const validItems = rawItems.filter((row: any) => Boolean(finalizedOsId(row)));
       return NextResponse.json({
         ok: true,
-        items: items.slice(0, limit),
-        hasMore: items.length > limit,
-        nextOffset: items.length > limit ? offset + limit : null,
+        items: validItems.slice(0, limit),
+        legacyHidden: rawItems.length - validItems.length,
+        hasMore: rawItems.length > limit,
+        nextOffset: rawItems.length > limit ? offset + limit : null,
       });
     }
 
@@ -495,7 +504,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Falha ao carregar os dados do DroneGestor." },
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : "Falha ao carregar os dados do DroneGestor.",
+      },
       { status: 500 },
     );
   }
@@ -515,7 +527,18 @@ export async function PUT(request: NextRequest) {
     const admin = createSupabaseAdminClient() as any;
     const mission = objectValue(state.mission);
     const osId = textValue(mission.ordemServicoId);
-    if (osId) await requireDroneOsAccess(admin, accessContext(current), osId);
+    if (osId) {
+      const osAccess = await requireDroneOsAccess(admin, accessContext(current), osId);
+      if (
+        current.empresaId &&
+        osAccess.assignedPilotId &&
+        osAccess.assignedPilotId !== current.usuario.id
+      )
+        throw new DroneOsAccessError(
+          "Esta OS está atribuída a outro piloto. Abra o Painel do gestor para acompanhá-la.",
+          403,
+        );
+    }
 
     const { data: existing, error: findError } = await admin
       .from("core_logs")
@@ -545,7 +568,10 @@ export async function PUT(request: NextRequest) {
     const updatedAt = new Date().toISOString();
     const detalhes = { state, revision, updatedAt, version: 6 };
     if (existing?.id) {
-      const { error } = await admin.from("core_logs").update({ detalhes }).eq("id", existing.id);
+      const { error } = await admin
+        .from("core_logs")
+        .update({ detalhes })
+        .eq("id", existing.id);
       if (error) throw error;
     } else {
       const { error } = await admin.from("core_logs").insert({
@@ -561,9 +587,15 @@ export async function PUT(request: NextRequest) {
   } catch (error) {
     const accessError = droneOsErrorResponse(error);
     if (accessError)
-      return NextResponse.json({ ok: false, error: accessError.message }, { status: accessError.status });
+      return NextResponse.json(
+        { ok: false, error: accessError.message },
+        { status: accessError.status },
+      );
     return NextResponse.json(
-      { ok: false, error: error instanceof Error ? error.message : "Falha ao salvar os dados do DroneGestor." },
+      {
+        ok: false,
+        error: error instanceof Error ? error.message : "Falha ao salvar os dados do DroneGestor.",
+      },
       { status: 500 },
     );
   }
@@ -585,8 +617,6 @@ export async function POST(request: NextRequest) {
 
     validateFinalization(summary, state, settings);
 
-    // A OS é validada ANTES de qualquer registro de conclusão. Assim uma OS inexistente,
-    // cancelada, sem piloto ou pertencente a outra pessoa nunca cria operação órfã.
     const osAccess = await requireDroneOsAccess(
       admin,
       accessContext(current),
@@ -612,7 +642,12 @@ export async function POST(request: NextRequest) {
         403,
       );
 
-    await validateServerPreflight(admin, current, summary.ordemServicoId, summary.tipoAtividade);
+    await validateServerPreflight(
+      admin,
+      current,
+      summary.ordemServicoId,
+      summary.tipoAtividade,
+    );
 
     const { data: existing, error: existingError } = await admin
       .from("core_logs")
@@ -638,8 +673,11 @@ export async function POST(request: NextRequest) {
         duplicate: true,
         id: existing.id,
         operationId,
-        osConcluida: false,
+        // Mantido por compatibilidade com os dois modos de Campo atuais. O significado
+        // aqui é “a atualização da OS foi confirmada”; o estado real continua Campo concluído.
+        osConcluida: true,
         osCampoConcluido: true,
+        osEncerrada: false,
         finalizedAt: existing.detalhes?.finalizedAt ?? existing.created_at,
       });
     }
@@ -673,8 +711,6 @@ export async function POST(request: NextRequest) {
     try {
       await setFieldCompleted(admin, current, osAccess.row, operationId);
     } catch (fieldError) {
-      // Rollback compensatório: se a OS não puder receber o estado Campo concluído,
-      // não deixamos um operacao_finalizada órfão no histórico.
       await admin.from("core_logs").delete().eq("id", data.id);
       throw fieldError;
     }
@@ -683,14 +719,18 @@ export async function POST(request: NextRequest) {
       ok: true,
       id: data.id,
       operationId,
-      osConcluida: false,
+      osConcluida: true,
       osCampoConcluido: true,
+      osEncerrada: false,
       finalizedAt,
     });
   } catch (error) {
     const accessError = droneOsErrorResponse(error);
     if (accessError)
-      return NextResponse.json({ ok: false, error: accessError.message }, { status: accessError.status });
+      return NextResponse.json(
+        { ok: false, error: accessError.message },
+        { status: accessError.status },
+      );
 
     const message =
       error instanceof Error ? error.message : "Falha ao concluir a aplicação no Supabase.";
