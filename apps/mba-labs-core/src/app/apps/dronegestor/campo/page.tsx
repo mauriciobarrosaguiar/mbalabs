@@ -3,9 +3,11 @@ import { DroneSarpasAgriculturalGuard } from "../DroneSarpasAgriculturalGuard";
 import { DroneEquipmentPicker } from "./DroneEquipmentPicker";
 import { DroneFinishLabelBridge } from "./DroneFinishLabelBridge";
 import { DroneGestorAppV3 } from "./DroneGestorAppV3";
+import { DroneLegacyStepHider } from "./DroneLegacyStepHider";
 import { DroneMissionContextReset } from "./DroneMissionContextReset";
 import { DroneMissionGateHint } from "./DroneMissionGateHint";
 import { DroneMixerCalculator } from "./DroneMixerCalculator";
+import { DroneOperationNextStep } from "./DroneOperationNextStep";
 import { DroneOsLifecycleSync } from "./DroneOsLifecycleSync";
 import { DronePersistenceSync } from "./DronePersistenceSync";
 import { DronePilotPermissionBridge } from "./DronePilotPermissionBridge";
@@ -31,6 +33,8 @@ export default async function DroneGestorCampoPage() {
     <DroneSarpasAgriculturalGuard />
     <DroneEquipmentPicker canManage={canManage} />
     <DroneSimpleFlowUX />
+    <DroneOperationNextStep />
+    <DroneLegacyStepHider />
     <DroneMissionGateHint />
     <DroneRegulatoryGuard canManage={canManage} />
     <DroneProductMissionPicker />
