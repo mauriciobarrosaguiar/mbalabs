@@ -52,8 +52,8 @@ export async function GET(){
       if(status==="cancelada"){stage="cancelada";stageLabel="Cancelada";nextAction="Nenhuma ação"}
       else if(status==="concluida"){stage="encerrada";stageLabel="OS encerrada";nextAction="Consultar histórico"}
       else if(status==="campo_concluido"){
-        if(closure==="pronto"||(!pending.length&&closure!=="pendente_regularizacao")){stage="pronta_encerrar";stageLabel="Pronta para encerrar";nextAction="Conferir e encerrar a OS"}
-        else{stage="regularizacao";stageLabel="Campo concluído • regularização";nextAction=pending[0]||"Conferir documentos e pendências"}
+        if(closure==="pronto"){stage="pronta_encerrar";stageLabel="Pronta para encerrar";nextAction="Conferir e encerrar a OS"}
+        else{stage="regularizacao";stageLabel="Campo concluído • regularização";nextAction=pending[0]||"Conferir o pacote da operação"}
       }
       else if(status==="em_execucao"){stage=paused?"pausada":"aplicando";stageLabel=paused?"Aplicação pausada":"Aplicando agora";nextAction=paused?"Acompanhar retomada":"Acompanhar aplicação"}
       else if(status==="suspensa"){stage="pausada";stageLabel="Operação suspensa";nextAction="Definir retomada ou cancelamento"}
