@@ -21,13 +21,12 @@ const K={
   status:"dronegestor:missionStatus:v4",startedAt:"dronegestor:startedAt:v4",endedAt:"dronegestor:endedAt:v4",
   view:"dronegestor:view:v3",operationId:"dronegestor:operationId:v3",lastFinalized:"dronegestor:lastFinalizedOperationId:v3",
   queue:"dronegestor:finalizationQueue:v4",weather:"dronegestor:weather",calibration:"dronegestor:calibration:v2",
-  checklist:"dronegestor:checklist:v2",insight:"dronegestor:insightAccepted:v2",risk:"dronegestor:riskAccepted:v2",
-  syncDirty:"dronegestor:syncDirty:v4"
+  checklist:"dronegestor:checklist:v2",insight:"dronegestor:insightAccepted:v2",risk:"dronegestor:riskAccepted:v2"
 } as const;
 const occurrenceTypes=["Clima mudou","Falha no drone","Bateria","Vazamento","Obstáculo","Risco de deriva","Acidente / queda","Outro"];
 
 function read<T>(key:string,fallback:T):T{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw) as T:fallback}catch{return fallback}}
-function write(key:string,value:unknown){localStorage.setItem(key,JSON.stringify(value));localStorage.setItem(K.syncDirty,"1")}
+function write(key:string,value:unknown){localStorage.setItem(key,JSON.stringify(value))}
 function n(v:unknown){const x=Number(v);return Number.isFinite(x)?x:0}
 function round(v:number,d=2){const f=10**d;return Math.round(v*f)/f}
 function fmt(v:number,d=1){return new Intl.NumberFormat("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d}).format(Number.isFinite(v)?v:0)}
