@@ -5,8 +5,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 type Item={id:string;label:string;ok:boolean;detail:string;nextView?:string};
 type Release={ready:boolean;nextId:string;nextView:string;items:Item[];error?:string;osStatus?:string;pilotName?:string};
+type LocalState={osId:string;started:boolean;missionStatus:string};
 
 const EMPTY:Release={ready:false,nextId:"",nextView:"",items:[]};
+const EMPTY_LOCAL:LocalState={osId:"",started:false,missionStatus:"rascunho"};
 function readJson<T>(key:string,fallback:T):T{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw) as T:fallback}catch{return fallback}}
 function snapshot(){return{
   mission:readJson<Record<string,unknown>>("dronegestor:mission:v2",{}),
@@ -16,23 +18,21 @@ function snapshot(){return{
   riskAccepted:Boolean(readJson("dronegestor:riskAccepted:v2",false)),
   insightAccepted:Boolean(readJson("dronegestor:insightAccepted:v2",false))
 }}
-function currentOsId(){const m=readJson<Record<string,any>>("dronegestor:mission:v2",{});return String(m.ordemServicoId||"")}
+function localState():LocalState{const m=readJson<Record<string,any>>("dronegestor:mission:v2",{});return{osId:String(m.ordemServicoId||""),started:Boolean(readJson("dronegestor:started:v3",false)),missionStatus:String(readJson("dronegestor:missionStatus:v4","rascunho"))}}
 function openField(view:string){localStorage.setItem("dronegestor:view:v3",view);window.location.reload()}
 
 export function DroneOperationNextStep(){
-  const[release,setRelease]=useState<Release>(EMPTY),[loading,setLoading]=useState(false),[expanded,setExpanded]=useState(false),[notice,setNotice]=useState("");
+  const[release,setRelease]=useState<Release>(EMPTY),[local,setLocal]=useState<LocalState>(EMPTY_LOCAL),[hydrated,setHydrated]=useState(false),[loading,setLoading]=useState(false),[expanded,setExpanded]=useState(false),[notice,setNotice]=useState("");
   const lastSignature=useRef("");
-  const started=Boolean(typeof window!=="undefined"&&readJson("dronegestor:started:v3",false));
-  const missionStatus=typeof window!=="undefined"?String(readJson("dronegestor:missionStatus:v4","rascunho")):"rascunho";
-  const osId=typeof window!=="undefined"?currentOsId():"";
 
   async function refresh(force=false){
-    const id=currentOsId();if(!id){setRelease(EMPTY);return}
+    const nextLocal=localState();setLocal(nextLocal);
+    if(!nextLocal.osId){setRelease(EMPTY);return}
     const snap=snapshot(),signature=JSON.stringify(snap);
     if(!force&&signature===lastSignature.current)return;
     lastSignature.current=signature;setLoading(true);
     try{
-      const response=await fetch("/api/dronegestor/preflight",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({osId:id,snapshot:snap}),cache:"no-store"});
+      const response=await fetch("/api/dronegestor/preflight",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({osId:nextLocal.osId,snapshot:snap}),cache:"no-store"});
       const payload=await response.json().catch(()=>null);
       if(!response.ok)throw new Error(payload?.error||"Não foi possível conferir a liberação.");
       setRelease({ready:Boolean(payload?.ready),nextId:String(payload?.nextId||""),nextView:String(payload?.nextView||""),items:Array.isArray(payload?.items)?payload.items:[],error:payload?.error,osStatus:String(payload?.osStatus||""),pilotName:String(payload?.pilotName||"")});
@@ -41,7 +41,7 @@ export function DroneOperationNextStep(){
   }
 
   useEffect(()=>{
-    void refresh(true);
+    setHydrated(true);void refresh(true);
     const timer=window.setInterval(()=>void refresh(false),650);
     const force=()=>void refresh(true);
     window.addEventListener("focus",force);window.addEventListener("pageshow",force);window.addEventListener("dronegestor:sarpas-updated",force);
@@ -63,17 +63,17 @@ export function DroneOperationNextStep(){
 
   const done=useMemo(()=>release.items.filter(item=>item.ok).length,[release.items]);
   const next=release.items.find(item=>!item.ok)||null;
-  if(!osId)return null;
+  if(!hydrated||!local.osId)return null;
 
-  if(["finalizada","pendente_sync"].includes(missionStatus))return <section className="bg-[#f4f8f1] px-3 pt-2 sm:px-5"><div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-950"><CheckCircle2 size={20} className="shrink-0"/><div className="min-w-0 flex-1"><strong className="block text-sm">Aplicação em campo concluída</strong><p className="mt-0.5 text-xs leading-5">{missionStatus==="pendente_sync"?"A conclusão está protegida e aguardando sincronização.":"Agora confira pendências e faça o encerramento administrativo da OS."}</p></div>{missionStatus==="finalizada"&&<button type="button" onClick={()=>window.location.href="/apps/dronegestor/pacote-operacao"} className="min-h-10 shrink-0 rounded-xl bg-amber-700 px-3 text-xs font-black text-white">Encerrar OS</button>}</div></section>;
+  if(["finalizada","pendente_sync"].includes(local.missionStatus))return <section className="bg-[#f4f8f1] px-3 pt-2 sm:px-5"><div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-950"><CheckCircle2 size={20} className="shrink-0"/><div className="min-w-0 flex-1"><strong className="block text-sm">Aplicação em campo concluída</strong><p className="mt-0.5 text-xs leading-5">{local.missionStatus==="pendente_sync"?"A conclusão está protegida e aguardando sincronização.":"Agora confira pendências e faça o encerramento administrativo da OS."}</p></div>{local.missionStatus==="finalizada"&&<button type="button" onClick={()=>window.location.href="/apps/dronegestor/pacote-operacao"} className="min-h-10 shrink-0 rounded-xl bg-amber-700 px-3 text-xs font-black text-white">Encerrar OS</button>}</div></section>;
 
-  if(started)return <section className="bg-[#f4f8f1] px-3 pt-2 sm:px-5"><div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-950"><PlaneTakeoff size={20} className="shrink-0"/><div><strong className="block text-sm">Operação em andamento</strong><p className="mt-0.5 text-xs leading-5">Registre área e volume realmente executados. A liberação pré-voo já foi concluída.</p></div></div></section>;
+  if(local.started)return <section className="bg-[#f4f8f1] px-3 pt-2 sm:px-5"><div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-950"><PlaneTakeoff size={20} className="shrink-0"/><div><strong className="block text-sm">Operação em andamento</strong><p className="mt-0.5 text-xs leading-5">Registre área e volume realmente executados. A liberação pré-voo já foi concluída.</p></div></div></section>;
 
   function solve(){
     if(release.ready)return openField("sarpas");
     if(!next)return void refresh(true);
-    if(next.id==="pilot")return void(window.location.href="/apps/dronegestor/gestao");
-    if(next.id==="documents"||next.id==="sarpas")return void(window.location.href="/apps/dronegestor/documentos");
+    if(next.id==="pilot"){window.location.href="/apps/dronegestor/gestao";return}
+    if(next.id==="documents"||next.id==="sarpas"){window.location.href="/apps/dronegestor/documentos";return}
     openField(next.nextView||release.nextView||"nova");
   }
 
