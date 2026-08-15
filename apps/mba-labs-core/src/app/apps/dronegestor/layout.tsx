@@ -87,6 +87,11 @@ export default function DroneGestorLayout({ children }: { children: ReactNode })
           .dronegestor-ui .mobile-hide-scrollbar { scrollbar-width: none; }
           .dronegestor-ui .mobile-hide-scrollbar::-webkit-scrollbar { display: none; }
 
+          /* Campo: textos de orientação ficam legíveis sob sol sem aumentar os controles compactos. */
+          .dronegestor-ui .drone-field-flow small { font-size: .8rem !important; line-height: 1.2rem !important; }
+          .dronegestor-ui .drone-field-flow p[class*="text-[11px]"] { font-size: .78rem !important; line-height: 1.15rem !important; }
+          .dronegestor-ui .drone-field-flow p[class*="text-xs"] { line-height: 1.2rem; }
+
           .dronegestor-ui [class*="grid-cols-2"]:not(.drone-mobile-nav) { grid-template-columns: minmax(0, 1fr) !important; }
           .dronegestor-ui [class*="sm:grid-cols-2"] { grid-template-columns: minmax(0, 1fr); }
 
