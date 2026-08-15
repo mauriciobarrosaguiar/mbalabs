@@ -1,5 +1,6 @@
 import { requireAppAccess } from "@/lib/core-data";
 import { DroneHistoricoClientV2 } from "./DroneHistoricoClientV2";
+import { DroneHistoryPackageLinks } from "./DroneHistoryPackageLinks";
 
 export const dynamic = "force-dynamic";
 
@@ -10,10 +11,5 @@ function companyHistory(tipo: string, empresaId: string | null) {
 
 export default async function DroneGestorHistoricoPage() {
   const current = await requireAppAccess("dronegestor", "/apps/dronegestor/historico");
-  return (
-    <DroneHistoricoClientV2
-      userName={current.usuario.nome || "Piloto"}
-      companyMode={companyHistory(current.usuario.tipo, current.empresaId)}
-    />
-  );
+  return <><DroneHistoryPackageLinks/><DroneHistoricoClientV2 userName={current.usuario.nome || "Piloto"} companyMode={companyHistory(current.usuario.tipo, current.empresaId)}/></>;
 }
