@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   droneOsErrorResponse,
@@ -55,7 +56,7 @@ async function context(): Promise<{ current: Context | null; response: NextRespo
       userId: s.profile.id,
       userName: s.profile.nome || "Usuário",
       empresaId: s.profile.empresa_id,
-      canManage: master || ["admin_empresa", "responsavel_tecnico", "rt"].includes(type),
+      canManage: canManageDroneGestor({ tipo: s.profile.tipo, isAdminMaster: master, permissoes: s.permissoes }),
     },
     response: null,
   };
@@ -208,6 +209,11 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json();
     const osId = text(body?.osId, 120);
     if (!osId) return NextResponse.json({ ok: false, error: "Informe a OS." }, { status: 400 });
+    if (c.empresaId && !c.canManage)
+      return NextResponse.json(
+        { ok: false, error: "Somente o gestor ou responsável técnico pode regularizar os dados da propriedade." },
+        { status: 403 },
+      );
 
     const admin = createSupabaseAdminClient() as any;
     const osAccess = await requireDroneOsAccess(admin, c, osId);

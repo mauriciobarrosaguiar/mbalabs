@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ function obj(v:unknown):Record<string,any>{return v&&typeof v==="object"&&!Array
 async function context():Promise<{current:Context|null;response:NextResponse|null}>{
   const s=await getSessionProfile();
   if(!s.user||!s.profile)return{current:null,response:NextResponse.json({ok:false,error:"Autenticação necessária."},{status:401})};
-  const t=normalize(s.profile.tipo||""),master=["super_admin","admin_master"].includes(t),allowed=(s.appsLiberados??[]).some(a=>a.slug==="dronegestor"&&a.canAccess),canManage=master||["admin_empresa","responsavel_tecnico","rt"].includes(t);
+  const t=normalize(s.profile.tipo||""),master=["super_admin","admin_master"].includes(t),allowed=(s.appsLiberados??[]).some(a=>a.slug==="dronegestor"&&a.canAccess),canManage=canManageDroneGestor({tipo:s.profile.tipo,isAdminMaster:master,permissoes:s.permissoes});
   if(!master&&!allowed)return{current:null,response:NextResponse.json({ok:false,error:"Acesso ao DroneGestor não liberado."},{status:403})};
   if(!canManage)return{current:null,response:NextResponse.json({ok:false,error:"Somente gestor ou RT pode acessar este painel."},{status:403})};
   return{current:{userId:s.profile.id,empresaId:s.profile.empresa_id,canManage},response:null};

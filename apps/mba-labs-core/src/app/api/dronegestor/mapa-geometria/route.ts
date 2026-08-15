@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
+import { droneOsErrorResponse, requireDroneOsAccess } from "@/lib/dronegestor-os-access";
 
 export const dynamic = "force-dynamic";
 
 const ACTION = "mapa_voo_geometria_v1";
-const OS_ACTION = "ordem_servico";
+const PILOT_ACTION = "piloto_operacional_v1";
 const MAX_POINTS = 5000;
 const EARTH_RADIUS_M = 6378137;
 
-type Context = { userId: string; userName: string; empresaId: string | null };
+type Context = { userId: string; userName: string; empresaId: string | null; canManage: boolean };
 type Coordinate = [number, number];
 
 function normalizeType(value: string) {
@@ -28,7 +30,7 @@ async function getContext(): Promise<{ current: Context | null; response: NextRe
   const admin = ["super_admin", "admin_master"].includes(type);
   const allowed = (session.appsLiberados ?? []).some((app) => app.slug === "dronegestor" && app.canAccess);
   if (!admin && !allowed) return { current: null, response: NextResponse.json({ ok: false, error: "Acesso ao DroneGestor não liberado." }, { status: 403 }) };
-  return { current: { userId: session.profile.id, userName: session.profile.nome || "Piloto", empresaId: session.profile.empresa_id }, response: null };
+  return { current: { userId: session.profile.id, userName: session.profile.nome || "Piloto", empresaId: session.profile.empresa_id, canManage: canManageDroneGestor({ tipo: session.profile.tipo, isAdminMaster: admin, permissoes: session.permissoes }) }, response: null };
 }
 
 function validCoordinate(value: unknown): value is Coordinate {
@@ -67,13 +69,14 @@ function geometryStats(ring: Coordinate[]) {
   const center = { longitude: (bbox.west + bbox.east) / 2, latitude: (bbox.south + bbox.north) / 2 };
   return { areaHa: Math.round(areaHa * 10000) / 10000, bbox, center, pointCount: vertices.length };
 }
-async function requireOs(admin: any, current: Context, osId: string) {
-  if (!osId) return;
-  let query = admin.from("core_logs").select("id,detalhes").eq("app_slug", "dronegestor").eq("acao", OS_ACTION).contains("detalhes", { entityId: osId }).limit(1);
+async function canUpload(admin: any, current: Context) {
+  if (current.canManage || !current.empresaId) return true;
+  let query = admin.from("core_logs").select("detalhes").eq("app_slug", "dronegestor").eq("acao", PILOT_ACTION).contains("detalhes", { usuarioId: current.userId, ativo: true }).limit(1);
   query = scopeQuery(query, current);
   const { data, error } = await query.maybeSingle();
   if (error) throw error;
-  if (!data || data.detalhes?.ativo === false) throw new Error("A ordem de serviço informada não existe ou não está ativa.");
+  if (!data) return false;
+  return data.detalhes?.permissoes?.anexarEvidencias !== false;
 }
 
 export async function GET(request: NextRequest) {
@@ -82,7 +85,9 @@ export async function GET(request: NextRequest) {
     if (access.response) return access.response;
     const current = access.current!;
     const osId = text(request.nextUrl.searchParams.get("osId"), 100);
+    if (!osId) return NextResponse.json({ ok: false, error: "Selecione uma OS para consultar o mapa desta operação." }, { status: 400 });
     const admin = createSupabaseAdminClient() as any;
+    await requireDroneOsAccess(admin, current, osId);
     let query = admin.from("core_logs").select("id,detalhes,created_at").eq("app_slug", "dronegestor").eq("acao", ACTION).order("created_at", { ascending: false }).limit(100);
     query = scopeQuery(query, current);
     const { data, error } = await query;
@@ -91,6 +96,8 @@ export async function GET(request: NextRequest) {
     if (!row) return NextResponse.json({ ok: true, geometry: null });
     return NextResponse.json({ ok: true, geometry: { id: row.detalhes?.geometryId || String(row.id), ...row.detalhes } });
   } catch (error) {
+    const accessError = droneOsErrorResponse(error);
+    if (accessError) return NextResponse.json({ ok: false, error: accessError.message }, { status: accessError.status });
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Falha ao carregar o polígono do talhão." }, { status: 500 });
   }
 }
@@ -113,7 +120,8 @@ export async function POST(request: NextRequest) {
     if (!Number.isFinite(stats.areaHa) || stats.areaHa <= 0) return NextResponse.json({ ok: false, error: "Não foi possível calcular uma área válida para este polígono." }, { status: 400 });
 
     const admin = createSupabaseAdminClient() as any;
-    await requireOs(admin, current, ordemServicoId);
+    await requireDroneOsAccess(admin, current, ordemServicoId);
+    if (!(await canUpload(admin, current))) return NextResponse.json({ ok: false, error: "O gestor não liberou envio de mapa/evidências para este piloto." }, { status: 403 });
     const geometryId = crypto.randomUUID();
     const importedAt = new Date().toISOString();
     const details = {
@@ -140,6 +148,8 @@ export async function POST(request: NextRequest) {
     if (error) throw error;
     return NextResponse.json({ ok: true, geometry: { id: geometryId || String(data?.id || ""), ...details } });
   } catch (error) {
+    const accessError = droneOsErrorResponse(error);
+    if (accessError) return NextResponse.json({ ok: false, error: accessError.message }, { status: accessError.status });
     const message = error instanceof Error ? error.message : "Falha ao salvar o polígono do talhão.";
     const badRequest = /inválid|precisa|limite|coordenada|formato|polígono/i.test(message);
     return NextResponse.json({ ok: false, error: message }, { status: badRequest ? 400 : 500 });

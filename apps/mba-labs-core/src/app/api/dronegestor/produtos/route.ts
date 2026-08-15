@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
+import { canManageDroneGestor, droneGestorRole } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -218,7 +219,8 @@ async function sessionContext() {
   const isMaster = ["super_admin", "admin_master"].includes(tipo);
   const appAllowed = (context.appsLiberados ?? []).some((app) => app.slug === "dronegestor" && app.canAccess);
   if (!isMaster && !appAllowed) return null;
-  return { userId: context.profile.id, empresaId: context.profile.empresa_id, tipo, canManage: isMaster || ["admin_empresa", "responsavel_tecnico", "rt"].includes(tipo) };
+  const roleInput = { tipo: context.profile.tipo, isAdminMaster: isMaster, permissoes: context.permissoes };
+  return { userId: context.profile.id, empresaId: context.profile.empresa_id, tipo: droneGestorRole(roleInput), canManage: canManageDroneGestor(roleInput) };
 }
 async function loadVerifiedProducts(empresaId: string | null) {
   const admin = createSupabaseAdminClient() as any;

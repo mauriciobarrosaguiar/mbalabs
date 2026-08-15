@@ -1,18 +1,14 @@
 import Link from "next/link";
 import { ArrowLeft, BookOpenCheck } from "lucide-react";
 import { requireAppAccess } from "@/lib/core-data";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { DroneProductLibraryClient } from "./DroneProductLibraryClient";
 
 export const dynamic = "force-dynamic";
 
-function canManageProductReview(tipo: string, isAdminMaster: boolean) {
-  const normalized = tipo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replaceAll(" ", "_");
-  return isAdminMaster || ["admin_empresa", "responsavel_tecnico", "rt"].includes(normalized);
-}
-
 export default async function DroneGestorProductsPage() {
   const current = await requireAppAccess("dronegestor", "/apps/dronegestor/produtos");
-  const canManage = canManageProductReview(current.tipo, current.isAdminMaster);
+  const canManage = canManageDroneGestor({ tipo: current.tipo, isAdminMaster: current.isAdminMaster, permissoes: current.permissoes });
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#ecfdf5_0%,#f8fafc_42%,#eef2f7_100%)] px-4 py-6 sm:px-6 sm:py-9">

@@ -1,18 +1,14 @@
 import Link from "next/link";
 import { ArrowLeft, Drone } from "lucide-react";
 import { requireAppAccess } from "@/lib/core-data";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { DroneEquipmentClient } from "./DroneEquipmentClient";
 
 export const dynamic = "force-dynamic";
 
-function canManageEquipment(tipo: string, isAdminMaster: boolean) {
-  const normalized = tipo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replaceAll(" ", "_");
-  return isAdminMaster || ["admin_empresa", "responsavel_tecnico", "rt"].includes(normalized);
-}
-
 export default async function DroneEquipmentPage() {
   const current = await requireAppAccess("dronegestor", "/apps/dronegestor/equipamentos");
-  const canManage = canManageEquipment(current.tipo, current.isAdminMaster);
+  const canManage = canManageDroneGestor({ tipo: current.tipo, isAdminMaster: current.isAdminMaster, permissoes: current.permissoes });
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#ecfdf5_0%,#f8fafc_40%,#eef2f7_100%)] px-3 py-4 sm:px-6 sm:py-9">

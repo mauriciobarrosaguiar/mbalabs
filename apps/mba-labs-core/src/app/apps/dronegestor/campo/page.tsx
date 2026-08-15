@@ -1,4 +1,5 @@
 import { requireAppAccess } from "@/lib/core-data";
+import { canManageDroneGestor, droneGestorRole } from "@/lib/dronegestor-role";
 import { DroneSarpasAgriculturalGuard } from "../DroneSarpasAgriculturalGuard";
 import { DroneEquipmentPicker } from "./DroneEquipmentPicker";
 import { DroneFinishLabelBridge } from "./DroneFinishLabelBridge";
@@ -20,15 +21,12 @@ import { DroneWeatherSync } from "./DroneWeatherSync";
 
 export const dynamic = "force-dynamic";
 
-function canManageDroneStandards(tipo: string, isAdminMaster: boolean) {
-  const normalized = tipo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replaceAll(" ", "_");
-  return isAdminMaster || ["admin_empresa", "responsavel_tecnico", "rt"].includes(normalized);
-}
-
 export default async function DroneGestorCampoPage() {
   const current = await requireAppAccess("dronegestor", "/apps/dronegestor/campo");
   const pilotName = current.usuario.nome || "Piloto";
-  const canManage = canManageDroneStandards(current.tipo, current.isAdminMaster);
+  const roleInput = { tipo: current.tipo, isAdminMaster: current.isAdminMaster, permissoes: current.permissoes };
+  const canManage = canManageDroneGestor(roleInput);
+  const userType = droneGestorRole(roleInput);
   return <>
     <DroneMissionContextReset />
     <DroneSarpasAgriculturalGuard />
@@ -43,7 +41,7 @@ export default async function DroneGestorCampoPage() {
     <DronePilotPermissionBridge currentUserId={current.usuario.id} canManage={canManage} />
     <DroneMixerCalculator />
     <DroneFinishLabelBridge />
-    <DroneGestorAppV3 userName={pilotName} userType={current.tipo} canManage={canManage} />
+    <DroneGestorAppV3 userName={pilotName} userType={userType} canManage={canManage} />
     <DroneGuidedFieldMode pilotName={pilotName} />
     <DronePersistenceSync />
     <DroneOsLifecycleSync />

@@ -1,22 +1,542 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 
 export const dynamic = "force-dynamic";
-const ACTION="piloto_operacional_v1";
-type Permissions={executarOs:boolean;editarParametros:boolean;editarSeguranca:boolean;registrarSarpas:boolean;anexarEvidencias:boolean;finalizarOperacao:boolean;verRelatorios:boolean};
-type Pilot={id:string;nome:string;cpf:string;telefone:string;email:string;observacoes:string;ativo:boolean;usuarioId:string;permissoes:Permissions;createdAt?:string;updatedAt?:string};
-type Context={usuarioId:string;usuarioNome:string;empresaId:string|null;canManage:boolean};
-const defaultPermissions:Permissions={executarOs:true,editarParametros:false,editarSeguranca:true,registrarSarpas:false,anexarEvidencias:true,finalizarOperacao:true,verRelatorios:false};
-function normalize(value:string){return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replaceAll(" ","_")}
-function text(value:unknown,max=180){return typeof value==="string"?value.trim().slice(0,max):""}
-function permissions(value:unknown):Permissions{const source=value&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:{};return{executarOs:source.executarOs!==false,editarParametros:source.editarParametros===true,editarSeguranca:source.editarSeguranca!==false,registrarSarpas:source.registrarSarpas===true,anexarEvidencias:source.anexarEvidencias!==false,finalizarOperacao:source.finalizarOperacao!==false,verRelatorios:source.verRelatorios===true}}
-function sanitize(value:unknown,id:string):Pilot{const source=value&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:{};return{id,nome:text(source.nome,180),cpf:text(source.cpf,32),telefone:text(source.telefone,40),email:text(source.email,180).toLowerCase(),observacoes:text(source.observacoes,500),ativo:source.ativo!==false,usuarioId:text(source.usuarioId,80),permissoes:permissions(source.permissoes??defaultPermissions),createdAt:text(source.createdAt,40),updatedAt:text(source.updatedAt,40)}}
-async function context():Promise<{current:Context|null;response:NextResponse|null}>{const data=await getSessionProfile();if(!data.user||!data.profile)return{current:null,response:NextResponse.json({ok:false,error:"Autenticação necessária."},{status:401})};const type=normalize(data.profile.tipo),master=["super_admin","admin_master"].includes(type),allowed=(data.appsLiberados??[]).some(app=>app.slug==="dronegestor"&&app.canAccess);if(!master&&!allowed)return{current:null,response:NextResponse.json({ok:false,error:"Acesso ao DroneGestor não liberado."},{status:403})};return{current:{usuarioId:data.profile.id,usuarioNome:data.profile.nome||"Gestor",empresaId:data.profile.empresa_id,canManage:master||["admin_empresa","responsavel_tecnico","rt"].includes(type)},response:null}}
-function scope(query:any,current:Context){return current.empresaId?query.eq("empresa_id",current.empresaId):query.eq("usuario_id",current.usuarioId)}
-async function findRow(admin:any,current:Context,id:string){let query=admin.from("core_logs").select("id,detalhes").eq("app_slug","dronegestor").eq("acao",ACTION).contains("detalhes",{id}).limit(1);query=scope(query,current);const{data,error}=await query.maybeSingle();if(error)throw error;return data}
-async function linkUser(admin:any,current:Context,pilot:Pilot){if(!pilot.email)return pilot;let query=admin.from("core_usuarios").select("id,email,status,empresa_id").ilike("email",pilot.email).limit(1);if(current.empresaId)query=query.eq("empresa_id",current.empresaId);const{data,error}=await query.maybeSingle();if(error)return pilot;return{...pilot,usuarioId:data?.status==="ativo"?String(data.id||""):""}}
-export async function GET(){try{const access=await context();if(access.response)return access.response;const current=access.current!,admin=createSupabaseAdminClient() as any;let query=admin.from("core_logs").select("detalhes,created_at").eq("app_slug","dronegestor").eq("acao",ACTION).order("created_at",{ascending:true}).limit(300);query=scope(query,current);const{data,error}=await query;if(error)throw error;const raw=(data??[]).map((row:any)=>sanitize(row.detalhes,row.detalhes?.id||"")).filter((item:Pilot)=>item.id&&item.ativo);const linked=await Promise.all(raw.map((item:Pilot)=>linkUser(admin,current,item)));const items=current.canManage?linked:linked.filter((item:Pilot)=>item.usuarioId===current.usuarioId);return NextResponse.json({ok:true,items,canManage:current.canManage,defaultPermissions,currentUserId:current.usuarioId,currentUserName:current.usuarioNome})}catch(error){return NextResponse.json({ok:false,error:error instanceof Error?error.message:"Falha ao carregar pilotos."},{status:500})}}
-export async function POST(request:NextRequest){try{const access=await context();if(access.response)return access.response;const current=access.current!;if(!current.canManage)return NextResponse.json({ok:false,error:"Somente ADMIN/RT pode cadastrar pilotos."},{status:403});const body=await request.json(),id=crypto.randomUUID(),now=new Date().toISOString(),admin=createSupabaseAdminClient() as any;let pilot=sanitize({...body,ativo:true,createdAt:now,updatedAt:now,permissoes:body?.permissoes??defaultPermissions},id);if(!pilot.nome)return NextResponse.json({ok:false,error:"Informe o nome do piloto."},{status:400});pilot=await linkUser(admin,current,pilot);const{error}=await admin.from("core_logs").insert({empresa_id:current.empresaId,usuario_id:current.usuarioId,app_slug:"dronegestor",acao:ACTION,detalhes:pilot});if(error)throw error;return NextResponse.json({ok:true,item:pilot})}catch(error){return NextResponse.json({ok:false,error:error instanceof Error?error.message:"Falha ao cadastrar piloto."},{status:500})}}
-export async function PATCH(request:NextRequest){try{const access=await context();if(access.response)return access.response;const current=access.current!;if(!current.canManage)return NextResponse.json({ok:false,error:"Somente ADMIN/RT pode alterar pilotos."},{status:403});const body=await request.json(),id=text(body?.id,80);if(!id)return NextResponse.json({ok:false,error:"Piloto inválido."},{status:400});const admin=createSupabaseAdminClient() as any,row=await findRow(admin,current,id);if(!row)return NextResponse.json({ok:false,error:"Piloto não encontrado."},{status:404});let next=sanitize({...row.detalhes,...body,id,updatedAt:new Date().toISOString()},id);if(!next.nome)return NextResponse.json({ok:false,error:"Informe o nome do piloto."},{status:400});next=await linkUser(admin,current,next);const{error}=await admin.from("core_logs").update({detalhes:next}).eq("id",row.id);if(error)throw error;return NextResponse.json({ok:true,item:next})}catch(error){return NextResponse.json({ok:false,error:error instanceof Error?error.message:"Falha ao atualizar piloto."},{status:500})}}
-export async function DELETE(request:NextRequest){try{const access=await context();if(access.response)return access.response;const current=access.current!;if(!current.canManage)return NextResponse.json({ok:false,error:"Somente ADMIN/RT pode inativar pilotos."},{status:403});const body=await request.json(),id=text(body?.id,80);if(!id)return NextResponse.json({ok:false,error:"Piloto inválido."},{status:400});const admin=createSupabaseAdminClient() as any,row=await findRow(admin,current,id);if(!row)return NextResponse.json({ok:false,error:"Piloto não encontrado."},{status:404});const next=sanitize({...row.detalhes,id,ativo:false,updatedAt:new Date().toISOString()},id);const{error}=await admin.from("core_logs").update({detalhes:next}).eq("id",row.id);if(error)throw error;return NextResponse.json({ok:true})}catch(error){return NextResponse.json({ok:false,error:error instanceof Error?error.message:"Falha ao inativar piloto."},{status:500})}}
+
+const ACTION = "piloto_operacional_v1";
+const PILOT_PROFILE = "piloto";
+
+type Permissions = {
+  executarOs: boolean;
+  editarParametros: boolean;
+  editarSeguranca: boolean;
+  registrarSarpas: boolean;
+  anexarEvidencias: boolean;
+  finalizarOperacao: boolean;
+  verRelatorios: boolean;
+};
+
+type Pilot = {
+  id: string;
+  nome: string;
+  cpf: string;
+  telefone: string;
+  email: string;
+  observacoes: string;
+  ativo: boolean;
+  usuarioId: string;
+  permissoes: Permissions;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type Context = {
+  usuarioId: string;
+  usuarioNome: string;
+  empresaId: string | null;
+  canManage: boolean;
+};
+
+type PermissionSnapshot = {
+  id: string;
+  perfil_app: string;
+  status: string;
+} | null;
+
+const defaultPermissions: Permissions = {
+  executarOs: true,
+  editarParametros: false,
+  editarSeguranca: true,
+  registrarSarpas: false,
+  anexarEvidencias: true,
+  finalizarOperacao: true,
+  verRelatorios: false,
+};
+
+class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status = 400,
+  ) {
+    super(message);
+  }
+}
+
+function normalize(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replaceAll(" ", "_");
+}
+
+function text(value: unknown, max = 180) {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
+function validEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function permissions(value: unknown): Permissions {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  return {
+    executarOs: source.executarOs !== false,
+    editarParametros: source.editarParametros === true,
+    editarSeguranca: source.editarSeguranca !== false,
+    registrarSarpas: source.registrarSarpas === true,
+    anexarEvidencias: source.anexarEvidencias !== false,
+    finalizarOperacao: source.finalizarOperacao !== false,
+    verRelatorios: source.verRelatorios === true,
+  };
+}
+
+function sanitize(value: unknown, id: string): Pilot {
+  const source = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+  return {
+    id,
+    nome: text(source.nome, 180),
+    cpf: text(source.cpf, 32),
+    telefone: text(source.telefone, 40),
+    email: text(source.email, 180).toLowerCase(),
+    observacoes: text(source.observacoes, 500),
+    ativo: source.ativo !== false,
+    usuarioId: text(source.usuarioId, 80),
+    permissoes: permissions(source.permissoes ?? defaultPermissions),
+    createdAt: text(source.createdAt, 40),
+    updatedAt: text(source.updatedAt, 40),
+  };
+}
+
+async function context(): Promise<{ current: Context | null; response: NextResponse | null }> {
+  const data = await getSessionProfile();
+  if (!data.user || !data.profile) {
+    return { current: null, response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }) };
+  }
+
+  const type = normalize(data.profile.tipo);
+  const master = ["super_admin", "admin_master"].includes(type);
+  const allowed = (data.appsLiberados ?? []).some((app) => app.slug === "dronegestor" && app.canAccess);
+  if (!master && !allowed) {
+    return { current: null, response: NextResponse.json({ ok: false, error: "Acesso ao DroneGestor não liberado." }, { status: 403 }) };
+  }
+
+  return {
+    current: {
+      usuarioId: data.profile.id,
+      usuarioNome: data.profile.nome || "Gestor",
+      empresaId: data.profile.empresa_id,
+      canManage: canManageDroneGestor({ tipo: data.profile.tipo, isAdminMaster: master, permissoes: data.permissoes }),
+    },
+    response: null,
+  };
+}
+
+function scope(query: any, current: Context) {
+  return current.empresaId ? query.eq("empresa_id", current.empresaId) : query.eq("usuario_id", current.usuarioId);
+}
+
+async function findRow(admin: any, current: Context, id: string) {
+  let query = admin
+    .from("core_logs")
+    .select("id,detalhes")
+    .eq("app_slug", "dronegestor")
+    .eq("acao", ACTION)
+    .contains("detalhes", { id })
+    .limit(1);
+  query = scope(query, current);
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+async function getDroneGestorApp(admin: any, current: Context, requireCompany = false) {
+  const appResult = await admin.from("core_apps").select("id").eq("slug", "dronegestor").eq("ativo", true).maybeSingle();
+  if (appResult.error || !appResult.data?.id) {
+    throw new ApiError("O DroneGestor não está disponível para criar acessos agora.", 503);
+  }
+
+  if (!current.empresaId) {
+    if (requireCompany) throw new ApiError("Defina a empresa do gestor antes de cadastrar um piloto.", 400);
+    return String(appResult.data.id);
+  }
+
+  const contract = await admin
+    .from("core_empresa_apps")
+    .select("id")
+    .eq("empresa_id", current.empresaId)
+    .eq("app_id", appResult.data.id)
+    .in("status", ["ativo", "teste"])
+    .maybeSingle();
+  if (contract.error) throw contract.error;
+  if (!contract.data) {
+    throw new ApiError("O DroneGestor não está ativo para esta empresa. Regularize o acesso antes de cadastrar pilotos.", 403);
+  }
+
+  return String(appResult.data.id);
+}
+
+async function linkUser(admin: any, current: Context, pilot: Pilot, appId: string) {
+  if (!pilot.email || !current.empresaId) return { ...pilot, usuarioId: "" };
+
+  const userResult = await admin
+    .from("core_usuarios")
+    .select("id,status,empresa_id")
+    .ilike("email", pilot.email)
+    .eq("empresa_id", current.empresaId)
+    .limit(1)
+    .maybeSingle();
+  if (userResult.error || userResult.data?.status !== "ativo") return { ...pilot, usuarioId: "" };
+
+  const permissionResult = await admin
+    .from("core_usuario_app_permissoes")
+    .select("id")
+    .eq("usuario_id", userResult.data.id)
+    .eq("empresa_id", current.empresaId)
+    .eq("app_id", appId)
+    .eq("status", "ativo")
+    .in("perfil_app", ["piloto", "aplicador_caar"])
+    .maybeSingle();
+
+  return { ...pilot, usuarioId: permissionResult.data?.id ? String(userResult.data.id) : "" };
+}
+
+async function rollbackCreatedAccount(admin: any, coreUserId: string, authUserId: string) {
+  if (coreUserId) await admin.from("core_usuarios").delete().eq("id", coreUserId);
+  if (authUserId) await admin.auth.admin.deleteUser(authUserId).catch(() => undefined);
+}
+
+async function restorePermission(admin: any, userId: string, appId: string, snapshot: PermissionSnapshot) {
+  if (!snapshot) {
+    await admin.from("core_usuario_app_permissoes").delete().eq("usuario_id", userId).eq("app_id", appId);
+    return;
+  }
+  await admin
+    .from("core_usuario_app_permissoes")
+    .update({ perfil_app: snapshot.perfil_app, status: snapshot.status })
+    .eq("id", snapshot.id);
+}
+
+async function createOrLinkPilotAccount(
+  admin: any,
+  current: Context,
+  appId: string,
+  input: { nome: string; email: string; telefone: string; senhaAcesso: string },
+) {
+  const existingResult = await admin
+    .from("core_usuarios")
+    .select("id,empresa_id,status,auth_user_id")
+    .ilike("email", input.email)
+    .limit(1)
+    .maybeSingle();
+  if (existingResult.error) throw existingResult.error;
+
+  const existing = existingResult.data;
+  if (existing && existing.empresa_id !== current.empresaId) {
+    throw new ApiError("Este e-mail já pertence a outra empresa. Use outro e-mail ou fale com o suporte.", 409);
+  }
+  if (existing && existing.status !== "ativo") {
+    throw new ApiError("Este acesso está inativo ou bloqueado. Reative o usuário antes de vinculá-lo como piloto.", 409);
+  }
+
+  let authUserId = "";
+  let coreUserId = existing?.id ? String(existing.id) : "";
+  let createdAccount = false;
+
+  if (!existing) {
+    if (input.senhaAcesso.length < 8) {
+      throw new ApiError("Crie uma senha inicial com pelo menos 8 caracteres.", 400);
+    }
+
+    const authResult = await admin.auth.admin.createUser({
+      email: input.email,
+      password: input.senhaAcesso,
+      email_confirm: true,
+      user_metadata: { nome: input.nome },
+    });
+    if (authResult.error || !authResult.data.user) {
+      const duplicated = /already|registered|exists|unique/i.test(authResult.error?.message ?? "");
+      throw new ApiError(
+        duplicated
+          ? "Este e-mail já possui um acesso. Use o mesmo e-mail cadastrado na empresa ou fale com o suporte."
+          : "Não foi possível criar o acesso do piloto. Tente novamente.",
+        duplicated ? 409 : 503,
+      );
+    }
+    authUserId = authResult.data.user.id;
+
+    const coreResult = await admin
+      .from("core_usuarios")
+      .insert({
+        auth_user_id: authUserId,
+        empresa_id: current.empresaId,
+        nome: input.nome,
+        email: input.email,
+        telefone: input.telefone || null,
+        tipo: "usuario",
+        tipo_global: "usuario",
+        status: "ativo",
+      })
+      .select("id")
+      .single();
+    if (coreResult.error || !coreResult.data?.id) {
+      await rollbackCreatedAccount(admin, "", authUserId);
+      throw new ApiError("O acesso não foi concluído e nenhuma conta foi mantida. Tente novamente.", 500);
+    }
+    coreUserId = String(coreResult.data.id);
+    createdAccount = true;
+  }
+
+  const previousPermission = await admin
+    .from("core_usuario_app_permissoes")
+    .select("id,perfil_app,status")
+    .eq("usuario_id", coreUserId)
+    .eq("app_id", appId)
+    .maybeSingle();
+  if (previousPermission.error) {
+    if (createdAccount) await rollbackCreatedAccount(admin, coreUserId, authUserId);
+    throw previousPermission.error;
+  }
+
+  const permissionResult = await admin.from("core_usuario_app_permissoes").upsert(
+    {
+      usuario_id: coreUserId,
+      empresa_id: current.empresaId,
+      app_id: appId,
+      perfil_app: PILOT_PROFILE,
+      status: "ativo",
+    },
+    { onConflict: "usuario_id,app_id" },
+  );
+  if (permissionResult.error) {
+    if (createdAccount) await rollbackCreatedAccount(admin, coreUserId, authUserId);
+    throw new ApiError("Não foi possível liberar o DroneGestor para este piloto. Nenhum acesso incompleto foi mantido.", 500);
+  }
+
+  return {
+    usuarioId: coreUserId,
+    createdAccount,
+    rollback: async () => {
+      if (createdAccount) await rollbackCreatedAccount(admin, coreUserId, authUserId);
+      else await restorePermission(admin, coreUserId, appId, (previousPermission.data as PermissionSnapshot) ?? null);
+    },
+  };
+}
+
+function errorResponse(error: unknown, fallback: string) {
+  if (error instanceof ApiError) return NextResponse.json({ ok: false, error: error.message }, { status: error.status });
+  return NextResponse.json({ ok: false, error: fallback }, { status: 500 });
+}
+
+export async function GET() {
+  try {
+    const access = await context();
+    if (access.response) return access.response;
+    const current = access.current!;
+    const admin = createSupabaseAdminClient() as any;
+    const appId = await getDroneGestorApp(admin, current);
+
+    let query = admin
+      .from("core_logs")
+      .select("detalhes,created_at")
+      .eq("app_slug", "dronegestor")
+      .eq("acao", ACTION)
+      .order("created_at", { ascending: true })
+      .limit(300);
+    query = scope(query, current);
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const raw = (data ?? [])
+      .map((row: any) => sanitize(row.detalhes, row.detalhes?.id || ""))
+      .filter((item: Pilot) => item.id && item.ativo);
+    const linked = await Promise.all(raw.map((item: Pilot) => linkUser(admin, current, item, appId)));
+    const items = current.canManage ? linked : linked.filter((item: Pilot) => item.usuarioId === current.usuarioId);
+
+    return NextResponse.json({
+      ok: true,
+      items,
+      canManage: current.canManage,
+      defaultPermissions,
+      currentUserId: current.usuarioId,
+      currentUserName: current.usuarioNome,
+    });
+  } catch (error) {
+    return errorResponse(error, "Não foi possível carregar os pilotos agora.");
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const access = await context();
+    if (access.response) return access.response;
+    const current = access.current!;
+    if (!current.canManage) {
+      return NextResponse.json({ ok: false, error: "Somente o gestor ou o RT pode cadastrar pilotos." }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const existingPilotId = text(body?.pilotId, 80);
+    const now = new Date().toISOString();
+    const admin = createSupabaseAdminClient() as any;
+    const appId = await getDroneGestorApp(admin, current, true);
+    const existingRow = existingPilotId ? await findRow(admin, current, existingPilotId) : null;
+    if (existingPilotId && !existingRow) {
+      return NextResponse.json({ ok: false, error: "Piloto não encontrado nesta empresa." }, { status: 404 });
+    }
+    if (existingRow) {
+      const alreadyLinked = await linkUser(admin, current, sanitize(existingRow.detalhes, existingPilotId), appId);
+      if (alreadyLinked.usuarioId) {
+        return NextResponse.json({ ok: false, error: "Este piloto já possui acesso ativo ao DroneGestor." }, { status: 409 });
+      }
+    }
+
+    const id = existingPilotId || crypto.randomUUID();
+    const base = existingRow?.detalhes ?? {};
+    let pilot = sanitize(
+      {
+        ...base,
+        ...body,
+        id,
+        ativo: true,
+        createdAt: text(base?.createdAt, 40) || now,
+        updatedAt: now,
+        permissoes: body?.permissoes ?? base?.permissoes ?? defaultPermissions,
+      },
+      id,
+    );
+    if (!pilot.nome) {
+      return NextResponse.json({ ok: false, error: "Informe o nome do piloto." }, { status: 400 });
+    }
+    if (!pilot.email || !validEmail(pilot.email)) {
+      return NextResponse.json({ ok: false, error: "Informe um e-mail válido para o piloto entrar no aplicativo." }, { status: 400 });
+    }
+
+    let duplicateQuery = admin
+      .from("core_logs")
+      .select("id,detalhes")
+      .eq("app_slug", "dronegestor")
+      .eq("acao", ACTION)
+      .contains("detalhes", { email: pilot.email })
+      .limit(1);
+    duplicateQuery = scope(duplicateQuery, current);
+    const duplicate = await duplicateQuery.maybeSingle();
+    if (duplicate.error) throw duplicate.error;
+    if (
+      duplicate.data &&
+      duplicate.data.detalhes?.ativo !== false &&
+      String(duplicate.data.detalhes?.id ?? "") !== existingPilotId
+    ) {
+      return NextResponse.json({ ok: false, error: "Já existe um piloto ativo com este e-mail." }, { status: 409 });
+    }
+
+    const account = await createOrLinkPilotAccount(admin, current, appId, {
+      nome: pilot.nome,
+      email: pilot.email,
+      telefone: pilot.telefone,
+      senhaAcesso: text(body?.senhaAcesso, 200),
+    });
+    pilot = { ...pilot, usuarioId: account.usuarioId };
+
+    const saveResult = existingRow
+      ? await admin.from("core_logs").update({ detalhes: pilot }).eq("id", existingRow.id)
+      : await admin.from("core_logs").insert({
+          empresa_id: current.empresaId,
+          usuario_id: current.usuarioId,
+          app_slug: "dronegestor",
+          acao: ACTION,
+          detalhes: pilot,
+        });
+    if (saveResult.error) {
+      await account.rollback();
+      throw new ApiError("O cadastro não foi concluído e o acesso criado foi desfeito. Tente novamente.", 500);
+    }
+
+    return NextResponse.json({ ok: true, item: pilot, createdAccount: account.createdAccount });
+  } catch (error) {
+    return errorResponse(error, "Não foi possível cadastrar o piloto agora.");
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const access = await context();
+    if (access.response) return access.response;
+    const current = access.current!;
+    if (!current.canManage) {
+      return NextResponse.json({ ok: false, error: "Somente o gestor ou o RT pode alterar pilotos." }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const id = text(body?.id, 80);
+    if (!id) return NextResponse.json({ ok: false, error: "Escolha um piloto válido." }, { status: 400 });
+
+    const admin = createSupabaseAdminClient() as any;
+    const appId = await getDroneGestorApp(admin, current);
+    const row = await findRow(admin, current, id);
+    if (!row) return NextResponse.json({ ok: false, error: "Piloto não encontrado nesta empresa." }, { status: 404 });
+
+    let next = sanitize({ ...row.detalhes, permissoes: body?.permissoes, id, updatedAt: new Date().toISOString() }, id);
+    next = await linkUser(admin, current, next, appId);
+    const { error } = await admin.from("core_logs").update({ detalhes: next }).eq("id", row.id);
+    if (error) throw error;
+    return NextResponse.json({ ok: true, item: next });
+  } catch (error) {
+    return errorResponse(error, "Não foi possível salvar as autorizações agora.");
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const access = await context();
+    if (access.response) return access.response;
+    const current = access.current!;
+    if (!current.canManage) {
+      return NextResponse.json({ ok: false, error: "Somente o gestor ou o RT pode inativar pilotos." }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const id = text(body?.id, 80);
+    if (!id) return NextResponse.json({ ok: false, error: "Escolha um piloto válido." }, { status: 400 });
+
+    const admin = createSupabaseAdminClient() as any;
+    const appId = await getDroneGestorApp(admin, current);
+    const row = await findRow(admin, current, id);
+    if (!row) return NextResponse.json({ ok: false, error: "Piloto não encontrado nesta empresa." }, { status: 404 });
+
+    const linked = await linkUser(admin, current, sanitize(row.detalhes, id), appId);
+    if (linked.usuarioId) {
+      const permissionResult = await admin
+        .from("core_usuario_app_permissoes")
+        .update({ status: "inativo" })
+        .eq("usuario_id", linked.usuarioId)
+        .eq("empresa_id", current.empresaId)
+        .eq("app_id", appId)
+        .select("id")
+        .maybeSingle();
+      if (permissionResult.error || !permissionResult.data?.id) {
+        throw new ApiError("Não foi possível bloquear o acesso deste piloto. O cadastro não foi inativado.", 409);
+      }
+    }
+
+    const next = sanitize({ ...row.detalhes, id, ativo: false, updatedAt: new Date().toISOString() }, id);
+    const { error } = await admin.from("core_logs").update({ detalhes: next }).eq("id", row.id);
+    if (error) {
+      if (linked.usuarioId) {
+        await admin
+          .from("core_usuario_app_permissoes")
+          .update({ status: "ativo" })
+          .eq("usuario_id", linked.usuarioId)
+          .eq("empresa_id", current.empresaId)
+          .eq("app_id", appId);
+      }
+      throw error;
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return errorResponse(error, "Não foi possível inativar o piloto agora.");
+  }
+}

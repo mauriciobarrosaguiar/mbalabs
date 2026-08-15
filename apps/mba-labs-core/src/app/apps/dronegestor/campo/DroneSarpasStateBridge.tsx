@@ -27,15 +27,17 @@ function readMission(): Mission {
   }
 }
 
-function writeAuthorizedFromCentral(mission: Mission, central: CentralSarpas) {
-  if (!central || central.status !== "autorizado" || !String(central.numero || "").trim()) return false;
-  const alreadySame = mission.sarpasSituacao === "autorizado" && mission.sarpasConfirmado === true && String(mission.sarpasNumero || "").trim() === String(central.numero || "").trim();
+function writeStateFromCentral(mission: Mission, central: CentralSarpas) {
+  const authorized = central?.status === "autorizado" && Boolean(String(central.numero || "").trim());
+  const nextStatus = authorized ? "autorizado" : "";
+  const nextNumber = authorized ? String(central?.numero || "").trim() : "";
+  const alreadySame = mission.sarpasSituacao === nextStatus && mission.sarpasConfirmado === authorized && String(mission.sarpasNumero || "").trim() === nextNumber;
   if (alreadySame) return false;
   const next = {
     ...mission,
-    sarpasSituacao: "autorizado",
-    sarpasNumero: String(central.numero || "").trim(),
-    sarpasConfirmado: true
+    sarpasSituacao: nextStatus,
+    sarpasNumero: nextNumber,
+    sarpasConfirmado: authorized
   };
   localStorage.setItem(MISSION_KEY, JSON.stringify(next));
   localStorage.setItem("dronegestor:updatedAt:v2", new Date().toISOString());
@@ -47,26 +49,22 @@ export function DroneSarpasStateBridge() {
   useEffect(() => {
     let stopped = false;
     let lastPushed = "";
-    let lastPulledOs = "";
 
     const sync = async () => {
       const mission = readMission();
       const osId = String(mission.ordemServicoId || "");
       if (!osId || stopped) return;
 
-      // Central -> Campo: uma autorização registrada na Central passa a valer na etapa de liberação.
-      if (lastPulledOs !== osId || mission.sarpasSituacao !== "autorizado" || !mission.sarpasConfirmado) {
-        try {
-          const response = await fetch(`/api/dronegestor/sarpas?osId=${encodeURIComponent(osId)}`, { cache: "no-store" });
-          const payload = await response.json().catch(() => null);
-          if (response.ok && !stopped) {
-            const changed = writeAuthorizedFromCentral(mission, payload?.sarpas ?? null);
-            lastPulledOs = osId;
-            if (changed) return;
-          }
-        } catch {
-          // Campo continua utilizável com os dados locais e tenta novamente depois.
+      // Central -> Campo: autorização, negação e revogação sempre atualizam a liberação local.
+      try {
+        const response = await fetch(`/api/dronegestor/sarpas?osId=${encodeURIComponent(osId)}`, { cache: "no-store" });
+        const payload = await response.json().catch(() => null);
+        if (response.ok && !stopped) {
+          const changed = writeStateFromCentral(mission, payload?.sarpas ?? null);
+          if (changed) return;
         }
+      } catch {
+        // Campo continua utilizável com os dados locais e tenta novamente depois.
       }
 
       // Campo -> Central: só sincroniza quando a autorização foi realmente confirmada e possui referência.

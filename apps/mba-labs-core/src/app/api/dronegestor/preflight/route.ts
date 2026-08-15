@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   droneOsErrorResponse,
@@ -69,7 +70,7 @@ async function context(): Promise<{ current: Context | null; response: NextRespo
     current: {
       userId: session.profile.id,
       empresaId: session.profile.empresa_id,
-      canManage: master || ["admin_empresa", "responsavel_tecnico", "rt"].includes(type),
+      canManage: canManageDroneGestor({ tipo: session.profile.tipo, isAdminMaster: master, permissoes: session.permissoes }),
     },
     response: null,
   };

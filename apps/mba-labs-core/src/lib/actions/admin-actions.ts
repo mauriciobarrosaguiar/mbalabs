@@ -407,6 +407,19 @@ async function saveUsuario(formData: FormData, id: string) {
     redirect(`/admin/usuarios?error=${messageParam("Informe uma senha provisoria com pelo menos 8 caracteres.")}`);
   }
 
+  if (appId) {
+    const appSlug = await getAppSlugById(admin, appId);
+    if (!isValidProfileForApp(appSlug, perfilApp)) {
+      redirect(`/admin/usuarios?error=${messageParam("O perfil selecionado nao pertence ao app escolhido.")}`);
+    }
+    await validateUserPermissionSelection(admin, {
+      empresaId: String(payload.empresa_id ?? "") || null,
+      appId,
+      isSuperAdmin: isSuperAdminType(tipo)
+    });
+  }
+
+  let createdAuthUserId = "";
   if (!id) {
     const { data: authData, error: authError } = await admin.auth.admin.createUser({
       email: String(payload.email),
@@ -422,6 +435,7 @@ async function saveUsuario(formData: FormData, id: string) {
     }
 
     payload.auth_user_id = authData.user.id;
+    createdAuthUserId = authData.user.id;
   } else if (password) {
     const { data: existing, error: existingError } = await admin
       .from("core_usuarios")
@@ -448,22 +462,26 @@ async function saveUsuario(formData: FormData, id: string) {
   const { data: saved, error } = await query.select("id,empresa_id,tipo").single();
 
   if (error) {
+    if (createdAuthUserId) await admin.auth.admin.deleteUser(createdAuthUserId).catch(() => undefined);
     redirect(`/admin/usuarios?error=${messageParam(error.message)}`);
   }
 
   if (appId) {
-    const appSlug = await getAppSlugById(admin, appId);
-    if (!isValidProfileForApp(appSlug, perfilApp)) {
-      redirect(`/admin/usuarios?error=${messageParam("O perfil selecionado nao pertence ao app escolhido.")}`);
+    try {
+      await upsertUserPermission(admin, {
+        usuarioId: saved.id,
+        empresaId: saved.empresa_id,
+        appId,
+        perfilApp,
+        isSuperAdmin: isSuperAdminType(String(saved.tipo))
+      });
+    } catch (permissionError) {
+      if (!id && createdAuthUserId) {
+        await admin.from("core_usuarios").delete().eq("id", saved.id);
+        await admin.auth.admin.deleteUser(createdAuthUserId).catch(() => undefined);
+      }
+      throw permissionError;
     }
-
-    await upsertUserPermission(admin, {
-      usuarioId: saved.id,
-      empresaId: saved.empresa_id,
-      appId,
-      perfilApp,
-      isSuperAdmin: isSuperAdminType(String(saved.tipo))
-    });
   }
 
   await logAction({ acao: id ? "editar usuarios" : "criar usuarios", detalhes: { id: id || saved.id } });
@@ -487,6 +505,22 @@ async function getAppSlugById(client: any, appId: string, redirectPath = "/admin
 
 function isValidProfileForApp(appSlug: string, perfilApp: string) {
   return getProfileOptionsForAppSlug(appSlug).some((option) => option.value === perfilApp);
+}
+
+async function validateUserPermissionSelection(
+  client: any,
+  { empresaId, appId, isSuperAdmin }: { empresaId: string | null; appId: string; isSuperAdmin: boolean }
+) {
+  if (isSuperAdmin) return;
+  const { data, error } = await client
+    .from("core_empresa_apps")
+    .select("id")
+    .eq("empresa_id", empresaId)
+    .eq("app_id", appId)
+    .in("status", ["ativo", "teste"])
+    .maybeSingle();
+  if (error) redirect(`/admin/usuarios?error=${messageParam(error.message)}`);
+  if (!data) redirect(`/admin/usuarios?error=${messageParam("A empresa selecionada nao possui este app ativo.")}`);
 }
 
 async function upsertUserPermission(
@@ -667,4 +701,3 @@ function mapEmpresaAppStatus(status: string) {
   if (status === "cancelado") return "cancelada";
   return status;
 }
-

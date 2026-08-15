@@ -104,7 +104,7 @@ export function DroneGestaoClientV2({ canManage }: { canManage: boolean }) {
     }
   }
 
-  async function useOrder(item: Item) {
+  async function openOrder(item: Item) {
     const status = item.data.status || "aberta";
     if (["concluida", "cancelada"].includes(status)) {
       setMessage(`${item.data.numero || "OS"}: ${statusLabel(status)}. Crie uma nova OS para uma nova aplicação.`);
@@ -267,7 +267,7 @@ export function DroneGestaoClientV2({ canManage }: { canManage: boolean }) {
                     fazenda={fazendasById.get(item.data.fazendaId)?.data.nome || "Fazenda"}
                     talhao={talhoesById.get(item.data.talhaoId)?.data.nome || "Talhão"}
                     canManage={canManage}
-                    onUse={() => void useOrder(item)}
+                    onUse={() => void openOrder(item)}
                     onDelete={() => void remove("os", item.entityId)}
                   />
                 ))}

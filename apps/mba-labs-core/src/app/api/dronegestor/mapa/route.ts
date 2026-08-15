@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   droneOsErrorResponse,
@@ -69,7 +70,7 @@ async function getContext(): Promise<{ current: Context | null; response: NextRe
       userId: session.profile.id,
       userName: session.profile.nome || "Piloto",
       empresaId: session.profile.empresa_id,
-      canManage: admin || ["admin_empresa", "responsavel_tecnico", "rt"].includes(type),
+      canManage: canManageDroneGestor({ tipo: session.profile.tipo, isAdminMaster: admin, permissoes: session.permissoes }),
     },
     response: null,
   };
@@ -87,8 +88,7 @@ async function canUpload(admin: any, current: Context) {
   query = scopeDroneOsQuery(query, current);
   const { data, error } = await query.maybeSingle();
   if (error) throw error;
-  // Compatibilidade com pilotos já liberados antes da criação do cadastro operacional.
-  if (!data) return true;
+  if (!data) return false;
   return data.detalhes?.permissoes?.anexarEvidencias !== false;
 }
 

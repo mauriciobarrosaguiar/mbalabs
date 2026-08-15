@@ -1,11 +1,14 @@
 import type { ReactNode } from "react";
+import { getSessionProfile } from "@/lib/core-data";
 import { DroneActiveOperationBridge } from "./DroneActiveOperationBridge";
 import { DroneAppShell } from "./DroneAppShell";
 
-export default function DroneGestorLayout({ children }: { children: ReactNode }) {
+export default async function DroneGestorLayout({ children }: { children: ReactNode }) {
+  const session = await getSessionProfile();
+  const deviceOwner = session.profile ? `${session.profile.empresa_id || "solo"}:${session.profile.id}` : "sessao-sem-perfil";
   return (
     <div className="dronegestor-ui min-h-screen overflow-x-hidden bg-[#f4f8f1] text-slate-950">
-      <DroneActiveOperationBridge />
+      <DroneActiveOperationBridge deviceOwner={deviceOwner} />
       <DroneAppShell>{children}</DroneAppShell>
       <style>{`
         .dronegestor-ui {
