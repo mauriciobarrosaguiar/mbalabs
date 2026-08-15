@@ -96,19 +96,18 @@ Os quatro usuários permanecem ativos porque a exclusão quebraria a continuidad
 - Branch: criada localmente.
 - Commits: criados localmente.
 - PR: [#110](https://github.com/mauriciobarrosaguiar/mbalabs/pull/110), aberto como rascunho e sem merge.
-- Preview publicado: `https://mbalabs-llwbz7eys-emsgenericosto-3419s-projects.vercel.app`; a versão anterior desta branch ficou `READY` e uma nova validação será exigida após esta bateria automatizada.
+- Preview do commit testado: `https://mbalabs-1rdc1g1vh-emsgenericosto-3419s-projects.vercel.app`, estado `READY`.
 - Produção atual: `READY` no commit-base `787696e`.
 - Migration RLS: versionada e não aplicada.
 
 ## Próxima sequência obrigatória
 
-1. Aguardar o novo preview ficar `READY`.
-2. Restabelecer, por procedimento seguro, o acesso aos quatro usuários fake.
-3. Executar E2E-001 e E2E-002 completos no preview, incluindo celular, offline e conflito.
-4. Aplicar/testar a migration RLS somente no ambiente aprovado.
-5. Revisar o PDF e confirmar isolamento entre OS.
-6. Aprovar PR, fazer merge e confirmar produção `READY`.
-7. Desativar ou manter os perfis fake conforme os relacionamentos criados e registrar a decisão.
+1. Restabelecer, por procedimento seguro, o acesso aos quatro usuários fake.
+2. Executar E2E-001 e E2E-002 completos no preview, incluindo celular, offline e conflito.
+3. Aplicar/testar a migration RLS somente no ambiente aprovado.
+4. Revisar o PDF e confirmar isolamento entre OS.
+5. Aprovar PR, fazer merge e confirmar produção `READY`.
+6. Desativar ou manter os perfis fake conforme os relacionamentos criados e registrar a decisão.
 
 ## Pendência de segurança do ambiente
 
