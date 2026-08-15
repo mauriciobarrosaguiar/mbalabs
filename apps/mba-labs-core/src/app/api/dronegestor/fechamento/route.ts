@@ -89,7 +89,7 @@ export async function POST(request:NextRequest){
     if(action==="save_pending"){
       const updated=await updateClosureMeta(admin,c,os,osData,closureStatus,missing);
       const details={osId,osNumero:text(osData.numero),osStatus,missing,savedAt:updated.now,savedBy:c.userName,status:closureStatus};
-      const{error}=await admin.from("core_logs").insert({empresa_id:c.empresaId,usuario_id:c.userId,app_slug:"dronegestor",acao:PENDING_ACTION,detalhes});if(error)throw error;
+      const{error}=await admin.from("core_logs").insert({empresa_id:c.empresaId,usuario_id:c.userId,app_slug:"dronegestor",acao:PENDING_ACTION,detalhes:details});if(error)throw error;
       return NextResponse.json({ok:true,status:closureStatus,osStatus,missing});
     }
 
