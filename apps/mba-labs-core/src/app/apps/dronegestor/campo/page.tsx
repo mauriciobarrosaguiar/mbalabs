@@ -1,5 +1,7 @@
 import { requireAppAccess } from "@/lib/core-data";
+import { DroneSarpasAgriculturalGuard } from "../DroneSarpasAgriculturalGuard";
 import { DroneEquipmentPicker } from "./DroneEquipmentPicker";
+import { DroneFinishLabelBridge } from "./DroneFinishLabelBridge";
 import { DroneGestorAppV3 } from "./DroneGestorAppV3";
 import { DroneMissionContextReset } from "./DroneMissionContextReset";
 import { DroneMissionGateHint } from "./DroneMissionGateHint";
@@ -26,6 +28,7 @@ export default async function DroneGestorCampoPage() {
   const canManage = canManageDroneStandards(current.tipo, current.isAdminMaster);
   return <>
     <DroneMissionContextReset />
+    <DroneSarpasAgriculturalGuard />
     <DroneEquipmentPicker canManage={canManage} />
     <DroneSimpleFlowUX />
     <DroneMissionGateHint />
@@ -34,6 +37,7 @@ export default async function DroneGestorCampoPage() {
     <DroneSarpasStateBridge />
     <DronePilotPermissionBridge currentUserId={current.usuario.id} canManage={canManage} />
     <DroneMixerCalculator />
+    <DroneFinishLabelBridge />
     <DroneGestorAppV3 userName={pilotName} userType={current.tipo} canManage={canManage} />
     <DronePersistenceSync />
     <DroneOsLifecycleSync />

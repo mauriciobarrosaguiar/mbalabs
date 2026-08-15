@@ -51,7 +51,7 @@ function buildMissing(snapshot:Record<string,any>,docs:any[],sarpasRow:any,mapRo
   if((text(m.tipoAtividade)||"pulverizacao")==="pulverizacao")add(types.has("receituario"),"Receituário agronômico anexado");
   add(types.has("sisant_certidao"),"Certidão SISANT/ANAC anexada");
   const sarpas=obj(sarpasRow?.detalhes),sarpasStatus=text(sarpas.status)||text(m.sarpasSituacao);
-  add(["autorizado","dispensado","nao_aplicavel"].includes(sarpasStatus),"Situação SARPAS concluída/conferida");
+  add(sarpasStatus==="autorizado","Autorização SARPAS conferida");
   if(sarpasStatus==="autorizado")add(types.has("sarpas_autorizacao"),"Comprovante da autorização SARPAS anexado");
   add(Boolean(mapRow)||types.has("mapa_aplicacao"),"Mapa/evidência do voo enviado");
   return missing;
@@ -77,7 +77,7 @@ export async function POST(request:NextRequest){
       const now=new Date().toISOString(),nextData={...osData,status:"concluida",finalizadaEm:now};
       const nextDetails={...(os.detalhes??{}),updatedAt:now,data:nextData};
       const{error}=await admin.from("core_logs").update({detalhes:nextDetails}).eq("id",os.id);if(error)throw error;
-      await admin.from("core_logs").insert({empresa_id:c.empresaId,usuario_id:c.userId,app_slug:"dronegestor",acao:OS_EVENT_ACTION,detalhes:{osId,evento:"concluida",at:now,usuarioId:c.userId,usuarioNome:c.userName,statusAnterior:text(osData.status)||"em_execucao",fechamentoValidado:true}});
+      await admin.from("core_logs").insert({empresa_id:c.empresaId,usuario_id:c.userId,app_slug:"dronegestor",acao:OS_EVENT_ACTION,detalhes:{osId,evento:"concluida",at:now,usuarioId:c.userId,usuarioNome:c.userName,statusAnterior:text(osData.status)||"campo_concluido",fechamentoValidado:true}});
       return NextResponse.json({ok:true,status:"concluida",missing:[]});
     }
     return NextResponse.json({ok:true,status:missing.length?"pendente_regularizacao":"pronto",missing});
