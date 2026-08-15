@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 const MISSION_KEY = "dronegestor:mission:v2";
-const FINAL = new Set(["autorizado", "dispensado", "nao_aplicavel"]);
+const FINAL = new Set(["autorizado"]);
 
 type Mission = {
   ordemServicoId?: string;
@@ -30,7 +30,7 @@ export function DroneSarpasStateBridge() {
     const sync = async () => {
       const mission = readMission();
       const status = String(mission.sarpasSituacao || "");
-      if (!mission.ordemServicoId || !mission.sarpasConfirmado || !FINAL.has(status)) return;
+      if (!mission.ordemServicoId || !mission.sarpasConfirmado || !FINAL.has(status) || !String(mission.sarpasNumero || "").trim()) return;
 
       const fingerprint = [
         mission.ordemServicoId,
