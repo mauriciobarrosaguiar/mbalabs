@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { BookOpenCheck, ChevronRight, ClipboardList, Drone, FileSpreadsheet, FileText, FolderCheck, History, MapPinned, PlaneTakeoff, Rocket, Scale, Settings2, Sprout, Thermometer, Wind } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { DroneFirstOperationGuide } from "./DroneFirstOperationGuide";
 
 type Mission = { area?:number; cultura?:string; alvo?:string; ordemServicoNumero?:string; fazendaNome?:string; talhaoNome?:string };
 type Weather = { temperature?:number; windSpeed?:number; capturedAt?:string };
@@ -32,7 +33,8 @@ export function DroneHomeDashboard({ userName, canManage }: { userName:string; c
 
   const mission=snapshot.mission??{};
   const weather=snapshot.weather??{};
-  const hasMission=Boolean(Number(mission.area)>0 || mission.cultura || mission.ordemServicoNumero);
+  const ended=["finalizada","pendente_sync"].includes(String(snapshot.missionStatus||""));
+  const hasMission=!ended&&Boolean(Number(mission.area)>0 || mission.cultura || mission.ordemServicoNumero);
   const resumeText=useMemo(()=>[
     Number(mission.area)>0 ? `${fmt(mission.area)} ha` : "",
     mission.cultura?.trim(),
@@ -52,18 +54,22 @@ export function DroneHomeDashboard({ userName, canManage }: { userName:string; c
         </div>
       </section>
 
+      <DroneFirstOperationGuide canManage={canManage}/>
+
       {hasMission && <Link href="/apps/dronegestor/campo" className="mt-4 flex items-center gap-4 rounded-[24px] border border-[#9fd8b9] bg-[#d7f4df] p-4 no-underline shadow-[0_10px_24px_rgba(25,111,77,.09)] sm:p-5">
         <span className="grid size-14 shrink-0 place-items-center rounded-[20px] bg-[#087a55] text-white"><ClipboardList size={25}/></span>
         <span className="min-w-0 flex-1"><strong className="block text-lg font-black text-[#104b38]">Retomar missão</strong><span className="mt-1 block truncate text-sm text-[#5f776d]">{resumeText || mission.ordemServicoNumero || "Operação em preparação"}</span></span>
         <ChevronRight size={24} className="shrink-0 text-[#087a55]"/>
       </Link>}
 
+      {ended && <Link href="/apps/dronegestor/pacote-operacao" className="mt-4 flex items-center gap-4 rounded-[24px] border border-amber-200 bg-amber-50 p-4 no-underline shadow-sm sm:p-5"><span className="grid size-14 shrink-0 place-items-center rounded-[20px] bg-amber-600 text-white"><FolderCheck size={24}/></span><span className="min-w-0 flex-1"><strong className="block text-base font-black text-amber-950">Aplicação de campo concluída</strong><span className="mt-1 block text-sm text-amber-800">Confira documentos e pendências para encerrar a OS.</span></span><ChevronRight size={22} className="shrink-0 text-amber-700"/></Link>}
+
       <div className="mb-3 mt-7 flex items-end justify-between gap-3 px-1"><h2 className="text-sm font-black uppercase tracking-[.18em] text-[#64756c]">O que você quer fazer</h2></div>
       <section className="grid gap-3 sm:grid-cols-2">
-        <Action href="/apps/dronegestor/campo" icon={<Rocket size={25}/>} title="Começar ou continuar operação" text="Calda, segurança, equipamento, SARPAS, voo e finalização." primary/>
-        <Action href="/apps/dronegestor/gestao" icon={<ClipboardList size={25}/>} title="Preparar uma operação" text="Cadastre cliente, fazenda, talhão e abra uma OS."/>
+        <Action href="/apps/dronegestor/campo" icon={<Rocket size={25}/>} title="Começar ou continuar operação" text="Calda, segurança, equipamento, SARPAS, voo e conclusão em campo." primary/>
+        <Action href="/apps/dronegestor/gestao" icon={<ClipboardList size={25}/>} title="Preparar uma operação" text="Cadastre cliente, fazenda, talhão, abra a OS e defina o piloto."/>
         <Action href="/apps/dronegestor/documentos" icon={<PlaneTakeoff size={25}/>} title="SARPAS e documentos" text="Acompanhe autorização, SISANT e anexos obrigatórios da OS."/>
-        <Action href="/apps/dronegestor/pacote-operacao" icon={<FolderCheck size={25}/>} title="Pacote da operação" text="Veja o dossiê completo e tudo que ainda falta para fechar a OS."/>
+        <Action href="/apps/dronegestor/pacote-operacao" icon={<FolderCheck size={25}/>} title="Finalizar operação" text="Regularize pendências e encerre a OS somente quando o pacote estiver completo."/>
         <Action href="/apps/dronegestor/regulacao" icon={<Scale size={25}/>} title="Segurança e regras" text="Consulte MAPA, ANAC, DECEA, regra estadual e padrão interno."/>
         <Action href="/apps/dronegestor/fichas" icon={<History size={25}/>} title="Operações realizadas" text="Abra fichas, mapas, registros e histórico das aplicações."/>
         <Action href="/apps/dronegestor/produtos" icon={<BookOpenCheck size={25}/>} title="Produtos e bulas" text="Busque produto e informações técnicas revisadas."/>
@@ -73,7 +79,7 @@ export function DroneHomeDashboard({ userName, canManage }: { userName:string; c
       </section>
 
       <section className="mt-7 rounded-[26px] border border-[#dce8df] bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-2xl bg-[#e9f5ed] text-[#087a55]"><MapPinned size={21}/></span><div><strong className="block text-sm font-black text-[#103d2f]">Fluxo simples para quem está no campo</strong><p className="mt-1 text-xs leading-5 text-[#718078]">Local → drone → OS → calda → segurança → documentos/liberação → aplicação → pacote final. O sistema guarda a parte técnica sem obrigar o piloto a decorar o processo.</p></div></div>
+        <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-2xl bg-[#e9f5ed] text-[#087a55]"><MapPinned size={21}/></span><div><strong className="block text-sm font-black text-[#103d2f]">Fluxo simples para quem está no campo</strong><p className="mt-1 text-xs leading-5 text-[#718078]">Local → drone → OS/piloto → calda → segurança → documentos/liberação → aplicação → pacote final. O sistema indica o próximo passo sem exigir que o piloto decore o processo.</p></div></div>
       </section>
     </div>
   </main>;
