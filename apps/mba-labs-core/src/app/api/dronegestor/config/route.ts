@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
+import { canManageDroneGestor, droneGestorRole } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ type Settings = {
 type Context = { usuarioId:string; tipo:string; empresaId:string|null; isAdmin:boolean; canManage:boolean };
 const defaults:Settings = { insightsObrigatorios:true, margemPreventiva:90, bloquearMargemPreventiva:true, exigirConfirmacao:true, protocoloBordaduraCigarrinha:false };
 function normalizeType(value:string){return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replaceAll(" ","_")}
-async function getContext():Promise<{current:Context|null;response:NextResponse|null}>{const context=await getSessionProfile();if(!context.user||!context.profile)return{current:null,response:NextResponse.json({ok:false,error:"Autenticação necessária."},{status:401})};const admin=["super_admin","admin_master"].includes(context.profile.tipo);const allowed=(context.appsLiberados??[]).some(app=>app.slug==="dronegestor"&&app.canAccess);if(!admin&&!allowed)return{current:null,response:NextResponse.json({ok:false,error:"Acesso ao DroneGestor não liberado."},{status:403})};const normalized=normalizeType(context.profile.tipo);return{current:{usuarioId:context.profile.id,tipo:context.profile.tipo,empresaId:context.profile.empresa_id,isAdmin:admin,canManage:admin||["admin_empresa","responsavel_tecnico","rt"].includes(normalized)},response:null}}
+async function getContext():Promise<{current:Context|null;response:NextResponse|null}>{const context=await getSessionProfile();if(!context.user||!context.profile)return{current:null,response:NextResponse.json({ok:false,error:"Autenticação necessária."},{status:401})};const admin=["super_admin","admin_master"].includes(normalizeType(context.profile.tipo));const allowed=(context.appsLiberados??[]).some(app=>app.slug==="dronegestor"&&app.canAccess);if(!admin&&!allowed)return{current:null,response:NextResponse.json({ok:false,error:"Acesso ao DroneGestor não liberado."},{status:403})};const roleInput={tipo:context.profile.tipo,isAdminMaster:admin,permissoes:context.permissoes};return{current:{usuarioId:context.profile.id,tipo:droneGestorRole(roleInput),empresaId:context.profile.empresa_id,isAdmin:admin,canManage:canManageDroneGestor(roleInput)},response:null}}
 function scope(query:any,current:Context){return current.empresaId?query.eq("empresa_id",current.empresaId):query.eq("usuario_id",current.usuarioId)}
 function sanitize(value:unknown):Settings{const source=value&&typeof value==="object"&&!Array.isArray(value)?value as Record<string,unknown>:{};const margin=Number(source.margemPreventiva);return{insightsObrigatorios:source.insightsObrigatorios!==false,margemPreventiva:Number.isFinite(margin)?Math.max(0,Math.min(5000,margin)):defaults.margemPreventiva,bloquearMargemPreventiva:source.bloquearMargemPreventiva!==false,exigirConfirmacao:source.exigirConfirmacao!==false,protocoloBordaduraCigarrinha:source.protocoloBordaduraCigarrinha===true}}
 

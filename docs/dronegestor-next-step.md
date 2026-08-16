@@ -15,7 +15,7 @@ O estado local continua sendo mantido para operação com sinal fraco/offline. C
 
 ## Fluxo operacional V3
 
-- OS: aberta → preparação → em execução → concluída/cancelada.
+- OS: aberta → preparação → em execução → campo concluído → concluída/cancelada.
 - A OS em preparação recebe piloto responsável e não pode ser assumida silenciosamente por outro piloto.
 - O status muda para `em_execucao` somente quando o piloto efetivamente inicia a operação após Segurança, Calibração, Checklist e SARPAS.
 - Missão concluída ou aguardando sincronização fica congelada e não pode ser reiniciada.
@@ -28,6 +28,7 @@ O estado local continua sendo mantido para operação com sinal fraco/offline. C
 - Vento, direção, temperatura e umidade de campo possuem confirmação e faixas de validação.
 - A margem preventiva interna da empresa pode ser configurada como bloqueio obrigatório; ela não é apresentada como regra legal.
 - O servidor revalida margem, confirmações, produtos, clima, GPS, calibração, checklist e SARPAS antes de aceitar a conclusão.
+- Ao terminar 100% da área, o piloto registra apenas **Campo concluído**. O gestor/RT confere o pacote e somente depois encerra a OS.
 - O registro final inclui início/término, identificação ANAC, tipo/modelo de ponta/atomizador, coordenada GPS, produtos, área e volume reais registrados.
 - Perfis piloto recebem pela API de OS apenas dados operacionais mínimos; dados administrativos como CPF/CNPJ, telefone e e-mail não são carregados.
 - ADMIN/RT possui visão consolidada do histórico da empresa.

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { getSessionProfile } from "@/lib/core-data";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   droneOsErrorResponse,
@@ -62,7 +63,7 @@ async function getContext() {
     current: {
       userId: s.profile.id,
       empresaId: s.profile.empresa_id,
-      canManage: master || ["admin_empresa", "responsavel_tecnico", "rt"].includes(t),
+      canManage: canManageDroneGestor({ tipo: s.profile.tipo, isAdminMaster: master, permissoes: s.permissoes }),
     } as Context,
     response: null,
   };

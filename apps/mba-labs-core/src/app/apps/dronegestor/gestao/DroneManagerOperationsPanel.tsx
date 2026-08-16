@@ -8,7 +8,7 @@ type Item={osId:string;numero:string;status:string;stage:string;stageLabel:strin
 type Payload={ok:boolean;items:Item[];counts:Counts;updatedAt:string;error?:string};
 const empty:Counts={total:0,aplicando:0,pausada:0,aguardandoSarpas:0,regularizacao:0,prontaEncerrar:0};
 function fmt(v:unknown,d=1){const n=Number(v);return Number.isFinite(n)?new Intl.NumberFormat("pt-BR",{minimumFractionDigits:d,maximumFractionDigits:d}).format(n):"0"}
-function since(value:string){if(!value)return"Sem atualização do aparelho";const ms=Date.now()-Date.parse(value);if(!Number.isFinite(ms))return"Atualização sem horário";const min=Math.max(0,Math.floor(ms/60000));if(min<1)return"Atualizado agora";if(min<60)return`Atualizado há ${min} min`;const h=Math.floor(min/60);if(h<24)return`Atualizado há ${h} h`;return`Atualizado há ${Math.floor(h/24)} d`}
+function since(value:string,now:number){if(!value)return"Sem atualização do aparelho";const ms=now-Date.parse(value);if(!Number.isFinite(ms))return"Atualização sem horário";const min=Math.max(0,Math.floor(ms/60000));if(min<1)return"Atualizado agora";if(min<60)return`Atualizado há ${min} min`;const h=Math.floor(min/60);if(h<24)return`Atualizado há ${h} h`;return`Atualizado há ${Math.floor(h/24)} d`}
 function attention(stage:string){return["pausada","aguardando_sarpas","regularizacao","pronta_encerrar"].includes(stage)}
 function tone(stage:string){if(stage==="aplicando")return"border-emerald-200 bg-emerald-50 text-emerald-800";if(stage==="pausada")return"border-amber-300 bg-amber-50 text-amber-900";if(stage==="aguardando_sarpas")return"border-sky-200 bg-sky-50 text-sky-900";if(stage==="regularizacao")return"border-orange-200 bg-orange-50 text-orange-900";if(stage==="pronta_encerrar")return"border-violet-200 bg-violet-50 text-violet-900";if(stage==="encerrada")return"border-slate-200 bg-slate-50 text-slate-600";if(stage==="cancelada")return"border-red-200 bg-red-50 text-red-700";return"border-slate-200 bg-white text-slate-700"}
 
@@ -41,7 +41,8 @@ export function DroneManagerOperationsPanel(){
 
 function Kpi({label,value,icon,warn=false}:{label:string;value:number;icon:React.ReactNode;warn?:boolean}){return <div className={`rounded-2xl p-3 ${warn&&value>0?"bg-amber-300/20":"bg-white/10"}`}><div className="flex items-center gap-2 text-emerald-100">{icon}<span className="text-[11px] font-bold leading-4">{label}</span></div><strong className="mt-2 block text-2xl font-black">{value}</strong></div>}
 function OperationCard({item,onSelect}:{item:Item;onSelect:(item:Item,target?:string)=>void}){
-  const location=[item.fazenda,item.talhao].filter(Boolean).join(" • "),sync=since(item.lastSync),stale=item.lastSync&&Date.now()-Date.parse(item.lastSync)>10*60*1000;
+  const[now]=useState(()=>Date.now());
+  const location=[item.fazenda,item.talhao].filter(Boolean).join(" • "),sync=since(item.lastSync,now),stale=item.lastSync&&now-Date.parse(item.lastSync)>10*60*1000;
   const closeTarget=["regularizacao","pronta_encerrar","encerrada"].includes(item.stage)?`/apps/dronegestor/pacote-operacao?osId=${encodeURIComponent(item.osId)}`:"";
   const actionTarget=item.stage==="aguardando_sarpas"?`/apps/dronegestor/documentos?osId=${encodeURIComponent(item.osId)}`:closeTarget||undefined;
   const actionLabel=item.stage==="aguardando_sarpas"?"Resolver SARPAS":item.stage==="regularizacao"?"Regularizar esta OS":item.stage==="pronta_encerrar"?"Encerrar esta OS":item.stage==="encerrada"?"Ver fechamento":"Ver detalhes";

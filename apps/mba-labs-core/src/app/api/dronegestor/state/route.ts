@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
+import { droneGestorRole } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   DroneOsAccessError,
@@ -80,7 +81,7 @@ function storedRevision(row: any) {
   return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : 1;
 }
 function companyHistoryRole(current: ApiContext) {
-  return ["admin_empresa", "responsavel_tecnico", "rt", "super_admin", "admin_master"].includes(
+  return ["admin_empresa", "gestor_operacional", "responsavel_tecnico", "rt", "super_admin", "admin_master"].includes(
     normalizeType(current.usuario.tipo),
   );
 }
@@ -117,11 +118,12 @@ async function getContext(): Promise<{ current: ApiContext | null; response: Nex
         { status: 403 },
       ),
     };
+  const roleInput = { tipo: context.profile.tipo, isAdminMaster: admin, permissoes: context.permissoes };
   return {
     current: {
       usuario: {
         id: context.profile.id,
-        tipo: context.profile.tipo,
+        tipo: droneGestorRole(roleInput),
         nome: context.profile.nome,
       },
       empresaId: context.profile.empresa_id,
@@ -345,7 +347,7 @@ async function pilotCanFinalize(admin: any, current: ApiContext) {
   query = scopeQuery(query, current);
   const { data, error } = await query.maybeSingle();
   if (error) throw error;
-  if (!data) return true;
+  if (!data) return false;
   return data.detalhes?.permissoes?.finalizarOperacao !== false;
 }
 

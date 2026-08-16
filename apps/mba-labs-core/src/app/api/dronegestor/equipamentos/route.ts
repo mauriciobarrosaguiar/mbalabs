@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -62,7 +63,7 @@ async function getContext(): Promise<{ current: ApiContext | null; response: Nex
       usuarioId: context.profile.id,
       usuarioNome: context.profile.nome || "Usuário",
       empresaId: context.profile.empresa_id,
-      canManage: admin || ["admin_empresa", "responsavel_tecnico", "rt"].includes(normalized)
+      canManage: canManageDroneGestor({ tipo: context.profile.tipo, isAdminMaster: admin, permissoes: context.permissoes })
     },
     response: null
   };

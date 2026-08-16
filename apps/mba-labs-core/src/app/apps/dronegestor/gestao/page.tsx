@@ -1,18 +1,14 @@
 import { requireAppAccess } from "@/lib/core-data";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { DroneGestaoClientV3 } from "./DroneGestaoClientV3";
 import { DroneManagerOperationsPanel } from "./DroneManagerOperationsPanel";
 import { DroneOsPilotStep } from "./DroneOsPilotStep";
 
 export const dynamic = "force-dynamic";
 
-function canManageDrone(tipo: string, isAdminMaster: boolean) {
-  const normalized = tipo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replaceAll(" ", "_");
-  return isAdminMaster || ["admin_empresa", "responsavel_tecnico", "rt"].includes(normalized);
-}
-
 export default async function DroneGestorGestaoPage() {
   const current = await requireAppAccess("dronegestor", "/apps/dronegestor/gestao");
-  const canManage = canManageDrone(current.tipo, current.isAdminMaster);
+  const canManage = canManageDroneGestor({ tipo: current.tipo, isAdminMaster: current.isAdminMaster, permissoes: current.permissoes });
   return <>
     {canManage && <DroneManagerOperationsPanel />}
     <DroneOsPilotStep canManage={canManage} />

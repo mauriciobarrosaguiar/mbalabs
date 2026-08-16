@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   droneOsErrorResponse,
@@ -54,7 +55,7 @@ async function context(): Promise<{ current: Context | null; response: NextRespo
       userId: s.profile.id,
       userName: s.profile.nome || "Piloto",
       empresaId: s.profile.empresa_id,
-      canManage: master || ["admin_empresa", "responsavel_tecnico", "rt"].includes(t),
+      canManage: canManageDroneGestor({ tipo: s.profile.tipo, isAdminMaster: master, permissoes: s.permissoes }),
     },
     response: null,
   };
@@ -245,6 +246,11 @@ export async function POST(request: NextRequest) {
     const osId = text(body?.osId || clientMission.ordemServicoId, 120);
     if (!osId)
       return NextResponse.json({ ok: false, error: "Nenhuma OS foi selecionada." }, { status: 400 });
+    if (c.empresaId && !c.canManage && action !== "status")
+      return NextResponse.json(
+        { ok: false, error: "O piloto pode consultar as pendências, mas a regularização e o encerramento são feitos pelo gestor/RT." },
+        { status: 403 },
+      );
 
     const admin = createSupabaseAdminClient() as any;
     const osAccess = await requireDroneOsAccess(admin, c, osId);

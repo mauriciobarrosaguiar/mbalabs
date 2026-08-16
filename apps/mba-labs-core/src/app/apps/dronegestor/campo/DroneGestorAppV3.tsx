@@ -9,7 +9,6 @@ import {
   ClipboardCheck,
   CloudAlert,
   CloudSun,
-  Compass,
   Drone,
   Droplets,
   FileSpreadsheet,
@@ -37,7 +36,7 @@ import { getDroneSyncConflict, snapshotDroneLocalState } from "./DronePersistenc
 
 type View = "inicio" | "nova" | "calda" | "estrategia" | "seguranca" | "controle" | "calibracao" | "checklist" | "sarpas" | "execucao" | "relatorios" | "config";
 type DoseUnit = "mL/ha" | "L/ha" | "g/ha" | "kg/ha" | "mL/100L" | "g/100L";
-type SarpasStatus = "" | "autorizado" | "dispensado" | "nao_aplicavel";
+type SarpasStatus = "" | "autorizado";
 type MissionStatus = "rascunho" | "preparacao" | "em_execucao" | "pausada" | "pendente_sync" | "finalizada";
 
 type Product = { id: string; nome: string; dose: number; unidade: DoseUnit };
@@ -269,10 +268,12 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
   useEffect(() => { if (hydrated) void loadCompanySettings(); }, [hydrated]);
   useEffect(() => {
     const onWeather = (event: Event) => { const detail = (event as CustomEvent<ModelWeather>).detail; if (detail) setModelWeather(detail); };
+    const onSarpas = (event: Event) => { const detail = (event as CustomEvent<Partial<Mission>>).detail; if (detail) setMission(normalizeMission(detail)); };
     const onConflict = () => setSyncConflict(getDroneSyncConflict());
     window.addEventListener("dronegestor:weather-updated", onWeather);
+    window.addEventListener("dronegestor:sarpas-updated", onSarpas);
     window.addEventListener("dronegestor:sync-conflict", onConflict);
-    return () => { window.removeEventListener("dronegestor:weather-updated", onWeather); window.removeEventListener("dronegestor:sync-conflict", onConflict); };
+    return () => { window.removeEventListener("dronegestor:weather-updated", onWeather); window.removeEventListener("dronegestor:sarpas-updated", onSarpas); window.removeEventListener("dronegestor:sync-conflict", onConflict); };
   }, []);
 
   const calc = useMemo(() => {
@@ -311,7 +312,7 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
   const safetyReady = Boolean(sensitiveReady && !marginBlocked && weatherReady && (!settings.insightsObrigatorios || insightAccepted) && (!settings.exigirConfirmacao || riskAccepted));
   const calibrationReady = calibration.ar && calibration.fluxometro && calibration.bomba;
   const checklistReady = Object.values(checklist).every(Boolean);
-  const sarpasReady = mission.sarpasConfirmado && Boolean(mission.sarpasSituacao) && (mission.sarpasSituacao !== "autorizado" || mission.sarpasNumero.trim().length > 0);
+  const sarpasReady = mission.sarpasConfirmado && mission.sarpasSituacao === "autorizado" && mission.sarpasNumero.trim().length > 0;
   const gpsReady = Boolean(modelWeather && Number.isFinite(modelWeather.latitude) && Number.isFinite(modelWeather.longitude));
   const locked = operationStarted || ["pendente_sync", "finalizada"].includes(missionStatus);
   const canStart = missionReady && safetyReady && calibrationReady && checklistReady && sarpasReady && gpsReady && !syncConflict && !["pendente_sync", "finalizada"].includes(missionStatus);
@@ -394,7 +395,8 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
 
   async function patchOs(status: "em_execucao" | "concluida") {
     if (!mission.ordemServicoId) return true;
-    const response = await fetch("/api/dronegestor/cadastros", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "os", entityId: mission.ordemServicoId, data: { status } }), cache: "no-store" });
+    const preflightSnapshot = { mission, calibration, checklist, weather: modelWeather, riskAccepted, insightAccepted };
+    const response = await fetch("/api/dronegestor/cadastros", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "os", entityId: mission.ordemServicoId, data: { status }, preflightSnapshot }), cache: "no-store" });
     const payload = await response.json().catch(() => null);
     if (!response.ok) throw new Error(payload?.error || "Não foi possível atualizar a OS.");
     return true;
@@ -425,7 +427,7 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
     const area = n(tankArea); const volume = n(tankVolume); const remaining = Math.max(0, mission.area - progressHa);
     if (area <= 0 || volume <= 0) return flash("Informe a área realmente tratada e o volume realmente consumido neste abastecimento.");
     if (area > remaining + 0.01) return flash(`A área informada excede os ${fmt(remaining, 2)} ha restantes.`);
-    if (mission.tanque > 0 && volume > mission.tanque * 1.05) return flash("O volume informado excede a capacidade cadastrada do tanque. Confira o valor.");
+    if (mission.tanque > 0 && volume > mission.tanque + 0.01) return flash("O volume informado excede a capacidade cadastrada do tanque. Confira o valor.");
     const record: TankRecord = { id: createId("tanque"), at: new Date().toISOString(), areaHa: round(area, 3), volumeL: round(volume, 2) };
     setTankRecords((current) => [...current, record]); setProgressHa((current) => round(Math.min(mission.area, current + area), 3)); setTankArea(""); setTankVolume("");
     flash(area >= remaining - 0.01 ? "Área planejada atingida. Confira e conclua a operação." : "Abastecimento registrado com área e volume reais.");
@@ -576,7 +578,7 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
 
         {view === "checklist" && <><Title icon={<ClipboardCheck/>} title="Checklist pré-voo" text={`${Object.values(checklist).filter(Boolean).length} de 8 itens confirmados.`}/>{([ ["area","Área e decolagem","Área e ponto de decolagem conferidos."], ["pessoasAnimais","Pessoas e animais","Sem pessoas ou animais expostos."], ["obstaculos","Obstáculos e rede elétrica","Árvores, postes, fios, água e áreas sensíveis conferidos."], ["drone","Drone","Estrutura, motores, hélices, sensores e trem de pouso conferidos."], ["controle","Controle e navegação","Controle, bateria, missão, mapa e conexão conferidos."], ["pulverizacao","Pulverização","Tanque, mangueiras, filtros, atomizadores/bicos, bomba e fluxômetro conferidos."], ["clima","Medição climática","Preenchida automaticamente pela confirmação feita em Segurança."], ["documentos","Documentos","Receita/protocolo e documentos/autorizações aplicáveis conferidos."] ] as Array<[keyof ChecklistState,string,string]>).map(([key,t,d],i)=><Task key={key} index={String(i+1)} title={t} detail={d} checked={checklist[key]} disabled={locked||key==="clima"} onChange={(v)=>setChecklist({...checklist,[key]:v})}/>)}<Primary disabled={!checklistReady} onClick={()=>go("sarpas")}>Ir para SARPAS <ChevronRight size={18}/></Primary></>}
 
-        {view === "sarpas" && <><Title icon={<ShieldCheck/>} title="SARPAS" text="A consulta/autorização ocorre no sistema oficial; o DroneGestor apenas registra a conferência."/><a className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-sky-700 px-4 font-black text-white no-underline" href="https://servicos.decea.mil.br/sarpas/?login=1" target="_blank" rel="noreferrer"><Compass size={18}/> Abrir SARPAS oficial</a><SelectField label="Situação conferida *" value={mission.sarpasSituacao} disabled={locked} onChange={(v)=>updateMission("sarpasSituacao",v as SarpasStatus)} options={["|Selecione...","autorizado|Autorizado / referência emitida","dispensado|Dispensado após conferência oficial aplicável","nao_aplicavel|Não aplicável ao caso após conferência"]}/>{mission.sarpasSituacao==="autorizado"&&<TextField label="Nº / referência SARPAS *" value={mission.sarpasNumero} disabled={locked} onChange={(v)=>updateMission("sarpasNumero",v)}/>}<CheckRow checked={mission.sarpasConfirmado} disabled={locked} onChange={(v)=>updateMission("sarpasConfirmado",v)} title="Confirmo que consultei a situação no sistema oficial" detail="Marque somente depois da verificação oficial da operação."/><Info>{gpsReady?`GPS registrado: ${modelWeather?.latitude.toFixed(5)}, ${modelWeather?.longitude.toFixed(5)}`:"GPS ainda pendente. Capture pelo botão flutuante antes de iniciar."}</Info><Warning>O DroneGestor não envia nem aprova solicitações SARPAS automaticamente.</Warning><Primary disabled={!canStart} onClick={()=>void startOperation()}><Play size={18}/> Iniciar operação</Primary>{!canStart&&<p className="text-center text-xs font-semibold text-amber-700">Há validação pendente em missão, segurança, GPS, calibração, checklist ou SARPAS.</p>}</>}
+        {view === "sarpas" && <><Title icon={<ShieldCheck/>} title="SARPAS" text="A consulta e a autorização acontecem no sistema oficial. Aqui, o DroneGestor apenas lê o registro salvo nesta OS."/><div className={`rounded-2xl border p-4 ${sarpasReady?"border-emerald-200 bg-emerald-50 text-emerald-950":"border-amber-200 bg-amber-50 text-amber-950"}`}><strong className="block">{sarpasReady?"SARPAS autorizado":"SARPAS ainda não autorizado"}</strong><p className="mt-1 text-sm">{sarpasReady?`Referência registrada: ${mission.sarpasNumero}`:"Registre a situação e anexe o comprovante correto antes de iniciar."}</p></div>{!sarpasReady&&<a className="inline-flex min-h-12 items-center justify-center rounded-xl bg-sky-700 px-4 font-black text-white no-underline" href="/apps/dronegestor/documentos">Abrir documentos e SARPAS</a>}<Info>{gpsReady?`GPS registrado: ${modelWeather?.latitude.toFixed(5)}, ${modelWeather?.longitude.toFixed(5)}`:"GPS ainda pendente. Capture pelo botão flutuante antes de iniciar."}</Info><Warning>O DroneGestor não envia nem aprova solicitações SARPAS automaticamente.</Warning><Primary disabled={!canStart} onClick={()=>void startOperation()}><Play size={18}/> Iniciar operação</Primary>{!canStart&&<p className="text-center text-xs font-semibold text-amber-700">Há validação pendente em missão, segurança, GPS, calibração, checklist ou SARPAS.</p>}</>}
 
         {view === "execucao" && <><div className="rounded-3xl bg-gradient-to-br from-emerald-950 to-emerald-700 p-5 text-white"><span className="text-xs font-black uppercase tracking-wider">{paused?"Operação pausada":"Aplicação em andamento"}</span><h2 className="mt-1 text-xl font-black">{mission.cultura} • {mission.alvo}</h2><div className="mt-4 flex items-end justify-between"><strong className="text-4xl">{fmt(mission.area>0?Math.min(100,progressHa/mission.area*100):0,0)}%</strong><span className="text-sm">{fmt(progressHa,2)} de {fmt(mission.area,2)} ha</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20"><div className="h-full bg-white" style={{width:`${mission.area>0?Math.min(100,progressHa/mission.area*100):0}%`}}/></div></div><div className="grid grid-cols-2 gap-3"><Metric icon={<RotateCcw/>} label="Abastecimentos reais" value={`${tankRecords.length}`}/><Metric icon={<Droplets/>} label="Calda real registrada" value={`${fmt(calc.actualVolume,1)} L`}/><Metric icon={<Map/>} label="Área restante" value={`${fmt(Math.max(0,mission.area-progressHa),2)} ha`}/><Metric icon={<AlertTriangle/>} label="Ocorrências" value={`${occurrences.length}`}/></div><div className="rounded-2xl border border-slate-200 p-4"><strong className="text-sm">Registrar abastecimento concluído</strong><p className="mt-1 text-xs text-slate-500">Informe o que realmente foi executado; o sistema não soma hectares teoricamente.</p><div className="mt-3 grid grid-cols-2 gap-2"><input disabled={paused||areaDone} className="min-h-11 rounded-xl border border-slate-200 px-3" type="number" step="any" placeholder="Área real (ha)" value={tankArea} onChange={(e)=>setTankArea(e.target.value)}/><input disabled={paused||areaDone} className="min-h-11 rounded-xl border border-slate-200 px-3" type="number" step="any" placeholder="Volume usado (L)" value={tankVolume} onChange={(e)=>setTankVolume(e.target.value)}/></div><div className="mt-2 grid grid-cols-2 gap-2"><button disabled={paused||areaDone} className="min-h-11 rounded-xl bg-emerald-600 px-3 font-black text-white disabled:opacity-40" onClick={registerTank}><Check className="mr-1 inline" size={17}/>Registrar</button><button disabled={paused||!tankRecords.length} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 font-black text-slate-700 disabled:opacity-40" onClick={undoLastTank}><Undo2 className="mr-1 inline" size={17}/>Desfazer último</button></div></div><div className="grid grid-cols-2 gap-3"><button className="min-h-12 rounded-xl border border-slate-200 bg-white font-black text-slate-800" onClick={togglePause}>{paused?<><Play className="mr-2 inline" size={18}/>Retomar</>:<><Pause className="mr-2 inline" size={18}/>Pausar</>}</button><button className="min-h-12 rounded-xl border border-amber-200 bg-amber-50 font-black text-amber-900" onClick={addOccurrence}><AlertTriangle className="mr-2 inline" size={18}/>Ocorrência</button></div>{areaDone?<Info>100% da área planejada foi atingida pelos registros reais. Confira volumes, ocorrências e conclua.</Info>:<Warning>A conclusão permanece bloqueada até a soma das áreas realmente registradas atingir 100%.</Warning>}<Primary disabled={!areaDone||!canStart||savingFinal||finalSaved} onClick={()=>void finalizeOperation()}>{savingFinal?"Salvando...":finalSaved?"Operação salva":"Concluir e salvar no histórico"}</Primary></>}
 
