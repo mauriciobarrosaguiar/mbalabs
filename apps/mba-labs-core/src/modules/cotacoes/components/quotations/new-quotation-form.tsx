@@ -185,8 +185,8 @@ export function NewQuotationForm({
   const [step, setStep] = useState(() => getInitialWizardStep());
   const [draft, setDraft] = useState<QuotationDraft>({
     name: isBidding ? "Pregão medicamentos" : initialItems.length > 0 ? "Cotação da lista de faltas" : "Falteiro loja matriz",
-    buyerDocument: "12.345.678/0001-90",
-    buyerCompanyName: "Distribuidora Licitação Exemplo",
+    buyerDocument: isBidding || hasSupabaseBrowserConfig() ? "" : "12.345.678/0001-90",
+    buyerCompanyName: isBidding ? "Distribuidora Licitação Exemplo" : "",
     destinationClient: "Município de Goiânia",
     processNumber: "2026.000145",
     bidNumber: "PE 041/2026",
@@ -255,6 +255,43 @@ export function NewQuotationForm({
     return () => window.removeEventListener("popstate", handlePopState);
   }, [step]);
 
+  useEffect(() => {
+    if (isBidding || !hasSupabaseBrowserConfig()) return;
+
+    let cancelled = false;
+
+    async function loadBuyerCompany() {
+      try {
+        const response = await fetch("/api/cotacoes/company-context", { cache: "no-store" });
+        const payload = await response.json() as {
+          companyName?: string;
+          formattedCnpj?: string;
+          error?: string;
+        };
+
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Não foi possível carregar os dados da empresa.");
+        }
+        if (cancelled) return;
+
+        setDraft((current) => ({
+          ...current,
+          buyerDocument: payload.formattedCnpj ?? "",
+          buyerCompanyName: payload.companyName ?? current.buyerCompanyName,
+        }));
+      } catch (error) {
+        if (!cancelled) {
+          toast.error(error instanceof Error ? error.message : "Não foi possível carregar o CNPJ da empresa.");
+        }
+      }
+    }
+
+    void loadBuyerCompany();
+    return () => {
+      cancelled = true;
+    };
+  }, [isBidding]);
+
   function addItem(item?: DraftItem) {
     if (item) {
       setItems((current) => [
@@ -283,6 +320,10 @@ export function NewQuotationForm({
   }
 
   function next() {
+    if (step === 1 && !isBidding && hasSupabaseBrowserConfig() && !draft.buyerDocument) {
+      toast.error("Aguarde o CNPJ da empresa ser carregado antes de continuar.");
+      return;
+    }
     if (step === 2 && items.length === 0) {
       toast.error("Adicione pelo menos 1 item para continuar.");
       return;
@@ -296,6 +337,10 @@ export function NewQuotationForm({
 
   async function createAndSendQuotation() {
     if (submissionLockRef.current || submitting || saving) return;
+    if (!isBidding && hasSupabaseBrowserConfig() && !draft.buyerDocument) {
+      toast.error("O CNPJ da empresa não foi carregado. Atualize a página e tente novamente.");
+      return;
+    }
     if (!draft.deadlineAt) {
       toast.error("Informe a data limite antes de enviar a cotação.");
       return;
@@ -588,7 +633,12 @@ function StepData({
           </>
         ) : (
           <>
-            <Field label="Farmácia/CNPJ comprador" value={draft.buyerDocument} onChange={(value) => updateDraft("buyerDocument", value)} />
+            <Field
+              label="Farmácia/CNPJ comprador"
+              value={draft.buyerDocument}
+              onChange={(value) => updateDraft("buyerDocument", value)}
+              readOnly
+            />
             <ProductTypeSelect label="Tipo da cotação" value={draft.quotationType} onValueChange={(value) => updateDraft("quotationType", value)} />
           </>
         )}
@@ -1174,16 +1224,24 @@ function Field({
   value,
   onChange,
   type = "text",
+  readOnly = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
+  readOnly?: boolean;
 }) {
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+      <Input
+        type={type}
+        value={value}
+        readOnly={readOnly}
+        onChange={(event) => onChange(event.target.value)}
+        className={readOnly ? "bg-slate-50 text-slate-700" : undefined}
+      />
     </div>
   );
 }
