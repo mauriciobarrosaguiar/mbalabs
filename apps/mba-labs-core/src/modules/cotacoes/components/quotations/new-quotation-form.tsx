@@ -54,6 +54,15 @@ interface QuotationDraft {
   considerMinimumOrder: boolean;
 }
 
+type InitialShortageItem = {
+  id: string;
+  productName: string;
+  ean?: string;
+  requestedQuantity: number;
+  requestedUnit: string;
+  notes?: string;
+};
+
 interface DraftItem {
   id: string;
   productId?: string;
@@ -143,11 +152,15 @@ export function NewQuotationForm({
   products = [],
   laboratories = [],
   suppliers = [],
+  initialItems = [],
+  sourceShortageItemIds = [],
 }: {
   moduleType: ModuleType;
   products?: Product[];
   laboratories?: Laboratory[];
   suppliers?: Supplier[];
+  initialItems?: InitialShortageItem[];
+  sourceShortageItemIds?: string[];
 }) {
   const router = useRouter();
   const submissionLockRef = useRef(false);
@@ -171,7 +184,7 @@ export function NewQuotationForm({
   }, [suppliers]);
   const [step, setStep] = useState(() => getInitialWizardStep());
   const [draft, setDraft] = useState<QuotationDraft>({
-    name: isBidding ? "Pregão medicamentos" : "Falteiro loja matriz",
+    name: isBidding ? "Pregão medicamentos" : initialItems.length > 0 ? "Cotação da lista de faltas" : "Falteiro loja matriz",
     buyerDocument: "12.345.678/0001-90",
     buyerCompanyName: "Distribuidora Licitação Exemplo",
     destinationClient: "Município de Goiânia",
@@ -185,7 +198,19 @@ export function NewQuotationForm({
     allowEquivalent: true,
     considerMinimumOrder: true,
   });
-  const [items, setItems] = useState<DraftItem[]>(() => isBidding ? [buildDefaultItem(true)] : []);
+  const [items, setItems] = useState<DraftItem[]>(() => {
+    if (isBidding) return [buildDefaultItem(true)];
+    return initialItems.map((item, index) => ({
+      ...buildDefaultItem(false),
+      id: item.id,
+      itemNumber: String(index + 1),
+      productName: item.productName,
+      ean: item.ean,
+      requestedQuantity: item.requestedQuantity,
+      requestedUnit: item.requestedUnit,
+      buyerObservation: item.notes,
+    }));
+  });
   const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>(() => supplierOptions.map((supplier) => supplier.id));
   const [links, setLinks] = useState<GeneratedLink[]>([]);
   const [saving, setSaving] = useState(false);
@@ -373,6 +398,7 @@ export function NewQuotationForm({
             draft,
             items,
             suppliers: selectedSuppliers,
+            sourceShortageItemIds,
           }),
         });
         const payload = await response.json();
