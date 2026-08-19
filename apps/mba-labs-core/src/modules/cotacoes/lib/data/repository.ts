@@ -82,8 +82,8 @@ export function updateSupplier(id: string, patch: Parameters<Repository["updateS
   return repository().updateSupplier(id, patch);
 }
 
-export function deleteSupplier(id: string) {
-  return repository().deleteSupplier(id);
+export function deleteSupplier(id: string, tenantId?: string) {
+  return repository().deleteSupplier(id, tenantId);
 }
 
 export function getDistributors() {
@@ -232,16 +232,16 @@ export function generatePharmacyAnalysis(quotationId?: string) {
   return repository().generatePharmacyAnalysis(quotationId);
 }
 
-export function getPharmacyAnalysis(quotationId?: string) {
-  return repository().getPharmacyAnalysis(quotationId);
+export function getPharmacyAnalysis(quotationId?: string, tenantId?: string) {
+  return repository().getPharmacyAnalysis(quotationId, tenantId);
 }
 
 export function generateBiddingAnalysis(quotationId?: string) {
   return repository().generateBiddingAnalysis(quotationId);
 }
 
-export function getBiddingAnalysis(quotationId?: string) {
-  return repository().getBiddingAnalysis(quotationId);
+export function getBiddingAnalysis(quotationId?: string, tenantId?: string) {
+  return repository().getBiddingAnalysis(quotationId, tenantId);
 }
 
 export function generateBiddingAwards(
@@ -275,8 +275,8 @@ export function savePurchaseOrderReview(
   return repository().savePurchaseOrderReview(token, itemUpdates, finalize);
 }
 
-export function getWinnerOrderPendingItems(quotationId?: string) {
-  return repository().getWinnerOrderPendingItems(quotationId);
+export function getWinnerOrderPendingItems(quotationId?: string, tenantId?: string) {
+  return repository().getWinnerOrderPendingItems(quotationId, tenantId);
 }
 
 export function redirectWinnerPendingItemToNextSupplier(pendingId: string) {

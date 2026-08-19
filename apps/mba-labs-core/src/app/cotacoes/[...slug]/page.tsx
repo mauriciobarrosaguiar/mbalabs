@@ -61,6 +61,7 @@ function normalizeCotacoesSlug(slug: string[]) {
     "pedidos-vencedores": ["pedidos-gerados"],
     abertas: ["cotacoes-farmacia"],
     finalizadas: ["cotacoes-farmacia"],
+    faltas: ["lista-faltas"],
   };
 
   if (aliases[section]) return [...aliases[section], ...rest];
@@ -70,6 +71,7 @@ function normalizeCotacoesSlug(slug: string[]) {
 function getRouteModule(section?: string): "pharmacy" | "bidding" | null {
   if (
     section === "cotacoes-farmacia" ||
+    section === "lista-faltas" ||
     section === "historico-compras" ||
     section === "pedidos-gerados-farmacia"
   ) {

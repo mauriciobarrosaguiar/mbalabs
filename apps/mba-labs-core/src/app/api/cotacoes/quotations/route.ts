@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
     const tenantId = access.tenantId;
+    if (!tenantId) return NextResponse.json({ error: "Empresa não identificada." }, { status: 403 });
     console.info("[API] POST /api/quotations", {
       moduleType,
       tenantId,
@@ -37,6 +38,11 @@ export async function POST(request: NextRequest) {
       isSuperAdmin: auth.isSuperAdmin,
     });
     const result = await createSupabaseQuotation({ ...body, moduleType, tenantId });
+    await markShortageItemsAsQuoted(
+      tenantId,
+      result.quotation.id,
+      Array.isArray(body.sourceShortageItemIds) ? body.sourceShortageItemIds : [],
+    );
     const publicPrefix = moduleType === "bidding" ? "licitacao" : "cotacao";
     return NextResponse.json({
       ...result,
@@ -52,6 +58,37 @@ export async function POST(request: NextRequest) {
       { error: resolveErrorMessage(error, "Erro ao criar cotação.") },
       { status: 500 },
     );
+  }
+}
+
+async function markShortageItemsAsQuoted(
+  tenantId: string,
+  quotationId: string,
+  sourceIds: unknown[],
+) {
+  const ids = Array.from(new Set(sourceIds
+    .filter((value): value is string => typeof value === "string")
+    .filter((value) => /^[0-9a-f-]{36}$/i.test(value))));
+  if (ids.length === 0) return;
+
+  const supabase = createSupabaseAdminClient();
+  const { error } = await supabase
+    .from("shortage_items")
+    .update({
+      status: "quoted",
+      quotation_id: quotationId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("tenant_id", tenantId)
+    .eq("status", "pending")
+    .in("id", ids);
+
+  if (error) {
+    console.error("[Lista de Faltas] Cotação criada, mas os itens não foram marcados como cotados.", {
+      quotationId,
+      tenantId,
+      error,
+    });
   }
 }
 

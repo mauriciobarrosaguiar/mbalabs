@@ -13,21 +13,35 @@ import {
 } from "@/modules/cotacoes/lib/purchase-order-display";
 import { stripLegacyPurchaseOrderReview } from "@/modules/cotacoes/lib/purchase-order-review-legacy";
 import type { ModuleType, PurchaseOrder, PurchaseOrderItem } from "@/modules/cotacoes/lib/types";
+import { getCurrentAuthContext, isTenantSuspended } from "@/modules/cotacoes/lib/auth/session";
 
 export async function GET(request: Request) {
+  const auth = await getCurrentAuthContext();
+  if (!auth.isAuthenticated || !auth.profile) {
+    return NextResponse.json({ error: "Sessão expirada ou usuário não autenticado." }, { status: 401 });
+  }
+  if (!auth.isActive) {
+    return NextResponse.json({ error: "Usuário inativo." }, { status: 403 });
+  }
+
+  const tenantId = auth.isSuperAdmin ? undefined : auth.tenantAccess?.tenantId;
+  if (!auth.isSuperAdmin && (!auth.tenantAccess || isTenantSuspended(auth.tenantAccess.tenantStatus))) {
+    return NextResponse.json({ error: "Empresa sem acesso ativo ao MBA Cotações." }, { status: 403 });
+  }
+
   const url = new URL(request.url);
   const moduleFilter = parseModuleFilter(url.searchParams.get("module"));
   const statusFilter = url.searchParams.get("status") ?? "all";
   const dateFilter = url.searchParams.get("date") ?? "";
   const vendorFilter = (url.searchParams.get("vendor") ?? "").trim().toLowerCase();
-  const collections = await getCollections();
+  const collections = await getCollections(tenantId);
 
   const quotations = collections.quotations.filter((quotation) =>
     moduleFilter === "all" || quotation.moduleType === moduleFilter,
   );
   const orderGroups = await Promise.all(quotations.map(async (quotation) => ({
     quotation,
-    orders: await getPurchaseOrdersByQuotation(quotation.id),
+    orders: await getPurchaseOrdersByQuotation(quotation.id, tenantId),
   })));
 
   const rows = orderGroups
