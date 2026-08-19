@@ -1,14 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, Copy, MessageCircle, RefreshCcw, ShieldOff, SkipForward } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Copy, MessageCircle, RefreshCcw, ShieldOff, SkipForward } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/modules/cotacoes/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/modules/cotacoes/components/ui/table";
 import { StatusBadge } from "@/modules/cotacoes/components/dashboard/status-badge";
 import type { ModuleType, SupplierQuoteSession } from "@/modules/cotacoes/lib/types";
 
-const sessionStatusLabels: Record<string, string> = { opened: "Pendente", draft: "Rascunho", submitted: "Respondido", expired: "Expirado", canceled: "Revogado/Cancelado" };
+const sessionStatusLabels: Record<string, string> = {
+  opened: "Aguardando resposta",
+  draft: "Rascunho",
+  submitted: "Respondido",
+  expired: "Expirado",
+  canceled: "Revogado/Cancelado",
+};
 const SEMI_AUTO_EVENT = "mba-cotacoes:whatsapp-semi-auto";
 const PREPARE_WHATSAPP_EVENT = "mba-cotacoes:whatsapp-prepare-window";
 const RELEASE_WHATSAPP_EVENT = "mba-cotacoes:whatsapp-release-window";
@@ -381,11 +387,73 @@ export function SupplierLinksTable({ moduleType, sessions }: { moduleType: Modul
         {rows.map((session) => {
           const envio = sendStatus[vendorIdFor(session)];
           const status = statusFor(session, sendStatus);
-          return <div key={session.id} className="rounded-md border border-slate-200 bg-white p-3"><div className="flex items-start justify-between gap-3"><div><p className="font-medium text-slate-950">{session.sellerName || session.sellerCompany || "-"}</p><p className="mt-1 text-sm text-muted-foreground">{session.sellerWhatsapp || "WhatsApp não cadastrado"}</p><p className="mt-1 text-xs text-muted-foreground">Resposta: {sessionStatusLabels[session.status] ?? session.status}</p></div><div className="text-right"><StatusBadge status={status} label={whatsappStatusLabel(envio)} /><p className="mt-1 text-xs text-muted-foreground">{whatsappStatusDetail(envio)}</p></div></div><SupplierLinkActions session={session} onCopy={copyLink} onOpenWhatsApp={openWhatsApp} onRegenerate={regenerate} onResend={resend} onRevoke={revoke} /></div>;
+          return (
+            <div key={session.id} className="rounded-md border border-slate-200 bg-white p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-slate-950">{session.sellerName || session.sellerCompany || "-"}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{session.sellerWhatsapp || "WhatsApp não cadastrado"}</p>
+                  <div className="mt-2">
+                    <p className="mb-1 text-xs font-medium text-slate-500">Resposta</p>
+                    <ResponseStatusBadge status={session.status} />
+                  </div>
+                </div>
+                <div className="text-right">
+                  <StatusBadge status={status} label={whatsappStatusLabel(envio)} />
+                  <p className="mt-1 text-xs text-muted-foreground">{whatsappStatusDetail(envio)}</p>
+                </div>
+              </div>
+              <SupplierLinkActions session={session} onCopy={copyLink} onOpenWhatsApp={openWhatsApp} onRegenerate={regenerate} onResend={resend} onRevoke={revoke} />
+            </div>
+          );
         })}
       </div>
-      <div className="hidden md:block"><Table><TableHeader><TableRow><TableHead>Vendedor</TableHead><TableHead>WhatsApp</TableHead><TableHead>Status do envio</TableHead><TableHead className="text-right">Ações</TableHead></TableRow></TableHeader><TableBody>{rows.map((session) => { const envio = sendStatus[vendorIdFor(session)]; const status = statusFor(session, sendStatus); return <TableRow key={session.id}><TableCell><p className="font-medium">{session.sellerName || session.sellerCompany || "-"}</p><p className="text-xs text-muted-foreground">{session.sellerCompany || "Fornecedor"}</p></TableCell><TableCell>{session.sellerWhatsapp || "WhatsApp não cadastrado"}</TableCell><TableCell><StatusBadge status={status} label={whatsappStatusLabel(envio)} /><p className="mt-1 text-xs text-muted-foreground">{whatsappStatusDetail(envio)}</p></TableCell><TableCell><SupplierLinkActions session={session} onCopy={copyLink} onOpenWhatsApp={openWhatsApp} onRegenerate={regenerate} onResend={resend} onRevoke={revoke} align="end" /></TableCell></TableRow>; })}</TableBody></Table></div>
+
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Vendedor</TableHead>
+              <TableHead>WhatsApp</TableHead>
+              <TableHead>Resposta</TableHead>
+              <TableHead>Status do envio</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((session) => {
+              const envio = sendStatus[vendorIdFor(session)];
+              const status = statusFor(session, sendStatus);
+              return (
+                <TableRow key={session.id}>
+                  <TableCell><p className="font-medium">{session.sellerName || session.sellerCompany || "-"}</p><p className="text-xs text-muted-foreground">{session.sellerCompany || "Fornecedor"}</p></TableCell>
+                  <TableCell>{session.sellerWhatsapp || "WhatsApp não cadastrado"}</TableCell>
+                  <TableCell><ResponseStatusBadge status={session.status} /></TableCell>
+                  <TableCell><StatusBadge status={status} label={whatsappStatusLabel(envio)} /><p className="mt-1 text-xs text-muted-foreground">{whatsappStatusDetail(envio)}</p></TableCell>
+                  <TableCell><SupplierLinkActions session={session} onCopy={copyLink} onOpenWhatsApp={openWhatsApp} onRegenerate={regenerate} onResend={resend} onRevoke={revoke} align="end" /></TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
     </div>
+  );
+}
+
+function ResponseStatusBadge({ status }: { status: SupplierQuoteSession["status"] }) {
+  const responded = status === "submitted";
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+        responded
+          ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
+          : "bg-amber-100 text-amber-900 ring-amber-200"
+      }`}
+    >
+      {responded ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+      {sessionStatusLabels[status] ?? status}
+    </span>
   );
 }
 
