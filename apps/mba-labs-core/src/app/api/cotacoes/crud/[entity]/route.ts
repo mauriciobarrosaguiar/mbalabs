@@ -87,7 +87,7 @@ export async function DELETE(
     if (!auth.isSuperAdmin && auth.tenantId) {
       await assertEntityOwnership(entity, id, auth.tenantId);
     }
-    await deleteByEntity(entity, id);
+    await deleteByEntity(entity, id, auth.tenantId);
     const deleted = entity === "suppliers";
     return NextResponse.json({
       ok: true,
@@ -98,7 +98,7 @@ export async function DELETE(
     if (entity === "suppliers" && errorCode(error) === "23503") {
       return NextResponse.json(
         {
-          error: "Este fornecedor ja possui historico de cotacoes ou pedidos e nao pode ser excluido. Use Inativar para preservar o historico.",
+          error: "Este fornecedor possui um vínculo que impede a exclusão. Nenhum dado foi alterado.",
         },
         { status: 409 },
       );
@@ -256,9 +256,9 @@ async function updateByEntity(entity: Entity, id: string, row: Row) {
   throw new RouteError("Entidade nao suportada.", 400);
 }
 
-async function deleteByEntity(entity: Entity, id: string) {
+async function deleteByEntity(entity: Entity, id: string, tenantId?: string) {
   if (entity === "products") return deleteProduct(id);
-  if (entity === "suppliers") return deleteSupplier(id);
+  if (entity === "suppliers") return deleteSupplier(id, tenantId);
   if (entity === "distributors") return deleteDistributor(id);
   if (entity === "laboratories") return deleteLaboratory(id);
   if (entity === "tenants") return deleteTenant(id);
