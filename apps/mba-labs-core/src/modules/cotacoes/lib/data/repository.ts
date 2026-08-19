@@ -83,7 +83,7 @@ export function updateSupplier(id: string, patch: Parameters<Repository["updateS
 }
 
 export function deleteSupplier(id: string, tenantId?: string) {
-  return (repository() as typeof supabaseRepository).deleteSupplier(id, tenantId);
+  return repository().deleteSupplier(id, tenantId);
 }
 
 export function getDistributors() {
@@ -233,7 +233,7 @@ export function generatePharmacyAnalysis(quotationId?: string) {
 }
 
 export function getPharmacyAnalysis(quotationId?: string, tenantId?: string) {
-  return (repository() as typeof supabaseRepository).getPharmacyAnalysis(quotationId, tenantId);
+  return repository().getPharmacyAnalysis(quotationId, tenantId);
 }
 
 export function generateBiddingAnalysis(quotationId?: string) {
@@ -241,7 +241,7 @@ export function generateBiddingAnalysis(quotationId?: string) {
 }
 
 export function getBiddingAnalysis(quotationId?: string, tenantId?: string) {
-  return (repository() as typeof supabaseRepository).getBiddingAnalysis(quotationId, tenantId);
+  return repository().getBiddingAnalysis(quotationId, tenantId);
 }
 
 export function generateBiddingAwards(
@@ -276,7 +276,7 @@ export function savePurchaseOrderReview(
 }
 
 export function getWinnerOrderPendingItems(quotationId?: string, tenantId?: string) {
-  return (repository() as typeof supabaseRepository).getWinnerOrderPendingItems(quotationId, tenantId);
+  return repository().getWinnerOrderPendingItems(quotationId, tenantId);
 }
 
 export function redirectWinnerPendingItemToNextSupplier(pendingId: string) {
