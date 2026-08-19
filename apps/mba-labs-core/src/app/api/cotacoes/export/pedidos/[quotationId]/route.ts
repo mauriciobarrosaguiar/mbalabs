@@ -3,9 +3,11 @@ import ExcelJS from "exceljs";
 import {
   getCollections,
   getPurchaseOrdersByQuotation,
-  getQuotationById,
+  getQuotationBundle,
 } from "@/modules/cotacoes/lib/data/repository";
 import * as demoRepository from "@/modules/cotacoes/lib/data/demo-repository";
+import { getCurrentAuthContext } from "@/modules/cotacoes/lib/auth/session";
+import { ensureQuotationAccess } from "@/modules/cotacoes/lib/auth/quotation-access";
 import { formatDateBR } from "@/modules/cotacoes/lib/formatters";
 import { labelFrom, statusLabels } from "@/modules/cotacoes/lib/labels";
 import {
@@ -22,9 +24,19 @@ export async function GET(
 ) {
   const { quotationId } = await params;
   const isDemoQuotation = isDemoQuotationId(quotationId, request.url);
+  let tenantId: string | undefined;
+  if (!isDemoQuotation) {
+    const auth = await getCurrentAuthContext();
+    const access = await ensureQuotationAccess(auth, quotationId);
+    if (!access.ok) {
+      return NextResponse.json({ error: access.error }, { status: access.status });
+    }
+    tenantId = access.tenantId;
+  }
+
   const orders = isDemoQuotation
     ? await demoRepository.getPurchaseOrdersByQuotation(quotationId)
-    : await getPurchaseOrdersByQuotation(quotationId);
+    : await getPurchaseOrdersByQuotation(quotationId, tenantId);
 
   if (orders.length === 0) {
     return NextResponse.json(
@@ -35,10 +47,10 @@ export async function GET(
 
   const quotation = isDemoQuotation
     ? await demoRepository.getQuotationById(quotationId)
-    : await getQuotationById(quotationId);
+    : (await getQuotationBundle(quotationId, tenantId)).quotation;
   const collections = isDemoQuotation
     ? await demoRepository.getCollections()
-    : await getCollections();
+    : await getCollections(tenantId);
   const tenant = collections.tenants.find((item) => item.id === quotation?.tenantId);
   const pharmacy = collections.pharmacies.find((item) => item.id === quotation?.pharmacyId);
   const generatedAt = new Date();
