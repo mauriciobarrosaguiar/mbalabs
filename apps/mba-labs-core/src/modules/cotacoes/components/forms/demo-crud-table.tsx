@@ -73,10 +73,13 @@ export function DemoCrudTable({
   useEffect(() => {
     if (remoteCrudEnabled(entity)) {
       setRows(initialRows);
-      return;
     }
+  }, [entity, initialRows]);
+
+  useEffect(() => {
+    if (remoteCrudEnabled(entity)) return;
     window.localStorage.setItem(storageKey, JSON.stringify(rows));
-  }, [entity, initialRows, rows, storageKey]);
+  }, [entity, rows, storageKey]);
 
   const visibleRows = useMemo(() => {
     const normalized = query.trim().toLowerCase();
