@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
     const tenantId = access.tenantId;
+    if (!tenantId) return NextResponse.json({ error: "Empresa não identificada." }, { status: 403 });
     console.info("[API] POST /api/quotations", {
       moduleType,
       tenantId,
