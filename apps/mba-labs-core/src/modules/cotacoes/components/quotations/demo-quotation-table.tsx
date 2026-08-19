@@ -59,6 +59,12 @@ type QuotationRow = {
   local?: StoredDemoQuotation;
 };
 
+type WhatsappSummary = {
+  enviado?: number;
+  falhou?: number;
+  ignorado?: number;
+};
+
 export function DemoQuotationTable({
   moduleType,
   initialQuotations,
@@ -181,6 +187,21 @@ export function DemoQuotationTable({
     )));
     if (payload.warning) toast.warning(String(payload.warning));
     toast.success("Cotação finalizada.");
+
+    const whatsapp = await sendWinnerResult(row.id);
+    if (whatsapp) {
+      const failed = Number(whatsapp.falhou ?? 0);
+      const sent = Number(whatsapp.enviado ?? 0);
+      const skipped = Number(whatsapp.ignorado ?? 0);
+      if (failed > 0) {
+        toast.warning(`Cotação finalizada, mas ${failed} envio(s) do resultado falharam. O pedido continua disponível no sistema.`);
+      } else if (sent > 0) {
+        toast.success("Resultado e pedido enviados ao(s) vendedor(es) ganhador(es) pelo WhatsApp.");
+      } else if (skipped > 0) {
+        toast.info("O resultado já constava como enviado ao(s) vendedor(es) ganhador(es). ");
+      }
+    }
+
     router.push(`${base}/${row.id}/analise`);
     router.refresh();
   }
@@ -346,6 +367,24 @@ async function mutateQuotation(method: "PATCH" | "DELETE", body: Record<string, 
     return payload as Record<string, unknown>;
   } catch (error) {
     toast.error(error instanceof Error ? error.message : "Não foi possível atualizar a cotação.");
+    return null;
+  }
+}
+
+async function sendWinnerResult(quotationId: string): Promise<WhatsappSummary | null> {
+  try {
+    const response = await fetch("/api/whatsapp-envios", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "send_winner_orders", quotationId }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error ?? "Falha ao enviar o resultado da cotação pelo WhatsApp.");
+    return (payload.whatsapp ?? null) as WhatsappSummary | null;
+  } catch (error) {
+    toast.warning(error instanceof Error
+      ? `${error.message} A cotação foi finalizada e o pedido continua disponível no sistema.`
+      : "A cotação foi finalizada, mas o resultado não foi enviado pelo WhatsApp.");
     return null;
   }
 }
