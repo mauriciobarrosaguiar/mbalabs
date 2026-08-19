@@ -277,12 +277,14 @@ export async function updateSupplier(id: string, patch: Partial<Supplier>) {
   return mapSupplier(data);
 }
 
-export async function deleteSupplier(id: string) {
+export async function deleteSupplier(id: string, tenantId?: string) {
   const supabase = requireDb();
-  const { data, error } = await supabase
+  let query = supabase
     .from("suppliers")
     .delete()
-    .eq("id", id)
+    .eq("id", id);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { data, error } = await query
     .select("id")
     .single();
   if (error) throw error;
@@ -618,11 +620,13 @@ export async function generatePharmacyAnalysis(quotationId?: string) {
   return getPharmacyAnalysis(quotationId);
 }
 
-export async function getPharmacyAnalysis(quotationId?: string) {
+export async function getPharmacyAnalysis(quotationId?: string, tenantId?: string) {
   const id = quotationId ?? (await getFirstQuotationId("pharmacy"));
   if (!id) return buildPharmacyAnalysis([], [], [], []);
-  const bundle = await getQuotationBundle(id);
-  const distributors = await getDistributors();
+  const bundle = await getQuotationBundle(id, tenantId);
+  const distributors = tenantId
+    ? (await getCollections(tenantId)).distributors
+    : await getDistributors();
   return buildPharmacyAnalysis(bundle.items, bundle.responseItems, bundle.responses, distributors);
 }
 
@@ -630,10 +634,10 @@ export async function generateBiddingAnalysis(quotationId?: string) {
   return getBiddingAnalysis(quotationId);
 }
 
-export async function getBiddingAnalysis(quotationId?: string) {
+export async function getBiddingAnalysis(quotationId?: string, tenantId?: string) {
   const id = quotationId ?? (await getFirstQuotationId("bidding"));
   if (!id) return buildBiddingAnalysis([], [], []);
-  const bundle = await getQuotationBundle(id);
+  const bundle = await getQuotationBundle(id, tenantId);
   return buildBiddingAnalysis(bundle.items, bundle.responseItems, bundle.responses);
 }
 
@@ -713,8 +717,8 @@ export async function savePurchaseOrderReview(
   return saveSupabasePurchaseOrderReview(token, itemUpdates, finalize);
 }
 
-export async function getWinnerOrderPendingItems(quotationId?: string) {
-  return getSupabaseWinnerOrderPendingItems(quotationId);
+export async function getWinnerOrderPendingItems(quotationId?: string, tenantId?: string) {
+  return getSupabaseWinnerOrderPendingItems(quotationId, tenantId);
 }
 
 export async function redirectWinnerPendingItemToNextSupplier(pendingId: string) {
@@ -769,7 +773,7 @@ export async function getAdminMetrics(): Promise<DashboardMetric[]> {
 
 export async function getCompanyMetrics(tenantId?: string): Promise<DashboardMetric[]> {
   if (!canUseSupabaseRepository()) return [];
-  const collections = await getCollections();
+  const collections = await getCollections(tenantId);
   const tenant = tenantId
     ? collections.tenants.find((item) => item.id === tenantId)
     : collections.tenants[0];
