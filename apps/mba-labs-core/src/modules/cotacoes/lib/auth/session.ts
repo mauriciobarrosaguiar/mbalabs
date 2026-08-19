@@ -136,31 +136,40 @@ async function ensureCotacoesAuthContext(current: CurrentUserProfile): Promise<A
 
   try {
     const admin = getSupabaseAdmin() as any;
-    const tenant = await ensureTenantBridge(admin, current);
     const profile = await ensureUserProfileBridge(admin, current, role, status);
     profileId = profile.id;
 
-    if (!isSuperAdmin && tenant) {
-      const tenantUser = await ensureTenantUserBridge(admin, tenant.id, profile.id, mapTenantUserRole(role));
-      tenantAccess = {
-        id: tenantUser.id,
-        tenantId: tenant.id,
-        role: tenantUser.role,
-        status: tenantUser.status,
-        tenantName: tenant.nome_fantasia,
-        tenantType: tenant.tipo_cliente,
-        tenantStatus: tenant.status,
-      };
-    } else if (tenant) {
-      tenantAccess = {
-        id: tenant.id,
-        tenantId: tenant.id,
-        role: "ADMIN_EMPRESA",
-        status: "ativo",
-        tenantName: tenant.nome_fantasia,
-        tenantType: tenant.tipo_cliente,
-        tenantStatus: tenant.status,
-      };
+    if (!isSuperAdmin) {
+      tenantAccess = await resolveExplicitTenantAccess(admin, profile.id);
+
+      if (!tenantAccess) {
+        const tenant = await ensureTenantBridge(admin, current);
+        if (tenant) {
+          const tenantUser = await ensureTenantUserBridge(admin, tenant.id, profile.id, mapTenantUserRole(role));
+          tenantAccess = {
+            id: tenantUser.id,
+            tenantId: tenant.id,
+            role: tenantUser.role,
+            status: tenantUser.status,
+            tenantName: tenant.nome_fantasia,
+            tenantType: tenant.tipo_cliente,
+            tenantStatus: tenant.status,
+          };
+        }
+      }
+    } else {
+      const tenant = await ensureTenantBridge(admin, current);
+      if (tenant) {
+        tenantAccess = {
+          id: tenant.id,
+          tenantId: tenant.id,
+          role: "ADMIN_EMPRESA",
+          status: "ativo",
+          tenantName: tenant.nome_fantasia,
+          tenantType: tenant.tipo_cliente,
+          tenantStatus: tenant.status,
+        };
+      }
     }
   } catch (error) {
     console.error("[MBA Cotações] Falha ao sincronizar contexto core -> módulo.", error);
@@ -189,6 +198,44 @@ async function ensureCotacoesAuthContext(current: CurrentUserProfile): Promise<A
     isActive: status === "ativo",
     isSuperAdmin,
     mustChangePassword: false,
+  };
+}
+
+async function resolveExplicitTenantAccess(admin: any, profileId: string): Promise<TenantAccess | null> {
+  const { data: links, error: linksError } = await admin
+    .from("tenant_users")
+    .select("id,tenant_id,role,status,updated_at")
+    .eq("user_profile_id", profileId)
+    .eq("status", "ativo")
+    .order("updated_at", { ascending: false })
+    .limit(2);
+
+  if (linksError) throw linksError;
+  if (!links?.length) return null;
+  if (links.length > 1) {
+    throw new Error("Acesso bloqueado: o perfil possui mais de um vínculo ativo de empresa no MBA Cotações.");
+  }
+
+  const link = links[0];
+  const { data: tenant, error: tenantError } = await admin
+    .from("tenants")
+    .select("id,nome_fantasia,tipo_cliente,status")
+    .eq("id", link.tenant_id)
+    .maybeSingle();
+
+  if (tenantError) throw tenantError;
+  if (!tenant) {
+    throw new Error("Acesso bloqueado: o vínculo do MBA Cotações aponta para uma empresa inexistente.");
+  }
+
+  return {
+    id: link.id,
+    tenantId: tenant.id,
+    role: link.role,
+    status: link.status,
+    tenantName: tenant.nome_fantasia,
+    tenantType: tenant.tipo_cliente,
+    tenantStatus: tenant.status,
   };
 }
 
