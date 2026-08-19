@@ -345,7 +345,7 @@ export function DemoCrudTable({
       {(isCreating || editing) ? (
         <Card className="border-teal-100 bg-teal-50/40">
           <CardContent className="p-4">
-            <form action={save} className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
+            <form key={draft.id || "new"} action={save} className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
               {fields.map((field) => (
                 <div key={field.key} className="space-y-2">
                   {field.type === "hidden" ? (
@@ -441,9 +441,11 @@ export function DemoCrudTable({
                         <Edit className="h-4 w-4" />
                         Editar
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => inactivate(row.id)}>
-                        Inativar
-                      </Button>
+                      {entity !== "suppliers" ? (
+                        <Button variant="outline" size="sm" onClick={() => inactivate(row.id)}>
+                          Inativar
+                        </Button>
+                      ) : null}
                       <ConfirmDialog
                         title="Excluir registro?"
                         description={
