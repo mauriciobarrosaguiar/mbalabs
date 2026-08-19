@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { getCurrentAuthContext } from "@/modules/cotacoes/lib/auth/session";
 import { ensureQuotationAccess } from "@/modules/cotacoes/lib/auth/quotation-access";
 import { generatePurchaseOrders } from "@/modules/cotacoes/lib/data/repository";
@@ -78,9 +78,21 @@ export async function POST(request: NextRequest) {
     const origin = request.nextUrl.origin;
 
     if (body.action === "send_quotation_links") {
-      const whatsapp = await sendQuotationLinksByQuotation({ quotationId: body.quotationId, origin });
-      await persistProviderMessageIds(body.quotationId, "link_cotacao", whatsapp.results);
-      return NextResponse.json({ ok: true, whatsapp });
+      const quotationId = body.quotationId;
+
+      after(async () => {
+        try {
+          const whatsapp = await sendQuotationLinksByQuotation({ quotationId, origin });
+          await persistProviderMessageIds(quotationId, "link_cotacao", whatsapp.results);
+        } catch (error) {
+          console.error("[MBA Cotações] Falha no envio assíncrono dos links da cotação", {
+            quotationId,
+            error,
+          });
+        }
+      });
+
+      return NextResponse.json({ ok: true, queued: true });
     }
 
     if (body.action === "send_winner_orders") {
