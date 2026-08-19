@@ -13,6 +13,7 @@ import {
 import { TenantManagementTable } from "@/modules/cotacoes/components/admin/tenant-management-table";
 import { KpiCard } from "@/modules/cotacoes/components/dashboard/kpi-card";
 import { StatusBadge } from "@/modules/cotacoes/components/dashboard/status-badge";
+import { ShortageListPage } from "@/modules/cotacoes/components/shortage-list/shortage-list-page";
 import { DemoCrudTable, type DemoCrudRow } from "@/modules/cotacoes/components/forms/demo-crud-table";
 import { ImportWizard } from "@/modules/cotacoes/components/imports/import-wizard";
 import { DemoQuotationTable } from "@/modules/cotacoes/components/quotations/demo-quotation-table";
@@ -88,6 +89,7 @@ import { savePaymentSettingsAction } from "@/modules/cotacoes/lib/actions/paymen
 import { createUserAccessAction, updateUserAccessAction } from "@/modules/cotacoes/lib/actions/users";
 import { listManagedUsers, listTenantOptions, type ManagedUser, type TenantOption } from "@/modules/cotacoes/lib/auth/users";
 import { createSupabaseAdminClient, hasSupabaseAdminConfig } from "@/modules/cotacoes/lib/supabase/server";
+import { listPendingShortageItems } from "@/modules/cotacoes/lib/data/shortage-items";
 import type {
   CustomerType,
   QuotationAward,
@@ -152,9 +154,9 @@ function getSearchParam(searchParams: AppSearchParams | undefined, key: string) 
   return Array.isArray(value) ? value[0] : value;
 }
 
-async function loadWinnerOrderPendingItems(quotationId: string) {
+async function loadWinnerOrderPendingItems(quotationId: string, tenantId?: string) {
   try {
-    return await getWinnerOrderPendingItems(quotationId);
+    return await getWinnerOrderPendingItems(quotationId, tenantId);
   } catch {
     return [];
   }
@@ -675,16 +677,21 @@ export async function CompanyRoutePage({
     return <SupabaseRequiredState />;
   }
 
+  if (!isSuperAdmin && !tenantId && section !== "acesso-suspenso" && section !== "sem-permissao") {
+    return <TenantIsolationRequiredState />;
+  }
+
   if (section === "dashboard") return <CompanyDashboard tenantType={tenantType} tenantId={tenantId} />;
   if (section === "acesso-suspenso") return <SuspendedAccessPage />;
   if (section === "sem-permissao") return <ModulePermissionDeniedPage />;
-  if (section === "produtos") return <ProductsPage />;
+  if (section === "produtos") return <ProductsPage tenantId={tenantId} />;
   if (section === "fornecedores") return <SuppliersPage tenantId={tenantId} />;
-  if (section === "distribuidoras") return <DistributorsPage />;
-  if (section === "laboratorios") return <LaboratoriesPage />;
+  if (section === "distribuidoras") return <DistributorsPage tenantId={tenantId} />;
+  if (section === "laboratorios") return <LaboratoriesPage tenantId={tenantId} />;
+  if (section === "lista-faltas") return <ShortageListPage />;
   if (section === "importar") return <ImportsPage />;
   if (section === "historico-precos" || section === "historico-compras" || section === "relatorios") {
-    return <ReportsPage section={section} />;
+    return <ReportsPage section={section} tenantId={tenantId} />;
   }
   if (section === "pedidos-gerados" || section === "pedidos-gerados-farmacia" || section === "pedidos-gerados-licitacao") {
     const forcedModule =
@@ -694,7 +701,7 @@ export async function CompanyRoutePage({
     return <GeneratedOrdersPage tenantType={tenantType} tenantId={tenantId} searchParams={searchParams} forcedModule={forcedModule} />;
   }
   if (section === "mapa-comparativo" || section === "analise-unidade") {
-    return <BiddingOperationalPage section={section} />;
+    return <BiddingOperationalPage section={section} tenantId={tenantId} />;
   }
   if (section === "cotacoes-disponiveis" || section === "cotacoes-respondidas" || section === "perfil") {
     return <SupplierPortalPage section={section} />;
@@ -702,7 +709,7 @@ export async function CompanyRoutePage({
   if (section === "usuarios") return <CompanyUsersPage />;
   if (section === "configuracoes" && id === "supabase") return <SupabaseSettingsPage />;
   if (section === "configuracoes") return <CompanySettingsPage tenantId={tenantId} isSuperAdmin={isSuperAdmin} />;
-  if (section === "cotacoes-farmacia") return <PharmacyQuotationPage id={id} subpage={subpage} tenantId={tenantId} />;
+  if (section === "cotacoes-farmacia") return <PharmacyQuotationPage id={id} subpage={subpage} tenantId={tenantId} searchParams={searchParams} />;
   if (section === "licitacoes") return <BiddingQuotationPage id={id} subpage={subpage} tenantId={tenantId} />;
 
   return <CompanyDashboard tenantType={tenantType} tenantId={tenantId} />;
@@ -927,6 +934,22 @@ function SupabaseRequiredState() {
         </CardContent>
       </Card>
       <SupabaseSettingsPage />
+    </PageStack>
+  );
+}
+
+function TenantIsolationRequiredState() {
+  return (
+    <PageStack>
+      <Card className="border-red-200 bg-red-50/80">
+        <CardContent className="p-6">
+          <Badge className="bg-red-100 text-red-800">Acesso bloqueado por segurança</Badge>
+          <h2 className="mt-4 text-xl font-semibold text-slate-950">Empresa não identificada na sessão</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-700">
+            Nenhum dado foi carregado. Saia e entre novamente ou peça ao administrador para revisar o vínculo da sua conta com a empresa.
+          </p>
+        </CardContent>
+      </Card>
     </PageStack>
   );
 }
@@ -1458,8 +1481,8 @@ async function getPaymentSettings(): Promise<PaymentSettingsRow | null> {
   }
 }
 
-async function ProductsPage() {
-  const { products, laboratories } = await getCollections();
+async function ProductsPage({ tenantId }: { tenantId?: string }) {
+  const { products, laboratories } = await getCollections(tenantId);
   const demoRows = products.map((product) => ({
     id: product.id,
     tenantId: product.tenantId,
@@ -1525,37 +1548,12 @@ async function SuppliersPage({ tenantId }: { tenantId?: string }) {
           { key: "observacao", label: "Observação" },
         ]}
       />
-      <div className="mt-6 border-t border-slate-200 pt-4">
-        <p className="mb-3 text-sm font-medium text-muted-foreground">Registros atuais</p>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Nome</TableHead>
-            <TableHead>Empresa</TableHead>
-            <TableHead>WhatsApp</TableHead>
-            <TableHead>Tipo</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {suppliers.map((supplier) => (
-            <TableRow key={supplier.id}>
-              <TableCell className="font-medium">{supplier.nome}</TableCell>
-              <TableCell>{supplier.empresa}</TableCell>
-              <TableCell>{supplier.whatsapp}</TableCell>
-              <TableCell>{labelFrom(supplierTypeLabels, supplier.tipoFornecedor)}</TableCell>
-              <TableCell><StatusBadge status={supplier.status} /></TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      </div>
     </CrudPage>
   );
 }
 
-async function DistributorsPage() {
-  const { distributors } = await getCollections();
+async function DistributorsPage({ tenantId }: { tenantId?: string }) {
+  const { distributors } = await getCollections(tenantId);
   const demoRows = distributors.map((distributor) => ({
     id: distributor.id,
     nome: distributor.nome,
@@ -1617,8 +1615,8 @@ async function DistributorsPage() {
   );
 }
 
-async function LaboratoriesPage() {
-  const { laboratories } = await getCollections();
+async function LaboratoriesPage({ tenantId }: { tenantId?: string }) {
+  const { laboratories } = await getCollections(tenantId);
   const demoRows = laboratories.map((laboratory) => ({
     id: laboratory.id,
     nome: laboratory.nome,
@@ -1682,8 +1680,8 @@ function ImportsPage() {
   );
 }
 
-async function ReportsPage({ section }: { section: string }) {
-  const collections = await getCollections();
+async function ReportsPage({ section, tenantId }: { section: string; tenantId?: string }) {
+  const collections = await getCollections(tenantId);
   const titleMap: Record<string, string> = {
     "historico-precos": "Histórico de preços",
     "historico-compras": "Histórico de compras",
@@ -1732,8 +1730,8 @@ async function ReportsPage({ section }: { section: string }) {
   );
 }
 
-async function BiddingOperationalPage({ section }: { section: string }) {
-  const collections = await getCollections();
+async function BiddingOperationalPage({ section, tenantId }: { section: string; tenantId?: string }) {
+  const collections = await getCollections(tenantId);
   const biddingQuotations = collections.quotations.filter((quotation) => quotation.moduleType === "bidding");
   const titles: Record<string, string> = {
     "mapa-comparativo": "Mapa comparativo",
@@ -1799,7 +1797,7 @@ async function GeneratedOrdersPage({
   const orderGroups = await Promise.all(quotations.map(async (quotation) => {
     const [orders, pendencies] = await Promise.all([
       getPurchaseOrdersByQuotation(quotation.id, tenantId),
-      loadWinnerOrderPendingItems(quotation.id),
+      loadWinnerOrderPendingItems(quotation.id, tenantId),
     ]);
     return { quotation, orders, pendencies };
   }));
@@ -2178,9 +2176,19 @@ function SupabaseSettingsPage() {
   );
 }
 
-async function PharmacyQuotationPage({ id, subpage, tenantId }: { id?: string; subpage?: string; tenantId?: string }) {
+async function PharmacyQuotationPage({
+  id,
+  subpage,
+  tenantId,
+  searchParams,
+}: {
+  id?: string;
+  subpage?: string;
+  tenantId?: string;
+  searchParams?: AppSearchParams;
+}) {
   if (!id) return <QuotationList moduleType="pharmacy" tenantId={tenantId} />;
-  if (id === "nova") return <NewQuotationPage moduleType="pharmacy" tenantId={tenantId} />;
+  if (id === "nova") return <NewQuotationPage moduleType="pharmacy" tenantId={tenantId} searchParams={searchParams} />;
   if (subpage === "editar") return <QuotationEditPage quotationId={id} moduleType="pharmacy" tenantId={tenantId} />;
   if (subpage === "respostas") return <PharmacyResponses quotationId={id} tenantId={tenantId} />;
   if (subpage === "analise") return <PharmacyAnalysis quotationId={id} tenantId={tenantId} />;
@@ -2194,8 +2202,8 @@ async function BiddingQuotationPage({ id, subpage, tenantId }: { id?: string; su
   if (subpage === "editar") return <QuotationEditPage quotationId={id} moduleType="bidding" tenantId={tenantId} />;
   if (subpage === "respostas") return <BiddingResponses quotationId={id} tenantId={tenantId} />;
   if (subpage === "analise") return <BiddingAnalysis quotationId={id} tenantId={tenantId} />;
-  if (subpage === "mapa-comparativo") return <ComparativeMap quotationId={id} />;
-  if (subpage === "saldo-pendente") return <PendingBalancePage quotationId={id} />;
+  if (subpage === "mapa-comparativo") return <ComparativeMap quotationId={id} tenantId={tenantId} />;
+  if (subpage === "saldo-pendente") return <PendingBalancePage quotationId={id} tenantId={tenantId} />;
   if (subpage === "pedidos") return <OrdersPage quotationId={id} tenantId={tenantId} />;
   return <QuotationDetail quotationId={id} moduleType="bidding" tenantId={tenantId} />;
 }
@@ -2226,8 +2234,20 @@ async function QuotationList({ moduleType, tenantId }: { moduleType: "pharmacy" 
   );
 }
 
-async function NewQuotationPage({ moduleType, tenantId }: { moduleType: "pharmacy" | "bidding"; tenantId?: string }) {
+async function NewQuotationPage({
+  moduleType,
+  tenantId,
+  searchParams,
+}: {
+  moduleType: "pharmacy" | "bidding";
+  tenantId?: string;
+  searchParams?: AppSearchParams;
+}) {
   const { laboratories, products, suppliers } = await getCollections(tenantId);
+  const fromShortageList = moduleType === "pharmacy" && getSearchParam(searchParams, "fromShortage") === "1";
+  const shortageItems = fromShortageList && tenantId
+    ? await listPendingShortageItems(tenantId)
+    : [];
   return (
     <PageStack>
       <HeaderBlock
@@ -2240,6 +2260,8 @@ async function NewQuotationPage({ moduleType, tenantId }: { moduleType: "pharmac
         products={products}
         laboratories={laboratories}
         suppliers={suppliers}
+        initialItems={shortageItems}
+        sourceShortageItemIds={shortageItems.map((item) => item.id)}
       />
     </PageStack>
   );
@@ -2250,7 +2272,7 @@ async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotatio
     getQuotationBundle(quotationId, tenantId),
     getSupplierSessions(quotationId, tenantId),
     getPurchaseOrdersByQuotation(quotationId, tenantId),
-    loadWinnerOrderPendingItems(quotationId),
+    loadWinnerOrderPendingItems(quotationId, tenantId),
   ]);
   const base = moduleType === "pharmacy" ? "/cotacoes/cotacoes-farmacia" : "/cotacoes/licitacoes";
   const isLocalStorageDemo = quotationId.startsWith("demo-") && quotationId !== "demo-farmacia" && quotationId !== "demo-licitacao";
@@ -2453,7 +2475,7 @@ async function PharmacyResponses({ quotationId, tenantId }: { quotationId: strin
 
 async function BiddingResponses({ quotationId, tenantId }: { quotationId: string; tenantId?: string }) {
   const [analysis, { quotation }, sessions] = await Promise.all([
-    getBiddingAnalysis(quotationId),
+    getBiddingAnalysis(quotationId, tenantId),
     getQuotationBundle(quotationId, tenantId),
     getSupplierSessions(quotationId, tenantId),
   ]);
@@ -2472,7 +2494,7 @@ async function BiddingResponses({ quotationId, tenantId }: { quotationId: string
 
 async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string; tenantId?: string }) {
   const [analysis, { quotation, items, responses }, orders] = await Promise.all([
-    getPharmacyAnalysis(quotationId),
+    getPharmacyAnalysis(quotationId, tenantId),
     getQuotationBundle(quotationId, tenantId),
     getPurchaseOrdersByQuotation(quotationId, tenantId),
   ]);
@@ -2634,7 +2656,7 @@ async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string
 
 async function BiddingAnalysis({ quotationId, tenantId }: { quotationId: string; tenantId?: string }) {
   const [analysis, { quotation }] = await Promise.all([
-    getBiddingAnalysis(quotationId),
+    getBiddingAnalysis(quotationId, tenantId),
     getQuotationBundle(quotationId, tenantId),
   ]);
 
@@ -2659,13 +2681,13 @@ async function BiddingAnalysis({ quotationId, tenantId }: { quotationId: string;
       <Card>
         <CardHeader><CardTitle>Ranking por menor preço unitário</CardTitle></CardHeader>
         <CardContent className="p-0">
-          <BiddingRankingTable quotationId={quotationId} />
+          <BiddingRankingTable quotationId={quotationId} tenantId={tenantId} />
         </CardContent>
       </Card>
       <Card>
         <CardHeader><CardTitle>Sugestão automática de compra</CardTitle></CardHeader>
         <CardContent className="space-y-4 p-0">
-          <AwardsTable quotationId={quotationId} />
+          <AwardsTable quotationId={quotationId} tenantId={tenantId} />
           <div className="flex flex-wrap gap-2 p-4">
             <Button asChild>
               <Link href={`/cotacoes/licitacoes/${quotationId}/pedidos`}><ReceiptText className="h-4 w-4" />Ver pedidos por fornecedor</Link>
@@ -2680,11 +2702,11 @@ async function BiddingAnalysis({ quotationId, tenantId }: { quotationId: string;
   );
 }
 
-async function ComparativeMap({ quotationId }: { quotationId: string }) {
+async function ComparativeMap({ quotationId, tenantId }: { quotationId: string; tenantId?: string }) {
   const [analysis, { responses }, sessions] = await Promise.all([
-    getBiddingAnalysis(quotationId),
-    getQuotationBundle(quotationId),
-    getSupplierSessions(quotationId),
+    getBiddingAnalysis(quotationId, tenantId),
+    getQuotationBundle(quotationId, tenantId),
+    getSupplierSessions(quotationId, tenantId),
   ]);
   const supplierDisplayName = buildSupplierNameResolver({ responses, sessions });
   return (
@@ -2731,8 +2753,8 @@ async function ComparativeMap({ quotationId }: { quotationId: string }) {
   );
 }
 
-async function PendingBalancePage({ quotationId }: { quotationId: string }) {
-  const analysis = await getBiddingAnalysis(quotationId);
+async function PendingBalancePage({ quotationId, tenantId }: { quotationId: string; tenantId?: string }) {
+  const analysis = await getBiddingAnalysis(quotationId, tenantId);
   return (
     <PageStack>
       <HeaderBlock
@@ -2800,7 +2822,7 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
   const hasValidResponses = validResponseItemIds.size > 0;
   let pendencies: Awaited<ReturnType<typeof getWinnerOrderPendingItems>> = [];
   try {
-    pendencies = await getWinnerOrderPendingItems(quotationId);
+    pendencies = await getWinnerOrderPendingItems(quotationId, tenantId);
   } catch {
     pendencies = [];
   }
@@ -3160,11 +3182,11 @@ async function PharmacySummaryCard({ collections }: { collections: Collections }
   );
 }
 
-async function BiddingRankingTable({ quotationId }: { quotationId: string }) {
+async function BiddingRankingTable({ quotationId, tenantId }: { quotationId: string; tenantId?: string }) {
   const [analysis, { items, responses }, sessions] = await Promise.all([
-    getBiddingAnalysis(quotationId),
-    getQuotationBundle(quotationId),
-    getSupplierSessions(quotationId),
+    getBiddingAnalysis(quotationId, tenantId),
+    getQuotationBundle(quotationId, tenantId),
+    getSupplierSessions(quotationId, tenantId),
   ]);
   const firstItem = items[0];
   const supplierDisplayName = buildSupplierNameResolver({ responses, sessions });
@@ -3206,11 +3228,11 @@ async function BiddingRankingTable({ quotationId }: { quotationId: string }) {
   );
 }
 
-async function AwardsTable({ quotationId }: { quotationId: string }) {
+async function AwardsTable({ quotationId, tenantId }: { quotationId: string; tenantId?: string }) {
   const [analysis, { items, responseItems, responses }, sessions] = await Promise.all([
-    getBiddingAnalysis(quotationId),
-    getQuotationBundle(quotationId),
-    getSupplierSessions(quotationId),
+    getBiddingAnalysis(quotationId, tenantId),
+    getQuotationBundle(quotationId, tenantId),
+    getSupplierSessions(quotationId, tenantId),
   ]);
   const firstItem = items[0];
   const supplierDisplayName = buildSupplierNameResolver({ responses, sessions });
@@ -3690,6 +3712,7 @@ export function getCompanyRouteTitle(slug: string[]) {
   const titles: Record<string, string> = {
     dashboard: "Dashboard",
     produtos: "Produtos",
+    "lista-faltas": "Lista de faltas",
     fornecedores: "Fornecedores",
     distribuidoras: "Distribuidoras",
     laboratorios: "Laboratórios",
