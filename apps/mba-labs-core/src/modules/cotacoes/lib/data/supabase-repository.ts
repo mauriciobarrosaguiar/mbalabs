@@ -278,7 +278,15 @@ export async function updateSupplier(id: string, patch: Partial<Supplier>) {
 }
 
 export async function deleteSupplier(id: string) {
-  return updateSupplier(id, { status: "inativo" });
+  const supabase = requireDb();
+  const { data, error } = await supabase
+    .from("suppliers")
+    .delete()
+    .eq("id", id)
+    .select("id")
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 export async function getDistributors() {
