@@ -679,7 +679,7 @@ export async function CompanyRoutePage({
   if (section === "acesso-suspenso") return <SuspendedAccessPage />;
   if (section === "sem-permissao") return <ModulePermissionDeniedPage />;
   if (section === "produtos") return <ProductsPage />;
-  if (section === "fornecedores") return <SuppliersPage />;
+  if (section === "fornecedores") return <SuppliersPage tenantId={tenantId} />;
   if (section === "distribuidoras") return <DistributorsPage />;
   if (section === "laboratorios") return <LaboratoriesPage />;
   if (section === "importar") return <ImportsPage />;
@@ -1491,10 +1491,11 @@ async function ProductsPage() {
   );
 }
 
-async function SuppliersPage() {
-  const { suppliers } = await getCollections();
+async function SuppliersPage({ tenantId }: { tenantId?: string }) {
+  const { suppliers } = await getCollections(tenantId);
   const demoRows = suppliers.map((supplier) => ({
     id: supplier.id,
+    tenantId: supplier.tenantId,
     nome: supplier.nome,
     empresa: supplier.empresa,
     whatsapp: supplier.whatsapp,
@@ -1515,7 +1516,8 @@ async function SuppliersPage() {
         primaryKey="nome"
         initialRows={demoRows}
         fields={[
-          { key: "nome", label: "Nome" },
+          { key: "tenantId", label: "Empresa", type: "hidden" },
+          { key: "nome", label: "Nome", required: true },
           { key: "empresa", label: "Empresa" },
           { key: "whatsapp", label: "WhatsApp" },
           { key: "email", label: "E-mail", type: "email" },
