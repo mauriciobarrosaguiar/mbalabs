@@ -77,8 +77,10 @@ export async function DELETE(
     return NextResponse.json({ error: "Supabase service role nao configurado." }, { status: 409 });
   }
 
+  let entity: Entity | null = null;
+
   try {
-    const entity = parseEntity((await params).entity);
+    entity = parseEntity((await params).entity);
     const auth = await authorizeCrud(entity);
     const { id } = await request.json() as { id?: string };
     if (!id) throw new RouteError("ID obrigatorio.", 400);
@@ -86,9 +88,22 @@ export async function DELETE(
       await assertEntityOwnership(entity, id, auth.tenantId);
     }
     await deleteByEntity(entity, id);
-    return NextResponse.json({ ok: true, row: { id, status: "inativo" } });
+    const deleted = entity === "suppliers";
+    return NextResponse.json({
+      ok: true,
+      deleted,
+      row: deleted ? { id } : { id, status: "inativo" },
+    });
   } catch (error) {
-    return errorResponse(error, "Erro ao inativar registro.");
+    if (entity === "suppliers" && errorCode(error) === "23503") {
+      return NextResponse.json(
+        {
+          error: "Este fornecedor ja possui historico de cotacoes ou pedidos e nao pode ser excluido. Use Inativar para preservar o historico.",
+        },
+        { status: 409 },
+      );
+    }
+    return errorResponse(error, entity === "suppliers" ? "Erro ao excluir fornecedor." : "Erro ao inativar registro.");
   }
 }
 
@@ -181,6 +196,11 @@ async function assertEntityOwnership(entity: Entity, id: string, tenantId: strin
   if (!data.tenant_id || data.tenant_id !== tenantId) {
     throw new RouteError("Registro pertence a outra empresa ou ao catalogo global.", 403);
   }
+}
+
+function errorCode(error: unknown) {
+  if (!error || typeof error !== "object" || !("code" in error)) return "";
+  return String((error as { code?: unknown }).code ?? "");
 }
 
 function errorResponse(error: unknown, fallback: string) {
