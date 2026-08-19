@@ -1713,20 +1713,27 @@ function buildControlledDatabaseError(message: string, error: unknown) {
   return message;
 }
 
-export async function getSupabaseWinnerOrderPendingItems(quotationId?: string) {
+export async function getSupabaseWinnerOrderPendingItems(quotationId?: string, tenantId?: string) {
   const supabase = readDb("winner_order_pending_items");
   if (!supabase) return [] as WinnerOrderPendingItem[];
   try {
     if (quotationId) {
       const { data: quotationRow, error: quotationError } = await supabase
         .from("quotations")
-        .select("status,deleted_at")
+        .select("status,deleted_at,tenant_id")
         .eq("id", quotationId)
         .maybeSingle();
-      if (quotationError || !quotationRow || isQuotationDeleted(quotationRow.status) || quotationRow.deleted_at) return [];
+      if (
+        quotationError ||
+        !quotationRow ||
+        isQuotationDeleted(quotationRow.status) ||
+        quotationRow.deleted_at ||
+        (tenantId && quotationRow.tenant_id !== tenantId)
+      ) return [];
     }
     let query = supabase.from("winner_order_pending_items").select("*").order("created_at", { ascending: false });
     if (quotationId) query = query.eq("quotation_id", quotationId);
+    if (tenantId) query = query.eq("tenant_id", tenantId);
     const { data, error } = await query;
     if (error) {
       logSupabaseReadError("winner_order_pending_items", error);
