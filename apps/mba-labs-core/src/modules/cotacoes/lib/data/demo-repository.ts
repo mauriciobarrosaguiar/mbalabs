@@ -146,8 +146,11 @@ export function updateSupplier(id: string, patch: Partial<Supplier>) {
   return updateById(getDemoStore().suppliers, id, patch);
 }
 
-export function deleteSupplier(id: string) {
-  return updateSupplier(id, { status: "inativo" });
+export function deleteSupplier(id: string, tenantId?: string) {
+  const store = getDemoStore();
+  const index = store.suppliers.findIndex((supplier) => supplier.id === id && (!tenantId || supplier.tenantId === tenantId));
+  if (index < 0) throw new Error("Fornecedor não encontrado.");
+  return store.suppliers.splice(index, 1)[0];
 }
 
 export function getDistributors() {
@@ -378,7 +381,7 @@ export function generatePharmacyAnalysis(quotationId = "quote-pharmacy-001") {
   );
 }
 
-export function getPharmacyAnalysis(quotationId = "quote-pharmacy-001") {
+export function getPharmacyAnalysis(quotationId = "quote-pharmacy-001", _tenantId?: string) {
   return generatePharmacyAnalysis(quotationId);
 }
 
@@ -387,7 +390,7 @@ export function generateBiddingAnalysis(quotationId = "quote-bidding-001") {
   return buildBiddingAnalysis(bundle.items, bundle.responseItems, bundle.responses);
 }
 
-export function getBiddingAnalysis(quotationId = "quote-bidding-001") {
+export function getBiddingAnalysis(quotationId = "quote-bidding-001", _tenantId?: string) {
   return generateBiddingAnalysis(quotationId);
 }
 
@@ -516,9 +519,11 @@ export function savePurchaseOrderReview(
   return nextOrder;
 }
 
-export function getWinnerOrderPendingItems(quotationId?: string) {
+export function getWinnerOrderPendingItems(quotationId?: string, tenantId?: string) {
   const activeQuotationIds = new Set(
-    getDemoStore().quotations.filter((quotation) => !isQuotationDeleted(quotation.status)).map((quotation) => quotation.id),
+    getDemoStore().quotations
+      .filter((quotation) => !isQuotationDeleted(quotation.status) && (!tenantId || quotation.tenantId === tenantId))
+      .map((quotation) => quotation.id),
   );
   return getDemoStore().winnerOrderPendingItems.filter((item) =>
     activeQuotationIds.has(item.quotationId) && (!quotationId || item.quotationId === quotationId),
