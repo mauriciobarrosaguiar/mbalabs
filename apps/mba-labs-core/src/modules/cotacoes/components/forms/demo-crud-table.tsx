@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Download, Edit, FileSpreadsheet, Plus, Search, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/modules/cotacoes/components/ui/button";
@@ -54,6 +55,7 @@ export function DemoCrudTable({
   emptyMessage?: string;
   showStatus?: boolean;
 }) {
+  const router = useRouter();
   const [rows, setRows] = useState<DemoCrudRow[]>(() => {
     if (typeof window === "undefined") return initialRows;
     if (remoteCrudEnabled(entity)) return initialRows;
@@ -67,6 +69,12 @@ export function DemoCrudTable({
   const [importPreview, setImportPreview] = useState<DemoCrudRow[]>([]);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const visibleFields = fields.filter((field) => field.type !== "hidden");
+
+  useEffect(() => {
+    if (remoteCrudEnabled(entity)) {
+      setRows(initialRows);
+    }
+  }, [entity, initialRows]);
 
   useEffect(() => {
     if (remoteCrudEnabled(entity)) return;
@@ -135,6 +143,7 @@ export function DemoCrudTable({
         );
         setEditing(null);
         setIsCreating(false);
+        router.refresh();
         toast.success(`${title} salvo no Supabase`);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Erro ao salvar registro.");
@@ -165,6 +174,7 @@ export function DemoCrudTable({
         if (!response.ok) throw new Error(payload.error ?? "Nao foi possivel inativar no Supabase.");
         const savedRow = (payload.row ?? { id, status: "inativo" }) as DemoCrudRow;
         setRows((current) => current.map((row) => (row.id === id ? { ...row, ...savedRow } : row)));
+        router.refresh();
         toast.success("Registro inativado no Supabase");
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Erro ao inativar registro.");
@@ -188,8 +198,14 @@ export function DemoCrudTable({
         });
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error ?? "Nao foi possivel remover no Supabase.");
-        setRows((current) => current.map((row) => (row.id === id ? { ...row, status: "inativo" } : row)));
-        toast.success("Registro inativado no Supabase");
+        if (payload.deleted === true) {
+          setRows((current) => current.filter((row) => row.id !== id));
+          toast.success("Fornecedor excluído do Supabase");
+        } else {
+          setRows((current) => current.map((row) => (row.id === id ? { ...row, status: "inativo" } : row)));
+          toast.success("Registro inativado no Supabase");
+        }
+        router.refresh();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Erro ao remover registro.");
       }
@@ -430,8 +446,14 @@ export function DemoCrudTable({
                       </Button>
                       <ConfirmDialog
                         title="Excluir registro?"
-                        description={remoteCrudEnabled(entity) ? "O registro sera inativado no Supabase." : "No modo demo, isso remove apenas do armazenamento local deste navegador."}
-                        confirmLabel={remoteCrudEnabled(entity) ? "Inativar" : "Excluir"}
+                        description={
+                          remoteCrudEnabled(entity) && entity === "suppliers"
+                            ? "O fornecedor será excluído definitivamente se ainda não possuir histórico de cotações ou pedidos."
+                            : remoteCrudEnabled(entity)
+                              ? "O registro será inativado no Supabase."
+                              : "No modo demo, isso remove apenas do armazenamento local deste navegador."
+                        }
+                        confirmLabel={remoteCrudEnabled(entity) && entity === "suppliers" ? "Excluir" : remoteCrudEnabled(entity) ? "Inativar" : "Excluir"}
                         onConfirm={() => remove(row.id)}
                         trigger={
                           <Button variant="outline" size="icon" aria-label={`Excluir ${row[primaryKey] ?? "registro"}`}>
