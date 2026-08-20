@@ -20,7 +20,8 @@ import {
   formatDate,
   formatMoney
 } from "@/components/ui-kit";
-import { deleteAdminResource, saveAdminResource } from "@/lib/actions/admin-actions";
+import { saveAdminResource } from "@/lib/actions/admin-actions";
+import { deleteAdminResourceWithPermanent } from "@/lib/actions/admin-delete-actions";
 import { firstParam } from "@/lib/form-utils";
 import {
   type AdminField,
@@ -250,6 +251,7 @@ function renderRowActions(resource: AdminResource, row: Record<string, unknown>,
             Apps
           </Link>
           <AdminDeleteForm id={row.id} resource={resource} mode="inactivate" label="Inativar" />
+          <AdminDeleteForm id={row.id} resource={resource} mode="delete" label="Excluir" />
         </div>
 
         <details className="group/actions w-full xl:hidden">
@@ -290,6 +292,9 @@ function renderRowActions(resource: AdminResource, row: Record<string, unknown>,
         mode="inactivate"
         label={inactiveField ? "Inativar" : "Excluir"}
       />
+      {resource === "usuarios" ? (
+        <AdminDeleteForm id={row.id} resource={resource} mode="delete" label="Excluir" />
+      ) : null}
     </div>
   );
 }
@@ -306,7 +311,7 @@ function AdminDeleteForm({
   label: string;
 }) {
   return (
-    <form action={deleteAdminResource}>
+    <form action={deleteAdminResourceWithPermanent}>
       <input name="resource" type="hidden" value={resource} />
       <input name="id" type="hidden" value={String(id)} />
       <input name="mode" type="hidden" value={mode} />
