@@ -107,7 +107,7 @@ export default async function HomePage() {
     },
     {
       name: lavagestor?.name || "LavaGestor",
-      category: "Em finalização · Estética Automotiva",
+      category: "Estética Automotiva",
       description:
         "Fluxo de clientes, veículos, lavagens, comissões, pagamentos e relatórios em homologação para operação comercial.",
       href: lavagestor?.href || "/apps/lavagestor",
@@ -116,7 +116,7 @@ export default async function HomePage() {
     },
     {
       name: bikecomanda?.name || "BikeComanda",
-      category: "Em finalização · Bicicletarias & Oficinas",
+      category: "Bicicletarias & Oficinas",
       description:
         "Comandas, clientes, bicicletas, serviços e financeiro em processo de integração nativa ao ecossistema MBA Labs.",
       href: bikecomanda?.href || "/apps/bikecomanda",
@@ -206,13 +206,13 @@ export default async function HomePage() {
 
             <div className={styles.stats}>
               <div className={styles.stat}>
-                <strong>2</strong>
-                soluções disponíveis
+                <strong>5</strong>
+                soluções no ecossistema
               </div>
               <span className={styles.statDivider} aria-hidden />
               <div className={styles.stat}>
-                <strong>3</strong>
-                módulos em homologação
+                <strong>7+</strong>
+                rotinas atendidas
               </div>
               <span className={styles.statDivider} aria-hidden />
               <div className={styles.stat}>
@@ -225,8 +225,8 @@ export default async function HomePage() {
           <div className={styles.floatingArea} aria-label="Sistemas da MBA Labs">
             <FloatingCard className={styles.floatCotacoes} icon={FileText} name="MBA Cotações · disponível" />
             <FloatingCard className={styles.floatPortal} icon={Users} name="Portal Associativo · disponível" />
-            <FloatingCard className={styles.floatLava} icon={Droplets} name="LavaGestor · finalização" />
-            <FloatingCard className={styles.floatBike} icon={Bike} name="BikeComanda · finalização" />
+            <FloatingCard className={styles.floatLava} icon={Droplets} name="LavaGestor" />
+            <FloatingCard className={styles.floatBike} icon={Bike} name="BikeComanda" />
             <FloatingCard className={styles.floatLex} icon={Scale} name="LexGestor · revisão" />
           </div>
         </div>
@@ -237,11 +237,10 @@ export default async function HomePage() {
           <div className={styles.sectionHead}>
             <div>
               <span className={styles.kicker}>Nosso ecossistema</span>
-              <h2 className={styles.sectionTitle}>Soluções em estágios claros de disponibilidade.</h2>
+              <h2 className={styles.sectionTitle}>Soluções para diferentes rotinas de negócio.</h2>
             </div>
             <p className={styles.sectionIntro}>
-              Aqui você vê o que já está disponível para operação e o que ainda está em finalização ou revisão antes de
-              receber novos clientes.
+              Conheça os sistemas da MBA Labs e encontre a solução mais adequada para a operação do seu negócio.
             </p>
           </div>
 
@@ -308,10 +307,9 @@ export default async function HomePage() {
       <section className={styles.ctaSection} id="contato">
         <div className={styles.container}>
           <div className={styles.ctaCard}>
-            <h2 className={styles.ctaTitle}>Quer conhecer uma solução já disponível?</h2>
+            <h2 className={styles.ctaTitle}>Quer conhecer uma solução da MBA Labs?</h2>
             <p className={styles.ctaText}>
-              Fale com a MBA Labs para conhecer os sistemas liberados para operação ou acompanhar os módulos que ainda
-              estão em homologação.
+              Fale com a equipe para descobrir qual sistema combina melhor com a rotina e as necessidades do seu negócio.
             </p>
             <div className={styles.ctaActions}>
               <a className={styles.primaryButton} href={whatsappHref} target="_blank" rel="noreferrer">
