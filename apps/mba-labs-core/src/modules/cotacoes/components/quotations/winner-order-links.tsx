@@ -8,8 +8,15 @@ import { Button } from "@/modules/cotacoes/components/ui/button";
 import type { PurchaseOrder } from "@/modules/cotacoes/lib/types";
 
 type WhatsappStatus = "pendente" | "enviado" | "falhou";
-type WhatsappEnvio = { vendedorId: string; status: WhatsappStatus; erro?: string };
-const labels: Record<WhatsappStatus, string> = { pendente: "pendente", enviado: "enviado", falhou: "falhou" };
+type WhatsappEnvio = {
+  vendedorId: string;
+  status: WhatsappStatus;
+  erro?: string;
+  deliveryStatus?: string;
+  enviadoEm?: string;
+  entregueEm?: string;
+  lidoEm?: string;
+};
 
 export function WinnerOrderLinks({ order }: { order?: PurchaseOrder }) {
   const [envio, setEnvio] = useState<WhatsappEnvio | null>(null);
@@ -17,16 +24,30 @@ export function WinnerOrderLinks({ order }: { order?: PurchaseOrder }) {
   useEffect(() => {
     if (!order) return;
     let active = true;
-    const query = new URLSearchParams({ quotationId: order.quotationId, tipoEnvio: "resultado_cotacao", vendedorId: vendorIdFor(order) });
-    fetch(`/api/whatsapp-envios?${query.toString()}`)
-      .then((response) => response.json())
-      .then((payload) => {
+    const query = new URLSearchParams({
+      quotationId: order.quotationId,
+      tipoEnvio: "resultado_cotacao",
+      vendedorId: vendorIdFor(order),
+    });
+
+    async function loadStatus() {
+      try {
+        const response = await fetch(`/api/whatsapp-envios?${query.toString()}`, { cache: "no-store" });
+        const payload = await response.json();
         if (!active) return;
         const first = Array.isArray(payload.envios) ? payload.envios[0] as WhatsappEnvio | undefined : undefined;
         if (first) setEnvio(first);
-      })
-      .catch(() => undefined);
-    return () => { active = false; };
+      } catch {
+        // O acompanhamento é complementar e não deve interromper a análise.
+      }
+    }
+
+    void loadStatus();
+    const interval = window.setInterval(() => void loadStatus(), 4000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, [order]);
 
   if (!order) return <span className="text-sm text-muted-foreground">Pedido pendente</span>;
@@ -77,16 +98,33 @@ export function WinnerOrderLinks({ order }: { order?: PurchaseOrder }) {
   }
 
   return (
-    <div className="flex flex-col items-start gap-2 sm:items-end">
-      <StatusBadge status={status} label={labels[status]} />
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-        <Button type="button" variant="outline" size="sm" onClick={copyLink}><Copy className="h-4 w-4" />Copiar link</Button>
-        {safeOrder.supplierWhatsapp ? <Button type="button" variant="outline" size="sm" onClick={openWhatsApp}><MessageCircle className="h-4 w-4" />Abrir WhatsApp</Button> : null}
-        <Button type="button" variant="outline" size="sm" onClick={() => void resend()}><RefreshCcw className="h-4 w-4" />Reenviar WhatsApp</Button>
+    <div className="flex min-w-0 flex-col items-stretch gap-2 sm:items-end">
+      <StatusBadge status={status} label={whatsappLabel(envio)} />
+      <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto">
+        <Button type="button" variant="outline" size="sm" className="w-full whitespace-normal" onClick={copyLink}>
+          <Copy className="h-4 w-4" />Copiar link
+        </Button>
+        {safeOrder.supplierWhatsapp ? (
+          <Button type="button" variant="outline" size="sm" className="w-full whitespace-normal" onClick={openWhatsApp}>
+            <MessageCircle className="h-4 w-4" />WhatsApp
+          </Button>
+        ) : null}
+        <Button type="button" variant="outline" size="sm" className="w-full whitespace-normal" onClick={() => void resend()}>
+          <RefreshCcw className="h-4 w-4" />Reenviar
+        </Button>
       </div>
       {envio?.erro ? <p className="max-w-xs text-right text-xs text-red-700">{envio.erro}</p> : null}
     </div>
   );
+}
+
+function whatsappLabel(envio: WhatsappEnvio | null) {
+  if (!envio) return "pendente";
+  if (envio.status === "falhou") return "falhou";
+  if (["read", "played"].includes(envio.deliveryStatus ?? "")) return "lido";
+  if (envio.deliveryStatus === "delivered") return "entregue";
+  if (envio.status === "enviado") return "enviado";
+  return "pendente";
 }
 
 function vendorIdFor(order: PurchaseOrder) { return order.supplierId || order.id; }
