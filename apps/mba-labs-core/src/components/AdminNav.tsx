@@ -160,6 +160,35 @@ export function AdminNav() {
   }, [pathname]);
 
   useEffect(() => {
+    const createLink = document.querySelector<HTMLAnchorElement>('a[href="#cadastro-admin"]');
+    const details = document.getElementById("cadastro-admin") as HTMLDetailsElement | null;
+
+    if (!createLink || !details) return;
+
+    const feminineWords = new Set(["categoria", "empresa", "assinatura"]);
+    createLink.childNodes.forEach((node) => {
+      if (node.nodeType !== Node.TEXT_NODE) return;
+      const label = node.textContent?.trim() ?? "";
+      if (!label.startsWith("Novo ")) return;
+      const singular = label.slice(5).trim();
+      if (feminineWords.has(singular)) {
+        node.textContent = ` Nova ${singular}`;
+      }
+    });
+
+    const handleCreate = (event: Event) => {
+      event.preventDefault();
+      details.open = true;
+      window.requestAnimationFrame(() => {
+        details.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    };
+
+    createLink.addEventListener("click", handleCreate);
+    return () => createLink.removeEventListener("click", handleCreate);
+  }, [pathname]);
+
+  useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
