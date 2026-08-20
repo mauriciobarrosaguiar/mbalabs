@@ -11,6 +11,14 @@ type ShortagePayload = {
   notes?: string;
 };
 
+type RegisteredProductRow = {
+  id: string;
+  nome: string;
+  ean: string | null;
+  unidade_base: string | null;
+  status: string;
+};
+
 class ApiError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
@@ -35,7 +43,7 @@ export async function GET() {
 
     return NextResponse.json({
       items,
-      products: (productsResult.data ?? []).map((product) => ({
+      products: ((productsResult.data ?? []) as RegisteredProductRow[]).map((product) => ({
         id: product.id,
         name: product.nome,
         ean: product.ean ?? "",
