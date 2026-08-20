@@ -4,6 +4,13 @@ import { ensureQuotationAccess } from "@/modules/cotacoes/lib/auth/quotation-acc
 import { canUseSupabaseOperational } from "@/modules/cotacoes/lib/data/supabase-operational";
 import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/server";
 
+type SessionStatusRow = {
+  id: string;
+  status: string;
+  submitted_at: string | null;
+  updated_at: string | null;
+};
+
 export async function GET(request: NextRequest) {
   if (!canUseSupabaseOperational()) {
     return NextResponse.json(
@@ -29,7 +36,7 @@ export async function GET(request: NextRequest) {
     if (error) throw error;
 
     return NextResponse.json({
-      sessions: (data ?? []).map((session) => ({
+      sessions: ((data ?? []) as SessionStatusRow[]).map((session) => ({
         id: session.id,
         status: session.status,
         submittedAt: session.submitted_at,
