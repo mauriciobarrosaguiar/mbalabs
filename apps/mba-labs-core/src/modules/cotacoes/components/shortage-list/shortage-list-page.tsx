@@ -28,6 +28,13 @@ type ShortageItem = {
   notes?: string;
 };
 
+type RegisteredProduct = {
+  id: string;
+  name: string;
+  ean?: string;
+  unit?: string;
+};
+
 const emptyForm = {
   productName: "",
   ean: "",
@@ -39,7 +46,9 @@ const emptyForm = {
 export function ShortageListPage() {
   const router = useRouter();
   const [items, setItems] = useState<ShortageItem[]>([]);
+  const [products, setProducts] = useState<RegisteredProduct[]>([]);
   const [form, setForm] = useState(emptyForm);
+  const [selectedProductId, setSelectedProductId] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,7 +59,9 @@ export function ShortageListPage() {
       .then(async (response) => {
         const payload = await response.json();
         if (!response.ok) throw new Error(payload.error ?? "Não foi possível carregar a lista.");
-        if (active) setItems(payload.items ?? []);
+        if (!active) return;
+        setItems(payload.items ?? []);
+        setProducts(payload.products ?? []);
       })
       .catch((error) => {
         if (active) toast.error(error instanceof Error ? error.message : "Erro ao carregar a lista.");
@@ -105,7 +116,39 @@ export function ShortageListPage() {
     }
   }
 
+  function selectRegisteredProduct(productId: string) {
+    setSelectedProductId(productId);
+    if (!productId) return;
+    const product = products.find((entry) => entry.id === productId);
+    if (!product) return;
+    setForm((current) => ({
+      ...current,
+      productName: product.name,
+      ean: product.ean ?? "",
+      requestedUnit: normalizeRegisteredUnit(product.unit),
+    }));
+  }
+
+  function typeProductName(value: string) {
+    const exactMatch = products.find((product) => normalizeText(product.name) === normalizeText(value));
+    const previousSelected = products.find((product) => product.id === selectedProductId);
+    setSelectedProductId(exactMatch?.id ?? "");
+    setForm((current) => ({
+      ...current,
+      productName: value,
+      ...(exactMatch
+        ? { ean: exactMatch.ean ?? "", requestedUnit: normalizeRegisteredUnit(exactMatch.unit) }
+        : previousSelected
+          ? { ean: "" }
+          : {}),
+    }));
+  }
+
   function startEdit(item: ShortageItem) {
+    const registered = products.find((product) => (
+      (item.ean && product.ean === item.ean) || normalizeText(product.name) === normalizeText(item.productName)
+    ));
+    setSelectedProductId(registered?.id ?? "");
     setEditingId(item.id);
     setForm({
       productName: item.productName,
@@ -119,6 +162,7 @@ export function ShortageListPage() {
 
   function resetForm() {
     setEditingId(null);
+    setSelectedProductId("");
     setForm(emptyForm);
   }
 
@@ -155,12 +199,29 @@ export function ShortageListPage() {
         <CardContent>
           <form onSubmit={saveItem} className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <div className="space-y-2 xl:col-span-2">
-              <Label htmlFor="shortage-product">Produto</Label>
+              <Label htmlFor="shortage-product-select">Produto</Label>
+              <select
+                id="shortage-product-select"
+                value={selectedProductId}
+                onChange={(event) => selectRegisteredProduct(event.target.value)}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                disabled={loading || products.length === 0}
+              >
+                <option value="">
+                  {products.length > 0 ? "Selecionar produto já cadastrado..." : "Nenhum produto cadastrado"}
+                </option>
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name}{product.ean ? ` · EAN ${product.ean}` : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">Ou digite o produto manualmente abaixo.</p>
               <Input
                 id="shortage-product"
                 value={form.productName}
-                onChange={(event) => setForm((current) => ({ ...current, productName: event.target.value }))}
-                placeholder="Ex.: Metilcobalamina líquido infantil"
+                onChange={(event) => typeProductName(event.target.value)}
+                placeholder="Digite o nome do produto"
                 required
                 maxLength={240}
               />
@@ -230,60 +291,72 @@ export function ShortageListPage() {
           <CardTitle>Produtos aguardando cotação ({items.length})</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Produto</TableHead>
+                <TableHead>EAN</TableHead>
+                <TableHead className="text-right">Quantidade</TableHead>
+                <TableHead>Unidade</TableHead>
+                <TableHead>Observação</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">Carregando...</TableCell></TableRow>
+              ) : items.length === 0 ? (
                 <TableRow>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>EAN</TableHead>
-                  <TableHead className="text-right">Quantidade</TableHead>
-                  <TableHead>Unidade</TableHead>
-                  <TableHead>Observação</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                  <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                    Nenhum produto na lista. Adicione o primeiro item acima.
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow><TableCell colSpan={6} className="h-24 text-center text-muted-foreground">Carregando...</TableCell></TableRow>
-                ) : items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                      Nenhum produto na lista. Adicione o primeiro item acima.
-                    </TableCell>
-                  </TableRow>
-                ) : items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.productName}</TableCell>
-                    <TableCell>{item.ean || "-"}</TableCell>
-                    <TableCell className="text-right">{item.requestedQuantity}</TableCell>
-                    <TableCell>{item.requestedUnit}</TableCell>
-                    <TableCell>{item.notes || "-"}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button type="button" variant="outline" size="sm" onClick={() => startEdit(item)}>
-                          <Edit className="h-4 w-4" />
-                          Editar
-                        </Button>
-                        <ConfirmDialog
-                          title="Excluir produto da lista?"
-                          description="O produto será removido definitivamente desta Lista de Faltas."
-                          confirmLabel="Excluir"
-                          onConfirm={() => deleteItem(item.id)}
-                          trigger={
-                            <Button type="button" variant="outline" size="icon" aria-label={`Excluir ${item.productName}`}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          }
-                        />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+              ) : items.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.productName}</TableCell>
+                  <TableCell>{item.ean || "-"}</TableCell>
+                  <TableCell className="text-right">{item.requestedQuantity}</TableCell>
+                  <TableCell>{item.requestedUnit}</TableCell>
+                  <TableCell>{item.notes || "-"}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => startEdit(item)}>
+                        <Edit className="h-4 w-4" />
+                        Editar
+                      </Button>
+                      <ConfirmDialog
+                        title="Excluir produto da lista?"
+                        description="O produto será removido definitivamente desta Lista de Faltas."
+                        confirmLabel="Excluir"
+                        onConfirm={() => deleteItem(item.id)}
+                        trigger={
+                          <Button type="button" variant="outline" size="icon" aria-label={`Excluir ${item.productName}`}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        }
+                      />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </div>
   );
+}
+
+function normalizeRegisteredUnit(value?: string) {
+  const normalized = String(value ?? "").trim().toUpperCase();
+  if (["UN", "CX", "FR", "PCT", "KIT"].includes(normalized)) return normalized;
+  if (normalized.includes("CAIX")) return "CX";
+  if (normalized.includes("FRASC")) return "FR";
+  if (normalized.includes("PACOT")) return "PCT";
+  if (normalized.includes("KIT")) return "KIT";
+  return "UN";
+}
+
+function normalizeText(value: string) {
+  return String(value ?? "").trim().toLocaleLowerCase("pt-BR");
 }
