@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { AppNav } from "@/components/AppNav";
+import { ChevronDown, Filter, Plus } from "lucide-react";
+import { AdminDataTable } from "@/components/AdminDataTable";
+import { AdminNav } from "@/components/AdminNav";
 import { AppPermissionFields } from "@/components/AppPermissionFields";
 import { AssinaturaFields } from "@/components/AssinaturaFields";
 import {
-  DataTable,
   DeleteButton,
   FormCheckbox,
   FormDateInput,
@@ -31,7 +32,7 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const resources = [
+const allowedResources = [
   "categorias-empresas",
   "empresas",
   "usuarios",
@@ -42,6 +43,49 @@ const resources = [
   "logs"
 ];
 
+const resourceMeta: Record<string, { section: string; description: string; singular: string }> = {
+  "categorias-empresas": {
+    section: "Produtos",
+    description: "Organize os tipos de empresas atendidas pelo MBA Labs sem misturar cadastros de clientes.",
+    singular: "categoria"
+  },
+  empresas: {
+    section: "Clientes",
+    description: "Gerencie empresas, situação de acesso, responsáveis e sistemas contratados em um só lugar.",
+    singular: "empresa"
+  },
+  usuarios: {
+    section: "Clientes",
+    description: "Gerencie contas, perfis e permissões de acesso aos sistemas contratados.",
+    singular: "usuário"
+  },
+  apps: {
+    section: "Produtos",
+    description: "Administre os sistemas disponíveis no portal e seus dados de publicação.",
+    singular: "app"
+  },
+  planos: {
+    section: "Produtos",
+    description: "Configure os planos comerciais disponíveis para cada sistema.",
+    singular: "plano"
+  },
+  assinaturas: {
+    section: "Financeiro",
+    description: "Acompanhe vínculos comerciais, vencimentos e situação das assinaturas.",
+    singular: "assinatura"
+  },
+  pagamentos: {
+    section: "Financeiro",
+    description: "Consulte e administre os registros financeiros do portal.",
+    singular: "pagamento"
+  },
+  logs: {
+    section: "Sistema",
+    description: "Consulte a trilha de auditoria das ações administrativas importantes.",
+    singular: "registro"
+  }
+};
+
 export default async function AdminResourcePage({
   params,
   searchParams
@@ -51,8 +95,12 @@ export default async function AdminResourcePage({
 }) {
   const { resource } = await params;
   const query = await searchParams;
-  const config = getAdminResource(resource);
 
+  if (!allowedResources.includes(resource)) {
+    notFound();
+  }
+
+  const config = getAdminResource(resource);
   if (!config) {
     notFound();
   }
@@ -70,121 +118,200 @@ export default async function AdminResourcePage({
   const editId = firstParam(query.edit);
   const editing = rows.find((row) => row.id === editId);
   const displayRows = formatAdminRows(rows);
+  const meta = resourceMeta[resource] ?? {
+    section: "Administração",
+    description: config.readOnly ? "Tela de leitura para auditoria dos registros." : "Gerencie os registros administrativos do portal.",
+    singular: "registro"
+  };
 
   return (
-    <main>
-      <AppNav />
-      <section className="page-shell grid gap-6 py-8">
-        <PageHeader
-          eyebrow="Administracao"
-          title={config.title}
-          description={
-            config.readOnly
-              ? "Tela de leitura para auditoria dos registros."
-              : "Cadastre, edite e inative registros administrativos do portal."
-          }
-          actions={
-            !config.readOnly && editing ? (
-              <Link className="button-primary" href={`/admin/${resource}`}>
-                Novo
-              </Link>
-            ) : null
-          }
-        />
+    <main className="min-h-screen">
+      <AdminNav />
+      <div className="lg:pl-[280px]">
+        <section className="page-shell grid gap-5 py-5 sm:gap-6 sm:py-8">
+          <div className="[&_h1]:text-3xl sm:[&_h1]:text-4xl">
+            <PageHeader
+              eyebrow={meta.section}
+              title={config.title}
+              description={meta.description}
+              actions={
+                !config.readOnly && editing ? (
+                  <Link className="button-secondary" href={`/admin/${resource}`}>
+                    Cancelar edição
+                  </Link>
+                ) : null
+              }
+            />
+          </div>
 
-        <div className="flex flex-wrap gap-2">
-          {resources.map((item) => (
-            <Link
-              className={`rounded-[8px] border px-3 py-2 text-sm font-bold ${
-                item === resource ? "border-emerald-300 bg-emerald-300/10" : "border-white/10 bg-white/[0.04]"
-              }`}
-              href={`/admin/${item}`}
-              key={item}
+          <MessageBanner ok={firstParam(query.ok)} error={firstParam(query.error) ?? error ?? undefined} />
+
+          {resource === "empresas" ? <EmpresaFilters options={options} filters={filters} /> : null}
+
+          {resource === "usuarios" ? (
+            <p className="rounded-xl border border-sky-300/20 bg-sky-300/[0.07] p-3 text-sm leading-6 text-sky-100">
+              Defina os dados do usuário, uma senha provisória e somente os apps que essa conta poderá acessar.
+            </p>
+          ) : null}
+
+          {resource === "apps" ? (
+            <p className="rounded-xl border border-amber-300/20 bg-amber-300/[0.07] p-3 text-sm leading-6 text-amber-100">
+              A URL interna precisa existir no código antes de ser usada. Esta tela não cria nem altera o código dos sistemas.
+            </p>
+          ) : null}
+
+          <section className="grid gap-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">Registros</p>
+                <h2 className="mt-1 text-lg font-black text-white">{config.title} cadastrados</h2>
+              </div>
+              {!config.readOnly && !editing ? (
+                <a className="button-primary inline-flex items-center gap-2" href="#cadastro-admin">
+                  <Plus size={16} />
+                  Novo {meta.singular}
+                </a>
+              ) : null}
+            </div>
+
+            <AdminDataTable
+              columns={config.columns}
+              rows={displayRows}
+              showToolbar={resource !== "empresas"}
+              actions={
+                config.readOnly
+                  ? undefined
+                  : (row) => renderRowActions(resource as AdminResource, row, Boolean(config.inactiveField))
+              }
+            />
+          </section>
+
+          {!config.readOnly ? (
+            <details
+              className="group overflow-hidden rounded-2xl border border-white/8 bg-white/[0.025]"
+              id="cadastro-admin"
+              open={Boolean(editing)}
             >
-              {item}
-            </Link>
-          ))}
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-4 transition hover:bg-white/[0.025] [&::-webkit-details-marker]:hidden sm:px-5">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-violet-300">Cadastro</p>
+                  <h2 className="mt-1 text-base font-black text-white sm:text-lg">
+                    {editing ? `Editar ${meta.singular}` : `Adicionar ${meta.singular}`}
+                  </h2>
+                  <p className="mt-1 text-xs leading-5 text-slate-400">
+                    {editing ? "Altere somente os campos necessários e salve." : "Abra apenas quando precisar criar um novo registro."}
+                  </p>
+                </div>
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 bg-white/[0.04] text-slate-300 transition group-open:rotate-180">
+                  <ChevronDown size={18} />
+                </span>
+              </summary>
+
+              <div className="border-t border-white/8 p-3 sm:p-4">
+                <form action={saveAdminResource}>
+                  <input name="resource" type="hidden" value={resource} />
+                  <input name="id" type="hidden" value={String(editing?.id ?? "")} />
+                  <ResourceForm
+                    title={editing ? `Editar ${config.title}` : `Novo registro em ${config.title}`}
+                    actions={
+                      <>
+                        <SubmitButton>{editing ? "Salvar alterações" : "Salvar"}</SubmitButton>
+                        {editing ? (
+                          <Link className="button-secondary" href={`/admin/${resource}`}>
+                            Cancelar
+                          </Link>
+                        ) : null}
+                      </>
+                    }
+                  >
+                    {config.fields.map((field) => renderAdminField(resource as AdminResource, field, editing, options))}
+                  </ResourceForm>
+                </form>
+              </div>
+            </details>
+          ) : null}
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function renderRowActions(resource: AdminResource, row: Record<string, unknown>, inactiveField: boolean) {
+  const editHref = `/admin/${resource}?edit=${row.id}`;
+
+  if (resource === "empresas") {
+    return (
+      <div className="flex justify-end">
+        <div className="hidden flex-wrap justify-end gap-2 xl:flex">
+          <Link className="button-secondary" href={editHref}>
+            Editar
+          </Link>
+          <Link className="button-secondary" href={`/admin/empresas/${row.id}/apps`}>
+            Apps
+          </Link>
+          <AdminDeleteForm id={row.id} resource={resource} mode="inactivate" label="Inativar" />
         </div>
 
-        <MessageBanner ok={firstParam(query.ok)} error={firstParam(query.error) ?? error ?? undefined} />
+        <details className="group/actions w-full xl:hidden">
+          <summary className="button-secondary flex min-h-10 w-full cursor-pointer list-none items-center justify-center gap-2 [&::-webkit-details-marker]:hidden">
+            Ações
+            <ChevronDown className="transition group-open/actions:rotate-180" size={15} />
+          </summary>
+          <div className="mt-2 grid gap-2 rounded-xl border border-white/8 bg-black/15 p-2 [&_a]:w-full [&_button]:w-full">
+            <Link className="button-secondary text-center" href={editHref}>
+              Editar dados
+            </Link>
+            <Link className="button-secondary text-center" href={`/admin/empresas/${row.id}/apps`}>
+              Gerenciar apps
+            </Link>
+            <AdminDeleteForm id={row.id} resource={resource} mode="inactivate" label="Inativar empresa" />
+            <div className="mt-1 border-t border-rose-400/15 pt-2">
+              <AdminDeleteForm id={row.id} resource={resource} mode="delete" label="Excluir permanentemente" />
+            </div>
+          </div>
+        </details>
+      </div>
+    );
+  }
 
-        {resource === "empresas" ? <EmpresaFilters options={options} filters={filters} /> : null}
+  return (
+    <div className="flex flex-wrap justify-end gap-2">
+      <Link className="button-secondary" href={editHref}>
+        Editar
+      </Link>
+      {resource === "apps" ? (
+        <Link className="button-secondary" href={`/admin/empresas?app=${row.id}`}>
+          Empresas
+        </Link>
+      ) : null}
+      <AdminDeleteForm
+        id={row.id}
+        resource={resource}
+        mode="inactivate"
+        label={inactiveField ? "Inativar" : "Excluir"}
+      />
+    </div>
+  );
+}
 
-        {resource === "usuarios" ? (
-          <p className="rounded-[8px] border border-sky-300/30 bg-sky-300/10 p-3 text-sm leading-6 text-sky-100">
-            Informe os dados do usuário, defina uma senha provisória e escolha o app que ele poderá acessar.
-          </p>
-        ) : null}
-
-        {resource === "apps" ? (
-          <p className="rounded-[8px] border border-amber-300/30 bg-amber-300/10 p-3 text-sm leading-6 text-amber-100">
-            A URL interna precisa existir no código antes de ser usada.
-          </p>
-        ) : null}
-
-        {!config.readOnly ? (
-          <form action={saveAdminResource}>
-            <input name="resource" type="hidden" value={resource} />
-            <input name="id" type="hidden" value={String(editing?.id ?? "")} />
-            <ResourceForm
-              title={editing ? `Editar ${config.title}` : `Novo registro em ${config.title}`}
-              actions={
-                <>
-                  <SubmitButton>{editing ? "Salvar alteracoes" : "Salvar"}</SubmitButton>
-                  {editing ? (
-                    <Link className="button-secondary" href={`/admin/${resource}`}>
-                      Cancelar
-                    </Link>
-                  ) : null}
-                </>
-              }
-            >
-              {config.fields.map((field) => renderAdminField(resource as AdminResource, field, editing, options))}
-            </ResourceForm>
-          </form>
-        ) : null}
-
-        <DataTable
-          columns={config.columns}
-          rows={displayRows}
-          actions={
-            config.readOnly
-              ? undefined
-              : (row) => (
-                  <div className="flex flex-wrap justify-end gap-2">
-                    <Link className="button-secondary" href={`/admin/${resource}?edit=${row.id}`}>
-                      Editar
-                    </Link>
-                    {resource === "empresas" ? (
-                      <Link className="button-secondary" href={`/admin/empresas/${row.id}/apps`}>
-                        Apps
-                      </Link>
-                    ) : null}
-                    {resource === "apps" ? (
-                      <Link className="button-secondary" href={`/admin/empresas?app=${row.id}`}>
-                        Empresas
-                      </Link>
-                    ) : null}
-                    <form action={deleteAdminResource}>
-                      <input name="resource" type="hidden" value={resource} />
-                      <input name="id" type="hidden" value={String(row.id)} />
-                      <input name="mode" type="hidden" value="inactivate" />
-                      <DeleteButton>{config.inactiveField ? "Inativar" : "Excluir"}</DeleteButton>
-                    </form>
-                    {resource === "empresas" ? (
-                      <form action={deleteAdminResource}>
-                        <input name="resource" type="hidden" value={resource} />
-                        <input name="id" type="hidden" value={String(row.id)} />
-                        <input name="mode" type="hidden" value="delete" />
-                        <DeleteButton>Excluir</DeleteButton>
-                      </form>
-                    ) : null}
-                  </div>
-                )
-          }
-        />
-      </section>
-    </main>
+function AdminDeleteForm({
+  id,
+  resource,
+  mode,
+  label
+}: {
+  id: unknown;
+  resource: AdminResource;
+  mode: "inactivate" | "delete";
+  label: string;
+}) {
+  return (
+    <form action={deleteAdminResource}>
+      <input name="resource" type="hidden" value={resource} />
+      <input name="id" type="hidden" value={String(id)} />
+      <input name="mode" type="hidden" value={mode} />
+      <DeleteButton>{label}</DeleteButton>
+    </form>
   );
 }
 
@@ -296,38 +423,52 @@ function EmpresaFilters({
   options: Awaited<ReturnType<typeof getAdminOptions>>;
   filters: Record<string, string | undefined>;
 }) {
+  const activeCount = Object.values(filters).filter(Boolean).length;
+
   return (
-    <form className="panel grid gap-4 p-4 md:grid-cols-3" action="/admin/empresas">
-      <FormSelect
-        label="Categoria"
-        name="categoria"
-        defaultValue={filters.categoria ?? ""}
-        options={options.categorias}
-      />
-      <FormSelect
-        label="Status"
-        name="status"
-        defaultValue={filters.status ?? ""}
-        options={[
-          { label: "Ativa", value: "ativa" },
-          { label: "Teste", value: "teste" },
-          { label: "Bloqueada", value: "bloqueada" },
-          { label: "Cancelada", value: "cancelada" }
-        ]}
-      />
-      <FormSelect label="App contratado" name="app" defaultValue={filters.app ?? ""} options={options.apps} />
-      <FormInput label="Cidade" name="cidade" defaultValue={filters.cidade ?? ""} />
-      <FormInput label="Estado" name="estado" defaultValue={filters.estado ?? ""} />
-      <FormInput label="Busca" name="q" defaultValue={filters.q ?? ""} placeholder="Nome, CNPJ ou responsavel" />
-      <div className="flex items-end gap-2 md:col-span-3">
-        <button className="button-primary" type="submit">
-          Filtrar
-        </button>
-        <Link className="button-secondary" href="/admin/empresas">
-          Limpar
-        </Link>
-      </div>
-    </form>
+    <details className="group overflow-hidden rounded-2xl border border-white/8 bg-white/[0.025]" open={activeCount > 0}>
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3.5 [&::-webkit-details-marker]:hidden sm:px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white/[0.05] text-slate-300">
+            <Filter size={17} />
+          </span>
+          <div>
+            <h2 className="text-sm font-black text-white">Filtros de empresas</h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {activeCount ? `${activeCount} filtro${activeCount > 1 ? "s" : ""} ativo${activeCount > 1 ? "s" : ""}` : "Abra somente quando precisar refinar a lista"}
+            </p>
+          </div>
+        </div>
+        <ChevronDown className="shrink-0 text-slate-400 transition group-open:rotate-180" size={18} />
+      </summary>
+
+      <form className="grid gap-3 border-t border-white/8 p-4 md:grid-cols-3" action="/admin/empresas">
+        <FormSelect label="Categoria" name="categoria" defaultValue={filters.categoria ?? ""} options={options.categorias} />
+        <FormSelect
+          label="Status"
+          name="status"
+          defaultValue={filters.status ?? ""}
+          options={[
+            { label: "Ativa", value: "ativa" },
+            { label: "Teste", value: "teste" },
+            { label: "Bloqueada", value: "bloqueada" },
+            { label: "Cancelada", value: "cancelada" }
+          ]}
+        />
+        <FormSelect label="App contratado" name="app" defaultValue={filters.app ?? ""} options={options.apps} />
+        <FormInput label="Cidade" name="cidade" defaultValue={filters.cidade ?? ""} />
+        <FormInput label="Estado" name="estado" defaultValue={filters.estado ?? ""} />
+        <FormInput label="Busca" name="q" defaultValue={filters.q ?? ""} placeholder="Nome, CNPJ ou responsável" />
+        <div className="flex items-end gap-2 md:col-span-3">
+          <button className="button-primary" type="submit">
+            Aplicar filtros
+          </button>
+          <Link className="button-secondary" href="/admin/empresas">
+            Limpar
+          </Link>
+        </div>
+      </form>
+    </details>
   );
 }
 
@@ -341,7 +482,17 @@ function formatAdminRows(rows: Array<Record<string, unknown>>) {
       if (["valor", "valor_mensal"].includes(key)) {
         formatted[key] = formatMoney(formatted[key]);
       }
+      if (key.toLowerCase().includes("cnpj")) {
+        formatted[key] = formatCnpj(formatted[key]);
+      }
     }
     return formatted;
   });
+}
+
+function formatCnpj(value: unknown) {
+  const original = String(value ?? "");
+  const digits = original.replace(/\D/g, "");
+  if (digits.length !== 14) return original;
+  return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
 }
