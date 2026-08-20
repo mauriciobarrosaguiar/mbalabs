@@ -32,6 +32,11 @@ type WhatsappEnvio = {
   providerMessageId?: string;
 };
 type SemiAutoQueue = { vendedorIds: string[]; index: number };
+type SessionRefreshRow = {
+  id: string;
+  status: SupplierQuoteSession["status"];
+  submittedAt?: string | null;
+};
 
 type SemiAutoEventDetail = {
   quotationId?: string;
@@ -57,17 +62,57 @@ export function SupplierLinksTable({ moduleType, sessions }: { moduleType: Modul
   const baseUrl = useMemo(() => typeof window === "undefined" ? "http://localhost:3001" : window.location.origin, []);
 
   useEffect(() => {
+    setRows(sessions);
+  }, [sessions]);
+
+  useEffect(() => {
     if (!quotationId) return;
     let active = true;
-    fetch(`/api/whatsapp-envios?quotationId=${encodeURIComponent(quotationId)}&tipoEnvio=link_cotacao`)
-      .then((response) => response.json())
-      .then((payload) => {
-        if (!active) return;
+
+    async function refreshWhatsappStatus() {
+      try {
+        const response = await fetch(`/api/whatsapp-envios?quotationId=${encodeURIComponent(quotationId)}&tipoEnvio=link_cotacao`, { cache: "no-store" });
+        const payload = await response.json();
+        if (!active || !response.ok) return;
         const envios = Array.isArray(payload.envios) ? payload.envios as WhatsappEnvio[] : [];
         setSendStatus(Object.fromEntries(envios.map((envio) => [envio.vendedorId, envio])));
-      })
-      .catch(() => undefined);
-    return () => { active = false; };
+      } catch {
+        // O status é complementar; a falha do polling não bloqueia a cotação.
+      }
+    }
+
+    async function refreshResponseStatus() {
+      try {
+        const response = await fetch(`/api/cotacoes/supplier-sessions?quotationId=${encodeURIComponent(quotationId)}`, { cache: "no-store" });
+        const payload = await response.json();
+        if (!active || !response.ok) return;
+        const latest = Array.isArray(payload.sessions) ? payload.sessions as SessionRefreshRow[] : [];
+        const byId = new Map(latest.map((session) => [session.id, session]));
+        setRows((current) => current.map((row) => {
+          const refreshed = byId.get(row.id);
+          if (!refreshed) return row;
+          return {
+            ...row,
+            status: refreshed.status,
+            submittedAt: refreshed.submittedAt ?? row.submittedAt,
+          };
+        }));
+      } catch {
+        // A tela mantém o último estado válido quando o polling falha temporariamente.
+      }
+    }
+
+    function refreshAll() {
+      void refreshWhatsappStatus();
+      void refreshResponseStatus();
+    }
+
+    refreshAll();
+    const interval = window.setInterval(refreshAll, 4000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
   }, [quotationId]);
 
   useEffect(() => {
@@ -353,7 +398,7 @@ export function SupplierLinksTable({ moduleType, sessions }: { moduleType: Modul
   const semiAutoSession = currentSemiAutoSession();
 
   return (
-    <div className="space-y-3 p-4">
+    <div className="min-w-0 space-y-3 p-4">
       {failedCount > 0 && !semiAutoQueue ? (
         <div className="flex flex-col gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -383,24 +428,24 @@ export function SupplierLinksTable({ moduleType, sessions }: { moduleType: Modul
         </div>
       ) : null}
 
-      <div className="grid gap-3 md:hidden">
+      <div className="grid gap-3 2xl:hidden">
         {rows.map((session) => {
           const envio = sendStatus[vendorIdFor(session)];
           const status = statusFor(session, sendStatus);
           return (
-            <div key={session.id} className="rounded-md border border-slate-200 bg-white p-3">
-              <div className="flex items-start justify-between gap-3">
+            <div key={session.id} className="min-w-0 rounded-md border border-slate-200 bg-white p-3">
+              <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <p className="font-medium text-slate-950">{session.sellerName || session.sellerCompany || "-"}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{session.sellerWhatsapp || "WhatsApp não cadastrado"}</p>
+                  <p className="break-words font-medium text-slate-950">{session.sellerName || session.sellerCompany || "-"}</p>
+                  <p className="mt-1 break-all text-sm text-muted-foreground">{session.sellerWhatsapp || "WhatsApp não cadastrado"}</p>
                   <div className="mt-2">
                     <p className="mb-1 text-xs font-medium text-slate-500">Resposta</p>
                     <ResponseStatusBadge status={session.status} />
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="min-w-0 sm:max-w-[260px] sm:text-right">
                   <StatusBadge status={status} label={whatsappStatusLabel(envio)} />
-                  <p className="mt-1 text-xs text-muted-foreground">{whatsappStatusDetail(envio)}</p>
+                  <p className="mt-1 break-words text-xs text-muted-foreground">{whatsappStatusDetail(envio)}</p>
                 </div>
               </div>
               <SupplierLinkActions session={session} onCopy={copyLink} onOpenWhatsApp={openWhatsApp} onRegenerate={regenerate} onResend={resend} onRevoke={revoke} />
@@ -409,7 +454,7 @@ export function SupplierLinksTable({ moduleType, sessions }: { moduleType: Modul
         })}
       </div>
 
-      <div className="hidden md:block">
+      <div className="hidden 2xl:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -445,20 +490,29 @@ function ResponseStatusBadge({ status }: { status: SupplierQuoteSession["status"
   const responded = status === "submitted";
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
+      className={`inline-flex max-w-full items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${
         responded
           ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
           : "bg-amber-100 text-amber-900 ring-amber-200"
       }`}
     >
       {responded ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-      {sessionStatusLabels[status] ?? status}
+      <span className="whitespace-normal">{sessionStatusLabels[status] ?? status}</span>
     </span>
   );
 }
 
 function SupplierLinkActions({ session, onCopy, onOpenWhatsApp, onRegenerate, onResend, onRevoke, align = "start" }: { session: SupplierQuoteSession; onCopy: (session: SupplierQuoteSession) => Promise<void>; onOpenWhatsApp: (session: SupplierQuoteSession) => boolean; onRegenerate: (session: SupplierQuoteSession) => Promise<void>; onResend: (session: SupplierQuoteSession, windowPrepared?: boolean) => Promise<void>; onRevoke: (session: SupplierQuoteSession) => Promise<void>; align?: "start" | "end" }) {
-  return <div className={`mt-3 flex flex-wrap gap-2 ${align === "end" ? "justify-end" : ""}`}><Button type="button" variant="outline" size="sm" onClick={() => void onCopy(session)}><Copy className="h-4 w-4" />Copiar link</Button>{session.sellerWhatsapp ? <Button type="button" variant="outline" size="sm" onClick={() => onOpenWhatsApp(session)}><MessageCircle className="h-4 w-4" />Abrir WhatsApp</Button> : null}<Button type="button" variant="outline" size="sm" onClick={() => void onResend(session)} disabled={session.status === "submitted" || session.status === "canceled"}><RefreshCcw className="h-4 w-4" />Reenviar WhatsApp</Button><Button type="button" variant="outline" size="sm" onClick={() => void onRegenerate(session)} disabled={session.status === "submitted" || session.status === "canceled"}><RefreshCcw className="h-4 w-4" />Novo token</Button><Button type="button" variant="outline" size="sm" onClick={() => void onRevoke(session)} disabled={session.status === "submitted" || session.status === "canceled"}><ShieldOff className="h-4 w-4" />Revogar</Button></div>;
+  const actionClass = "w-full whitespace-normal";
+  return (
+    <div className={`mt-3 grid w-full min-w-0 gap-2 sm:grid-cols-2 ${align === "end" ? "2xl:ml-auto 2xl:max-w-[320px]" : ""}`}>
+      <Button className={actionClass} type="button" variant="outline" size="sm" onClick={() => void onCopy(session)}><Copy className="h-4 w-4" />Copiar link</Button>
+      {session.sellerWhatsapp ? <Button className={actionClass} type="button" variant="outline" size="sm" onClick={() => onOpenWhatsApp(session)}><MessageCircle className="h-4 w-4" />WhatsApp</Button> : null}
+      <Button className={actionClass} type="button" variant="outline" size="sm" onClick={() => void onResend(session)} disabled={session.status === "submitted" || session.status === "canceled"}><RefreshCcw className="h-4 w-4" />Reenviar</Button>
+      <Button className={actionClass} type="button" variant="outline" size="sm" onClick={() => void onRegenerate(session)} disabled={session.status === "submitted" || session.status === "canceled"}><RefreshCcw className="h-4 w-4" />Novo token</Button>
+      <Button className={actionClass} type="button" variant="outline" size="sm" onClick={() => void onRevoke(session)} disabled={session.status === "submitted" || session.status === "canceled"}><ShieldOff className="h-4 w-4" />Revogar</Button>
+    </div>
+  );
 }
 
 function whatsappStatusLabel(envio?: WhatsappEnvio) {
