@@ -4,6 +4,53 @@ import { ensureQuotationAccess } from "@/modules/cotacoes/lib/auth/quotation-acc
 import { canUseSupabaseOperational } from "@/modules/cotacoes/lib/data/supabase-operational";
 import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/server";
 
+type SessionStatusRow = {
+  id: string;
+  status: string;
+  submitted_at: string | null;
+  updated_at: string | null;
+};
+
+export async function GET(request: NextRequest) {
+  if (!canUseSupabaseOperational()) {
+    return NextResponse.json(
+      { error: "Supabase não configurado para leitura real." },
+      { status: 409 },
+    );
+  }
+
+  try {
+    const quotationId = request.nextUrl.searchParams.get("quotationId");
+    if (!quotationId) return NextResponse.json({ error: "Cotação obrigatória." }, { status: 400 });
+
+    const auth = await getCurrentAuthContext();
+    const access = await ensureQuotationAccess(auth, quotationId);
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase
+      .from("supplier_quote_sessions")
+      .select("id,status,submitted_at,updated_at")
+      .eq("quotation_id", quotationId)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+
+    return NextResponse.json({
+      sessions: ((data ?? []) as SessionStatusRow[]).map((session) => ({
+        id: session.id,
+        status: session.status,
+        submittedAt: session.submitted_at,
+        updatedAt: session.updated_at,
+      })),
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Erro ao consultar links." },
+      { status: 500 },
+    );
+  }
+}
+
 export async function PATCH(request: NextRequest) {
   if (!canUseSupabaseOperational()) {
     return NextResponse.json(
