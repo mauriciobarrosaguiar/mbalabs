@@ -11,6 +11,14 @@ type ShortagePayload = {
   notes?: string;
 };
 
+type RegisteredProductRow = {
+  id: string;
+  nome: string;
+  ean: string | null;
+  unidade_base: string | null;
+  status: string;
+};
+
 class ApiError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
@@ -20,7 +28,28 @@ class ApiError extends Error {
 export async function GET() {
   try {
     const { tenantId } = await requireTenantAccess();
-    return NextResponse.json({ items: await listPendingShortageItems(tenantId) });
+    const supabase = createSupabaseAdminClient();
+    const [items, productsResult] = await Promise.all([
+      listPendingShortageItems(tenantId),
+      supabase
+        .from("products")
+        .select("id,nome,ean,unidade_base,status")
+        .eq("tenant_id", tenantId)
+        .eq("status", "ativo")
+        .order("nome", { ascending: true }),
+    ]);
+
+    if (productsResult.error) throw productsResult.error;
+
+    return NextResponse.json({
+      items,
+      products: ((productsResult.data ?? []) as RegisteredProductRow[]).map((product) => ({
+        id: product.id,
+        name: product.nome,
+        ean: product.ean ?? "",
+        unit: product.unidade_base ?? "UN",
+      })),
+    });
   } catch (error) {
     return errorResponse(error);
   }
