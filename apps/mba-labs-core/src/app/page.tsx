@@ -88,7 +88,7 @@ export default async function HomePage() {
   const products: Product[] = [
     {
       name: cotacoes?.name || "MBA Cotações",
-      category: "Disponível · Vendas & Orçamentos",
+      category: "Vendas & Orçamentos",
       description:
         cotacoes?.description ||
         "Crie cotações, receba respostas de fornecedores, analise vencedores e gere pedidos em um fluxo único.",
@@ -99,7 +99,7 @@ export default async function HomePage() {
     },
     {
       name: "Portal Associativo",
-      category: "Disponível · Associações & Clubes",
+      category: "Associações & Clubes",
       description: "Gestão de associados, financeiro, comprovantes, comunicados, permissões e relatórios em um único portal.",
       href: "/portal-associativo",
       icon: Users,
@@ -109,7 +109,7 @@ export default async function HomePage() {
       name: lavagestor?.name || "LavaGestor",
       category: "Estética Automotiva",
       description:
-        "Fluxo de clientes, veículos, lavagens, comissões, pagamentos e relatórios em homologação para operação comercial.",
+        "Fluxo de clientes, veículos, lavagens, comissões, pagamentos e relatórios para organizar a operação em um único sistema.",
       href: lavagestor?.href || "/apps/lavagestor",
       icon: Droplets,
       tone: "toneCyan"
@@ -118,15 +118,15 @@ export default async function HomePage() {
       name: bikecomanda?.name || "BikeComanda",
       category: "Bicicletarias & Oficinas",
       description:
-        "Comandas, clientes, bicicletas, serviços e financeiro em processo de integração nativa ao ecossistema MBA Labs.",
+        "Comandas, clientes, bicicletas, serviços e financeiro para organizar oficinas e bicicletarias em um único sistema.",
       href: bikecomanda?.href || "/apps/bikecomanda",
       icon: Bike,
       tone: "toneGreen"
     },
     {
       name: "LexGestor",
-      category: "Em revisão de segurança · Escritórios Jurídicos",
-      description: "Módulo jurídico temporariamente em homologação de segurança antes da liberação para novos clientes reais.",
+      category: "Escritórios Jurídicos",
+      description: "Organize clientes, documentos, checklists, atendimentos e rotinas jurídicas em um ambiente centralizado.",
       href: "/login",
       icon: Scale,
       tone: "tonePink"
@@ -223,11 +223,11 @@ export default async function HomePage() {
           </div>
 
           <div className={styles.floatingArea} aria-label="Sistemas da MBA Labs">
-            <FloatingCard className={styles.floatCotacoes} icon={FileText} name="MBA Cotações · disponível" />
-            <FloatingCard className={styles.floatPortal} icon={Users} name="Portal Associativo · disponível" />
+            <FloatingCard className={styles.floatCotacoes} icon={FileText} name="MBA Cotações" />
+            <FloatingCard className={styles.floatPortal} icon={Users} name="Portal Associativo" />
             <FloatingCard className={styles.floatLava} icon={Droplets} name="LavaGestor" />
             <FloatingCard className={styles.floatBike} icon={Bike} name="BikeComanda" />
-            <FloatingCard className={styles.floatLex} icon={Scale} name="LexGestor · revisão" />
+            <FloatingCard className={styles.floatLex} icon={Scale} name="LexGestor" />
           </div>
         </div>
       </section>
