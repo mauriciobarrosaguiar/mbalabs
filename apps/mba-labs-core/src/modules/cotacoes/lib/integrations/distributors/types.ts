@@ -9,7 +9,9 @@ export type DistributorConnectionMode =
   | "api"
   | "edi_van"
   | "communicator"
-  | "portal";
+  | "portal"
+  | "local_bridge"
+  | "ftp";
 
 export interface DistributorDefinition {
   key: string;
