@@ -27,6 +27,8 @@ const connectionLabel: Record<DistributorConnectionMode, string> = {
   edi_van: "EDI / VAN",
   communicator: "Comunicador",
   portal: "Portal",
+  local_bridge: "Ponte local Windows",
+  ftp: "FTP homologado",
 };
 
 export default async function DistributorIntegrationsPage() {
