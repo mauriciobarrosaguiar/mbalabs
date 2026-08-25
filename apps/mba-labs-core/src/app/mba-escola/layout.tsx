@@ -12,57 +12,89 @@ export default async function MbaEscolaLayout({ children }: { children: ReactNod
     redirect("/acesso-bloqueado?motivo=usuario");
   }
 
-  // No modelo unificado, o ADMIN MBA usa o mesmo auth.uid() da MBA Labs.
-  // O vínculo global é sincronizado de forma idempotente ao entrar no módulo.
-  if (current.isAdminMaster) {
-    await ensureMbaEscolaOwner({
-      userId: current.authUser.id,
-      nome: current.usuario.nome,
-      email: current.authUser.email ?? current.usuario.email
-    });
-  }
+  const identity = {
+    userId: current.authUser.id,
+    nome: current.usuario.nome,
+    email: (current.authUser.email ?? current.usuario.email).trim().toLowerCase()
+  };
+
+  if (current.isAdminMaster) await ensureMbaEscolaOwner(identity);
+  else await claimSchoolInvite(identity);
 
   return children;
 }
 
-async function ensureMbaEscolaOwner({
-  userId,
-  nome,
-  email
-}: {
-  userId: string;
-  nome: string;
-  email: string;
-}) {
+async function ensureMbaEscolaOwner({ userId, nome, email }: { userId: string; nome: string; email: string }) {
   const admin = createSupabaseAdminClient() as any;
-  const { error } = await admin.from("escola_super_admins").upsert(
-    {
-      user_id: userId,
-      nome,
-      email,
-      ativo: true
-    },
-    { onConflict: "user_id" }
-  );
+  const { error } = await admin.from("escola_super_admins").upsert({ user_id: userId, nome, email, ativo: true }, { onConflict: "user_id" });
+  if (error) throw new Error(`Falha ao sincronizar ADMIN MBA no módulo Escola: ${error.message}`);
+  await ensureDocumentsBucket(admin);
+}
 
-  if (error) {
-    throw new Error(`Falha ao sincronizar ADMIN MBA no módulo Escola: ${error.message}`);
+async function claimSchoolInvite({ userId, nome, email }: { userId: string; nome: string; email: string }) {
+  const admin = createSupabaseAdminClient() as any;
+  const { data: existing, error: existingError } = await admin.from("escola_perfis").select("id,escola_id,papel,ativo").eq("id", userId).maybeSingle();
+  if (existingError) throw new Error(`Falha ao consultar perfil escolar: ${existingError.message}`);
+
+  if (existing) {
+    await ensureDocumentsBucket(admin);
+    return;
   }
 
-  // O bucket é privado e serve apenas aos anexos de justificativas/documentos.
-  // Criamos somente se ainda não existir no Supabase central.
+  const { data: invite, error: inviteError } = await admin
+    .from("escola_convites")
+    .select("id,escola_id,nome,email,papel,aluno_id,status,expira_em")
+    .eq("status", "pendente")
+    .ilike("email", email)
+    .order("criado_em", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (inviteError) throw new Error(`Falha ao localizar convite escolar: ${inviteError.message}`);
+  if (!invite) return;
+  if (invite.papel === "aluno") return;
+  if (invite.expira_em && new Date(invite.expira_em).getTime() < Date.now()) {
+    await admin.from("escola_convites").update({ status: "expirado" }).eq("id", invite.id);
+    return;
+  }
+
+  const allowedRoles = new Set(["admin_escola", "direcao", "coordenacao", "professor", "responsavel"]);
+  if (!allowedRoles.has(String(invite.papel))) return;
+
+  const { error: profileError } = await admin.from("escola_perfis").insert({
+    id: userId,
+    escola_id: invite.escola_id,
+    nome: invite.nome || nome,
+    email,
+    papel: invite.papel,
+    ativo: true,
+    is_teste: false
+  });
+  if (profileError) throw new Error(`Falha ao criar perfil escolar: ${profileError.message}`);
+
+  if (invite.papel === "responsavel" && invite.aluno_id) {
+    const { error: linkError } = await admin.from("escola_aluno_responsaveis").upsert({
+      escola_id: invite.escola_id,
+      aluno_id: invite.aluno_id,
+      responsavel_id: userId,
+      principal: false,
+      autorizado_buscar: true
+    }, { onConflict: "aluno_id,responsavel_id" });
+    if (linkError) throw new Error(`Falha ao vincular responsável ao aluno: ${linkError.message}`);
+  }
+
+  await admin.from("escola_convites").update({ status: "aceito", aceito_em: new Date().toISOString() }).eq("id", invite.id);
+  await ensureDocumentsBucket(admin);
+}
+
+async function ensureDocumentsBucket(admin: any) {
   const { data: buckets } = await admin.storage.listBuckets();
-  const hasDocumentsBucket = (buckets ?? []).some((bucket: { name: string }) => bucket.name === "mba-escola-documentos");
-
-  if (!hasDocumentsBucket) {
-    const { error: bucketError } = await admin.storage.createBucket("mba-escola-documentos", {
-      public: false,
-      fileSizeLimit: 10 * 1024 * 1024,
-      allowedMimeTypes: ["application/pdf", "image/jpeg", "image/png", "image/webp"]
-    });
-
-    if (bucketError && !String(bucketError.message).toLowerCase().includes("already")) {
-      console.error("[mba-escola] Não foi possível garantir o bucket privado:", bucketError.message);
-    }
-  }
+  const exists = (buckets ?? []).some((bucket: { name: string }) => bucket.name === "mba-escola-documentos");
+  if (exists) return;
+  const { error } = await admin.storage.createBucket("mba-escola-documentos", {
+    public: false,
+    fileSizeLimit: 10 * 1024 * 1024,
+    allowedMimeTypes: ["application/pdf", "image/jpeg", "image/png", "image/webp"]
+  });
+  if (error && !String(error.message).toLowerCase().includes("already")) console.error("[mba-escola] Falha ao garantir bucket privado:", error.message);
 }
