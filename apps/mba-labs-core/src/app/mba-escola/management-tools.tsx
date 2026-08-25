@@ -43,14 +43,14 @@ function Reports({ supabase }: { supabase: SupabaseClient }) {
   const [end, setEnd] = useState(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Araguaina" }).format(now));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [stats, setStats] = useState({ alunos: 0, turmas: 0, frequencias: 0, presentes: 0, faltas: 0, justificadas: 0, comunicados: 0, autorizacoes: 0, respostas: 0, ocorrencias: 0, atividades: 0, entregas: 0 });
+  const [stats, setStats] = useState({ alunos: 0, turmas: 0, faltas: 0, justificadas: 0, comunicados: 0, autorizacoes: 0, respostas: 0, ocorrencias: 0, atividades: 0, entregas: 0 });
 
   const load = useCallback(async () => {
     setLoading(true); setError("");
     const req = await Promise.all([
       supabase.from("escola_alunos").select("id", { count: "exact", head: true }).eq("ativo", true),
       supabase.from("escola_turmas").select("id", { count: "exact", head: true }).eq("ativa", true),
-      supabase.from("escola_frequencias").select("status").gte("data_aula", start).lte("data_aula", end),
+      supabase.from("escola_frequencias").select("id", { count: "exact", head: true }).eq("status", "falta").gte("data_aula", start).lte("data_aula", end),
       supabase.from("escola_justificativas_falta").select("id", { count: "exact", head: true }).eq("status", "aprovada").gte("criado_em", `${start}T00:00:00`).lte("criado_em", `${end}T23:59:59`),
       supabase.from("escola_comunicados").select("id", { count: "exact", head: true }).gte("publicado_em", `${start}T00:00:00`).lte("publicado_em", `${end}T23:59:59`),
       supabase.from("escola_autorizacoes").select("id", { count: "exact", head: true }).gte("criado_em", `${start}T00:00:00`).lte("criado_em", `${end}T23:59:59`),
@@ -59,15 +59,12 @@ function Reports({ supabase }: { supabase: SupabaseClient }) {
       supabase.from("escola_atividades").select("id", { count: "exact", head: true }).gte("criado_em", `${start}T00:00:00`).lte("criado_em", `${end}T23:59:59`),
       supabase.from("escola_atividade_entregas").select("id", { count: "exact", head: true }).eq("situacao", "entregue").gte("entregue_em", `${start}T00:00:00`).lte("entregue_em", `${end}T23:59:59`)
     ]);
-    const firstError = req.find(x => x.error)?.error;
+    const firstError = req.find(item => item.error)?.error;
     if (firstError) setError(firstError.message);
-    const frequencies = (req[2].data ?? []) as Array<{ status: string }>;
     setStats({
       alunos: req[0].count ?? 0,
       turmas: req[1].count ?? 0,
-      frequencias: frequencies.length,
-      presentes: frequencies.filter(x => x.status === "presente").length,
-      faltas: frequencies.filter(x => x.status === "falta").length,
+      faltas: req[2].count ?? 0,
       justificadas: req[3].count ?? 0,
       comunicados: req[4].count ?? 0,
       autorizacoes: req[5].count ?? 0,
@@ -79,19 +76,18 @@ function Reports({ supabase }: { supabase: SupabaseClient }) {
     setLoading(false);
   }, [supabase, start, end]);
   useEffect(() => { void load(); }, [load]);
-  const presence = stats.frequencias ? Math.round((stats.presentes / stats.frequencias) * 1000) / 10 : 0;
 
   return <section className="grid gap-5">
     <div className="flex flex-col justify-between gap-3 rounded-3xl border border-slate-200 bg-white p-5 md:flex-row md:items-end">
-      <div><p className="text-xs font-black uppercase tracking-[.14em] text-[#176b5b]">Relatórios</p><h2 className="mt-1 text-2xl font-black">Indicadores da escola</h2></div>
-      <div className="grid grid-cols-2 gap-2"><label className="text-xs font-bold text-slate-500">De<input className={field} type="date" value={start} onChange={e => setStart(e.target.value)}/></label><label className="text-xs font-bold text-slate-500">Até<input className={field} type="date" value={end} onChange={e => setEnd(e.target.value)}/></label></div>
+      <div><p className="text-xs font-black uppercase tracking-[.14em] text-[#176b5b]">Relatórios</p><h2 className="mt-1 text-2xl font-black">Indicadores da escola</h2><p className="mt-1 text-sm text-slate-500">Indicadores de operação e comunicação, sem exigir controle diário de presença.</p></div>
+      <div className="grid grid-cols-2 gap-2"><label className="text-xs font-bold text-slate-500">De<input className={field} type="date" value={start} onChange={event => setStart(event.target.value)}/></label><label className="text-xs font-bold text-slate-500">Até<input className={field} type="date" value={end} onChange={event => setEnd(event.target.value)}/></label></div>
     </div>
     {error ? <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-800">{error}</p> : null}
     {loading ? <div className="grid place-items-center p-10"><LoaderCircle className="animate-spin"/></div> : <>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label="Alunos ativos" value={stats.alunos}/><Metric label="Turmas ativas" value={stats.turmas}/><Metric label="Presença no período" value={`${presence}%`}/><Metric label="Faltas" value={stats.faltas}/><Metric label="Faltas justificadas" value={stats.justificadas}/><Metric label="Comunicados" value={stats.comunicados}/><Metric label="Autorizações" value={stats.autorizacoes}/><Metric label="Respostas" value={stats.respostas}/><Metric label="Ocorrências" value={stats.ocorrencias}/><Metric label="Atividades" value={stats.atividades}/><Metric label="Entregas" value={stats.entregas}/>
+        <Metric label="Alunos ativos" value={stats.alunos}/><Metric label="Turmas ativas" value={stats.turmas}/><Metric label="Faltas registradas" value={stats.faltas}/><Metric label="Faltas justificadas" value={stats.justificadas}/><Metric label="Comunicados" value={stats.comunicados}/><Metric label="Autorizações" value={stats.autorizacoes}/><Metric label="Respostas" value={stats.respostas}/><Metric label="Ocorrências" value={stats.ocorrencias}/><Metric label="Atividades" value={stats.atividades}/><Metric label="Entregas" value={stats.entregas}/>
       </div>
-      <div className="rounded-3xl border border-slate-200 bg-white p-5"><h3 className="flex items-center gap-2 text-lg font-black"><BarChart3 size={20}/> Leitura rápida</h3><p className="mt-3 text-sm leading-6 text-slate-600">Foram registrados <b>{stats.frequencias}</b> lançamentos de frequência no período, com <b>{stats.presentes}</b> presenças e <b>{stats.faltas}</b> faltas. A escola publicou <b>{stats.comunicados}</b> comunicado(s), abriu <b>{stats.autorizacoes}</b> autorização(ões) e recebeu <b>{stats.respostas}</b> resposta(s).</p></div>
+      <div className="rounded-3xl border border-slate-200 bg-white p-5"><h3 className="flex items-center gap-2 text-lg font-black"><BarChart3 size={20}/> Leitura rápida</h3><p className="mt-3 text-sm leading-6 text-slate-600">No período constam <b>{stats.faltas}</b> falta(s) registrada(s), sendo <b>{stats.justificadas}</b> justificativa(s) aprovada(s). A escola publicou <b>{stats.comunicados}</b> comunicado(s), abriu <b>{stats.autorizacoes}</b> autorização(ões), recebeu <b>{stats.respostas}</b> resposta(s) e registrou <b>{stats.ocorrencias}</b> ocorrência(s).</p></div>
     </>}
   </section>;
 }
