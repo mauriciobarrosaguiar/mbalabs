@@ -43,10 +43,13 @@ export default function TodayDashboard({ supabase, profile, onNavigate }: Props)
     setLoading(true);
     setError("");
     const { data: auth } = await supabase.auth.getUser();
-    setUserId(auth.user?.id || "");
+    const uid = auth.user?.id || "";
+    setUserId(uid);
     const canHandleFamilyPending = manager || responsible;
+    let scheduleQuery = supabase.from("escola_grade_horarios").select("id,hora_inicio,hora_fim,turma:escola_turmas(nome),disciplina:escola_disciplinas(nome)").eq("ativo", true).eq("dia_semana", weekday).order("hora_inicio");
+    if (teacher && uid) scheduleQuery = scheduleQuery.eq("professor_id", uid);
     const reqs = await Promise.all([
-      supabase.from("escola_grade_horarios").select("id,hora_inicio,hora_fim,turma:escola_turmas(nome),disciplina:escola_disciplinas(nome)").eq("ativo", true).eq("dia_semana", weekday).order("hora_inicio"),
+      scheduleQuery,
       supabase.from("escola_comunicados").select("id,titulo,prioridade,exige_confirmacao,publicado_em").eq("status", "publicado").order("publicado_em", { ascending: false }).limit(50),
       supabase.from("escola_comunicado_leituras").select("comunicado_id,confirmado_em"),
       canHandleFamilyPending ? supabase.from("escola_autorizacao_destinatarios").select("autorizacao_id,aluno_id") : Promise.resolve({ data: [], error: null }),
@@ -72,7 +75,7 @@ export default function TodayDashboard({ supabase, profile, onNavigate }: Props)
     setAbsences((reqs[9].data ?? []) as Absence[]);
     setAbsenceJustifications((reqs[10].data ?? []) as AbsenceJustification[]);
     setLoading(false);
-  }, [manager, responsible, supabase, weekday]);
+  }, [manager, responsible, supabase, teacher, weekday]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -98,7 +101,7 @@ export default function TodayDashboard({ supabase, profile, onNavigate }: Props)
     {error ? <p className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-800">{error}</p> : null}
 
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      {!responsible ? <Card icon={<Clock3/>} label="Aulas na grade hoje" value={schedule.length} detail="Programação acadêmica do dia" onClick={() => onNavigate("academico")}/> : null}
+      {!responsible ? <Card icon={<Clock3/>} label={teacher ? "Minhas aulas hoje" : "Aulas na grade hoje"} value={schedule.length} detail={teacher ? "Sua programação de hoje" : "Programação acadêmica do dia"} onClick={() => onNavigate("academico")}/> : null}
       <Card icon={<Bell/>} label={responsible ? "Comunicados não lidos" : "Comunicados publicados"} value={responsible ? unreadNotices : notices.length} detail={responsible ? "Avisos aguardando leitura" : "Comunicados visíveis no portal"} onClick={() => onNavigate(responsible ? "pendencias" : "comunicacao")}/>
       {!teacher ? <Card icon={<ClipboardCheck/>} label="Autorizações pendentes" value={pendingAuth} detail={responsible ? "Respostas que ainda precisam ser enviadas" : "Respostas ainda não registradas pelas famílias"} onClick={() => onNavigate(responsible ? "pendencias" : "comunicacao")}/> : null}
       {!teacher ? <Card icon={<AlertTriangle/>} label={responsible ? "Ciências pendentes" : "Ocorrências exigindo ciência"} value={pendingAwareness} detail="Registros que exigem confirmação" onClick={() => onNavigate("alunos")}/> : null}
@@ -108,7 +111,7 @@ export default function TodayDashboard({ supabase, profile, onNavigate }: Props)
     </div>
 
     {!responsible && schedule.length ? <section className="rounded-3xl border border-slate-200 bg-white p-5">
-      <h3 className="flex items-center gap-2 text-lg font-black"><Clock3 size={19}/> Aulas de hoje</h3>
+      <h3 className="flex items-center gap-2 text-lg font-black"><Clock3 size={19}/> {teacher ? "Minhas aulas de hoje" : "Aulas de hoje"}</h3>
       <div className="mt-4 grid gap-2">{schedule.slice(0, 8).map(item => <div className="rounded-xl border border-slate-100 p-3" key={item.id}><p className="font-black">{formatShort(item.hora_inicio)}–{formatShort(item.hora_fim)} · {item.turma?.nome}</p><p className="text-sm text-slate-500">{item.disciplina?.nome || "Disciplina"}</p></div>)}</div>
     </section> : null}
   </section>;
