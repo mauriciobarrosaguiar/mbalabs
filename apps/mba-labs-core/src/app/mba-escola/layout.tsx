@@ -24,17 +24,35 @@ export default async function MbaEscolaLayout({ children }: { children: ReactNod
   return children;
 }
 
+function isSchoolSchemaUnavailable(error: { code?: string; message?: string } | null | undefined) {
+  const code = String(error?.code ?? "").toUpperCase();
+  const message = String(error?.message ?? "").toLowerCase();
+  return code === "PGRST205" || code === "42P01" || message.includes("schema cache") || message.includes("could not find the table");
+}
+
 async function ensureMbaEscolaOwner({ userId, nome, email }: { userId: string; nome: string; email: string }) {
   const admin = createSupabaseAdminClient() as any;
   const { error } = await admin.from("escola_super_admins").upsert({ user_id: userId, nome, email, ativo: true }, { onConflict: "user_id" });
-  if (error) throw new Error(`Falha ao sincronizar ADMIN MBA no módulo Escola: ${error.message}`);
+  if (error) {
+    if (isSchoolSchemaUnavailable(error)) {
+      console.warn("[mba-escola] Schema central ainda não aplicado; sincronização do ADMIN MBA adiada.");
+      return;
+    }
+    throw new Error(`Falha ao sincronizar ADMIN MBA no módulo Escola: ${error.message}`);
+  }
   await ensureDocumentsBucket(admin);
 }
 
 async function claimSchoolInvite({ userId, nome, email }: { userId: string; nome: string; email: string }) {
   const admin = createSupabaseAdminClient() as any;
   const { data: existing, error: existingError } = await admin.from("escola_perfis").select("id,escola_id,papel,ativo").eq("id", userId).maybeSingle();
-  if (existingError) throw new Error(`Falha ao consultar perfil escolar: ${existingError.message}`);
+  if (existingError) {
+    if (isSchoolSchemaUnavailable(existingError)) {
+      console.warn("[mba-escola] Schema central ainda não aplicado; reivindicação de convite adiada.");
+      return;
+    }
+    throw new Error(`Falha ao consultar perfil escolar: ${existingError.message}`);
+  }
 
   if (existing) {
     await ensureDocumentsBucket(admin);
@@ -50,7 +68,10 @@ async function claimSchoolInvite({ userId, nome, email }: { userId: string; nome
     .limit(1)
     .maybeSingle();
 
-  if (inviteError) throw new Error(`Falha ao localizar convite escolar: ${inviteError.message}`);
+  if (inviteError) {
+    if (isSchoolSchemaUnavailable(inviteError)) return;
+    throw new Error(`Falha ao localizar convite escolar: ${inviteError.message}`);
+  }
   if (!invite) return;
   if (invite.papel === "aluno") return;
   if (invite.expira_em && new Date(invite.expira_em).getTime() < Date.now()) {
