@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
-import MbaEscolaClient from "./mba-escola-client-v2";
+import { requireAppAccess } from "@/lib/core-data";
+import MbaEscolaSsoShell from "./mba-escola-sso-shell";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "MBA Escola",
@@ -13,6 +16,16 @@ export const metadata: Metadata = {
   }
 };
 
-export default function MbaEscolaPage() {
-  return <MbaEscolaClient />;
+export default async function MbaEscolaPage() {
+  const current = await requireAppAccess("mba-escola", "/mba-escola");
+
+  return (
+    <MbaEscolaSsoShell
+      identity={{
+        id: current.authUser.id,
+        email: current.authUser.email ?? "",
+        nome: current.usuario.nome
+      }}
+    />
+  );
 }
