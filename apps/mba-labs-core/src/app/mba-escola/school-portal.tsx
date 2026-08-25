@@ -10,6 +10,7 @@ import ManagementTools from "./management-tools";
 import RoleSections from "./role-sections";
 import SchoolDirectory from "./school-directory";
 import StudentCommunicationCenter from "./student-communication-center";
+import TeacherStudentPanel from "./teacher-student-panel";
 import TodayDashboard from "./today-dashboard";
 
 type Role = "admin_escola" | "direcao" | "coordenacao" | "professor" | "responsavel";
@@ -20,6 +21,7 @@ type Props = { supabase: SupabaseClient; profile: { nome: string; papel: Role; e
 
 export default function SchoolPortal({ supabase, profile }: Props) {
   const guardian = profile.papel === "responsavel";
+  const teacher = profile.papel === "professor";
   const manager = profile.papel === "admin_escola" || profile.papel === "direcao";
   const coordinator = profile.papel === "coordenacao";
   const [area, setArea] = useState<Area>("hoje");
@@ -74,7 +76,9 @@ export default function SchoolPortal({ supabase, profile }: Props) {
     {!guardian && area === "alunos" ? <div className="grid gap-6">
       {manager ? <SchoolDirectory supabase={supabase} schoolName={profile.escola?.nome || "Minha escola"} role={profile.papel as "admin_escola" | "direcao"} section="students"/> : null}
       <RoleSections supabase={supabase} profile={profile} section="students"/>
-      <StudentCommunicationCenter supabase={supabase} profile={profile} section="students"/>
+      {teacher
+        ? <TeacherStudentPanel supabase={supabase} profile={{ nome: profile.nome, papel: "professor", escola_id: profile.escola_id }}/>
+        : <StudentCommunicationCenter supabase={supabase} profile={profile} section="students"/>}
     </div> : null}
 
     {!guardian && area === "comunicacao" ? <div className="grid gap-6">
