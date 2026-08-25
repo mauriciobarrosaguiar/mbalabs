@@ -1,8 +1,0 @@
-project_id = "ihcfhuxxjllmqypzuzce"
-
-# Esta função recebe um access token emitido pelo projeto central da MBA Labs.
-# O gateway do projeto escolar não deve validar esse JWT com as chaves do
-# próprio MBA Escola; a função valida explicitamente o token contra o Auth
-# central antes de executar qualquer operação administrativa.
-[functions.mba-escola-sso]
-verify_jwt = false
