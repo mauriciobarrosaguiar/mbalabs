@@ -1,99 +1,160 @@
 "use client";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Bell, BookOpenText, CalendarDays, CheckCircle2, ClipboardList, MessageSquareText, Plus, Save, UserCheck, UsersRound } from "lucide-react";
+import { Bell, CalendarDays, CheckCircle2, MessageSquareText, Save, UsersRound } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Role = "admin_escola" | "direcao" | "coordenacao" | "professor" | "responsavel";
-type Section = "academic" | "students" | "communication";
+type Section = "students" | "communication";
 type Props = { supabase: SupabaseClient; profile: { nome: string; papel: Role; escola_id: string }; section: Section };
-type ClassRow = { id: string; nome: string; ano_letivo: number; turno: string | null };
 type Student = { id: string; nome: string; turma_id: string | null; turma?: { nome: string } | null };
-type Lesson = { id: string; turma_id: string; data_aula: string; componente: string | null; titulo: string; conteudo_trabalhado: string; tarefa_casa: string | null; turma?: { nome: string } | null };
-type Activity = { id: string; turma_id: string; professor_id: string; titulo: string; descricao: string; data_entrega: string | null; status: string; turma?: { nome: string } | null };
-type Delivery = { atividade_id: string; aluno_id: string; situacao: string; entregue_em: string | null; aluno?: { nome: string } | null };
-type Followup = { id: string; aluno_id: string; categoria: string; titulo: string; observacao: string; acao_planejada: string | null; prazo: string | null; status: string; visivel_responsavel: boolean; aluno?: { nome: string } | null };
+type Followup = { id: string; aluno_id: string; categoria: string; titulo: string; observacao: string; acao_planejada: string | null; prazo: string | null; status: string; visivel_responsavel: boolean; criado_em: string; aluno?: { nome: string } | null };
 type Meeting = { id: string; aluno_id: string | null; responsavel_id: string | null; titulo: string; inicio: string; fim: string | null; local: string | null; pauta: string | null; status: string; aluno?: { nome: string } | null };
 type Notice = { id: string; turma_id: string | null; titulo: string; resumo: string | null; conteudo: string; prioridade: string; exige_confirmacao: boolean; status: string; publicado_em: string | null; turma?: { nome: string } | null };
 type Reading = { comunicado_id: string; lido_em: string; confirmado_em: string | null };
-type GuardianLink = { aluno_id: string; responsavel_id: string; parentesco: string | null; principal: boolean };
-type Person = { id: string; nome: string; email: string | null };
-type ChildLink = { aluno_id: string; aluno: Student | null };
+type GuardianLink = { aluno_id: string; responsavel_id: string; principal: boolean };
+type Guardian = { id: string; nome: string };
+type Tab = "alunos" | "registros" | "comunicados" | "reunioes";
 
-type AcademicTab = "aulas" | "atividades";
-type StudentTab = "alunos" | "registros";
-type CommTab = "comunicados" | "reunioes";
 const field = "min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-700 focus:ring-4 focus:ring-emerald-100";
 const area = `${field} min-h-24 resize-y`;
 const primary = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#176b5b] px-4 font-black text-white disabled:opacity-50";
-const secondary = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700";
+const secondary = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 disabled:opacity-50";
 
 export default function RoleSections({ supabase, profile, section }: Props) {
-  const [tab, setTab] = useState<string>(section === "academic" ? "aulas" : section === "students" ? "alunos" : "comunicados");
-  const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [message, setMessage] = useState(""); const [error, setError] = useState(""); const [userId, setUserId] = useState("");
-  const [classes, setClasses] = useState<ClassRow[]>([]); const [students, setStudents] = useState<Student[]>([]); const [lessons, setLessons] = useState<Lesson[]>([]); const [activities, setActivities] = useState<Activity[]>([]); const [deliveries, setDeliveries] = useState<Delivery[]>([]); const [followups, setFollowups] = useState<Followup[]>([]); const [meetings, setMeetings] = useState<Meeting[]>([]); const [notices, setNotices] = useState<Notice[]>([]); const [readings, setReadings] = useState<Reading[]>([]); const [guardianLinks, setGuardianLinks] = useState<GuardianLink[]>([]); const [guardians, setGuardians] = useState<Person[]>([]); const [children, setChildren] = useState<ChildLink[]>([]);
-  const [lessonForm, setLessonForm] = useState({ turma_id: "", data_aula: today(), componente: "", titulo: "", conteudo: "", tarefa: "" });
-  const [activityForm, setActivityForm] = useState({ turma_id: "", titulo: "", descricao: "", data_entrega: "" });
+  const guardian = profile.papel === "responsavel";
+  const manager = ["admin_escola", "direcao", "coordenacao"].includes(profile.papel);
+  const [tab, setTab] = useState<Tab>(section === "students" ? "alunos" : "comunicados");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [userId, setUserId] = useState("");
+  const [students, setStudents] = useState<Student[]>([]);
+  const [followups, setFollowups] = useState<Followup[]>([]);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [readings, setReadings] = useState<Reading[]>([]);
+  const [links, setLinks] = useState<GuardianLink[]>([]);
+  const [guardians, setGuardians] = useState<Guardian[]>([]);
   const [followForm, setFollowForm] = useState({ aluno_id: "", categoria: "pedagogico", titulo: "", observacao: "", acao: "", prazo: "", visivel: true });
   const [meetingForm, setMeetingForm] = useState({ aluno_id: "", responsavel_id: "", titulo: "Reunião de acompanhamento", inicio: "", local: "", pauta: "" });
   const [noticeForm, setNoticeForm] = useState({ turma_id: "", titulo: "", resumo: "", conteudo: "", prioridade: "normal", exige_confirmacao: false });
-  const staff = profile.papel !== "responsavel";
-  const canPublishSchoolWide = ["admin_escola", "direcao", "coordenacao"].includes(profile.papel);
 
-  useEffect(() => { setTab(section === "academic" ? "aulas" : section === "students" ? "alunos" : "comunicados"); }, [section]);
+  useEffect(() => setTab(section === "students" ? "alunos" : "comunicados"), [section]);
 
   const load = useCallback(async () => {
-    setLoading(true); setError("");
-    const { data: auth } = await supabase.auth.getUser(); const uid = auth.user?.id || ""; setUserId(uid); if (!uid) { setLoading(false); return; }
-    const reqs = await Promise.all([
-      supabase.from("escola_turmas").select("id,nome,ano_letivo,turno").eq("ativa", true).order("nome"),
-      supabase.from("escola_alunos").select("id,nome,turma_id,turma:escola_turmas(nome)").eq("ativo", true).order("nome"),
-      supabase.from("escola_aulas").select("id,turma_id,data_aula,componente,titulo,conteudo_trabalhado,tarefa_casa,turma:escola_turmas(nome)").order("data_aula", { ascending: false }).limit(80),
-      supabase.from("escola_atividades").select("id,turma_id,professor_id,titulo,descricao,data_entrega,status,turma:escola_turmas(nome)").order("criado_em", { ascending: false }).limit(80),
-      supabase.from("escola_atividade_entregas").select("atividade_id,aluno_id,situacao,entregue_em,aluno:escola_alunos(nome)"),
-      supabase.from("escola_acompanhamentos").select("id,aluno_id,categoria,titulo,observacao,acao_planejada,prazo,status,visivel_responsavel,aluno:escola_alunos(nome)").order("criado_em", { ascending: false }).limit(100),
-      supabase.from("escola_reunioes").select("id,aluno_id,responsavel_id,titulo,inicio,fim,local,pauta,status,aluno:escola_alunos(nome)").order("inicio", { ascending: false }).limit(100),
-      supabase.from("escola_comunicados").select("id,turma_id,titulo,resumo,conteudo,prioridade,exige_confirmacao,status,publicado_em,turma:escola_turmas(nome)").order("publicado_em", { ascending: false, nullsFirst: false }).limit(100),
-      supabase.from("escola_comunicado_leituras").select("comunicado_id,lido_em,confirmado_em")
-    ]);
-    const firstError = reqs.find(r => r.error)?.error; if (firstError) setError(firstError.message);
-    setClasses((reqs[0].data ?? []) as ClassRow[]); setStudents((reqs[1].data ?? []) as unknown as Student[]); setLessons((reqs[2].data ?? []) as unknown as Lesson[]); setActivities((reqs[3].data ?? []) as unknown as Activity[]); setDeliveries((reqs[4].data ?? []) as unknown as Delivery[]); setFollowups((reqs[5].data ?? []) as unknown as Followup[]); setMeetings((reqs[6].data ?? []) as unknown as Meeting[]); setNotices((reqs[7].data ?? []) as unknown as Notice[]); setReadings((reqs[8].data ?? []) as Reading[]);
-    if (staff) { const [{ data: links }, { data: people }] = await Promise.all([supabase.from("escola_aluno_responsaveis").select("aluno_id,responsavel_id,parentesco,principal"), supabase.from("escola_perfis").select("id,nome,email").eq("papel", "responsavel").eq("ativo", true)]); setGuardianLinks((links ?? []) as GuardianLink[]); setGuardians((people ?? []) as Person[]); }
-    else { const { data } = await supabase.from("escola_aluno_responsaveis").select("aluno_id,aluno:escola_alunos(id,nome,turma_id,turma:escola_turmas(nome))").eq("responsavel_id", uid); setChildren((data ?? []) as unknown as ChildLink[]); }
-    setLoading(false);
-  }, [staff, supabase]);
-  useEffect(() => { void load(); }, [load]);
-  useEffect(() => { if (!lessonForm.turma_id && classes[0]) setLessonForm(v => ({ ...v, turma_id: classes[0].id })); if (!activityForm.turma_id && classes[0]) setActivityForm(v => ({ ...v, turma_id: classes[0].id })); if (!followForm.aluno_id && students[0]) setFollowForm(v => ({ ...v, aluno_id: students[0].id })); if (!meetingForm.aluno_id && students[0]) setMeetingForm(v => ({ ...v, aluno_id: students[0].id })); }, [classes, students, lessonForm.turma_id, activityForm.turma_id, followForm.aluno_id, meetingForm.aluno_id]);
-  useEffect(() => { if (!meetingForm.aluno_id || !staff) return; const link = guardianLinks.find(x => x.aluno_id === meetingForm.aluno_id && x.principal) || guardianLinks.find(x => x.aluno_id === meetingForm.aluno_id); setMeetingForm(v => ({ ...v, responsavel_id: link?.responsavel_id || "" })); }, [meetingForm.aluno_id, guardianLinks, staff]);
+    setLoading(true);
+    setError("");
+    const { data: auth, error: authError } = await supabase.auth.getUser();
+    const uid = auth.user?.id || "";
+    setUserId(uid);
+    if (authError || !uid) {
+      setError("Não foi possível identificar o usuário.");
+      setLoading(false);
+      return;
+    }
 
-  const childIds = useMemo(() => new Set(children.map(x => x.aluno_id)), [children]); const visibleStudents = profile.papel === "responsavel" ? children.map(x => x.aluno).filter(Boolean) as Student[] : students; const visibleFollowups = profile.papel === "responsavel" ? followups.filter(x => childIds.has(x.aluno_id)) : followups; const readingByNotice = useMemo(() => Object.fromEntries(readings.map(x => [x.comunicado_id, x])), [readings]);
-  async function save(action: () => PromiseLike<{ error?: { message: string } | null }>, success: string) { setSaving(true); setMessage(""); setError(""); const r = await action(); if (r.error) setError(r.error.message); else { setMessage(success); await load(); } setSaving(false); }
-  async function saveLesson(e: React.FormEvent) { e.preventDefault(); await save(() => supabase.from("escola_aulas").insert({ escola_id: profile.escola_id, turma_id: lessonForm.turma_id, professor_id: userId, data_aula: lessonForm.data_aula, componente: lessonForm.componente || null, titulo: lessonForm.titulo, conteudo_trabalhado: lessonForm.conteudo, tarefa_casa: lessonForm.tarefa || null }), "Aula registrada."); setLessonForm(v => ({ ...v, titulo: "", conteudo: "", tarefa: "" })); }
-  async function saveActivity(e: React.FormEvent) { e.preventDefault(); await save(() => supabase.from("escola_atividades").insert({ escola_id: profile.escola_id, turma_id: activityForm.turma_id, professor_id: userId, titulo: activityForm.titulo, descricao: activityForm.descricao, data_entrega: activityForm.data_entrega || null, status: "publicada" }), "Atividade publicada."); setActivityForm(v => ({ ...v, titulo: "", descricao: "", data_entrega: "" })); }
-  async function saveFollow(e: React.FormEvent) { e.preventDefault(); await save(() => supabase.from("escola_acompanhamentos").insert({ escola_id: profile.escola_id, aluno_id: followForm.aluno_id, autor_id: userId, categoria: followForm.categoria, titulo: followForm.titulo, observacao: followForm.observacao, acao_planejada: followForm.acao || null, prazo: followForm.prazo || null, status: "aberto", visivel_responsavel: followForm.visivel }), "Registro do aluno salvo."); setFollowForm(v => ({ ...v, titulo: "", observacao: "", acao: "", prazo: "" })); }
-  async function saveMeeting(e: React.FormEvent) { e.preventDefault(); await save(() => supabase.from("escola_reunioes").insert({ escola_id: profile.escola_id, aluno_id: meetingForm.aluno_id || null, responsavel_id: meetingForm.responsavel_id || null, criado_por: userId, titulo: meetingForm.titulo, inicio: new Date(meetingForm.inicio).toISOString(), local: meetingForm.local || null, pauta: meetingForm.pauta || null, status: "agendada" }), "Reunião agendada."); }
-  async function saveNotice(e: React.FormEvent) { e.preventDefault(); await save(() => supabase.from("escola_comunicados").insert({ escola_id: profile.escola_id, turma_id: noticeForm.turma_id || null, autor_id: userId, titulo: noticeForm.titulo, resumo: noticeForm.resumo || null, conteudo: noticeForm.conteudo, prioridade: noticeForm.prioridade, exige_confirmacao: noticeForm.exige_confirmacao, status: "publicado", publicado_em: new Date().toISOString() }), "Comunicado publicado."); setNoticeForm(v => ({ ...v, titulo: "", resumo: "", conteudo: "" })); }
-  async function markNotice(id: string, confirm: boolean) { await save(() => supabase.rpc("escola_mark_communication", { p_comunicado_id: id, p_confirmar: confirm }), confirm ? "Ciência registrada." : "Comunicado marcado como lido."); }
-  async function setDelivery(activityId: string, alunoId: string, situacao: string) { await save(() => supabase.from("escola_atividade_entregas").upsert({ atividade_id: activityId, aluno_id: alunoId, situacao, entregue_em: situacao === "entregue" ? new Date().toISOString() : null, atualizado_em: new Date().toISOString() }), "Entrega atualizada."); }
+    if (section === "students") {
+      const [studentResult, followResult] = await Promise.all([
+        supabase.from("escola_alunos").select("id,nome,turma_id,turma:escola_turmas(nome)").eq("ativo", true).order("nome"),
+        supabase.from("escola_acompanhamentos").select("id,aluno_id,categoria,titulo,observacao,acao_planejada,prazo,status,visivel_responsavel,criado_em,aluno:escola_alunos(nome)").order("criado_em", { ascending: false }).limit(120)
+      ]);
+      const firstError = studentResult.error || followResult.error;
+      if (firstError) setError(firstError.message);
+      setStudents((studentResult.data ?? []) as unknown as Student[]);
+      setFollowups((followResult.data ?? []) as unknown as Followup[]);
+    } else {
+      const requests = await Promise.all([
+        supabase.from("escola_alunos").select("id,nome,turma_id,turma:escola_turmas(nome)").eq("ativo", true).order("nome"),
+        supabase.from("escola_comunicados").select("id,turma_id,titulo,resumo,conteudo,prioridade,exige_confirmacao,status,publicado_em,turma:escola_turmas(nome)").eq("status", "publicado").order("publicado_em", { ascending: false, nullsFirst: false }).limit(120),
+        supabase.from("escola_comunicado_leituras").select("comunicado_id,lido_em,confirmado_em"),
+        supabase.from("escola_reunioes").select("id,aluno_id,responsavel_id,titulo,inicio,fim,local,pauta,status,aluno:escola_alunos(nome)").order("inicio", { ascending: false }).limit(120)
+      ]);
+      const firstError = requests.find(item => item.error)?.error;
+      if (firstError) setError(firstError.message);
+      setStudents((requests[0].data ?? []) as unknown as Student[]);
+      setNotices((requests[1].data ?? []) as unknown as Notice[]);
+      setReadings((requests[2].data ?? []) as Reading[]);
+      setMeetings((requests[3].data ?? []) as unknown as Meeting[]);
+
+      if (manager) {
+        const [linkResult, guardianResult] = await Promise.all([
+          supabase.from("escola_aluno_responsaveis").select("aluno_id,responsavel_id,principal"),
+          supabase.from("escola_perfis").select("id,nome").eq("papel", "responsavel").eq("ativo", true).order("nome")
+        ]);
+        if (linkResult.error || guardianResult.error) setError(linkResult.error?.message || guardianResult.error?.message || "Falha ao carregar responsáveis.");
+        setLinks((linkResult.data ?? []) as GuardianLink[]);
+        setGuardians((guardianResult.data ?? []) as Guardian[]);
+      }
+    }
+    setLoading(false);
+  }, [manager, section, supabase]);
+
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!followForm.aluno_id && students[0]) setFollowForm(value => ({ ...value, aluno_id: students[0].id }));
+    if (!meetingForm.aluno_id && students[0]) setMeetingForm(value => ({ ...value, aluno_id: students[0].id }));
+  }, [students, followForm.aluno_id, meetingForm.aluno_id]);
+  useEffect(() => {
+    if (!manager || !meetingForm.aluno_id) return;
+    const link = links.find(item => item.aluno_id === meetingForm.aluno_id && item.principal) || links.find(item => item.aluno_id === meetingForm.aluno_id);
+    setMeetingForm(value => ({ ...value, responsavel_id: link?.responsavel_id || "" }));
+  }, [links, manager, meetingForm.aluno_id]);
+
+  async function save(action: () => PromiseLike<{ error?: { message: string } | null }>, success: string) {
+    setSaving(true); setMessage(""); setError("");
+    const result = await action();
+    if (result.error) setError(result.error.message);
+    else { setMessage(success); await load(); }
+    setSaving(false);
+  }
+
+  async function saveFollow(event: React.FormEvent) {
+    event.preventDefault();
+    if (!manager || !userId) return;
+    await save(() => supabase.from("escola_acompanhamentos").insert({ escola_id: profile.escola_id, aluno_id: followForm.aluno_id, autor_id: userId, categoria: followForm.categoria, titulo: followForm.titulo, observacao: followForm.observacao, acao_planejada: followForm.acao || null, prazo: followForm.prazo || null, status: "aberto", visivel_responsavel: followForm.visivel }), "Registro do aluno salvo.");
+    setFollowForm(value => ({ ...value, titulo: "", observacao: "", acao: "", prazo: "" }));
+  }
+
+  async function saveMeeting(event: React.FormEvent) {
+    event.preventDefault();
+    if (!manager || !userId) return;
+    await save(() => supabase.from("escola_reunioes").insert({ escola_id: profile.escola_id, aluno_id: meetingForm.aluno_id || null, responsavel_id: meetingForm.responsavel_id || null, criado_por: userId, titulo: meetingForm.titulo, inicio: new Date(meetingForm.inicio).toISOString(), local: meetingForm.local || null, pauta: meetingForm.pauta || null, status: "agendada" }), "Reunião agendada.");
+    setMeetingForm(value => ({ ...value, inicio: "", local: "", pauta: "" }));
+  }
+
+  async function saveNotice(event: React.FormEvent) {
+    event.preventDefault();
+    if (!manager || !userId) return;
+    await save(() => supabase.from("escola_comunicados").insert({ escola_id: profile.escola_id, turma_id: noticeForm.turma_id || null, autor_id: userId, titulo: noticeForm.titulo, resumo: noticeForm.resumo || null, conteudo: noticeForm.conteudo, prioridade: noticeForm.prioridade, exige_confirmacao: noticeForm.exige_confirmacao, status: "publicado", publicado_em: new Date().toISOString() }), "Comunicado publicado.");
+    setNoticeForm(value => ({ ...value, titulo: "", resumo: "", conteudo: "" }));
+  }
+
+  async function markNotice(id: string, confirm: boolean) {
+    await save(() => supabase.rpc("escola_mark_communication", { p_comunicado_id: id, p_confirmar: confirm }), confirm ? "Ciência registrada." : "Comunicado marcado como lido.");
+  }
+
+  const readingByNotice = useMemo(() => Object.fromEntries(readings.map(item => [item.comunicado_id, item])), [readings]);
+  const tabs: Array<[Tab, string]> = section === "students" ? [["alunos", guardian ? "Meus filhos" : "Alunos"], ["registros", "Registros do aluno"]] : [["comunicados", "Comunicados"], ["reunioes", "Reuniões"]];
 
   if (loading) return <section className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-slate-500">Carregando...</section>;
-  const tabs = section === "academic" ? [["aulas","Aulas"],["atividades","Atividades"]] : section === "students" ? [["alunos","Alunos"],["registros","Registros do aluno"]] : [["comunicados","Comunicados"],["reunioes","Reuniões"]];
+
   return <section className="grid gap-5">
-    <nav className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2">{tabs.map(([id,label]) => <button key={id} className={`rounded-xl px-4 py-2.5 text-sm font-black ${tab === id ? "bg-[#176b5b] text-white" : "text-slate-600"}`} onClick={() => setTab(id)} type="button">{label}</button>)}</nav>
-    {message ? <p className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">{message}</p> : null}{error ? <p className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-800">{error}</p> : null}
-    {tab === "aulas" ? <Two><FormCard title="Registrar aula" show={staff} icon={<BookOpenText/>}><form className="grid gap-3" onSubmit={saveLesson}><ClassSelect classes={classes} value={lessonForm.turma_id} set={v => setLessonForm(x => ({...x,turma_id:v}))}/><input className={field} type="date" value={lessonForm.data_aula} onChange={e => setLessonForm(x => ({...x,data_aula:e.target.value}))}/><input className={field} placeholder="Disciplina" value={lessonForm.componente} onChange={e => setLessonForm(x => ({...x,componente:e.target.value}))}/><input className={field} placeholder="Título da aula" required value={lessonForm.titulo} onChange={e => setLessonForm(x => ({...x,titulo:e.target.value}))}/><textarea className={area} placeholder="Conteúdo trabalhado" required value={lessonForm.conteudo} onChange={e => setLessonForm(x => ({...x,conteudo:e.target.value}))}/><textarea className={area} placeholder="Tarefa de casa (opcional)" value={lessonForm.tarefa} onChange={e => setLessonForm(x => ({...x,tarefa:e.target.value}))}/><button className={primary} disabled={saving}><Save size={17}/> Salvar aula</button></form></FormCard><ListCard title="Aulas registradas" icon={<BookOpenText/>}>{lessons.map(l => <Item key={l.id} title={l.titulo} meta={`${l.turma?.nome || l.componente || "Turma"} · ${date(l.data_aula)}`} text={l.conteudo_trabalhado}/>)}</ListCard></Two> : null}
-    {tab === "atividades" ? <Two><FormCard title="Nova atividade" show={staff} icon={<ClipboardList/>}><form className="grid gap-3" onSubmit={saveActivity}><ClassSelect classes={classes} value={activityForm.turma_id} set={v => setActivityForm(x => ({...x,turma_id:v}))}/><input className={field} placeholder="Título" required value={activityForm.titulo} onChange={e => setActivityForm(x => ({...x,titulo:e.target.value}))}/><textarea className={area} placeholder="Instruções" required value={activityForm.descricao} onChange={e => setActivityForm(x => ({...x,descricao:e.target.value}))}/><input className={field} type="date" value={activityForm.data_entrega} onChange={e => setActivityForm(x => ({...x,data_entrega:e.target.value}))}/><button className={primary} disabled={saving}><Plus size={17}/> Publicar</button></form></FormCard><ListCard title="Atividades" icon={<ClipboardList/>}>{activities.map(a => <article className="rounded-2xl border border-slate-200 p-4" key={a.id}><p className="font-black">{a.titulo}</p><p className="text-xs font-bold text-[#176b5b]">{a.turma?.nome || "Turma"} · Entrega {date(a.data_entrega)}</p><p className="mt-2 text-sm text-slate-600">{a.descricao}</p>{staff ? <div className="mt-3 grid gap-1 border-t border-slate-100 pt-3">{students.filter(s => s.turma_id === a.turma_id).map(s => { const d = deliveries.find(x => x.atividade_id === a.id && x.aluno_id === s.id); return <div className="flex items-center justify-between gap-2" key={s.id}><span className="text-sm">{s.nome}</span><select className="rounded-lg border px-2 py-1 text-xs" value={d?.situacao || "pendente"} onChange={e => void setDelivery(a.id,s.id,e.target.value)}><option value="pendente">Pendente</option><option value="entregue">Entregue</option><option value="atrasada">Atrasada</option><option value="nao_entregue">Não entregue</option></select></div>; })}</div> : null}</article>)}</ListCard></Two> : null}
-    {tab === "alunos" ? <ListCard title={profile.papel === "responsavel" ? "Meus filhos" : "Alunos"} icon={<UsersRound/>}>{visibleStudents.map(s => <Item key={s.id} title={s.nome} meta={s.turma?.nome || "Sem turma"}/>)}</ListCard> : null}
-    {tab === "registros" ? <Two><FormCard title="Novo registro" show={staff} icon={<MessageSquareText/>}><form className="grid gap-3" onSubmit={saveFollow}><select className={field} value={followForm.aluno_id} onChange={e => setFollowForm(x => ({...x,aluno_id:e.target.value}))}>{students.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}</select><select className={field} value={followForm.categoria} onChange={e => setFollowForm(x => ({...x,categoria:e.target.value}))}><option value="pedagogico">Pedagógico</option><option value="convivencia">Convivência</option><option value="frequencia">Frequência</option><option value="comportamento">Comportamento</option><option value="outro">Outro</option></select><input className={field} placeholder="Título" required value={followForm.titulo} onChange={e => setFollowForm(x => ({...x,titulo:e.target.value}))}/><textarea className={area} placeholder="Observação" required value={followForm.observacao} onChange={e => setFollowForm(x => ({...x,observacao:e.target.value}))}/><textarea className={area} placeholder="Ação planejada" value={followForm.acao} onChange={e => setFollowForm(x => ({...x,acao:e.target.value}))}/><label className="flex gap-2 text-sm font-bold"><input type="checkbox" checked={followForm.visivel} onChange={e => setFollowForm(x => ({...x,visivel:e.target.checked}))}/> Visível ao responsável</label><button className={primary}>Salvar registro</button></form></FormCard><ListCard title="Histórico de registros" icon={<MessageSquareText/>}>{visibleFollowups.map(f => <Item key={f.id} title={f.titulo} meta={`${f.aluno?.nome || "Aluno"} · ${f.categoria}`} text={f.observacao}/>)}</ListCard></Two> : null}
-    {tab === "comunicados" ? <Two><FormCard title="Novo comunicado" show={staff} icon={<Bell/>}><form className="grid gap-3" onSubmit={saveNotice}><select className={field} value={noticeForm.turma_id} onChange={e => setNoticeForm(x => ({...x,turma_id:e.target.value}))}>{canPublishSchoolWide ? <option value="">Toda a escola</option> : <option value="" disabled>Selecione a turma</option>}{classes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}</select><input className={field} placeholder="Título" required value={noticeForm.titulo} onChange={e => setNoticeForm(x => ({...x,titulo:e.target.value}))}/><input className={field} placeholder="Resumo curto" value={noticeForm.resumo} onChange={e => setNoticeForm(x => ({...x,resumo:e.target.value}))}/><textarea className={area} placeholder="Conteúdo" required value={noticeForm.conteudo} onChange={e => setNoticeForm(x => ({...x,conteudo:e.target.value}))}/><select className={field} value={noticeForm.prioridade} onChange={e => setNoticeForm(x => ({...x,prioridade:e.target.value}))}><option value="normal">Normal</option><option value="importante">Importante</option><option value="urgente">Urgente</option></select><label className="flex gap-2 text-sm font-bold"><input type="checkbox" checked={noticeForm.exige_confirmacao} onChange={e => setNoticeForm(x => ({...x,exige_confirmacao:e.target.checked}))}/> Exigir “Li e estou ciente”</label><button className={primary}>Publicar</button></form></FormCard><ListCard title="Comunicados" icon={<Bell/>}>{notices.map(n => { const r = readingByNotice[n.id] as Reading | undefined; return <article className={`rounded-2xl border p-4 ${n.prioridade === "urgente" ? "border-rose-200 bg-rose-50" : "border-slate-200"}`} key={n.id}><p className="font-black">{n.titulo}</p><p className="text-xs font-bold text-[#176b5b]">{n.turma?.nome || "Toda a escola"} · {date(n.publicado_em)}</p><p className="mt-2 text-sm text-slate-600">{n.conteudo}</p>{profile.papel === "responsavel" ? <div className="mt-3 flex gap-2">{!r ? <button className={secondary} onClick={() => void markNotice(n.id,false)}><UserCheck size={15}/> Marcar lido</button> : <span className="text-xs font-bold text-emerald-700">Lido{r.confirmado_em ? " · ciência confirmada" : ""}</span>}{n.exige_confirmacao && !r?.confirmado_em ? <button className={primary} onClick={() => void markNotice(n.id,true)}><CheckCircle2 size={15}/> Li e estou ciente</button> : null}</div> : null}</article>; })}</ListCard></Two> : null}
-    {tab === "reunioes" ? <Two><FormCard title="Agendar reunião" show={staff} icon={<CalendarDays/>}><form className="grid gap-3" onSubmit={saveMeeting}><select className={field} value={meetingForm.aluno_id} onChange={e => setMeetingForm(x => ({...x,aluno_id:e.target.value}))}>{students.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}</select><select className={field} value={meetingForm.responsavel_id} onChange={e => setMeetingForm(x => ({...x,responsavel_id:e.target.value}))}><option value="">Sem responsável definido</option>{guardianLinks.filter(l => l.aluno_id === meetingForm.aluno_id).map(l => guardians.find(g => g.id === l.responsavel_id)).filter(Boolean).map(g => <option key={g!.id} value={g!.id}>{g!.nome}</option>)}</select><input className={field} value={meetingForm.titulo} onChange={e => setMeetingForm(x => ({...x,titulo:e.target.value}))}/><input className={field} type="datetime-local" required value={meetingForm.inicio} onChange={e => setMeetingForm(x => ({...x,inicio:e.target.value}))}/><input className={field} placeholder="Local" value={meetingForm.local} onChange={e => setMeetingForm(x => ({...x,local:e.target.value}))}/><textarea className={area} placeholder="Pauta" value={meetingForm.pauta} onChange={e => setMeetingForm(x => ({...x,pauta:e.target.value}))}/><button className={primary}>Agendar</button></form></FormCard><ListCard title="Reuniões" icon={<CalendarDays/>}>{meetings.map(m => <Item key={m.id} title={m.titulo} meta={`${m.aluno?.nome || "Geral"} · ${dateTime(m.inicio)}`} text={m.local || m.pauta || ""}/>)}</ListCard></Two> : null}
+    <nav className="flex flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-2">{tabs.map(([id, label]) => <button key={id} type="button" onClick={() => setTab(id)} className={`rounded-xl px-4 py-2.5 text-sm font-black ${tab === id ? "bg-[#176b5b] text-white" : "text-slate-600"}`}>{label}</button>)}</nav>
+    {message ? <p className="rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">{message}</p> : null}
+    {error ? <p className="rounded-2xl bg-rose-50 p-4 text-sm font-bold text-rose-800">{error}</p> : null}
+
+    {tab === "alunos" ? <Card title={guardian ? "Meus filhos" : "Alunos"} icon={<UsersRound size={20}/>}><div className="grid gap-3 md:grid-cols-2">{students.length ? students.map(student => <article key={student.id} className="rounded-2xl border border-slate-200 p-4"><p className="font-black">{student.nome}</p><p className="mt-1 text-sm text-slate-500">{student.turma?.nome || "Sem turma"}</p></article>) : <Empty text="Nenhum aluno disponível."/>}</div></Card> : null}
+
+    {tab === "registros" ? <div className={`grid gap-5 ${manager ? "lg:grid-cols-[.8fr_1.2fr]" : ""}`}>{manager ? <Card title="Novo registro" icon={<MessageSquareText size={20}/>}><form className="grid gap-3" onSubmit={saveFollow}><select className={field} value={followForm.aluno_id} onChange={event => setFollowForm(value => ({ ...value, aluno_id: event.target.value }))}>{students.map(student => <option key={student.id} value={student.id}>{student.nome}</option>)}</select><select className={field} value={followForm.categoria} onChange={event => setFollowForm(value => ({ ...value, categoria: event.target.value }))}><option value="pedagogico">Pedagógico</option><option value="comportamento">Comportamento</option><option value="atendimento_coordenacao">Atendimento da coordenação</option><option value="acompanhamento">Acompanhamento</option><option value="outro">Outro</option></select><input className={field} required placeholder="Título" value={followForm.titulo} onChange={event => setFollowForm(value => ({ ...value, titulo: event.target.value }))}/><textarea className={area} required placeholder="Observação" value={followForm.observacao} onChange={event => setFollowForm(value => ({ ...value, observacao: event.target.value }))}/><textarea className={area} placeholder="Ação planejada (opcional)" value={followForm.acao} onChange={event => setFollowForm(value => ({ ...value, acao: event.target.value }))}/><input className={field} type="date" value={followForm.prazo} onChange={event => setFollowForm(value => ({ ...value, prazo: event.target.value }))}/><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={followForm.visivel} onChange={event => setFollowForm(value => ({ ...value, visivel: event.target.checked }))}/> Visível ao responsável</label><button className={primary} disabled={saving || !followForm.aluno_id}><Save size={17}/> Salvar registro</button></form></Card> : null}<Card title={guardian ? "Acompanhamentos dos meus filhos" : "Registros recentes"} icon={<MessageSquareText size={20}/>}><div className="grid gap-3">{followups.length ? followups.map(item => <article key={item.id} className="rounded-2xl border border-slate-200 p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-black">{item.aluno?.nome || "Aluno"}</p><p className="mt-1 text-sm font-bold">{item.titulo}</p></div><span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold">{item.status}</span></div><p className="mt-2 text-sm leading-6 text-slate-600">{item.observacao}</p>{item.acao_planejada ? <p className="mt-2 text-sm"><b>Ação:</b> {item.acao_planejada}</p> : null}</article>) : <Empty text="Nenhum registro disponível."/>}</div></Card></div> : null}
+
+    {tab === "comunicados" ? <div className={`grid gap-5 ${manager ? "lg:grid-cols-[.8fr_1.2fr]" : ""}`}>{manager ? <Card title="Novo comunicado" icon={<Bell size={20}/>}><form className="grid gap-3" onSubmit={saveNotice}><input className={field} required placeholder="Título" value={noticeForm.titulo} onChange={event => setNoticeForm(value => ({ ...value, titulo: event.target.value }))}/><input className={field} placeholder="Resumo (opcional)" value={noticeForm.resumo} onChange={event => setNoticeForm(value => ({ ...value, resumo: event.target.value }))}/><textarea className={area} required placeholder="Comunicado" value={noticeForm.conteudo} onChange={event => setNoticeForm(value => ({ ...value, conteudo: event.target.value }))}/><select className={field} value={noticeForm.prioridade} onChange={event => setNoticeForm(value => ({ ...value, prioridade: event.target.value }))}><option value="normal">Normal</option><option value="importante">Importante</option><option value="urgente">Urgente</option></select><label className="flex items-center gap-2 text-sm font-bold"><input type="checkbox" checked={noticeForm.exige_confirmacao} onChange={event => setNoticeForm(value => ({ ...value, exige_confirmacao: event.target.checked }))}/> Exigir ciência</label><button className={primary} disabled={saving}><Save size={17}/> Publicar</button></form></Card> : null}<Card title="Comunicados" icon={<Bell size={20}/>}><div className="grid gap-3">{notices.length ? notices.map(item => { const reading = readingByNotice[item.id]; return <article key={item.id} className="rounded-2xl border border-slate-200 p-4"><div className="flex justify-between gap-3"><div><p className="font-black">{item.titulo}</p><p className="mt-1 text-xs font-bold text-[#176b5b]">{item.prioridade}</p></div>{reading ? <CheckCircle2 className="text-emerald-600" size={18}/> : null}</div>{item.resumo ? <p className="mt-2 text-sm font-bold">{item.resumo}</p> : null}<p className="mt-2 text-sm leading-6 text-slate-600">{item.conteudo}</p>{!manager && !reading ? <button type="button" className={`${secondary} mt-3`} onClick={() => void markNotice(item.id, item.exige_confirmacao)}>{item.exige_confirmacao ? "Li e estou ciente" : "Marcar como lido"}</button> : null}</article>; }) : <Empty text="Nenhum comunicado publicado."/>}</div></Card></div> : null}
+
+    {tab === "reunioes" ? <div className={`grid gap-5 ${manager ? "lg:grid-cols-[.8fr_1.2fr]" : ""}`}>{manager ? <Card title="Agendar reunião" icon={<CalendarDays size={20}/>}><form className="grid gap-3" onSubmit={saveMeeting}><select className={field} value={meetingForm.aluno_id} onChange={event => setMeetingForm(value => ({ ...value, aluno_id: event.target.value }))}>{students.map(student => <option key={student.id} value={student.id}>{student.nome}</option>)}</select><select className={field} value={meetingForm.responsavel_id} onChange={event => setMeetingForm(value => ({ ...value, responsavel_id: event.target.value }))}><option value="">Sem responsável específico</option>{guardians.map(item => <option key={item.id} value={item.id}>{item.nome}</option>)}</select><input className={field} required value={meetingForm.titulo} onChange={event => setMeetingForm(value => ({ ...value, titulo: event.target.value }))}/><input className={field} required type="datetime-local" value={meetingForm.inicio} onChange={event => setMeetingForm(value => ({ ...value, inicio: event.target.value }))}/><input className={field} placeholder="Local" value={meetingForm.local} onChange={event => setMeetingForm(value => ({ ...value, local: event.target.value }))}/><textarea className={area} placeholder="Pauta" value={meetingForm.pauta} onChange={event => setMeetingForm(value => ({ ...value, pauta: event.target.value }))}/><button className={primary} disabled={saving}><Save size={17}/> Agendar</button></form></Card> : null}<Card title="Reuniões" icon={<CalendarDays size={20}/>}><div className="grid gap-3">{meetings.length ? meetings.map(item => <article key={item.id} className="rounded-2xl border border-slate-200 p-4"><p className="font-black">{item.titulo}</p><p className="mt-1 text-sm text-slate-500">{dateTime(item.inicio)}{item.aluno?.nome ? ` · ${item.aluno.nome}` : ""}{item.local ? ` · ${item.local}` : ""}</p>{item.pauta ? <p className="mt-2 text-sm leading-6 text-slate-600">{item.pauta}</p> : null}</article>) : <Empty text="Nenhuma reunião disponível."/>}</div></Card></div> : null}
   </section>;
 }
-function Two({ children }: { children: React.ReactNode }) { return <div className="grid gap-5 lg:grid-cols-2">{children}</div>; }
-function FormCard({ title, icon, show, children }: { title: string; icon: React.ReactNode; show: boolean; children: React.ReactNode }) { return show ? <section className="rounded-3xl border border-slate-200 bg-white p-5"><h3 className="mb-4 flex items-center gap-2 text-lg font-black text-slate-900">{icon}{title}</h3>{children}</section> : null; }
-function ListCard({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) { return <section className="rounded-3xl border border-slate-200 bg-white p-5"><h3 className="mb-4 flex items-center gap-2 text-lg font-black">{icon}{title}</h3><div className="grid gap-3">{children || <p className="text-sm text-slate-500">Nenhum registro.</p>}</div></section>; }
-function Item({ title, meta, text }: { title: string; meta?: string; text?: string }) { return <article className="rounded-2xl border border-slate-200 p-4"><p className="font-black">{title}</p>{meta ? <p className="mt-1 text-xs font-bold text-[#176b5b]">{meta}</p> : null}{text ? <p className="mt-2 text-sm leading-6 text-slate-600">{text}</p> : null}</article>; }
-function ClassSelect({ classes, value, set }: { classes: ClassRow[]; value: string; set: (v: string) => void }) { return <select className={field} value={value} onChange={e => set(e.target.value)} required><option value="" disabled>Selecione a turma</option>{classes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}</select>; }
-function today() { return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Araguaina" }).format(new Date()); }
-function date(v: string | null) { if (!v) return "Sem data"; try { return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Araguaina" }).format(new Date(v.length === 10 ? `${v}T12:00:00-03:00` : v)); } catch { return "Sem data"; } }
-function dateTime(v: string | null) { if (!v) return "Sem data"; try { return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Araguaina", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(v)); } catch { return "Sem data"; } }
+
+function Card({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) { return <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"><h3 className="mb-4 flex items-center gap-2 text-lg font-black"><span className="text-[#176b5b]">{icon}</span>{title}</h3>{children}</section>; }
+function Empty({ text }: { text: string }) { return <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">{text}</p>; }
+function dateTime(value: string) { try { return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Araguaina", dateStyle: "short", timeStyle: "short" }).format(new Date(value)); } catch { return "—"; } }
