@@ -63,15 +63,17 @@ export async function GET() {
       });
       const spec = (await apiResponse.json()) as {
         definitions?: Record<string, unknown>;
+        components?: { schemas?: Record<string, unknown> };
         paths?: Record<string, unknown>;
       };
-      const definitions = Object.fromEntries(
-        TABLES.map((table) => [table, spec.definitions?.[table] ?? null])
+      const schemas = spec.components?.schemas ?? spec.definitions ?? {};
+      const schoolSchemas = Object.fromEntries(
+        TABLES.map((table) => [table, schemas[table] ?? null])
       );
       const rpcPaths = Object.fromEntries(
         Object.entries(spec.paths ?? {}).filter(([path]) => path.includes("/rpc/escola_"))
       );
-      openApi = { status: apiResponse.status, definitions, rpcPaths };
+      openApi = { status: apiResponse.status, schoolSchemas, rpcPaths, topLevelKeys: Object.keys(spec) };
     } catch (error) {
       openApi = { error: error instanceof Error ? error.message : String(error) };
     }
