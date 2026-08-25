@@ -11,22 +11,34 @@ export async function GET() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: "{}",
-      cache: "no-store"
+      cache: "no-store",
+      signal: AbortSignal.timeout(10000)
     });
-    const payload = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+    const text = await response.text();
+    let payload: Record<string, unknown> = {};
+    try { payload = JSON.parse(text) as Record<string, unknown>; } catch {}
     const code = typeof payload.code === "string" ? payload.code : null;
 
     return NextResponse.json(
       {
         reachable: response.status === 401 && code === "CORE_TOKEN_MISSING",
         status: response.status,
-        code
+        code,
+        responseType: response.headers.get("content-type"),
+        bodyPreview: text.slice(0, 180)
       },
       { headers: { "Cache-Control": "no-store" } }
     );
-  } catch {
+  } catch (error) {
+    const cause = error instanceof Error && error.cause instanceof Error ? error.cause.message : null;
     return NextResponse.json(
-      { reachable: false, status: null, code: "NETWORK_ERROR" },
+      {
+        reachable: false,
+        status: null,
+        code: "NETWORK_ERROR",
+        error: error instanceof Error ? error.message : String(error),
+        cause
+      },
       { headers: { "Cache-Control": "no-store" } }
     );
   }
