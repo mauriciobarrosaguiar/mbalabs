@@ -30,7 +30,7 @@ const TABLES = [
 ];
 
 export async function GET() {
-  const admin = createSupabaseAdminClient();
+  const admin = createSupabaseAdminClient() as any;
   const result: Record<string, { exists: boolean; count?: number; code?: string }> = {};
 
   for (const table of TABLES) {
@@ -40,5 +40,20 @@ export async function GET() {
       : { exists: true, count: count ?? 0 };
   }
 
-  return NextResponse.json({ result }, { headers: { "Cache-Control": "no-store" } });
+  const { data: buckets, error: bucketError } = await admin.storage.listBuckets();
+  const bucket = bucketError
+    ? { exists: false, code: bucketError.name ?? "BUCKET_QUERY_ERROR" }
+    : { exists: (buckets ?? []).some((item: { name: string }) => item.name === "mba-escola-documentos") };
+
+  const helper = await admin.rpc("escola_is_super_admin");
+  const helperExists = !helper.error || helper.error.code !== "PGRST202";
+
+  return NextResponse.json(
+    {
+      result,
+      bucket,
+      helper: { exists: helperExists, code: helper.error?.code ?? null }
+    },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }
