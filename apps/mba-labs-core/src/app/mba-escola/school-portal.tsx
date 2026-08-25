@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Bell, BookOpenText, CalendarDays, ClipboardCheck, Home, Settings, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import AcademicCenter from "./academic-center";
+import AcademicGradePanel from "./academic-grade-panel";
 import AgendaTimeline from "./agenda-timeline";
 import AuthorizationsPanel from "./authorizations-panel";
 import ManagementTools from "./management-tools";
@@ -38,27 +39,35 @@ export default function SchoolPortal({ supabase, profile }: Props) {
   useEffect(() => {
     const handler = () => {
       const hash = window.location.hash.replace("#", "") as Area;
-      if (items.some(x => x.id === hash)) setArea(hash);
+      if (items.some(item => item.id === hash)) setArea(hash);
     };
-    handler(); window.addEventListener("hashchange", handler); return () => window.removeEventListener("hashchange", handler);
+    handler();
+    window.addEventListener("hashchange", handler);
+    return () => window.removeEventListener("hashchange", handler);
   }, [items]);
 
   function navigate(next: Area | "pendencias" | "agenda") {
-    const target = guardian ? (next === "academico" ? "filhos" : next === "alunos" ? "filhos" : next === "comunicacao" ? "pendencias" : next === "gestao" ? "filhos" : next) : (next === "pendencias" || next === "agenda" ? "comunicacao" : next);
-    setArea(target as Area); window.history.replaceState(null, "", `#${target}`); window.scrollTo({ top: 0, behavior: "smooth" });
+    const target = guardian
+      ? (next === "academico" ? "filhos" : next === "alunos" ? "filhos" : next === "comunicacao" ? "pendencias" : next === "gestao" ? "filhos" : next)
+      : (next === "pendencias" || next === "agenda" ? "comunicacao" : next);
+    setArea(target as Area);
+    window.history.replaceState(null, "", `#${target}`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   return <section className="grid gap-6">
     <nav className="sticky top-2 z-30 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur sm:flex sm:flex-wrap">
-      {items.map(item => { const Icon = item.icon; return <button key={item.id} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-black transition ${area === item.id ? "bg-[#176b5b] text-white" : "text-slate-600 hover:bg-slate-50"}`} onClick={() => navigate(item.id)} type="button"><Icon size={17}/>{item.label}</button>; })}
+      {items.map(item => {
+        const Icon = item.icon;
+        return <button key={item.id} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-black transition ${area === item.id ? "bg-[#176b5b] text-white" : "text-slate-600 hover:bg-slate-50"}`} onClick={() => navigate(item.id)} type="button"><Icon size={17}/>{item.label}</button>;
+      })}
     </nav>
 
-    {!guardian && area === "hoje" ? <TodayDashboard supabase={supabase} profile={profile} onNavigate={navigate as never}/> : null}
-    {guardian && area === "hoje" ? <TodayDashboard supabase={supabase} profile={profile} onNavigate={navigate as never}/> : null}
+    {area === "hoje" ? <TodayDashboard supabase={supabase} profile={profile} onNavigate={navigate as never}/> : null}
 
     {!guardian && area === "academico" ? <div className="grid gap-6">
       {manager ? <SchoolDirectory supabase={supabase} schoolName={profile.escola?.nome || "Minha escola"} role={profile.papel as "admin_escola" | "direcao"} section="academic"/> : null}
-      <AcademicCenter supabase={supabase} profile={profile} section="academic"/>
+      <AcademicGradePanel supabase={supabase} profile={{ nome: profile.nome, papel: profile.papel as Exclude<Role, "responsavel">, escola_id: profile.escola_id }}/>
       <RoleSections supabase={supabase} profile={profile} section="academic"/>
     </div> : null}
 
