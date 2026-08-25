@@ -48,6 +48,28 @@ export async function GET() {
   const helper = await admin.rpc("escola_is_super_admin");
   const helperExists = !helper.error || helper.error.code !== "PGRST202";
 
+  let managementStatus: number | null = null;
+  const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (serviceRole) {
+    try {
+      const managementResponse = await fetch(
+        "https://api.supabase.com/v1/projects/jrbkojhnltqfqwpczwuw/database/query",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${serviceRole}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ query: "select 1 as ok" }),
+          cache: "no-store"
+        }
+      );
+      managementStatus = managementResponse.status;
+    } catch {
+      managementStatus = -1;
+    }
+  }
+
   return NextResponse.json(
     {
       result,
@@ -59,7 +81,8 @@ export async function GET() {
         postgresPrismaUrl: Boolean(process.env.POSTGRES_PRISMA_URL),
         supabaseDbPassword: Boolean(process.env.SUPABASE_DB_PASSWORD),
         supabaseAccessToken: Boolean(process.env.SUPABASE_ACCESS_TOKEN)
-      }
+      },
+      managementSql: { status: managementStatus }
     },
     { headers: { "Cache-Control": "no-store" } }
   );
