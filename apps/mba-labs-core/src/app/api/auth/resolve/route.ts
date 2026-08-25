@@ -6,6 +6,7 @@ const DIRECT_APP_PATHS: Array<{ prefix: string; slug: string; adminOnly?: boolea
   { prefix: "/apps/conteudo-ia", slug: "conteudo-ia" },
   { prefix: "/apps/dronegestor", slug: "dronegestor" },
   { prefix: "/dronegestor", slug: "dronegestor" },
+  { prefix: "/mba-escola", slug: "mba-escola" },
   { prefix: "/google-empresas", slug: "google-empresas", adminOnly: true }
 ];
 
