@@ -15,6 +15,8 @@ type AuthResponse = { autorizacao_id: string; aluno_id: string };
 type Occurrence = { id: string; exige_ciencia: boolean; titulo: string };
 type Awareness = { ocorrencia_id: string; responsavel_id: string };
 type Meeting = { id: string; titulo: string; inicio: string; aluno?: { nome: string } | null };
+type Absence = { id: string };
+type AbsenceJustification = { frequencia_id: string; status: string };
 
 export default function TodayDashboard({ supabase, profile, onNavigate }: Props) {
   const today = useMemo(() => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Araguaina" }).format(new Date()), []);
@@ -31,6 +33,8 @@ export default function TodayDashboard({ supabase, profile, onNavigate }: Props)
   const [awareness, setAwareness] = useState<Awareness[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [pendingJustifications, setPendingJustifications] = useState(0);
+  const [absences, setAbsences] = useState<Absence[]>([]);
+  const [absenceJustifications, setAbsenceJustifications] = useState<AbsenceJustification[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -45,8 +49,10 @@ export default function TodayDashboard({ supabase, profile, onNavigate }: Props)
       supabase.from("escola_autorizacao_respostas").select("autorizacao_id,aluno_id"),
       supabase.from("escola_ocorrencias_aluno").select("id,exige_ciencia,titulo").eq("status", "aberta").order("criado_em", { ascending: false }).limit(100),
       supabase.from("escola_ocorrencia_ciencias").select("ocorrencia_id,responsavel_id"),
-      supabase.from("escola_reunioes").select("id,titulo,inicio,aluno:escola_alunos(nome)").gte("inicio", `${today}T00:00:00-03:00`).order("inicio").limit(30),
-      supabase.from("escola_justificativas_falta").select("id", { count: "exact", head: true }).in("status", ["pendente", "correcao_solicitada"])
+      supabase.from("escola_reunioes").select("id,titulo,inicio,aluno:escola_alunos(nome)").gte("inicio", new Date().toISOString()).order("inicio").limit(30),
+      supabase.from("escola_justificativas_falta").select("id", { count: "exact", head: true }).eq("status", "pendente"),
+      supabase.from("escola_frequencias").select("id").eq("status", "falta").order("data_aula", { ascending: false }).limit(200),
+      supabase.from("escola_justificativas_falta").select("frequencia_id,status").order("criado_em", { ascending: false }).limit(300)
     ]);
     const firstError = reqs.find(item => item.error)?.error;
     if (firstError) setError(firstError.message);
@@ -59,8 +65,10 @@ export default function TodayDashboard({ supabase, profile, onNavigate }: Props)
     setAwareness((reqs[6].data ?? []) as Awareness[]);
     setMeetings((reqs[7].data ?? []) as unknown as Meeting[]);
     setPendingJustifications(reqs[8].count ?? 0);
+    setAbsences((reqs[9].data ?? []) as Absence[]);
+    setAbsenceJustifications((reqs[10].data ?? []) as AbsenceJustification[]);
     setLoading(false);
-  }, [supabase, today, weekday]);
+  }, [supabase, weekday]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -70,6 +78,10 @@ export default function TodayDashboard({ supabase, profile, onNavigate }: Props)
   const pendingAwareness = responsible
     ? occurrences.filter(occurrence => occurrence.exige_ciencia && !awareness.some(item => item.ocorrencia_id === occurrence.id && item.responsavel_id === userId)).length
     : occurrences.filter(occurrence => occurrence.exige_ciencia).length;
+  const pendingAbsences = absences.filter(absence => {
+    const justification = absenceJustifications.find(item => item.frequencia_id === absence.id);
+    return !justification || justification.status === "recusada" || justification.status === "correcao_solicitada";
+  }).length;
   const nextMeeting = meetings[0];
 
   if (loading) return <section className="rounded-3xl border border-slate-200 bg-white p-8 text-center text-slate-500">Montando o resumo de hoje...</section>;
@@ -86,8 +98,9 @@ export default function TodayDashboard({ supabase, profile, onNavigate }: Props)
       {!responsible ? <Card icon={<Clock3/>} label="Aulas na grade hoje" value={schedule.length} detail="Programação acadêmica do dia" onClick={() => onNavigate("academico")}/> : null}
       <Card icon={<Bell/>} label={responsible ? "Comunicados não lidos" : "Comunicados publicados"} value={responsible ? unreadNotices : notices.length} detail={responsible ? "Avisos aguardando leitura" : "Comunicados visíveis no portal"} onClick={() => onNavigate(responsible ? "pendencias" : "comunicacao")}/>
       <Card icon={<ClipboardCheck/>} label="Autorizações pendentes" value={pendingAuth} detail={responsible ? "Respostas que ainda precisam ser enviadas" : "Respostas ainda não registradas pelas famílias"} onClick={() => onNavigate(responsible ? "pendencias" : "comunicacao")}/>
-      <Card icon={<AlertTriangle/>} label={responsible ? "Ciências pendentes" : "Ocorrências com ciência"} value={pendingAwareness} detail="Registros que exigem confirmação" onClick={() => onNavigate("alunos")}/>
-      {!responsible ? <Card icon={<ClipboardCheck/>} label="Justificativas em análise" value={pendingJustifications} detail="Faltas aguardando decisão" onClick={() => onNavigate("alunos")}/> : null}
+      <Card icon={<AlertTriangle/>} label={responsible ? "Ciências pendentes" : "Ocorrências exigindo ciência"} value={pendingAwareness} detail="Registros que exigem confirmação" onClick={() => onNavigate("alunos")}/>
+      {responsible ? <Card icon={<ClipboardCheck/>} label="Faltas para justificar" value={pendingAbsences} detail="Ausências sem justificativa aceita" onClick={() => onNavigate("alunos")}/> : null}
+      {!responsible ? <Card icon={<ClipboardCheck/>} label="Justificativas em análise" value={pendingJustifications} detail="Justificativas aguardando decisão da escola" onClick={() => onNavigate("alunos")}/> : null}
       <Card icon={<CalendarDays/>} label="Próxima reunião" value={nextMeeting ? formatTime(nextMeeting.inicio) : "—"} detail={nextMeeting ? `${nextMeeting.titulo}${nextMeeting.aluno?.nome ? ` · ${nextMeeting.aluno.nome}` : ""}` : "Nenhuma reunião futura visível"} onClick={() => onNavigate(responsible ? "agenda" : "comunicacao")}/>
     </div>
 
