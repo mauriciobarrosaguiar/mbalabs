@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { requireAppAccess } from "@/lib/core-data";
 
 const SCHOOL_URL = "https://ihcfhuxxjllmqypzuzce.supabase.co";
-const SCHOOL_PUBLISHABLE_KEY = "sb_publishable_dEfjGxNY_xpLXKAE2atiag_vRHwqVLw";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +14,12 @@ export async function POST() {
     return response({ error: "Seu usuário da MBA Labs não possui e-mail válido para o MBA Escola." }, 400);
   }
 
-  const serviceRoleKey =
+  const adminKey =
+    process.env.MBA_ESCOLA_SUPABASE_SECRET_KEY ||
     process.env.MBA_ESCOLA_SUPABASE_SERVICE_ROLE_KEY ||
     process.env.SUPABASE_ESCOLA_SERVICE_ROLE_KEY;
 
-  if (!serviceRoleKey) {
+  if (!adminKey) {
     return response(
       {
         code: "MBA_ESCOLA_SSO_NOT_CONFIGURED",
@@ -29,7 +29,7 @@ export async function POST() {
     );
   }
 
-  const admin = createClient(SCHOOL_URL, serviceRoleKey, {
+  const admin = createClient(SCHOOL_URL, adminKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
