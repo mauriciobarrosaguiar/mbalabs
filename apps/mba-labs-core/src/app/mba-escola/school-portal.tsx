@@ -11,6 +11,7 @@ import ManagementTools from "./management-tools";
 import RoleSections from "./role-sections";
 import SchoolDirectory from "./school-directory";
 import StudentCommunicationCenter from "./student-communication-center";
+import TeacherSchedulePanel from "./teacher-schedule-panel";
 import TeacherStudentPanel from "./teacher-student-panel";
 import TodayDashboard from "./today-dashboard";
 
@@ -70,7 +71,9 @@ export default function SchoolPortal({ supabase, profile }: Props) {
 
     {!guardian && area === "academico" ? <div className="grid gap-6">
       {manager ? <SchoolDirectory supabase={supabase} schoolName={profile.escola?.nome || "Minha escola"} role={profile.papel as "admin_escola" | "direcao"} section="academic"/> : null}
-      <AcademicGradePanel supabase={supabase} profile={{ nome: profile.nome, papel: profile.papel as Exclude<Role, "responsavel">, escola_id: profile.escola_id }}/>
+      {teacher
+        ? <TeacherSchedulePanel supabase={supabase} profile={{ nome: profile.nome, papel: "professor", escola_id: profile.escola_id }}/>
+        : <AcademicGradePanel supabase={supabase} profile={{ nome: profile.nome, papel: profile.papel as "admin_escola" | "direcao" | "coordenacao", escola_id: profile.escola_id }}/>}      
       <AcademicContentPanel supabase={supabase} profile={{ nome: profile.nome, papel: profile.papel as Exclude<Role, "responsavel">, escola_id: profile.escola_id }}/>
     </div> : null}
 
