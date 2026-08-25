@@ -7,6 +7,7 @@ import AcademicContentPanel from "./academic-content-panel";
 import AcademicGradePanel from "./academic-grade-panel";
 import AgendaTimeline from "./agenda-timeline";
 import AuthorizationsPanel from "./authorizations-panel";
+import GuardianActivitiesPanel from "./guardian-activities-panel";
 import ManagementTools from "./management-tools";
 import RoleSections from "./role-sections";
 import SchoolDirectory from "./school-directory";
@@ -97,7 +98,7 @@ export default function SchoolPortal({ supabase, profile }: Props) {
       {(manager || coordinator) ? <ManagementTools supabase={supabase} profile={{ papel: profile.papel as "admin_escola" | "direcao" | "coordenacao", escola_id: profile.escola_id }}/> : null}
     </div> : null}
 
-    {guardian && area === "filhos" ? <div className="grid gap-6"><RoleSections supabase={supabase} profile={profile} section="students"/><StudentCommunicationCenter supabase={supabase} profile={profile} section="students"/></div> : null}
+    {guardian && area === "filhos" ? <div className="grid gap-6"><RoleSections supabase={supabase} profile={profile} section="students"/><GuardianActivitiesPanel supabase={supabase} profile={{ nome: profile.nome, papel: "responsavel", escola_id: profile.escola_id }}/><StudentCommunicationCenter supabase={supabase} profile={profile} section="students"/></div> : null}
     {guardian && area === "pendencias" ? <div className="grid gap-6"><RoleSections supabase={supabase} profile={profile} section="communication"/><AuthorizationsPanel supabase={supabase} profile={{ nome: profile.nome, papel: "responsavel", escola_id: profile.escola_id }}/></div> : null}
     {guardian && area === "agenda" ? <AgendaTimeline supabase={supabase} profile={profile}/> : null}
   </section>;
