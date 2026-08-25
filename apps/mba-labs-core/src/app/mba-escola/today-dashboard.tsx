@@ -21,6 +21,9 @@ type AbsenceJustification = { frequencia_id: string; status: string };
 export default function TodayDashboard({ supabase, profile, onNavigate }: Props) {
   const today = useMemo(() => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Araguaina" }).format(new Date()), []);
   const weekday = useMemo(() => { const day = new Date(`${today}T12:00:00-03:00`).getDay(); return day === 0 ? 7 : day; }, [today]);
+  const responsible = profile.papel === "responsavel";
+  const teacher = profile.papel === "professor";
+  const manager = ["admin_escola", "direcao", "coordenacao"].includes(profile.papel);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [userId, setUserId] = useState("");
@@ -41,18 +44,19 @@ export default function TodayDashboard({ supabase, profile, onNavigate }: Props)
     setError("");
     const { data: auth } = await supabase.auth.getUser();
     setUserId(auth.user?.id || "");
+    const canHandleFamilyPending = manager || responsible;
     const reqs = await Promise.all([
       supabase.from("escola_grade_horarios").select("id,hora_inicio,hora_fim,turma:escola_turmas(nome),disciplina:escola_disciplinas(nome)").eq("ativo", true).eq("dia_semana", weekday).order("hora_inicio"),
       supabase.from("escola_comunicados").select("id,titulo,prioridade,exige_confirmacao,publicado_em").eq("status", "publicado").order("publicado_em", { ascending: false }).limit(50),
       supabase.from("escola_comunicado_leituras").select("comunicado_id,confirmado_em"),
-      supabase.from("escola_autorizacao_destinatarios").select("autorizacao_id,aluno_id"),
-      supabase.from("escola_autorizacao_respostas").select("autorizacao_id,aluno_id"),
-      supabase.from("escola_ocorrencias_aluno").select("id,exige_ciencia,titulo").eq("status", "aberta").order("criado_em", { ascending: false }).limit(100),
-      supabase.from("escola_ocorrencia_ciencias").select("ocorrencia_id,responsavel_id"),
+      canHandleFamilyPending ? supabase.from("escola_autorizacao_destinatarios").select("autorizacao_id,aluno_id") : Promise.resolve({ data: [], error: null }),
+      canHandleFamilyPending ? supabase.from("escola_autorizacao_respostas").select("autorizacao_id,aluno_id") : Promise.resolve({ data: [], error: null }),
+      canHandleFamilyPending ? supabase.from("escola_ocorrencias_aluno").select("id,exige_ciencia,titulo").eq("status", "aberta").order("criado_em", { ascending: false }).limit(100) : Promise.resolve({ data: [], error: null }),
+      canHandleFamilyPending ? supabase.from("escola_ocorrencia_ciencias").select("ocorrencia_id,responsavel_id") : Promise.resolve({ data: [], error: null }),
       supabase.from("escola_reunioes").select("id,titulo,inicio,aluno:escola_alunos(nome)").gte("inicio", new Date().toISOString()).order("inicio").limit(30),
-      supabase.from("escola_justificativas_falta").select("id", { count: "exact", head: true }).eq("status", "pendente"),
-      supabase.from("escola_frequencias").select("id").eq("status", "falta").order("data_aula", { ascending: false }).limit(200),
-      supabase.from("escola_justificativas_falta").select("frequencia_id,status").order("criado_em", { ascending: false }).limit(300)
+      manager ? supabase.from("escola_justificativas_falta").select("id", { count: "exact", head: true }).eq("status", "pendente") : Promise.resolve({ data: [], error: null, count: 0 }),
+      responsible ? supabase.from("escola_frequencias").select("id").eq("status", "falta").order("data_aula", { ascending: false }).limit(200) : Promise.resolve({ data: [], error: null }),
+      responsible ? supabase.from("escola_justificativas_falta").select("frequencia_id,status").order("criado_em", { ascending: false }).limit(300) : Promise.resolve({ data: [], error: null })
     ]);
     const firstError = reqs.find(item => item.error)?.error;
     if (firstError) setError(firstError.message);
@@ -68,11 +72,10 @@ export default function TodayDashboard({ supabase, profile, onNavigate }: Props)
     setAbsences((reqs[9].data ?? []) as Absence[]);
     setAbsenceJustifications((reqs[10].data ?? []) as AbsenceJustification[]);
     setLoading(false);
-  }, [supabase, weekday]);
+  }, [manager, responsible, supabase, weekday]);
 
   useEffect(() => { void load(); }, [load]);
 
-  const responsible = profile.papel === "responsavel";
   const unreadNotices = notices.filter(notice => !readings.some(reading => reading.comunicado_id === notice.id)).length;
   const pendingAuth = recipients.filter(recipient => !responses.some(response => response.autorizacao_id === recipient.autorizacao_id && response.aluno_id === recipient.aluno_id)).length;
   const pendingAwareness = responsible
@@ -97,10 +100,10 @@ export default function TodayDashboard({ supabase, profile, onNavigate }: Props)
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {!responsible ? <Card icon={<Clock3/>} label="Aulas na grade hoje" value={schedule.length} detail="Programação acadêmica do dia" onClick={() => onNavigate("academico")}/> : null}
       <Card icon={<Bell/>} label={responsible ? "Comunicados não lidos" : "Comunicados publicados"} value={responsible ? unreadNotices : notices.length} detail={responsible ? "Avisos aguardando leitura" : "Comunicados visíveis no portal"} onClick={() => onNavigate(responsible ? "pendencias" : "comunicacao")}/>
-      <Card icon={<ClipboardCheck/>} label="Autorizações pendentes" value={pendingAuth} detail={responsible ? "Respostas que ainda precisam ser enviadas" : "Respostas ainda não registradas pelas famílias"} onClick={() => onNavigate(responsible ? "pendencias" : "comunicacao")}/>
-      <Card icon={<AlertTriangle/>} label={responsible ? "Ciências pendentes" : "Ocorrências exigindo ciência"} value={pendingAwareness} detail="Registros que exigem confirmação" onClick={() => onNavigate("alunos")}/>
+      {!teacher ? <Card icon={<ClipboardCheck/>} label="Autorizações pendentes" value={pendingAuth} detail={responsible ? "Respostas que ainda precisam ser enviadas" : "Respostas ainda não registradas pelas famílias"} onClick={() => onNavigate(responsible ? "pendencias" : "comunicacao")}/> : null}
+      {!teacher ? <Card icon={<AlertTriangle/>} label={responsible ? "Ciências pendentes" : "Ocorrências exigindo ciência"} value={pendingAwareness} detail="Registros que exigem confirmação" onClick={() => onNavigate("alunos")}/> : null}
       {responsible ? <Card icon={<ClipboardCheck/>} label="Faltas para justificar" value={pendingAbsences} detail="Ausências sem justificativa aceita" onClick={() => onNavigate("alunos")}/> : null}
-      {!responsible ? <Card icon={<ClipboardCheck/>} label="Justificativas em análise" value={pendingJustifications} detail="Justificativas aguardando decisão da escola" onClick={() => onNavigate("alunos")}/> : null}
+      {manager ? <Card icon={<ClipboardCheck/>} label="Justificativas em análise" value={pendingJustifications} detail="Justificativas aguardando decisão da escola" onClick={() => onNavigate("alunos")}/> : null}
       <Card icon={<CalendarDays/>} label="Próxima reunião" value={nextMeeting ? formatTime(nextMeeting.inicio) : "—"} detail={nextMeeting ? `${nextMeeting.titulo}${nextMeeting.aluno?.nome ? ` · ${nextMeeting.aluno.nome}` : ""}` : "Nenhuma reunião futura visível"} onClick={() => onNavigate(responsible ? "agenda" : "comunicacao")}/>
     </div>
 
