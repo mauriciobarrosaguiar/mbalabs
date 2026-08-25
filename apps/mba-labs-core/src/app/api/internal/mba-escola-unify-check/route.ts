@@ -48,25 +48,32 @@ export async function GET() {
   const helper = await admin.rpc("escola_is_super_admin");
   const helperExists = !helper.error || helper.error.code !== "PGRST202";
 
-  let managementStatus: number | null = null;
+  let openApi: Record<string, unknown> = {};
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (serviceRole) {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (serviceRole && supabaseUrl) {
     try {
-      const managementResponse = await fetch(
-        "https://api.supabase.com/v1/projects/jrbkojhnltqfqwpczwuw/database/query",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${serviceRole}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ query: "select 1 as ok" }),
-          cache: "no-store"
-        }
+      const apiResponse = await fetch(`${supabaseUrl}/rest/v1/`, {
+        headers: {
+          apikey: serviceRole,
+          Authorization: `Bearer ${serviceRole}`,
+          Accept: "application/openapi+json"
+        },
+        cache: "no-store"
+      });
+      const spec = (await apiResponse.json()) as {
+        definitions?: Record<string, unknown>;
+        paths?: Record<string, unknown>;
+      };
+      const definitions = Object.fromEntries(
+        TABLES.map((table) => [table, spec.definitions?.[table] ?? null])
       );
-      managementStatus = managementResponse.status;
-    } catch {
-      managementStatus = -1;
+      const rpcPaths = Object.fromEntries(
+        Object.entries(spec.paths ?? {}).filter(([path]) => path.includes("/rpc/escola_"))
+      );
+      openApi = { status: apiResponse.status, definitions, rpcPaths };
+    } catch (error) {
+      openApi = { error: error instanceof Error ? error.message : String(error) };
     }
   }
 
@@ -75,14 +82,7 @@ export async function GET() {
       result,
       bucket,
       helper: { exists: helperExists, code: helper.error?.code ?? null },
-      environment: {
-        databaseUrl: Boolean(process.env.DATABASE_URL),
-        postgresUrl: Boolean(process.env.POSTGRES_URL),
-        postgresPrismaUrl: Boolean(process.env.POSTGRES_PRISMA_URL),
-        supabaseDbPassword: Boolean(process.env.SUPABASE_DB_PASSWORD),
-        supabaseAccessToken: Boolean(process.env.SUPABASE_ACCESS_TOKEN)
-      },
-      managementSql: { status: managementStatus }
+      openApi
     },
     { headers: { "Cache-Control": "no-store" } }
   );
