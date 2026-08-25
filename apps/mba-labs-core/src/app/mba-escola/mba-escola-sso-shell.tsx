@@ -1,25 +1,12 @@
 "use client";
 
-import { createClient } from "@supabase/supabase-js";
 import { GraduationCap, LoaderCircle, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import MbaEscolaClient from "./mba-escola-client-v2";
-
-const SCHOOL_URL = "https://ihcfhuxxjllmqypzuzce.supabase.co";
-const SCHOOL_PUBLISHABLE_KEY = "sb_publishable_dEfjGxNY_xpLXKAE2atiag_vRHwqVLw";
-const SCHOOL_STORAGE_KEY = "mba-escola-auth";
-
-const schoolSupabase = createClient(SCHOOL_URL, SCHOOL_PUBLISHABLE_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false,
-    storageKey: SCHOOL_STORAGE_KEY
-  }
-});
+import { type ReactNode, useEffect, useState } from "react";
+import { getMbaEscolaSupabase, removeLegacyMbaEscolaSession } from "@/lib/mba-escola/supabase-client";
 
 type Props = {
+  children: ReactNode;
   identity: {
     id: string;
     email: string;
@@ -29,11 +16,12 @@ type Props = {
 
 type SsoResponse = {
   tokenHash?: string;
+  schoolUserId?: string;
   error?: string;
   code?: string;
 };
 
-export default function MbaEscolaSsoShell({ identity }: Props) {
+export default function MbaEscolaSsoShell({ children, identity }: Props) {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [message, setMessage] = useState("");
 
@@ -42,19 +30,10 @@ export default function MbaEscolaSsoShell({ identity }: Props) {
 
     async function enter() {
       try {
-        const normalizedEmail = identity.email.trim().toLowerCase();
-        const { data: current } = await schoolSupabase.auth.getUser();
-        const currentEmail = current.user?.email?.trim().toLowerCase() ?? "";
+        removeLegacyMbaEscolaSession();
+        navigator.serviceWorker?.register("/mba-escola-sw.js", { scope: "/mba-escola/" }).catch(() => undefined);
 
-        if (current.user && currentEmail === normalizedEmail) {
-          if (active) setState("ready");
-          return;
-        }
-
-        // Nunca reaproveita uma sessão escolar de outro usuário no mesmo aparelho.
-        if (current.user && currentEmail !== normalizedEmail) {
-          await schoolSupabase.auth.signOut();
-        }
+        const schoolSupabase = getMbaEscolaSupabase();
 
         const response = await fetch("/api/mba-escola/sso", {
           method: "POST",
@@ -63,16 +42,32 @@ export default function MbaEscolaSsoShell({ identity }: Props) {
         });
         const payload = (await response.json().catch(() => ({}))) as SsoResponse;
 
-        if (!response.ok || !payload.tokenHash) {
+        if (!response.ok || !payload.tokenHash || !payload.schoolUserId) {
           throw new Error(payload.error || "Não foi possível concluir o acesso único ao MBA Escola.");
         }
 
-        const { error: verifyError } = await schoolSupabase.auth.verifyOtp({
+        const { data: current } = await schoolSupabase.auth.getUser();
+
+        if (current.user?.id === payload.schoolUserId) {
+          if (active) setState("ready");
+          return;
+        }
+
+        // A sessão escolar é sempre descartada quando não pertence ao usuário atual da MBA Labs.
+        if (current.user) {
+          await schoolSupabase.auth.signOut({ scope: "local" });
+        }
+
+        const { data: verified, error: verifyError } = await schoolSupabase.auth.verifyOtp({
           token_hash: payload.tokenHash,
           type: "email"
         });
 
         if (verifyError) throw verifyError;
+        if (verified.user?.id !== payload.schoolUserId) {
+          await schoolSupabase.auth.signOut({ scope: "local" });
+          throw new Error("A identidade escolar retornada não corresponde ao usuário da MBA Labs.");
+        }
         if (active) setState("ready");
       } catch (error) {
         if (!active) return;
@@ -85,10 +80,10 @@ export default function MbaEscolaSsoShell({ identity }: Props) {
     return () => {
       active = false;
     };
-  }, [identity.email]);
+  }, [identity.email, identity.id]);
 
   if (state === "ready") {
-    return <MbaEscolaClient />;
+    return children;
   }
 
   if (state === "error") {

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { requireAppAccess } from "@/lib/core-data";
-import MbaEscolaSsoShell from "./mba-escola-sso-shell";
+import MbaEscolaClient from "./mba-escola-client-v2";
 
 export const dynamic = "force-dynamic";
 
@@ -16,16 +15,6 @@ export const metadata: Metadata = {
   }
 };
 
-export default async function MbaEscolaPage() {
-  const current = await requireAppAccess("mba-escola", "/mba-escola");
-
-  return (
-    <MbaEscolaSsoShell
-      identity={{
-        id: current.authUser.id,
-        email: current.authUser.email ?? "",
-        nome: current.usuario.nome
-      }}
-    />
-  );
+export default function MbaEscolaPage() {
+  return <MbaEscolaClient />;
 }

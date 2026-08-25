@@ -3,12 +3,19 @@ import { NextResponse } from "next/server";
 import { requireAppAccess } from "@/lib/core-data";
 
 const SCHOOL_URL = "https://ihcfhuxxjllmqypzuzce.supabase.co";
+const ALLOWED_SCHOOL_ROLES = new Set(["admin_escola", "direcao", "coordenacao", "professor", "responsavel"]);
+const ENABLED_SCHOOL_STATUSES = new Set(["ativa", "teste"]);
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 export async function POST() {
   const current = await requireAppAccess("mba-escola", "/mba-escola");
   const email = current.authUser.email?.trim().toLowerCase();
+
+  if (current.usuario.status !== "ativo") {
+    return response({ code: "MBA_ESCOLA_CORE_USER_INACTIVE", error: "Seu usuário da MBA Labs não está ativo." }, 403);
+  }
 
   if (!email) {
     return response({ error: "Seu usuário da MBA Labs não possui e-mail válido para o MBA Escola." }, 400);
@@ -37,100 +44,119 @@ export async function POST() {
     }
   });
 
+  try {
+    const schoolUser = current.isAdminMaster
+      ? await ensureOwnerUser(admin, email, current.usuario.nome, current.authUser.id)
+      : await requireActiveSchoolUser(admin, email);
+
+    const generated = await admin.auth.admin.generateLink({
+      type: "magiclink",
+      email
+    });
+
+    if (generated.error) {
+      return serverError("MBA_ESCOLA_LINK_FAILED", generated.error);
+    }
+
+    const tokenHash = generated.data.properties?.hashed_token;
+    if (!tokenHash) {
+      return serverError("MBA_ESCOLA_TOKEN_MISSING", new Error("generateLink não retornou hashed_token"));
+    }
+
+    return response({ tokenHash, schoolUserId: schoolUser.id }, 200);
+  } catch (error) {
+    if (error instanceof SsoAccessError) {
+      return response({ code: error.code, error: error.message }, error.status);
+    }
+
+    return serverError("MBA_ESCOLA_SSO_FAILED", error);
+  }
+}
+
+async function ensureOwnerUser(admin: SupabaseClient, email: string, nome: string, coreUserId: string) {
   let schoolUser = await findUserByEmail(admin, email);
 
-  // O Admin Master da MBA Labs é também o proprietário global do MBA Escola.
-  // Se ainda não existir no projeto escolar, o vínculo é criado automaticamente.
-  if (!schoolUser && current.isAdminMaster) {
+  if (!schoolUser) {
     const created = await admin.auth.admin.createUser({
       email,
       email_confirm: true,
-      user_metadata: {
-        nome: current.usuario.nome,
-        origem: "mba-labs-sso",
-        core_user_id: current.authUser.id
-      }
+      user_metadata: { nome, origem: "mba-labs-sso" },
+      app_metadata: { origem: "mba-labs-sso", core_user_id: coreUserId }
     });
 
     if (created.error || !created.data.user) {
-      return response({ error: created.error?.message || "Não foi possível criar o vínculo do Admin MBA." }, 500);
+      throw new Error(created.error?.message || "Não foi possível criar o vínculo do ADMIN MBA.");
     }
 
     schoolUser = created.data.user;
   }
 
+  const { data: owner, error: ownerError } = await admin
+    .from("escola_super_admins")
+    .select("user_id,ativo")
+    .eq("user_id", schoolUser.id)
+    .maybeSingle();
+
+  if (ownerError) throw ownerError;
+
+  const ownerPayload = { nome, email, ativo: true };
+  const ownerWrite = owner
+    ? await admin.from("escola_super_admins").update(ownerPayload).eq("user_id", schoolUser.id)
+    : await admin.from("escola_super_admins").insert({ user_id: schoolUser.id, ...ownerPayload });
+
+  if (ownerWrite.error) throw ownerWrite.error;
+  return schoolUser;
+}
+
+async function requireActiveSchoolUser(admin: SupabaseClient, email: string) {
+  const schoolUser = await findUserByEmail(admin, email);
+
   if (!schoolUser) {
-    return response(
-      {
-        code: "MBA_ESCOLA_USER_NOT_LINKED",
-        error: "Seu acesso existe na MBA Labs, mas ainda não foi vinculado a uma escola. A administração da escola deve liberar seu perfil."
-      },
+    throw new SsoAccessError(
+      "MBA_ESCOLA_USER_NOT_LINKED",
+      "Seu acesso existe na MBA Labs, mas ainda não foi vinculado a uma escola.",
       403
     );
   }
 
-  if (current.isAdminMaster) {
-    const { data: owner, error: ownerError } = await admin
-      .from("escola_super_admins")
-      .select("user_id")
-      .eq("user_id", schoolUser.id)
-      .maybeSingle();
+  const { data: profile, error } = await admin
+    .from("escola_perfis")
+    .select("id,papel,ativo,escola:escola_escolas(status)")
+    .eq("id", schoolUser.id)
+    .maybeSingle();
 
-    if (ownerError) {
-      return response({ error: ownerError.message }, 500);
-    }
+  if (error) throw error;
 
-    if (!owner) {
-      const { error: insertOwnerError } = await admin.from("escola_super_admins").insert({
-        user_id: schoolUser.id,
-        nome: current.usuario.nome,
-        email,
-        ativo: true
-      });
-
-      if (insertOwnerError) {
-        return response({ error: insertOwnerError.message }, 500);
-      }
-    }
-  } else {
-    const [{ data: profile, error: profileError }, { data: owner, error: ownerError }] = await Promise.all([
-      admin.from("escola_perfis").select("id,ativo").eq("id", schoolUser.id).maybeSingle(),
-      admin.from("escola_super_admins").select("user_id,ativo").eq("user_id", schoolUser.id).maybeSingle()
-    ]);
-
-    if (profileError || ownerError) {
-      return response({ error: profileError?.message || ownerError?.message || "Falha ao validar o vínculo escolar." }, 500);
-    }
-
-    if ((!profile || profile.ativo !== true) && (!owner || owner.ativo !== true)) {
-      return response(
-        {
-          code: "MBA_ESCOLA_PROFILE_INACTIVE",
-          error: "Seu usuário da MBA Labs ainda não possui um perfil escolar ativo."
-        },
-        403
-      );
-    }
+  if (!profile || profile.ativo !== true) {
+    throw new SsoAccessError(
+      "MBA_ESCOLA_PROFILE_INACTIVE",
+      "Seu usuário da MBA Labs ainda não possui um perfil escolar ativo.",
+      403
+    );
   }
 
-  const generated = await admin.auth.admin.generateLink({
-    type: "magiclink",
-    email,
-    options: {
-      redirectTo: "https://www.mbalabs.com.br/mba-escola"
-    }
-  });
-
-  if (generated.error) {
-    return response({ error: generated.error.message }, 500);
+  const role = String(profile.papel ?? "");
+  if (!ALLOWED_SCHOOL_ROLES.has(role)) {
+    throw new SsoAccessError(
+      "MBA_ESCOLA_ROLE_NOT_ALLOWED",
+      role === "aluno"
+        ? "Aluno não possui login direto. O acompanhamento é feito pelo perfil Responsável."
+        : "Seu perfil escolar não possui permissão para entrar no MBA Escola.",
+      403
+    );
   }
 
-  const tokenHash = generated.data.properties?.hashed_token;
-  if (!tokenHash) {
-    return response({ error: "Não foi possível gerar a sessão automática do MBA Escola." }, 500);
+  const school = relationObject(profile.escola);
+  const schoolStatus = String(school?.status ?? "");
+  if (!ENABLED_SCHOOL_STATUSES.has(schoolStatus)) {
+    throw new SsoAccessError(
+      "MBA_ESCOLA_SCHOOL_INACTIVE",
+      "A escola vinculada ao seu perfil não está ativa.",
+      403
+    );
   }
 
-  return response({ tokenHash }, 200);
+  return schoolUser;
 }
 
 async function findUserByEmail(admin: SupabaseClient, email: string): Promise<User | null> {
@@ -145,14 +171,37 @@ async function findUserByEmail(admin: SupabaseClient, email: string): Promise<Us
     if (data.users.length < perPage) return null;
   }
 
-  return null;
+  throw new Error("Limite de busca de usuários do MBA Escola excedido.");
+}
+
+function relationObject(value: unknown): Record<string, unknown> | null {
+  if (Array.isArray(value)) {
+    const first = value[0];
+    return first && typeof first === "object" ? (first as Record<string, unknown>) : null;
+  }
+
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+class SsoAccessError extends Error {
+  constructor(public readonly code: string, message: string, public readonly status: number) {
+    super(message);
+  }
+}
+
+function serverError(code: string, error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`[mba-escola-sso] ${code}: ${message}`);
+  return response({ code, error: "Não foi possível criar a sessão automática do MBA Escola." }, 500);
 }
 
 function response(payload: Record<string, unknown>, status: number) {
   return NextResponse.json(payload, {
     status,
     headers: {
-      "Cache-Control": "no-store, max-age=0"
+      "Cache-Control": "private, no-store, max-age=0",
+      Pragma: "no-cache",
+      Vary: "Cookie"
     }
   });
 }

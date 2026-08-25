@@ -133,8 +133,7 @@ export const internalApps: InternalAppDefinition[] = [
       { label: "Direção", value: "direcao" },
       { label: "Coordenação", value: "coordenacao" },
       { label: "Professor", value: "professor" },
-      { label: "Responsável", value: "responsavel" },
-      { label: "Aluno", value: "aluno" }
+      { label: "Responsável", value: "responsavel" }
     ]
   },
   {

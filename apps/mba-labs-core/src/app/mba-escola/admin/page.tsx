@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient, type Session } from "@supabase/supabase-js";
+import type { Session } from "@supabase/supabase-js";
 import {
   Activity,
   ArrowLeft,
@@ -21,19 +21,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { getMbaEscolaSupabase } from "@/lib/mba-escola/supabase-client";
 
-const supabase = createClient(
-  "https://ihcfhuxxjllmqypzuzce.supabase.co",
-  "sb_publishable_dEfjGxNY_xpLXKAE2atiag_vRHwqVLw",
-  {
-    auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      storageKey: "mba-escola-auth"
-    }
-  }
-);
+const supabase = getMbaEscolaSupabase();
 
 type Tab = "visao" | "escolas" | "perfis" | "conteudo" | "planos" | "pagamentos" | "auditoria";
 type SchoolRow = { id: string; nome: string; slug: string; status: string };
@@ -86,10 +76,10 @@ type ContentRow = {
 
 const testAccounts = [
   ["Admin da Escola", "admin.escola@mbaescola.test"],
+  ["Direção", "direcao@mbaescola.test"],
   ["Coordenação", "coordenador@mbaescola.test"],
   ["Professor", "professor@mbaescola.test"],
-  ["Responsável", "responsavel@mbaescola.test"],
-  ["Aluno", "aluno@mbaescola.test"]
+  ["Responsável", "responsavel@mbaescola.test"]
 ] as const;
 
 export default function MbaEscolaAdminPage() {
@@ -204,7 +194,7 @@ export default function MbaEscolaAdminPage() {
     const papel = String(formData.get("papel") || "");
     if (!escola_id || !nome || !email || !papel) return;
     const { error } = await supabase.from("escola_convites").insert({ escola_id, nome, email, papel, status: "pendente" });
-    setMessage(error ? error.message : "Convite criado. O usuário poderá definir a senha no primeiro acesso.");
+    setMessage(error ? error.message : "Convite criado. O usuário deve entrar com a conta já liberada na MBA Labs.");
   }
 
   async function toggleProfile(profile: ProfileRow) {
@@ -272,9 +262,9 @@ export default function MbaEscolaAdminPage() {
       <main className="grid min-h-screen place-items-center bg-[#f5f8fb] p-4 text-slate-900">
         <section className="max-w-lg rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-xl">
           <ShieldCheck className="mx-auto text-[#176b5b]" size={44} />
-          <h1 className="mt-5 text-2xl font-black">Entre primeiro no MBA Escola</h1>
-          <p className="mt-3 text-slate-500">O painel do proprietário usa a mesma sessão do MBA Escola.</p>
-          <Link className="mt-6 inline-flex rounded-2xl bg-[#176b5b] px-5 py-3 font-black text-white" href="/mba-escola">Ir para o login</Link>
+          <h1 className="mt-5 text-2xl font-black">Renove o acesso pelo MBA Escola</h1>
+          <p className="mt-3 text-slate-500">A sessão escolar é criada automaticamente a partir da MBA Labs.</p>
+          <Link className="mt-6 inline-flex rounded-2xl bg-[#176b5b] px-5 py-3 font-black text-white" href="/mba-escola">Renovar acesso</Link>
         </section>
       </main>
     );
@@ -350,7 +340,7 @@ function SchoolsTab({ schools, createSchool, changeStatus, removeSchool }: { sch
 }
 
 function ProfilesTab({ schools, profiles, createInvite, toggleProfile, removeProfile }: { schools: SchoolRow[]; profiles: ProfileRow[]; createInvite: (f: FormData) => Promise<void>; toggleProfile: (p: ProfileRow) => Promise<void>; removeProfile: (p: ProfileRow) => Promise<void> }) {
-  return <div className="grid gap-5 lg:grid-cols-[360px_1fr]"><FormCard title="Adicionar perfil"><form action={createInvite} className="grid gap-3"><Input name="nome" placeholder="Nome" /><Input name="email" placeholder="E-mail" type="email" /><Select name="escola_id" options={schools.map((s) => [s.id, s.nome])} placeholder="Selecione a escola" /><Select name="papel" options={[["admin_escola","Admin da Escola"],["direcao","Direção"],["coordenacao","Coordenação"],["professor","Professor"],["responsavel","Responsável"],["aluno","Aluno"]]} placeholder="Selecione o cargo" /><Submit label="Criar convite" /></form></FormCard><ListCard title="Perfis e acessos">{profiles.map((profile) => <Row key={profile.id} title={profile.nome} subtitle={`${roleLabel(profile.papel)} · ${profile.escola?.nome || "Escola"}${profile.is_teste ? " · TESTE" : ""}`}><span className={`rounded-full px-3 py-1 text-xs font-black ${profile.ativo ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{profile.ativo ? "Ativo" : "Inativo"}</span><IconButton label={profile.ativo ? "Inativar" : "Reativar"} onClick={() => void toggleProfile(profile)} icon={profile.ativo ? <Ban size={17} /> : <CheckCircle2 size={17} />} /><IconButton label="Excluir" danger onClick={() => void removeProfile(profile)} icon={<Trash2 size={17} />} /></Row>)}</ListCard></div>;
+  return <div className="grid gap-5 lg:grid-cols-[360px_1fr]"><FormCard title="Adicionar perfil"><form action={createInvite} className="grid gap-3"><Input name="nome" placeholder="Nome" /><Input name="email" placeholder="E-mail" type="email" /><Select name="escola_id" options={schools.map((s) => [s.id, s.nome])} placeholder="Selecione a escola" /><Select name="papel" options={[["admin_escola","Admin da Escola"],["direcao","Direção"],["coordenacao","Coordenação"],["professor","Professor"],["responsavel","Responsável"]]} placeholder="Selecione o cargo" /><Submit label="Criar convite" /></form></FormCard><ListCard title="Perfis e acessos">{profiles.map((profile) => <Row key={profile.id} title={profile.nome} subtitle={`${roleLabel(profile.papel)} · ${profile.escola?.nome || "Escola"}${profile.is_teste ? " · TESTE" : ""}`}><span className={`rounded-full px-3 py-1 text-xs font-black ${profile.ativo ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>{profile.ativo ? "Ativo" : "Inativo"}</span><IconButton label={profile.ativo ? "Inativar" : "Reativar"} onClick={() => void toggleProfile(profile)} icon={profile.ativo ? <Ban size={17} /> : <CheckCircle2 size={17} />} /><IconButton label="Excluir" danger onClick={() => void removeProfile(profile)} icon={<Trash2 size={17} />} /></Row>)}</ListCard></div>;
 }
 
 function ContentTab({ content, schoolName, removeContent }: { content: ContentRow[]; schoolName: Map<string, string>; removeContent: (item: ContentRow) => Promise<void> }) {

@@ -1,8 +1,8 @@
-const CACHE_NAME = "mba-escola-v1";
-const APP_SHELL = ["/mba-escola", "/mba-escola/manifest.webmanifest", "/mba-escola-icon.svg"];
+const CACHE_NAME = "mba-escola-v2";
+const STATIC_ASSETS = ["/mba-escola/manifest.webmanifest", "/mba-escola-icon.svg"];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
   self.skipWaiting();
 });
 
@@ -16,7 +16,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
-  if (!url.pathname.startsWith("/mba-escola") && url.pathname !== "/mba-escola-icon.svg") return;
+  if (!STATIC_ASSETS.includes(url.pathname)) return;
 
   event.respondWith(
     fetch(event.request)
@@ -27,6 +27,6 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/mba-escola")))
+      .catch(() => caches.match(event.request))
   );
 });
