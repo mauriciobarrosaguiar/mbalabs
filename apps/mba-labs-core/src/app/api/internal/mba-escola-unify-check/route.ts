@@ -52,7 +52,14 @@ export async function GET() {
     {
       result,
       bucket,
-      helper: { exists: helperExists, code: helper.error?.code ?? null }
+      helper: { exists: helperExists, code: helper.error?.code ?? null },
+      environment: {
+        databaseUrl: Boolean(process.env.DATABASE_URL),
+        postgresUrl: Boolean(process.env.POSTGRES_URL),
+        postgresPrismaUrl: Boolean(process.env.POSTGRES_PRISMA_URL),
+        supabaseDbPassword: Boolean(process.env.SUPABASE_DB_PASSWORD),
+        supabaseAccessToken: Boolean(process.env.SUPABASE_ACCESS_TOKEN)
+      }
     },
     { headers: { "Cache-Control": "no-store" } }
   );
