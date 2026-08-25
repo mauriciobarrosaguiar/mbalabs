@@ -3,6 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Bell, BookOpenText, CalendarDays, ClipboardCheck, Home, Settings, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import AbsenceExceptionPanel from "./absence-exception-panel";
 import AcademicContentPanel from "./academic-content-panel";
 import AcademicGradePanel from "./academic-grade-panel";
 import AgendaTimeline from "./agenda-timeline";
@@ -12,6 +13,7 @@ import ManagementTools from "./management-tools";
 import RoleSections from "./role-sections";
 import SchoolDirectory from "./school-directory";
 import StudentCommunicationCenter from "./student-communication-center";
+import StudentSafetyPanel from "./student-safety-panel";
 import TeacherSchedulePanel from "./teacher-schedule-panel";
 import TeacherStudentPanel from "./teacher-student-panel";
 import TodayDashboard from "./today-dashboard";
@@ -61,29 +63,19 @@ export default function SchoolPortal({ supabase, profile }: Props) {
   }
 
   return <section className="grid gap-6">
-    <nav className="sticky top-2 z-30 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur sm:flex sm:flex-wrap">
-      {items.map(item => {
-        const Icon = item.icon;
-        return <button key={item.id} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-black transition ${area === item.id ? "bg-[#176b5b] text-white" : "text-slate-600 hover:bg-slate-50"}`} onClick={() => navigate(item.id)} type="button"><Icon size={17}/>{item.label}</button>;
-      })}
-    </nav>
+    <nav className="sticky top-2 z-30 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur sm:flex sm:flex-wrap">{items.map(item => { const Icon = item.icon; return <button key={item.id} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-black transition ${area === item.id ? "bg-[#176b5b] text-white" : "text-slate-600 hover:bg-slate-50"}`} onClick={() => navigate(item.id)} type="button"><Icon size={17}/>{item.label}</button>; })}</nav>
 
     {area === "hoje" ? <TodayDashboard supabase={supabase} profile={profile} onNavigate={navigate as never}/> : null}
 
     {!guardian && area === "academico" ? <div className="grid gap-6">
       {manager ? <SchoolDirectory supabase={supabase} schoolName={profile.escola?.nome || "Minha escola"} role={profile.papel as "admin_escola" | "direcao"} section="academic"/> : null}
-      {teacher
-        ? <TeacherSchedulePanel supabase={supabase} profile={{ nome: profile.nome, papel: "professor", escola_id: profile.escola_id }}/>
-        : <AcademicGradePanel supabase={supabase} profile={{ nome: profile.nome, papel: profile.papel as "admin_escola" | "direcao" | "coordenacao", escola_id: profile.escola_id }}/>}      
+      {teacher ? <TeacherSchedulePanel supabase={supabase} profile={{ nome: profile.nome, papel: "professor", escola_id: profile.escola_id }}/> : <AcademicGradePanel supabase={supabase} profile={{ nome: profile.nome, papel: profile.papel as "admin_escola" | "direcao" | "coordenacao", escola_id: profile.escola_id }}/>}      
       <AcademicContentPanel supabase={supabase} profile={{ nome: profile.nome, papel: profile.papel as Exclude<Role, "responsavel">, escola_id: profile.escola_id }}/>
     </div> : null}
 
     {!guardian && area === "alunos" ? <div className="grid gap-6">
       {manager ? <SchoolDirectory supabase={supabase} schoolName={profile.escola?.nome || "Minha escola"} role={profile.papel as "admin_escola" | "direcao"} section="students"/> : null}
-      {!teacher ? <RoleSections supabase={supabase} profile={profile} section="students"/> : null}
-      {teacher
-        ? <TeacherStudentPanel supabase={supabase} profile={{ nome: profile.nome, papel: "professor", escola_id: profile.escola_id }}/>
-        : <StudentCommunicationCenter supabase={supabase} profile={profile} section="students"/>}
+      {teacher ? <TeacherStudentPanel supabase={supabase} profile={{ nome: profile.nome, papel: "professor", escola_id: profile.escola_id }}/> : <><RoleSections supabase={supabase} profile={profile} section="students"/><AbsenceExceptionPanel supabase={supabase} profile={{ papel: profile.papel as "admin_escola" | "direcao" | "coordenacao", escola_id: profile.escola_id }}/><StudentSafetyPanel supabase={supabase} profile={profile}/></>}
     </div> : null}
 
     {!guardian && area === "comunicacao" ? <div className="grid gap-6">
@@ -93,12 +85,9 @@ export default function SchoolPortal({ supabase, profile }: Props) {
       <AgendaTimeline supabase={supabase} profile={profile}/>
     </div> : null}
 
-    {!guardian && area === "gestao" ? <div className="grid gap-6">
-      {manager ? <SchoolDirectory supabase={supabase} schoolName={profile.escola?.nome || "Minha escola"} role={profile.papel as "admin_escola" | "direcao"} section="management"/> : null}
-      {(manager || coordinator) ? <ManagementTools supabase={supabase} profile={{ papel: profile.papel as "admin_escola" | "direcao" | "coordenacao", escola_id: profile.escola_id }}/> : null}
-    </div> : null}
+    {!guardian && area === "gestao" ? <div className="grid gap-6">{manager ? <SchoolDirectory supabase={supabase} schoolName={profile.escola?.nome || "Minha escola"} role={profile.papel as "admin_escola" | "direcao"} section="management"/> : null}{(manager || coordinator) ? <ManagementTools supabase={supabase} profile={{ papel: profile.papel as "admin_escola" | "direcao" | "coordenacao", escola_id: profile.escola_id }}/> : null}</div> : null}
 
-    {guardian && area === "filhos" ? <div className="grid gap-6"><RoleSections supabase={supabase} profile={profile} section="students"/><GuardianActivitiesPanel supabase={supabase} profile={{ nome: profile.nome, papel: "responsavel", escola_id: profile.escola_id }}/><StudentCommunicationCenter supabase={supabase} profile={profile} section="students"/></div> : null}
+    {guardian && area === "filhos" ? <div className="grid gap-6"><RoleSections supabase={supabase} profile={profile} section="students"/><GuardianActivitiesPanel supabase={supabase} profile={{ nome: profile.nome, papel: "responsavel", escola_id: profile.escola_id }}/><AbsenceExceptionPanel supabase={supabase} profile={{ papel: "responsavel", escola_id: profile.escola_id }}/><StudentSafetyPanel supabase={supabase} profile={profile}/></div> : null}
     {guardian && area === "pendencias" ? <div className="grid gap-6"><RoleSections supabase={supabase} profile={profile} section="communication"/><AuthorizationsPanel supabase={supabase} profile={{ nome: profile.nome, papel: "responsavel", escola_id: profile.escola_id }}/></div> : null}
     {guardian && area === "agenda" ? <AgendaTimeline supabase={supabase} profile={profile}/> : null}
   </section>;
