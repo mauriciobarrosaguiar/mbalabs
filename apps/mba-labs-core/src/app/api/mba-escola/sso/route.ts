@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { requireAppAccess } from "@/lib/core-data";
+import { getSupabaseServer } from "@/lib/supabase";
+import type { MbaEscolaSsoSuccess } from "@/lib/mba-escola/sso-contract";
 
 const SCHOOL_URL = "https://ihcfhuxxjllmqypzuzce.supabase.co";
 const ALLOWED_SCHOOL_ROLES = new Set(["admin_escola", "direcao", "coordenacao", "professor", "responsavel"]);
@@ -27,13 +29,7 @@ export async function POST() {
     process.env.SUPABASE_ESCOLA_SERVICE_ROLE_KEY;
 
   if (!adminKey) {
-    return response(
-      {
-        code: "MBA_ESCOLA_SSO_NOT_CONFIGURED",
-        error: "O acesso único do MBA Escola ainda não possui a credencial técnica configurada no servidor."
-      },
-      503
-    );
+    return requestSchoolEdgeSso();
   }
 
   const admin = createClient(SCHOOL_URL, adminKey, {
@@ -63,13 +59,55 @@ export async function POST() {
       return serverError("MBA_ESCOLA_TOKEN_MISSING", new Error("generateLink não retornou hashed_token"));
     }
 
-    return response({ tokenHash, schoolUserId: schoolUser.id }, 200);
+    const payload = { tokenHash, schoolUserId: schoolUser.id } satisfies MbaEscolaSsoSuccess;
+    return response(payload, 200);
   } catch (error) {
     if (error instanceof SsoAccessError) {
       return response({ code: error.code, error: error.message }, error.status);
     }
 
     return serverError("MBA_ESCOLA_SSO_FAILED", error);
+  }
+}
+
+async function requestSchoolEdgeSso() {
+  const coreSupabase = await getSupabaseServer();
+  const { data, error } = await coreSupabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+
+  if (error || !accessToken) {
+    return response({ code: "MBA_ESCOLA_CORE_SESSION_MISSING", error: "Sua sessão da MBA Labs expirou. Entre novamente." }, 401);
+  }
+
+  try {
+    const edgeResponse = await fetch(`${SCHOOL_URL}/functions/v1/mba-escola-sso`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: "{}",
+      cache: "no-store"
+    });
+    const payload = (await edgeResponse.json().catch(() => ({}))) as Record<string, unknown>;
+
+    if (!edgeResponse.ok) {
+      return response(
+        {
+          code: typeof payload.code === "string" ? payload.code : "MBA_ESCOLA_EDGE_UNAVAILABLE",
+          error: typeof payload.error === "string" ? payload.error : "O serviço do MBA Escola está temporariamente indisponível."
+        },
+        edgeResponse.status >= 400 && edgeResponse.status < 600 ? edgeResponse.status : 503
+      );
+    }
+
+    if (typeof payload.tokenHash !== "string" || typeof payload.schoolUserId !== "string") {
+      return serverError("MBA_ESCOLA_EDGE_INVALID_RESPONSE", new Error("Resposta incompleta da função escolar"));
+    }
+
+    return response({ tokenHash: payload.tokenHash, schoolUserId: payload.schoolUserId }, 200);
+  } catch (error) {
+    return serverError("MBA_ESCOLA_EDGE_REQUEST_FAILED", error, 503);
   }
 }
 
@@ -189,10 +227,10 @@ class SsoAccessError extends Error {
   }
 }
 
-function serverError(code: string, error: unknown) {
+function serverError(code: string, error: unknown, status = 500) {
   const message = error instanceof Error ? error.message : String(error);
   console.error(`[mba-escola-sso] ${code}: ${message}`);
-  return response({ code, error: "Não foi possível criar a sessão automática do MBA Escola." }, 500);
+  return response({ code, error: "Não foi possível criar a sessão automática do MBA Escola." }, status);
 }
 
 function response(payload: Record<string, unknown>, status: number) {
