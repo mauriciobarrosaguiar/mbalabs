@@ -3,6 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Bell, BookOpenText, CalendarDays, ClipboardCheck, Home, Settings, UsersRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import AcademicContentPanel from "./academic-content-panel";
 import AcademicGradePanel from "./academic-grade-panel";
 import AgendaTimeline from "./agenda-timeline";
 import AuthorizationsPanel from "./authorizations-panel";
@@ -70,12 +71,12 @@ export default function SchoolPortal({ supabase, profile }: Props) {
     {!guardian && area === "academico" ? <div className="grid gap-6">
       {manager ? <SchoolDirectory supabase={supabase} schoolName={profile.escola?.nome || "Minha escola"} role={profile.papel as "admin_escola" | "direcao"} section="academic"/> : null}
       <AcademicGradePanel supabase={supabase} profile={{ nome: profile.nome, papel: profile.papel as Exclude<Role, "responsavel">, escola_id: profile.escola_id }}/>
-      <RoleSections supabase={supabase} profile={profile} section="academic"/>
+      <AcademicContentPanel supabase={supabase} profile={{ nome: profile.nome, papel: profile.papel as Exclude<Role, "responsavel">, escola_id: profile.escola_id }}/>
     </div> : null}
 
     {!guardian && area === "alunos" ? <div className="grid gap-6">
       {manager ? <SchoolDirectory supabase={supabase} schoolName={profile.escola?.nome || "Minha escola"} role={profile.papel as "admin_escola" | "direcao"} section="students"/> : null}
-      <RoleSections supabase={supabase} profile={profile} section="students"/>
+      {!teacher ? <RoleSections supabase={supabase} profile={profile} section="students"/> : null}
       {teacher
         ? <TeacherStudentPanel supabase={supabase} profile={{ nome: profile.nome, papel: "professor", escola_id: profile.escola_id }}/>
         : <StudentCommunicationCenter supabase={supabase} profile={profile} section="students"/>}
