@@ -78,10 +78,6 @@ export default async function DashboardPage() {
 }
 
 function getAccessHref(app: { slug: string; url_path: string }) {
-  if (app.slug === "mba-escola") {
-    return "https://www.mbalabs.com.br/mba-escola";
-  }
-
   return app.url_path;
 }
 
