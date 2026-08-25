@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import MbaEscolaClient from "./mba-escola-client";
+import MbaEscolaClient from "./mba-escola-client-v2";
 
 export const metadata: Metadata = {
   title: "MBA Escola",
