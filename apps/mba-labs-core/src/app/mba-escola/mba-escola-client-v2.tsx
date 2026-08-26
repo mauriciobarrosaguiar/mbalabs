@@ -23,16 +23,32 @@ const supabase = getMbaEscolaSupabase();
 type SchoolRole = "admin_escola" | "direcao" | "coordenacao" | "professor" | "responsavel";
 type PortalRole = SchoolRole;
 type Profile = { nome: string; papel: SchoolRole; escola_id: string; escola: { nome: string } | null };
+type MembershipRow = {
+  escola_id: string;
+  escola_nome: string;
+  escola_status: string;
+  nome: string;
+  email: string | null;
+  telefone: string | null;
+  papel: string;
+  ativo: boolean;
+  is_teste: boolean;
+  criado_em: string;
+};
 type Admin = { nome: string; email: string };
 type SchoolRow = { id: string; nome: string; status: string };
-
 type MetricTone = "blue" | "violet" | "green";
+
+const validRoles = new Set<SchoolRole>(["admin_escola", "direcao", "coordenacao", "professor", "responsavel"]);
 
 export default function MbaEscolaClientV2() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [pageLoading, setPageLoading] = useState(false);
+  const [switchingSchool, setSwitchingSchool] = useState(false);
+  const [accountError, setAccountError] = useState("");
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [memberships, setMemberships] = useState<Profile[]>([]);
   const [admin, setAdmin] = useState<Admin | null>(null);
   const [schools, setSchools] = useState<SchoolRow[]>([]);
 
@@ -51,8 +67,10 @@ export default function MbaEscolaClientV2() {
   const loadAccount = useCallback(async () => {
     if (!session?.user) return;
     setPageLoading(true);
+    setAccountError("");
     setAdmin(null);
     setProfile(null);
+    setMemberships([]);
     setSchools([]);
 
     const { data: adminData } = await supabase
@@ -73,20 +91,66 @@ export default function MbaEscolaClientV2() {
       return;
     }
 
-    const { data: profileData } = await supabase
-      .from("escola_perfis")
-      .select("nome,papel,escola_id,escola:escola_escolas(nome)")
-      .eq("id", session.user.id)
-      .eq("ativo", true)
-      .maybeSingle();
+    const [membershipResult, currentSchoolResult] = await Promise.all([
+      supabase.rpc("escola_my_memberships"),
+      supabase.rpc("escola_current_school_id")
+    ]);
 
-    if (profileData) setProfile(profileData as unknown as Profile);
+    if (membershipResult.error) {
+      setAccountError(membershipResult.error.message);
+      setPageLoading(false);
+      return;
+    }
+
+    const rows = ((membershipResult.data ?? []) as MembershipRow[]).filter(
+      row => row.ativo && ["ativa", "teste"].includes(row.escola_status) && validRoles.has(row.papel as SchoolRole)
+    );
+    const available = rows.map(toProfile);
+    setMemberships(available);
+
+    if (!available.length) {
+      setPageLoading(false);
+      return;
+    }
+
+    let selectedSchoolId = typeof currentSchoolResult.data === "string" ? currentSchoolResult.data : "";
+    let selected = available.find(item => item.escola_id === selectedSchoolId) ?? null;
+
+    if (!selected) {
+      selected = available[0];
+      const { error: selectionError } = await supabase.rpc("escola_select_school", { p_escola_id: selected.escola_id });
+      if (selectionError) {
+        setAccountError(selectionError.message);
+        setPageLoading(false);
+        return;
+      }
+      selectedSchoolId = selected.escola_id;
+    }
+
+    setProfile(selected);
     setPageLoading(false);
   }, [session]);
 
   useEffect(() => {
     void loadAccount();
   }, [loadAccount]);
+
+  async function selectSchool(escolaId: string) {
+    if (!profile || profile.escola_id === escolaId || switchingSchool) return;
+    const next = memberships.find(item => item.escola_id === escolaId);
+    if (!next) return;
+
+    setSwitchingSchool(true);
+    setAccountError("");
+    const { error } = await supabase.rpc("escola_select_school", { p_escola_id: escolaId });
+    if (error) setAccountError(error.message);
+    else {
+      setProfile(next);
+      window.history.replaceState(null, "", "/mba-escola");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    setSwitchingSchool(false);
+  }
 
   const firstName = useMemo(
     () => (admin?.nome || profile?.nome || session?.user.email || "Usuário").split(" ")[0],
@@ -120,7 +184,8 @@ export default function MbaEscolaClientV2() {
       <Centered>
         <ShieldCheck className="mx-auto text-amber-600" size={42} />
         <h1 className="mt-5 text-2xl font-black">Acesso não vinculado</h1>
-        <p className="mt-3 text-slate-500">Este usuário não possui um perfil escolar ativo e liberado.</p>
+        <p className="mt-3 text-slate-500">Este usuário não possui um vínculo escolar ativo e liberado.</p>
+        {accountError ? <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{accountError}</p> : null}
         <Link
           className="mt-6 inline-flex rounded-xl bg-[#4353C7] px-5 py-3 font-bold text-white shadow-lg shadow-indigo-200"
           href="/dashboard"
@@ -134,7 +199,7 @@ export default function MbaEscolaClientV2() {
   return (
     <main className="cotacoes-module min-h-screen bg-[#F6F8FC] pb-12 text-[#172033]">
       <header className="border-b border-[#E7EBF3] bg-white/95 backdrop-blur">
-        <div className="mx-auto flex min-h-20 w-[min(1180px,calc(100%-32px))] items-center justify-between gap-3 py-3">
+        <div className="mx-auto flex min-h-20 w-[min(1180px,calc(100%-32px))] flex-wrap items-center justify-between gap-3 py-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#4353C7] to-[#19A89A] text-white shadow-lg shadow-indigo-100">
               <GraduationCap size={28} />
@@ -144,17 +209,41 @@ export default function MbaEscolaClientV2() {
               <p className="truncate text-sm text-slate-500">{admin ? "Administração MBA" : profile?.escola?.nome}</p>
             </div>
           </div>
-          <Link
-            className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-[#DDE3EE] bg-white px-3.5 text-sm font-black text-[#2F3A52] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            href="/dashboard"
-          >
-            <LayoutDashboard size={18} />
-            <span className="hidden sm:inline">MBA Labs</span>
-          </Link>
+
+          <div className="ml-auto flex min-w-0 items-center gap-2">
+            {!admin && profile && memberships.length > 1 ? (
+              <label className="min-w-0">
+                <span className="sr-only">Selecionar escola</span>
+                <select
+                  aria-label="Selecionar escola"
+                  className="min-h-11 max-w-[230px] rounded-xl border border-[#DDE3EE] bg-white px-3 text-sm font-black text-[#2F3A52] shadow-sm outline-none focus:border-[#6574D9] focus:ring-4 focus:ring-[#EEF1FF] sm:max-w-[320px]"
+                  disabled={switchingSchool}
+                  onChange={event => void selectSchool(event.target.value)}
+                  value={profile.escola_id}
+                >
+                  {memberships.map(item => (
+                    <option key={`${item.escola_id}:${item.papel}`} value={item.escola_id}>
+                      {item.escola?.nome || "Escola"} · {roleLabel(item.papel)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {switchingSchool ? <LoaderCircle className="animate-spin text-[#4353C7]" size={19} /> : null}
+            <Link
+              className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-[#DDE3EE] bg-white px-3.5 text-sm font-black text-[#2F3A52] shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              href="/dashboard"
+            >
+              <LayoutDashboard size={18} />
+              <span className="hidden sm:inline">MBA Labs</span>
+            </Link>
+          </div>
         </div>
       </header>
 
       <div className="mx-auto grid w-[min(1180px,calc(100%-32px))] gap-6 py-6 sm:py-8">
+        {accountError ? <p className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-800">{accountError}</p> : null}
+
         <section className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-[#3546AE] via-[#5061D3] to-[#1FA69A] p-6 text-white shadow-[0_24px_60px_-34px_rgba(67,83,199,0.75)] sm:p-8">
           <div className="absolute -right-12 -top-16 h-48 w-48 rounded-full bg-white/10 blur-2xl" />
           <div className="absolute -bottom-20 left-20 h-44 w-44 rounded-full bg-cyan-200/10 blur-2xl" />
@@ -168,6 +257,9 @@ export default function MbaEscolaClientV2() {
               <p className="mt-2 max-w-2xl text-base leading-7 text-white/80 sm:text-lg">
                 {admin ? "Sua central para acompanhar e administrar toda a operação do MBA Escola." : roleDescription(profile!.papel)}
               </p>
+              {!admin && memberships.length > 1 ? (
+                <p className="mt-3 text-sm font-bold text-white/75">Você possui acesso a {memberships.length} escolas. Use o seletor acima para alternar com segurança.</p>
+              ) : null}
             </div>
             {admin ? (
               <Link
@@ -183,11 +275,20 @@ export default function MbaEscolaClientV2() {
         {admin ? (
           <OwnerDashboard schools={schools} />
         ) : (
-          <SchoolPortal supabase={supabase} profile={profile as Profile & { papel: PortalRole }} />
+          <SchoolPortal key={`${profile!.escola_id}:${profile!.papel}`} supabase={supabase} profile={profile as Profile & { papel: PortalRole }} />
         )}
       </div>
     </main>
   );
+}
+
+function toProfile(row: MembershipRow): Profile {
+  return {
+    nome: row.nome,
+    papel: row.papel as SchoolRole,
+    escola_id: row.escola_id,
+    escola: { nome: row.escola_nome }
+  };
 }
 
 function Loading() {
