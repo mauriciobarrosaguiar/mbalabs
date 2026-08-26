@@ -24,7 +24,8 @@ const routeThemeScript = `
     "/lavagestor",
     "/bikecomanda",
     "/lexgestor",
-    "/portal-associativo"
+    "/portal-associativo",
+    "/mba-escola"
   ];
   var pathname = window.location.pathname;
   var isSystemRoute = systemPrefixes.some(function (prefix) {
