@@ -1,0 +1,151 @@
+.mba-escola-theme {
+  min-height: 100vh;
+  color-scheme: light;
+  background: #f5f8fb;
+  color: #0f172a;
+  --background: #f5f8fb;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #176b5b;
+  --primary-foreground: #ffffff;
+  --secondary: #e8f3f0;
+  --secondary-foreground: #14584c;
+  --muted: #eef2f7;
+  --muted-foreground: #64748b;
+  --accent: #dff7ee;
+  --accent-foreground: #14584c;
+  --border: #dbe3ef;
+  --input: #dbe3ef;
+  --ring: #176b5b;
+  --line: #dbe3ef;
+  --panel: #ffffff;
+  --panel-strong: #eef2f7;
+}
+
+.mba-escola-theme main,
+.mba-escola-theme header {
+  color: #0f172a;
+}
+
+/* O MBA Labs usa tema global escuro. O módulo Escola é deliberadamente claro. */
+.mba-escola-theme .bg-white {
+  background-color: #ffffff !important;
+}
+
+.mba-escola-theme .text-slate-900 {
+  color: #0f172a !important;
+}
+
+.mba-escola-theme .text-slate-700 {
+  color: #334155 !important;
+}
+
+.mba-escola-theme .text-slate-600 {
+  color: #475569 !important;
+}
+
+.mba-escola-theme .text-slate-500 {
+  color: #64748b !important;
+}
+
+.mba-escola-theme .border-slate-200 {
+  border-color: #e2e8f0 !important;
+}
+
+/* Garante contraste nos títulos que apareciam praticamente invisíveis. */
+.mba-escola-theme main > header + div > section:first-child h1,
+.mba-escola-theme .bg-emerald-50 h2 {
+  color: #0f172a !important;
+}
+
+/* Os cards-resumo devem ser claros mesmo quando o tema global do portal é escuro. */
+.mba-escola-theme main > header + div > section.grid > article {
+  min-height: 0 !important;
+  height: auto !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #e2e8f0 !important;
+}
+
+.mba-escola-theme main > header + div > nav {
+  min-height: 0 !important;
+  background: #ffffff !important;
+  color: #334155 !important;
+}
+
+@media (max-width: 640px) {
+  .mba-escola-theme main {
+    padding-bottom: 1.5rem !important;
+  }
+
+  .mba-escola-theme main > header > div {
+    min-height: 4.5rem !important;
+    gap: 0.75rem !important;
+    padding-top: 0.625rem !important;
+    padding-bottom: 0.625rem !important;
+  }
+
+  .mba-escola-theme main > header a {
+    min-height: 2.625rem !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  .mba-escola-theme main > header + div {
+    gap: 1rem !important;
+    padding-top: 1.25rem !important;
+    padding-bottom: 1.5rem !important;
+  }
+
+  .mba-escola-theme main > header + div > section:first-child {
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .mba-escola-theme main > header + div > section:first-child h1 {
+    margin-top: 0.25rem !important;
+    font-size: 1.75rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .mba-escola-theme main > header + div > section:first-child p:last-child {
+    margin-top: 0.5rem !important;
+    line-height: 1.55 !important;
+  }
+
+  .mba-escola-theme main > header + div > section.grid {
+    gap: 0.75rem !important;
+  }
+
+  .mba-escola-theme main > header + div > section.grid > article {
+    min-height: 0 !important;
+    padding: 1rem 1.125rem !important;
+    border-radius: 1.25rem !important;
+  }
+
+  .mba-escola-theme main > header + div > section.grid > article p {
+    margin-top: 0.45rem !important;
+  }
+
+  .mba-escola-theme .bg-emerald-50 {
+    padding: 1.25rem !important;
+    border-radius: 1.25rem !important;
+  }
+
+  .mba-escola-theme main > header + div > nav {
+    gap: 0.25rem !important;
+    padding: 0.375rem !important;
+    border-radius: 1rem !important;
+  }
+
+  .mba-escola-theme main > header + div > nav button {
+    min-height: 2.5rem !important;
+    padding: 0.625rem 0.75rem !important;
+    font-size: 0.875rem !important;
+  }
+}
