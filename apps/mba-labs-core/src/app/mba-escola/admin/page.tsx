@@ -5,18 +5,25 @@ import type { LucideIcon } from "lucide-react";
 import {
   ArrowLeft,
   Ban,
+  Building2,
   CheckCircle2,
   CreditCard,
   GraduationCap,
   LayoutDashboard,
   LoaderCircle,
+  Mail,
+  MapPin,
+  Pencil,
+  Phone,
   Plus,
   ReceiptText,
+  Save,
   School,
   ShieldCheck,
   Trash2,
   UserCog,
-  UsersRound
+  UsersRound,
+  X
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -26,12 +33,31 @@ const supabase = getMbaEscolaSupabase();
 
 type Tab = "visao" | "escolas" | "perfis" | "planos" | "pagamentos" | "auditoria";
 type MetricTone = "blue" | "green" | "violet" | "amber";
-type SchoolRow = { id: string; nome: string; slug: string; status: string };
+type SchoolRow = {
+  id: string;
+  nome: string;
+  slug: string;
+  status: string;
+  razao_social: string | null;
+  cnpj: string | null;
+  email: string | null;
+  telefone: string | null;
+  whatsapp: string | null;
+  cep: string | null;
+  logradouro: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  cidade: string | null;
+  uf: string | null;
+  contato_nome: string | null;
+  contato_cargo: string | null;
+  observacoes: string | null;
+};
 type ProfileRow = { id: string; escola_id: string; nome: string; papel: string; email: string | null; ativo: boolean; is_teste: boolean; escola?: { nome?: string } | null };
 type PlanRow = { id: string; nome: string; descricao: string | null; preco_mensal: number; limite_alunos: number | null; limite_usuarios: number | null; ativo: boolean };
 type PaymentRow = { id: string; escola_id: string; valor: number; vencimento: string | null; pago_em: string | null; status: string; escola?: { nome?: string } | null };
 type AuditRow = { id: string; acao: string; recurso: string; ator_tipo: string | null; criado_em: string; escola?: { nome?: string } | null };
-
 type TabItem = { id: Tab; label: string; icon: LucideIcon };
 
 const tabs: TabItem[] = [
@@ -46,6 +72,7 @@ const tabs: TabItem[] = [
 const field = "min-h-11 w-full rounded-xl border border-[#DCE2EC] bg-white px-3 py-2 text-sm text-[#172033] outline-none transition placeholder:text-slate-400 focus:border-[#6574D9] focus:ring-4 focus:ring-[#EEF1FF]";
 const primary = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#4353C7] px-4 font-black text-white shadow-lg shadow-indigo-100 transition hover:-translate-y-0.5 hover:bg-[#3948B6] disabled:opacity-50";
 const secondary = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[#DCE2EC] bg-white px-3 text-sm font-bold text-[#465169] shadow-sm transition hover:bg-[#F7F8FC] disabled:opacity-50";
+const danger = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-white px-3 text-sm font-bold text-rose-700 shadow-sm transition hover:bg-rose-50";
 
 export default function MbaEscolaAdminPage() {
   const [session, setSession] = useState<Session | null>(null);
@@ -54,6 +81,7 @@ export default function MbaEscolaAdminPage() {
   const [tab, setTab] = useState<Tab>("visao");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [editingSchoolId, setEditingSchoolId] = useState<string | null>(null);
   const [schools, setSchools] = useState<SchoolRow[]>([]);
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [plans, setPlans] = useState<PlanRow[]>([]);
@@ -79,8 +107,9 @@ export default function MbaEscolaAdminPage() {
     }
 
     setAuthorized(true);
+    const schoolFields = "id,nome,slug,status,razao_social,cnpj,email,telefone,whatsapp,cep,logradouro,numero,complemento,bairro,cidade,uf,contato_nome,contato_cargo,observacoes";
     const [schoolRes, profileRes, planRes, paymentRes, auditRes] = await Promise.all([
-      supabase.from("escola_escolas").select("id,nome,slug,status").order("nome"),
+      supabase.from("escola_escolas").select(schoolFields).order("nome"),
       supabase.from("escola_perfis").select("id,escola_id,nome,papel,email,ativo,is_teste,escola:escola_escolas(nome)").order("nome"),
       supabase.from("escola_planos").select("id,nome,descricao,preco_mensal,limite_alunos,limite_usuarios,ativo").order("preco_mensal"),
       supabase.from("escola_pagamentos").select("id,escola_id,valor,vencimento,pago_em,status,escola:escola_escolas(nome)").order("criado_em", { ascending: false }).limit(100),
@@ -90,7 +119,7 @@ export default function MbaEscolaAdminPage() {
     const firstError = [schoolRes, profileRes, planRes, paymentRes, auditRes].find(item => item.error)?.error;
     if (firstError) setError(firstError.message);
 
-    setSchools((schoolRes.data ?? []) as SchoolRow[]);
+    setSchools((schoolRes.data ?? []) as unknown as SchoolRow[]);
     setProfiles((profileRes.data ?? []) as unknown as ProfileRow[]);
     setPlans((planRes.data ?? []) as PlanRow[]);
     setPayments((paymentRes.data ?? []) as unknown as PaymentRow[]);
@@ -121,22 +150,57 @@ export default function MbaEscolaAdminPage() {
   const activeSchools = schools.filter(item => ["ativa", "teste"].includes(item.status)).length;
   const activeProfiles = profiles.filter(item => item.ativo).length;
   const pendingPayments = payments.filter(item => item.status !== "pago").length;
+  const completeSchools = schools.filter(isSchoolComplete).length;
+
   const refresh = () => {
     if (session) void load(session);
   };
 
   async function createSchool(formData: FormData) {
-    const nome = String(formData.get("nome") || "").trim();
-    if (!nome) return;
-    const slug = `${normalizeSlug(nome)}-${Math.random().toString(36).slice(2, 6)}`;
-    const { error: actionError } = await supabase.from("escola_escolas").insert({ nome, slug, status: "teste" });
-    setMessage(actionError ? "" : "Escola criada.");
+    setMessage("");
+    setError("");
+    const payload = schoolPayload(formData);
+    if (!payload.nome) {
+      setError("Informe o nome da escola.");
+      return;
+    }
+    if (!payload.cnpj || digits(payload.cnpj).length !== 14) {
+      setError("Informe um CNPJ com 14 dígitos.");
+      return;
+    }
+
+    const slug = `${normalizeSlug(payload.nome)}-${Math.random().toString(36).slice(2, 6)}`;
+    const { error: actionError } = await supabase.from("escola_escolas").insert({ ...payload, slug, status: "teste" });
+    setMessage(actionError ? "" : "Escola criada com cadastro completo.");
     setError(actionError?.message || "");
     if (!actionError) refresh();
   }
 
+  async function updateSchool(formData: FormData) {
+    setMessage("");
+    setError("");
+    const id = String(formData.get("id") || "");
+    const payload = schoolPayload(formData);
+    if (!id || !payload.nome) {
+      setError("Não foi possível identificar a escola.");
+      return;
+    }
+    if (payload.cnpj && digits(payload.cnpj).length !== 14) {
+      setError("O CNPJ precisa ter 14 dígitos.");
+      return;
+    }
+
+    const { error: actionError } = await supabase.from("escola_escolas").update({ ...payload, atualizado_em: new Date().toISOString() }).eq("id", id);
+    setMessage(actionError ? "" : "Cadastro da escola atualizado.");
+    setError(actionError?.message || "");
+    if (!actionError) {
+      setEditingSchoolId(null);
+      refresh();
+    }
+  }
+
   async function changeSchoolStatus(id: string, status: string) {
-    const { error: actionError } = await supabase.from("escola_escolas").update({ status }).eq("id", id);
+    const { error: actionError } = await supabase.from("escola_escolas").update({ status, atualizado_em: new Date().toISOString() }).eq("id", id);
     setMessage(actionError ? "" : "Status atualizado.");
     setError(actionError?.message || "");
     if (!actionError) refresh();
@@ -182,7 +246,7 @@ export default function MbaEscolaAdminPage() {
     const preco = Number(formData.get("preco_mensal") || 0);
     const { error: actionError } = await supabase.from("escola_planos").insert({
       nome,
-      descricao: String(formData.get("descricao") || "").trim() || null,
+      descricao: clean(formData.get("descricao")),
       preco_mensal: Number.isFinite(preco) ? preco : 0,
       limite_alunos: Number(formData.get("limite_alunos") || 0) || null,
       limite_usuarios: Number(formData.get("limite_usuarios") || 0) || null,
@@ -308,6 +372,16 @@ export default function MbaEscolaAdminPage() {
               <Metric icon={<ReceiptText />} label="Cobranças pendentes" value={pendingPayments} tone="amber" />
             </div>
 
+            <Card title="Qualidade dos cadastros" subtitle="Acompanhe se os dados básicos das instituições estão completos.">
+              <div className="flex items-center justify-between gap-4 rounded-2xl border border-[#E8ECF3] bg-[#FAFBFD] p-4">
+                <div>
+                  <p className="font-black">Cadastros completos</p>
+                  <p className="mt-1 text-sm text-slate-500">CNPJ, endereço e contato principal preenchidos.</p>
+                </div>
+                <div className="rounded-2xl bg-[#EEF1FF] px-4 py-3 text-2xl font-black text-[#4353C7]">{completeSchools}/{schools.length}</div>
+              </div>
+            </Card>
+
             <Card title="Acessos rápidos" subtitle="Vá direto para as tarefas mais usadas do ADMIN MBA.">
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 <QuickAction icon={<Plus size={19} />} title="Nova escola" text="Cadastrar instituição" onClick={() => setTab("escolas")} />
@@ -321,34 +395,59 @@ export default function MbaEscolaAdminPage() {
 
         {tab === "escolas" ? (
           <section className="grid gap-5">
-            <Card title="Nova escola" subtitle="Cadastre uma nova instituição para iniciar a configuração.">
-              <form action={createSchool} className="flex flex-col gap-3 sm:flex-row">
-                <input className={field} name="nome" placeholder="Nome da escola" required />
-                <button className={primary}><Plus size={17} /> Criar escola</button>
-              </form>
+            <Card title="Nova escola" subtitle="Cadastre os dados institucionais, endereço e contato principal desde o início.">
+              <SchoolForm action={createSchool} submitLabel="Criar escola" />
             </Card>
+
             <Card title="Escolas cadastradas" subtitle={`${schools.length} escola(s) na plataforma.`}>
               <div className="grid gap-3">
-                {schools.length ? schools.map(school => (
-                  <article className="flex flex-col justify-between gap-3 rounded-2xl border border-[#E8ECF3] bg-[#FAFBFD] p-4 md:flex-row md:items-center" key={school.id}>
-                    <div className="flex items-start gap-3">
-                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#EEF1FF] text-[#4353C7]"><School size={19} /></div>
-                      <div>
-                        <p className="font-black">{school.nome}</p>
-                        <p className="mt-0.5 text-sm text-slate-500">{school.slug} · {school.status}</p>
+                {schools.length ? schools.map(school => {
+                  const complete = isSchoolComplete(school);
+                  const editing = editingSchoolId === school.id;
+                  return (
+                    <article className="rounded-2xl border border-[#E8ECF3] bg-[#FAFBFD] p-4" key={school.id}>
+                      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#EEF1FF] text-[#4353C7]"><School size={20} /></div>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-black">{school.nome}</p>
+                              <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${complete ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
+                                {complete ? "Cadastro completo" : "Completar cadastro"}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-sm text-slate-500">{formatCnpj(school.cnpj) || "CNPJ não informado"} · {school.status}</p>
+                            <div className="mt-3 grid gap-1.5 text-sm text-slate-600 sm:grid-cols-2">
+                              <InfoLine icon={<MapPin size={15} />} text={school.cidade ? `${school.cidade}${school.uf ? `/${school.uf}` : ""}` : "Endereço não informado"} />
+                              <InfoLine icon={<Phone size={15} />} text={school.telefone || school.whatsapp || "Telefone não informado"} />
+                              <InfoLine icon={<Mail size={15} />} text={school.email || "E-mail não informado"} />
+                              <InfoLine icon={<Building2 size={15} />} text={school.contato_nome || "Contato não informado"} />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          <select className={`${field} w-auto`} value={school.status} onChange={event => void changeSchoolStatus(school.id, event.target.value)}>
+                            <option value="teste">Teste</option>
+                            <option value="ativa">Ativa</option>
+                            <option value="inativa">Inativa</option>
+                            <option value="bloqueada">Bloqueada</option>
+                          </select>
+                          <button className={secondary} onClick={() => setEditingSchoolId(editing ? null : school.id)} type="button">
+                            {editing ? <X size={16} /> : <Pencil size={16} />} {editing ? "Fechar" : "Editar"}
+                          </button>
+                          <button className={danger} onClick={() => void removeSchool(school.id, school.nome)} type="button"><Trash2 size={16} /> Excluir</button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <select className={`${field} w-auto`} value={school.status} onChange={event => void changeSchoolStatus(school.id, event.target.value)}>
-                        <option value="teste">Teste</option>
-                        <option value="ativa">Ativa</option>
-                        <option value="inativa">Inativa</option>
-                        <option value="bloqueada">Bloqueada</option>
-                      </select>
-                      <button className={secondary} onClick={() => void removeSchool(school.id, school.nome)} type="button"><Trash2 size={16} /> Excluir</button>
-                    </div>
-                  </article>
-                )) : <Empty text="Nenhuma escola cadastrada." />}
+
+                      {editing ? (
+                        <div className="mt-5 border-t border-[#E4E8F2] pt-5">
+                          <SchoolForm action={updateSchool} school={school} submitLabel="Salvar alterações" />
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                }) : <Empty text="Nenhuma escola cadastrada." />}
               </div>
             </Card>
           </section>
@@ -477,6 +576,76 @@ export default function MbaEscolaAdminPage() {
   );
 }
 
+function SchoolForm({ action, school, submitLabel }: { action: (formData: FormData) => void | Promise<void>; school?: SchoolRow; submitLabel: string }) {
+  return (
+    <form action={action} className="grid gap-5">
+      {school ? <input type="hidden" name="id" value={school.id} /> : null}
+
+      <FormSection icon={<Building2 size={18} />} title="Dados da instituição" subtitle="Identificação principal e fiscal da escola.">
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Nome da escola" required><input className={field} name="nome" defaultValue={school?.nome || ""} placeholder="Ex.: Escola Municipal João de Barro" required /></Field>
+          <Field label="Razão social"><input className={field} name="razao_social" defaultValue={school?.razao_social || ""} placeholder="Razão social" /></Field>
+          <Field label="CNPJ" required><input className={field} name="cnpj" inputMode="numeric" defaultValue={formatCnpj(school?.cnpj) || ""} placeholder="00.000.000/0000-00" required /></Field>
+          <Field label="E-mail institucional"><input className={field} name="email" type="email" defaultValue={school?.email || ""} placeholder="escola@dominio.com.br" /></Field>
+        </div>
+      </FormSection>
+
+      <FormSection icon={<MapPin size={18} />} title="Endereço" subtitle="Localização física da instituição.">
+        <div className="grid gap-3 md:grid-cols-6">
+          <Field label="CEP" className="md:col-span-2"><input className={field} name="cep" inputMode="numeric" defaultValue={school?.cep || ""} placeholder="00000-000" /></Field>
+          <Field label="Logradouro" className="md:col-span-4"><input className={field} name="logradouro" defaultValue={school?.logradouro || ""} placeholder="Rua, avenida, quadra..." /></Field>
+          <Field label="Número" className="md:col-span-2"><input className={field} name="numero" defaultValue={school?.numero || ""} placeholder="Número" /></Field>
+          <Field label="Complemento" className="md:col-span-4"><input className={field} name="complemento" defaultValue={school?.complemento || ""} placeholder="Complemento" /></Field>
+          <Field label="Bairro" className="md:col-span-2"><input className={field} name="bairro" defaultValue={school?.bairro || ""} placeholder="Bairro" /></Field>
+          <Field label="Cidade" className="md:col-span-3"><input className={field} name="cidade" defaultValue={school?.cidade || ""} placeholder="Cidade" /></Field>
+          <Field label="UF" className="md:col-span-1"><select className={field} name="uf" defaultValue={school?.uf || ""}><option value="">UF</option>{ufs.map(uf => <option value={uf} key={uf}>{uf}</option>)}</select></Field>
+        </div>
+      </FormSection>
+
+      <FormSection icon={<Phone size={18} />} title="Contato" subtitle="Pessoa e canais principais para falar com a escola.">
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Nome do contato"><input className={field} name="contato_nome" defaultValue={school?.contato_nome || ""} placeholder="Nome do responsável pelo contato" /></Field>
+          <Field label="Cargo"><input className={field} name="contato_cargo" defaultValue={school?.contato_cargo || ""} placeholder="Ex.: Diretor(a), Secretário(a)" /></Field>
+          <Field label="Telefone"><input className={field} name="telefone" inputMode="tel" defaultValue={school?.telefone || ""} placeholder="(00) 0000-0000" /></Field>
+          <Field label="WhatsApp"><input className={field} name="whatsapp" inputMode="tel" defaultValue={school?.whatsapp || ""} placeholder="(00) 00000-0000" /></Field>
+        </div>
+      </FormSection>
+
+      <Field label="Observações"><textarea className={`${field} min-h-24`} name="observacoes" defaultValue={school?.observacoes || ""} placeholder="Informações administrativas importantes sobre a escola." /></Field>
+
+      <button className={primary}><Save size={17} /> {submitLabel}</button>
+    </form>
+  );
+}
+
+function FormSection({ icon, title, subtitle, children }: { icon: React.ReactNode; title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-[#E8ECF3] bg-[#FAFBFD] p-4">
+      <div className="mb-4 flex items-start gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#EEF1FF] text-[#4353C7]">{icon}</span>
+        <div>
+          <p className="font-black">{title}</p>
+          <p className="mt-0.5 text-xs text-slate-500">{subtitle}</p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Field({ label, required, className = "", children }: { label: string; required?: boolean; className?: string; children: React.ReactNode }) {
+  return (
+    <label className={`grid gap-1.5 ${className}`}>
+      <span className="text-xs font-black uppercase tracking-[.08em] text-slate-500">{label}{required ? " *" : ""}</span>
+      {children}
+    </label>
+  );
+}
+
+function InfoLine({ icon, text }: { icon: React.ReactNode; text: string }) {
+  return <span className="flex min-w-0 items-center gap-2"><span className="shrink-0 text-slate-400">{icon}</span><span className="truncate">{text}</span></span>;
+}
+
 function Loading() {
   return (
     <main className="cotacoes-module grid min-h-screen place-items-center bg-[#F6F8FC]">
@@ -509,30 +678,10 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
 
 function Metric({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: number; tone: MetricTone }) {
   const tones: Record<MetricTone, { card: string; icon: string; label: string; value: string }> = {
-    blue: {
-      card: "border-[#DCE3FF] bg-gradient-to-br from-[#F4F6FF] to-white",
-      icon: "bg-[#E6EAFF] text-[#4353C7]",
-      label: "text-[#6672A3]",
-      value: "text-[#273678]"
-    },
-    green: {
-      card: "border-[#D8EFEA] bg-gradient-to-br from-[#F2FBF9] to-white",
-      icon: "bg-[#DFF7F2] text-[#168B7E]",
-      label: "text-[#59827B]",
-      value: "text-[#167F73]"
-    },
-    violet: {
-      card: "border-[#E8DDF9] bg-gradient-to-br from-[#FAF7FF] to-white",
-      icon: "bg-[#F0E8FF] text-[#7950B8]",
-      label: "text-[#7D6B94]",
-      value: "text-[#553780]"
-    },
-    amber: {
-      card: "border-[#F4E4C7] bg-gradient-to-br from-[#FFF9EE] to-white",
-      icon: "bg-[#FFF0D2] text-[#B87919]",
-      label: "text-[#8E7651]",
-      value: "text-[#95631A]"
-    }
+    blue: { card: "border-[#DCE3FF] bg-gradient-to-br from-[#F4F6FF] to-white", icon: "bg-[#E6EAFF] text-[#4353C7]", label: "text-[#6672A3]", value: "text-[#273678]" },
+    green: { card: "border-[#D8EFEA] bg-gradient-to-br from-[#F2FBF9] to-white", icon: "bg-[#DFF7F2] text-[#168B7E]", label: "text-[#59827B]", value: "text-[#167F73]" },
+    violet: { card: "border-[#E8DDF9] bg-gradient-to-br from-[#FAF7FF] to-white", icon: "bg-[#F0E8FF] text-[#7950B8]", label: "text-[#7D6B94]", value: "text-[#553780]" },
+    amber: { card: "border-[#F4E4C7] bg-gradient-to-br from-[#FFF9EE] to-white", icon: "bg-[#FFF0D2] text-[#B87919]", label: "text-[#8E7651]", value: "text-[#95631A]" }
   };
   const style = tones[tone];
 
@@ -547,16 +696,9 @@ function Metric({ icon, label, value, tone }: { icon: React.ReactNode; label: st
 
 function QuickAction({ icon, title, text, onClick }: { icon: React.ReactNode; title: string; text: string; onClick: () => void }) {
   return (
-    <button
-      className="flex items-center gap-3 rounded-2xl border border-[#E8ECF3] bg-[#FAFBFD] p-4 text-left transition hover:-translate-y-0.5 hover:border-[#CDD5F8] hover:bg-[#F4F6FF] hover:shadow-md"
-      onClick={onClick}
-      type="button"
-    >
+    <button className="flex items-center gap-3 rounded-2xl border border-[#E8ECF3] bg-[#FAFBFD] p-4 text-left transition hover:-translate-y-0.5 hover:border-[#CDD5F8] hover:bg-[#F4F6FF] hover:shadow-md" onClick={onClick} type="button">
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#EEF1FF] text-[#4353C7]">{icon}</span>
-      <span>
-        <span className="block font-black">{title}</span>
-        <span className="mt-0.5 block text-xs text-slate-500">{text}</span>
-      </span>
+      <span><span className="block font-black">{title}</span><span className="mt-0.5 block text-xs text-slate-500">{text}</span></span>
     </button>
   );
 }
@@ -565,16 +707,49 @@ function Empty({ text }: { text: string }) {
   return <p className="rounded-2xl border border-dashed border-[#D9DFEA] bg-[#FAFBFD] p-5 text-center text-sm text-slate-500">{text}</p>;
 }
 
+function schoolPayload(formData: FormData) {
+  return {
+    nome: String(formData.get("nome") || "").trim(),
+    razao_social: clean(formData.get("razao_social")),
+    cnpj: clean(formData.get("cnpj")) ? digits(String(formData.get("cnpj"))) : null,
+    email: clean(formData.get("email"))?.toLowerCase() || null,
+    telefone: clean(formData.get("telefone")),
+    whatsapp: clean(formData.get("whatsapp")),
+    cep: clean(formData.get("cep")),
+    logradouro: clean(formData.get("logradouro")),
+    numero: clean(formData.get("numero")),
+    complemento: clean(formData.get("complemento")),
+    bairro: clean(formData.get("bairro")),
+    cidade: clean(formData.get("cidade")),
+    uf: clean(formData.get("uf"))?.toUpperCase() || null,
+    contato_nome: clean(formData.get("contato_nome")),
+    contato_cargo: clean(formData.get("contato_cargo")),
+    observacoes: clean(formData.get("observacoes"))
+  };
+}
+
+function clean(value: FormDataEntryValue | null) {
+  const text = String(value || "").trim();
+  return text || null;
+}
+
+function digits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function formatCnpj(value: string | null | undefined) {
+  if (!value) return "";
+  const number = digits(value).slice(0, 14);
+  if (number.length !== 14) return value;
+  return number.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+}
+
+function isSchoolComplete(school: SchoolRow) {
+  return Boolean(school.cnpj && school.email && (school.telefone || school.whatsapp) && school.cep && school.logradouro && school.cidade && school.uf && school.contato_nome);
+}
+
 function roleLabel(value: string) {
-  return (
-    {
-      admin_escola: "Admin da Escola",
-      direcao: "Direção",
-      coordenacao: "Coordenação",
-      professor: "Professor",
-      responsavel: "Responsável"
-    } as Record<string, string>
-  )[value] || value;
+  return ({ admin_escola: "Admin da Escola", direcao: "Direção", coordenacao: "Coordenação", professor: "Professor", responsavel: "Responsável" } as Record<string, string>)[value] || value;
 }
 
 function normalizeSlug(value: string) {
@@ -587,18 +762,12 @@ function money(value: number) {
 
 function formatDate(value: string | null) {
   if (!value) return "não informado";
-  try {
-    return new Intl.DateTimeFormat("pt-BR").format(new Date(`${value.slice(0, 10)}T12:00:00-03:00`));
-  } catch {
-    return "não informado";
-  }
+  try { return new Intl.DateTimeFormat("pt-BR").format(new Date(`${value.slice(0, 10)}T12:00:00-03:00`)); } catch { return "não informado"; }
 }
 
 function formatDateTime(value: string | null) {
   if (!value) return "não informado";
-  try {
-    return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Araguaina", dateStyle: "short", timeStyle: "short" }).format(new Date(value));
-  } catch {
-    return "não informado";
-  }
+  try { return new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Araguaina", dateStyle: "short", timeStyle: "short" }).format(new Date(value)); } catch { return "não informado"; }
 }
+
+const ufs = ["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
