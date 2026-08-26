@@ -229,7 +229,11 @@ export default function MbaEscolaAdminPage() {
   }
 
   async function toggleProfile(profile: ProfileRow) {
-    const { error: actionError } = await supabase.from("escola_perfis").update({ ativo: !profile.ativo }).eq("id", profile.id);
+    const { error: actionError } = await supabase
+      .from("escola_perfis")
+      .update({ ativo: !profile.ativo })
+      .eq("id", profile.id)
+      .eq("escola_id", profile.escola_id);
     setMessage(actionError ? "" : profile.ativo ? "Perfil inativado." : "Perfil reativado.");
     setError(actionError?.message || "");
     if (!actionError) refresh();
@@ -237,7 +241,11 @@ export default function MbaEscolaAdminPage() {
 
   async function removeProfile(profile: ProfileRow) {
     if (!window.confirm(`Remover o vínculo escolar de ${profile.nome}? A conta MBA Labs não será excluída.`)) return;
-    const { error: actionError } = await supabase.from("escola_perfis").delete().eq("id", profile.id);
+    const { error: actionError } = await supabase
+      .from("escola_perfis")
+      .delete()
+      .eq("id", profile.id)
+      .eq("escola_id", profile.escola_id);
     setMessage(actionError ? "" : "Vínculo escolar removido. A conta central foi preservada.");
     setError(actionError?.message || "");
     if (!actionError) refresh();
@@ -480,7 +488,7 @@ export default function MbaEscolaAdminPage() {
             <Card title="Perfis vinculados" subtitle={`${profiles.length} perfil(is) encontrado(s).`}>
               <div className="grid gap-3">
                 {profiles.length ? profiles.map(profile => (
-                  <article className="flex flex-col justify-between gap-3 rounded-2xl border border-[#E8ECF3] bg-[#FAFBFD] p-4 md:flex-row md:items-center" key={profile.id}>
+                  <article className="flex flex-col justify-between gap-3 rounded-2xl border border-[#E8ECF3] bg-[#FAFBFD] p-4 md:flex-row md:items-center" key={`${profile.escola_id}:${profile.id}`}>
                     <div className="flex items-start gap-3">
                       <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#F2ECFF] text-[#7950B8]"><UsersRound size={19} /></div>
                       <div>
