@@ -40,6 +40,11 @@ export default async function LoginPage({
               Entre com seu e-mail e senha para acessar seus sistemas.
             </p>
           </div>
+          {params.senha === "alterada" ? (
+            <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm font-semibold text-emerald-100">
+              Senha atualizada com sucesso. Entre novamente com a nova senha.
+            </div>
+          ) : null}
           <LoginForm nextPath={nextPath} />
         </section>
 
