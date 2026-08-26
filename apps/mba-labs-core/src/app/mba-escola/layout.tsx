@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import { requireAppAccess } from "@/lib/core-data";
+import "./mba-escola-theme.css";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function MbaEscolaLayout({ children }: { children: ReactNod
   if (current.isAdminMaster) await ensureMbaEscolaOwner(identity);
   else await claimSchoolInvite(identity);
 
-  return children;
+  return <div className="mba-escola-theme">{children}</div>;
 }
 
 function isSchoolSchemaUnavailable(error: { code?: string; message?: string } | null | undefined) {
