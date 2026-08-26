@@ -206,10 +206,13 @@ export default function MbaEscolaAdminPage() {
     if (!actionError) refresh();
   }
 
-  async function removeSchool(id: string, nome: string) {
-    if (!window.confirm(`Excluir a escola ${nome}? Os dados vinculados serão removidos.`)) return;
-    const { error: actionError } = await supabase.from("escola_escolas").delete().eq("id", id);
-    setMessage(actionError ? "" : "Escola excluída.");
+  async function archiveSchool(id: string, nome: string) {
+    if (!window.confirm(`Arquivar a escola ${nome}? Nenhum dado será apagado e a escola poderá ser reativada depois.`)) return;
+    const { error: actionError } = await supabase
+      .from("escola_escolas")
+      .update({ status: "inativa", atualizado_em: new Date().toISOString() })
+      .eq("id", id);
+    setMessage(actionError ? "" : "Escola arquivada com segurança. Nenhum dado foi apagado.");
     setError(actionError?.message || "");
     if (!actionError) refresh();
   }
@@ -436,7 +439,7 @@ export default function MbaEscolaAdminPage() {
                           <button className={secondary} onClick={() => setEditingSchoolId(editing ? null : school.id)} type="button">
                             {editing ? <X size={16} /> : <Pencil size={16} />} {editing ? "Fechar" : "Editar"}
                           </button>
-                          <button className={danger} onClick={() => void removeSchool(school.id, school.nome)} type="button"><Trash2 size={16} /> Excluir</button>
+                          <button className={danger} onClick={() => void archiveSchool(school.id, school.nome)} type="button"><Ban size={16} /> Arquivar</button>
                         </div>
                       </div>
 
