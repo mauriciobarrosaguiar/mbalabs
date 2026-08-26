@@ -30,6 +30,7 @@ export default function SchoolPortal({ supabase, profile }: Props) {
   const manager = profile.papel === "admin_escola" || profile.papel === "direcao";
   const coordinator = profile.papel === "coordenacao";
   const [area, setArea] = useState<Area>("hoje");
+
   const items = useMemo(() => guardian ? [
     { id: "hoje" as const, label: "Hoje", icon: Home },
     { id: "filhos" as const, label: "Meus filhos", icon: UsersRound },
@@ -63,7 +64,20 @@ export default function SchoolPortal({ supabase, profile }: Props) {
   }
 
   return <section className="grid gap-6">
-    <nav className="sticky top-2 z-30 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur sm:flex sm:flex-wrap">{items.map(item => { const Icon = item.icon; return <button key={item.id} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-black transition ${area === item.id ? "bg-[#176b5b] text-white" : "text-slate-600 hover:bg-slate-50"}`} onClick={() => navigate(item.id)} type="button"><Icon size={17}/>{item.label}</button>; })}</nav>
+    <nav className="sticky top-2 z-30 flex gap-2 overflow-x-auto rounded-[22px] border border-[#E2E7F0] bg-white/95 p-2 shadow-[0_14px_45px_-38px_rgba(30,41,59,0.55)] backdrop-blur sm:overflow-visible">
+      {items.map(item => {
+        const Icon = item.icon;
+        const active = area === item.id;
+        return <button
+          key={item.id}
+          className={`flex min-h-12 min-w-[112px] shrink-0 items-center justify-center gap-2 rounded-2xl px-3 text-sm font-black transition sm:min-w-0 sm:flex-1 ${active ? "bg-[#4353C7] text-white shadow-lg shadow-indigo-200" : "bg-[#F8F9FC] text-[#667085] hover:bg-[#EEF1FF] hover:text-[#4353C7]"}`}
+          onClick={() => navigate(item.id)}
+          type="button"
+        >
+          <Icon size={18} />{item.label}
+        </button>;
+      })}
+    </nav>
 
     {area === "hoje" ? <TodayDashboard supabase={supabase} profile={profile} onNavigate={navigate as never}/> : null}
 
