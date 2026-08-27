@@ -333,9 +333,14 @@ export default function MbaEscolaAdminPage() {
               <p className="truncate text-sm text-slate-500">ADMIN MBA · Administração global</p>
             </div>
           </div>
-          <Link className={secondary} href="/mba-escola">
-            <ArrowLeft size={17} /> <span className="hidden sm:inline">Voltar ao MBA Escola</span><span className="sm:hidden">Voltar</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link className={secondary} href="/mba-escola/admin/seguranca">
+              <ShieldCheck size={17} /> <span className="hidden sm:inline">Segurança e LGPD</span><span className="sm:hidden">LGPD</span>
+            </Link>
+            <Link className={secondary} href="/mba-escola">
+              <ArrowLeft size={17} /> <span className="hidden sm:inline">Voltar ao MBA Escola</span><span className="sm:hidden">Voltar</span>
+            </Link>
+          </div>
         </div>
       </header>
 
