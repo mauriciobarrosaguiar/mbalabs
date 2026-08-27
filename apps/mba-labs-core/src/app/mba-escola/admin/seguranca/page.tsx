@@ -320,7 +320,7 @@ export default function MbaEscolaSecurityPage() {
         <section className="w-full max-w-lg rounded-[28px] border border-rose-200 bg-white p-7 text-center shadow-sm">
           <ShieldAlert className="mx-auto text-rose-600" size={42} />
           <h1 className="mt-4 text-2xl font-black">Acesso restrito</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500">Esta área exige perfil ADMIN MBA e autenticação em duas etapas.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-500">Esta área exige perfil ADMIN MBA ativo.</p>
           {error ? <p className="mt-4 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-800">{error}</p> : null}
         </section>
       </main>
@@ -338,7 +338,7 @@ export default function MbaEscolaSecurityPage() {
               </div>
               <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Segurança e LGPD</h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-white/80 sm:text-base">
-                Controle documentos escolares sensíveis, retenção, integridade do Storage e histórico de exclusões em uma área protegida por MFA.
+                Controle documentos escolares sensíveis, retenção, integridade do Storage e histórico de exclusões em uma área restrita ao ADMIN MBA.
               </p>
             </div>
             <div className={`rounded-2xl border px-4 py-3 ${issueCount === 0 ? "border-emerald-200/40 bg-emerald-400/15" : "border-amber-200/50 bg-amber-300/15"}`}>
@@ -363,7 +363,7 @@ export default function MbaEscolaSecurityPage() {
           <StatCard icon={Trash2} label="Exclusões pendentes" value={status.exclusoes_pendentes_storage} warning={status.exclusoes_pendentes_storage > 0} />
         </section>
 
-        <Panel title="Ações de segurança" subtitle="Rotinas destrutivas exigem confirmação explícita e são executadas pela função protegida com MFA.">
+        <Panel title="Ações de segurança" subtitle="Rotinas destrutivas exigem confirmação explícita e são executadas por uma função restrita ao ADMIN MBA.">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <button className={secondary} onClick={() => void load()} disabled={Boolean(working)} type="button">
               <RefreshCw size={17} /> Atualizar diagnóstico
@@ -458,7 +458,7 @@ export default function MbaEscolaSecurityPage() {
         </Panel>
 
         <section className="grid gap-5 xl:grid-cols-2">
-          <Panel title="Documentos ativos" subtitle="Somente o ADMIN MBA com MFA visualiza esta listagem global.">
+          <Panel title="Documentos ativos" subtitle="Somente o ADMIN MBA ativo visualiza esta listagem global.">
             <div className="grid gap-2">
               {activeDocuments.length ? activeDocuments.slice(0, 50).map(item => (
                 <article className="rounded-2xl border border-[#E8ECF3] bg-[#FAFBFD] p-4" key={item.id}>

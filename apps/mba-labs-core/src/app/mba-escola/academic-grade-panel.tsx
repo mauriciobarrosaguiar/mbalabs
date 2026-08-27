@@ -42,14 +42,19 @@ export default function AcademicGradePanel({ supabase, profile }: Props) {
       supabase.from("escola_turmas").select("id,nome,ano_letivo,turno").eq("ativa", true).order("nome"),
       supabase.from("escola_perfis").select("id,nome").eq("papel", "professor").eq("ativo", true).order("nome"),
       supabase.from("escola_disciplinas").select("id,nome").eq("ativa", true).order("nome"),
-      supabase.from("escola_grade_horarios").select("id,turma_id,professor_id,disciplina_id,dia_semana,hora_inicio,hora_fim,sala,ano_letivo,turma:escola_turmas(nome),professor:escola_perfis!escola_grade_horarios_professor_id_fkey(nome),disciplina:escola_disciplinas(nome)").eq("ativo", true).order("dia_semana").order("hora_inicio")
+      supabase.from("escola_grade_horarios").select("id,turma_id,professor_id,disciplina_id,dia_semana,hora_inicio,hora_fim,sala,ano_letivo,turma:escola_turmas(nome),disciplina:escola_disciplinas(nome)").eq("ativo", true).order("dia_semana").order("hora_inicio")
     ]);
     const firstError = req.find(item => item.error)?.error;
     if (firstError) setError(firstError.message);
     setClasses((req[0].data ?? []) as ClassRow[]);
-    setTeachers((req[1].data ?? []) as Teacher[]);
+    const teacherRows = (req[1].data ?? []) as Teacher[];
+    const teacherById = new globalThis.Map<string, string>(teacherRows.map(item => [item.id, item.nome]));
+    setTeachers(teacherRows);
     setSubjects((req[2].data ?? []) as Subject[]);
-    setSchedule((req[3].data ?? []) as unknown as Schedule[]);
+    setSchedule(((req[3].data ?? []) as unknown as Schedule[]).map(item => ({
+      ...item,
+      professor: teacherById.has(item.professor_id) ? { nome: teacherById.get(item.professor_id)! } : null
+    })));
     setLoading(false);
   }, [supabase]);
 

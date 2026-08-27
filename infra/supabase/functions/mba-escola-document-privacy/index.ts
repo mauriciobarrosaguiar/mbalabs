@@ -37,27 +37,13 @@ function reply(origin: string | null, status: number, payload: unknown) {
   return new Response(JSON.stringify(payload), { status, headers: headers(origin) });
 }
 
-function decodePayload(token: string): Record<string, unknown> {
-  try {
-    const part = token.split(".")[1];
-    if (!part) return {};
-    const normalized = part.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(part.length / 4) * 4, "=");
-    return JSON.parse(atob(normalized));
-  } catch {
-    return {};
-  }
-}
-
-async function requireAdminMfa(req: Request) {
+async function requireAdmin(req: Request) {
   const authorization = req.headers.get("Authorization") ?? "";
   const token = authorization.replace(/^Bearer\s+/i, "").trim();
   if (!token) throw new Response("unauthorized", { status: 401 });
 
   const { data, error } = await service.auth.getUser(token);
   if (error || !data.user) throw new Response("unauthorized", { status: 401 });
-
-  const payload = decodePayload(token);
-  if (payload.aal !== "aal2") throw new Response("mfa_required", { status: 403 });
 
   const { data: admin, error: adminError } = await service
     .from("escola_super_admins")
@@ -221,7 +207,7 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return reply(origin, 405, { error: "method_not_allowed" });
 
   try {
-    const user = await requireAdminMfa(req);
+    const user = await requireAdmin(req);
     const body = await req.json().catch(() => ({}));
     const action = String(body.action ?? "status");
 
