@@ -43,7 +43,11 @@ function PriorityPanel({ supabase }: { supabase: SupabaseClient }) {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
-    if (!form.grade_id) return;
+    if (!form.grade_id || !form.data || !form.horario || !form.motivo.trim()) {
+      setMessage("");
+      setError("Informe data, horário e motivo antes de publicar o aviso prioritário.");
+      return;
+    }
     setWorking(true); setError(""); setMessage("");
     const { error: publishError } = await supabase.rpc("escola_create_priority_schedule_notice", {
       p_grade_id: form.grade_id,
@@ -69,9 +73,9 @@ function PriorityPanel({ supabase }: { supabase: SupabaseClient }) {
       {!schedule.length ? <p className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-800">Cadastre a grade antes de vincular um aviso de alteração de aula.</p> : <form className="grid gap-3" onSubmit={submit}>
         <select className={field} value={form.grade_id} onChange={event => setForm(current => ({ ...current, grade_id: event.target.value }))}>{schedule.map(item => <option key={item.id} value={item.id}>{item.turma?.nome} · {item.disciplina?.nome} · {days[item.dia_semana]} {short(item.hora_inicio)}</option>)}</select>
         <select className={field} value={form.tipo} onChange={event => setForm(current => ({ ...current, tipo: event.target.value }))}><option value="saida_antecipada">Saída antecipada</option><option value="professor_ausente">Professor ausente</option><option value="aula_cancelada">Aula cancelada</option><option value="substituicao">Professor substituto</option></select>
-        <input className={field} type="date" value={form.data} onChange={event => setForm(current => ({ ...current, data: event.target.value }))}/>
-        <input className={field} type="time" value={form.horario} onChange={event => setForm(current => ({ ...current, horario: event.target.value }))}/>
-        <textarea className={area} placeholder="Motivo / orientação" value={form.motivo} onChange={event => setForm(current => ({ ...current, motivo: event.target.value }))}/>
+        <input aria-label="Data do aviso" className={field} required type="date" value={form.data} onChange={event => setForm(current => ({ ...current, data: event.target.value }))}/>
+        <input aria-label="Horário do aviso" className={field} required type="time" value={form.horario} onChange={event => setForm(current => ({ ...current, horario: event.target.value }))}/>
+        <textarea aria-label="Motivo ou orientação" className={area} placeholder="Motivo / orientação" required value={form.motivo} onChange={event => setForm(current => ({ ...current, motivo: event.target.value }))}/>
         <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-800"><BellRing className="mr-2 inline" size={16}/>Será publicado como URGENTE e exigirá ciência.</p>
         <button className={primary} disabled={working}><ShieldAlert size={17}/> Publicar aviso</button>
       </form>}
