@@ -89,7 +89,7 @@ export default function SchoolPortal({ supabase, profile }: Props) {
 
     {!guardian && area === "alunos" ? <div className="grid gap-6">
       {manager ? <SchoolDirectory supabase={supabase} schoolName={profile.escola?.nome || "Minha escola"} role={profile.papel as "admin_escola" | "direcao"} section="students"/> : null}
-      {teacher ? <TeacherStudentPanel supabase={supabase} profile={{ nome: profile.nome, papel: "professor", escola_id: profile.escola_id }}/> : <><RoleSections supabase={supabase} profile={profile} section="students"/><AbsenceExceptionPanel supabase={supabase} profile={{ papel: profile.papel as "admin_escola" | "direcao" | "coordenacao", escola_id: profile.escola_id }}/><StudentSafetyPanel supabase={supabase} profile={profile}/></>}
+      {teacher ? <><TeacherStudentPanel supabase={supabase} profile={{ nome: profile.nome, papel: "professor", escola_id: profile.escola_id }}/><AbsenceExceptionPanel supabase={supabase} profile={{ papel: "professor", escola_id: profile.escola_id }}/></> : <><RoleSections supabase={supabase} profile={profile} section="students"/><AbsenceExceptionPanel supabase={supabase} profile={{ papel: profile.papel as "admin_escola" | "direcao" | "coordenacao", escola_id: profile.escola_id }}/><StudentSafetyPanel supabase={supabase} profile={profile}/></>}
     </div> : null}
 
     {!guardian && area === "comunicacao" ? <div className="grid gap-6">
