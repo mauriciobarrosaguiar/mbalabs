@@ -85,7 +85,9 @@ function Imports({ supabase }: { supabase: SupabaseClient }) {
         if (hasValue) list.push(item);
       }
       setHeaders(detectedHeaders); setRows(list); setMessage(`${list.length} linha(s) carregadas. Nada foi gravado ainda.`);
-    } catch (err) { setError(err instanceof Error ? err.message : "Falha ao ler a planilha."); }
+    } catch {
+      setError("Não foi possível ler a planilha. Verifique se o arquivo é um .xlsx válido e tente novamente.");
+    }
   }
 
   const mapped = useMemo<NormalizedImportRow[]>(() => rows.map(row => mapRow(type, row, headers)), [rows, headers, type]);
