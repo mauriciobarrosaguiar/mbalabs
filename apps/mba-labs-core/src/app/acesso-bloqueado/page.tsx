@@ -12,7 +12,8 @@ const appNames: Record<string, string> = {
   bikecomanda: "BikeComanda",
   "bike-comanda": "BikeComanda",
   "portal-associativo": "Portal Associativo",
-  lexgestor: "LexGestor"
+  lexgestor: "LexGestor",
+  "mba-escola": "MBA Escola"
 };
 
 const reasonNames: Record<string, string> = {

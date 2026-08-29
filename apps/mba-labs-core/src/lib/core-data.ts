@@ -116,7 +116,7 @@ export async function requireSessionProfile(nextPath?: string) {
   }
 
   if (!context.profile) {
-    redirect("/setup-admin");
+    redirect("/perfil-pendente");
   }
 
   return {
@@ -133,7 +133,7 @@ export async function getCurrentUserProfile(nextPath?: string): Promise<CurrentU
   const isAdminMaster = isSuperAdminType(profile.tipo);
 
   if (!profile.empresa_id && !isAdminMaster) {
-    redirect("/setup-admin");
+    redirect("/perfil-pendente?motivo=empresa");
   }
 
   return {
@@ -174,7 +174,7 @@ export async function getLoginDestination(nextPath = "/dashboard") {
   }
 
   if (!context.profile) {
-    return "/setup-admin";
+    return `/perfil-pendente?next=${encodeURIComponent(requestedPath)}`;
   }
 
   if (context.profile.status !== "ativo") {
@@ -807,7 +807,7 @@ export async function getEmpresaDashboardData(nextPath = "/empresa/dashboard") {
   }
 
   if (!current.empresaId) {
-    redirect(current.isAdminMaster ? "/admin/dashboard" : "/setup-admin");
+    redirect(current.isAdminMaster ? "/admin/dashboard" : "/perfil-pendente?motivo=empresa");
   }
 
   const supabase = await getSupabaseServer();
@@ -1179,7 +1179,8 @@ function canAccessRequestedPath(path: string, profile: CoreProfile, appsLiberado
       pathname.startsWith("/lavagestor") ||
       pathname.startsWith("/bikecomanda") ||
       pathname.startsWith("/portal-associativo") ||
-      pathname.startsWith("/lexgestor")
+      pathname.startsWith("/lexgestor") ||
+      pathname.startsWith("/mba-escola")
     );
   }
 
@@ -1200,6 +1201,10 @@ function canAccessRequestedPath(path: string, profile: CoreProfile, appsLiberado
 }
 
 function getAppSlugFromPath(path: string) {
+  if (path === "/mba-escola" || path.startsWith("/mba-escola/")) {
+    return "mba-escola";
+  }
+
   if (path === "/cotacoes" || path.startsWith("/cotacoes/")) {
     return "mba-cotacoes";
   }
