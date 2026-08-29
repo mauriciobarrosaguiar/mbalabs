@@ -15,6 +15,8 @@ const field = "min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 
 const area = `${field} min-h-24 resize-y`;
 const primary = "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#176b5b] px-4 font-black text-white disabled:opacity-50";
 const secondary = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 disabled:opacity-50";
+const acceptedAttachmentTypes = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
+const acceptedAttachmentName = /\.(pdf|jpe?g|png|webp)$/i;
 
 export default function AbsenceExceptionPanel({ supabase, profile }: Props) {
   const staff = profile.papel !== "responsavel";
@@ -81,6 +83,10 @@ export default function AbsenceExceptionPanel({ supabase, profile }: Props) {
     event.preventDefault();
     const absence = absences.find(item => item.id === active);
     if (!absence) return;
+    if (file && (!acceptedAttachmentTypes.has(file.type) || !acceptedAttachmentName.test(file.name))) {
+      setError("Formato inválido. Envie somente PDF, JPG, PNG ou WEBP.");
+      return;
+    }
     if (file && file.size > 10 * 1024 * 1024) { setError("O anexo deve ter no máximo 10 MB."); return; }
     setWorking(true); setError(""); setMessage("");
     const { data: justificationId, error: rpcError } = await supabase.rpc("escola_guardian_submit_absence_justification", { p_frequencia_id: absence.id, p_motivo: reason, p_descricao: description || null });
@@ -90,9 +96,22 @@ export default function AbsenceExceptionPanel({ supabase, profile }: Props) {
       const safe = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-");
       const path = `${profile.escola_id}/${absence.aluno_id}/${justificationId}/${Date.now()}-${safe}`;
       const upload = await supabase.storage.from("mba-escola-documentos").upload(path, file, { contentType: file.type || undefined });
-      if (upload.error) { setError(`A justificativa foi criada, mas o anexo não foi enviado: ${upload.error.message}`); setWorking(false); await load(); return; }
+      if (upload.error) {
+        const uploadMessage = `A justificativa foi criada, mas o anexo não foi enviado: ${upload.error.message}`;
+        setWorking(false);
+        await load();
+        setError(uploadMessage);
+        return;
+      }
       const metadata = await supabase.from("escola_justificativa_arquivos").insert({ justificativa_id: justificationId, escola_id: profile.escola_id, aluno_id: absence.aluno_id, responsavel_id: userId, storage_path: path, nome_arquivo: file.name, mime_type: file.type || null, tamanho: file.size });
-      if (metadata.error) { await supabase.storage.from("mba-escola-documentos").remove([path]); setError(`A justificativa foi criada, mas o anexo não pôde ser registrado: ${metadata.error.message}`); setWorking(false); await load(); return; }
+      if (metadata.error) {
+        const metadataMessage = `A justificativa foi criada, mas o anexo não pôde ser registrado: ${metadata.error.message}`;
+        await supabase.storage.from("mba-escola-documentos").remove([path]);
+        setWorking(false);
+        await load();
+        setError(metadataMessage);
+        return;
+      }
     }
 
     setMessage("Justificativa enviada para análise."); setActive(""); setDescription(""); setFile(null); await load(); setWorking(false);
@@ -113,7 +132,7 @@ export default function AbsenceExceptionPanel({ supabase, profile }: Props) {
     {staff ? <div className={reviewer ? "grid gap-5 lg:grid-cols-[.75fr_1.25fr]" : "grid gap-5"}>
       <Card title="Registrar falta"><p className="mb-4 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">Registre somente quem faltou. Não há chamada nem marcação de presença.</p><form className="grid gap-3" onSubmit={registerAbsence}><select className={field} required value={register.aluno_id} onChange={event => setRegister(value => ({ ...value, aluno_id: event.target.value }))}>{students.map(student => <option key={student.id} value={student.id}>{student.nome}{student.turma?.nome ? ` · ${student.turma.nome}` : ""}</option>)}</select><input className={field} type="date" required value={register.data} onChange={event => setRegister(value => ({ ...value, data: event.target.value }))}/><textarea className={area} placeholder="Observação opcional" value={register.observacao} onChange={event => setRegister(value => ({ ...value, observacao: event.target.value }))}/><button className={primary} disabled={working || !register.aluno_id}><Save size={17}/> Registrar falta</button></form></Card>
       {reviewer ? <Card title="Justificativas para análise">{justifications.length ? justifications.map(item => { const absence = absences.find(value => value.id === item.frequencia_id); const docs = files.filter(value => value.justificativa_id === item.id); return <article className="mb-3 rounded-2xl border border-slate-200 p-4" key={item.id}><div className="flex justify-between gap-2"><div><p className="font-black">{item.aluno?.nome}</p><p className="text-sm text-slate-500">{formatDate(absence?.data_aula)} · {item.motivo}</p></div><Badge status={item.status}/></div>{item.descricao ? <p className="mt-2 text-sm">{item.descricao}</p> : null}{docs.length ? <div className="mt-3 flex flex-wrap gap-2">{docs.map(doc => <button className={secondary} key={doc.id} onClick={() => void open(doc)} type="button"><Paperclip size={15}/>{doc.nome_arquivo}</button>)}</div> : null}{["pendente", "correcao_solicitada"].includes(item.status) ? <div className="mt-3 grid gap-2"><input className={field} placeholder="Observação da escola" value={notes[item.id] || ""} onChange={event => setNotes(current => ({ ...current, [item.id]: event.target.value }))}/><div className="flex flex-wrap gap-2"><button className={secondary} disabled={working} onClick={() => void review(item.id, "aprovada")} type="button"><CheckCircle2 size={15}/> Aprovar</button><button className={secondary} disabled={working} onClick={() => void review(item.id, "correcao_solicitada")} type="button"><AlertTriangle size={15}/> Pedir correção</button><button className={secondary} disabled={working} onClick={() => void review(item.id, "recusada")} type="button"><XCircle size={15}/> Recusar</button></div></div> : null}</article>; }) : <Empty text="Nenhuma justificativa aguardando análise."/>}</Card> : null}
-    </div> : <Card title="Faltas e justificativas">{absences.length ? absences.map(absence => { const justification = justifications.find(item => item.frequencia_id === absence.id); const canSubmit = !justification || ["recusada", "correcao_solicitada"].includes(justification.status); return <article className="mb-3 rounded-2xl border border-slate-200 p-4" key={absence.id}><div className="flex justify-between gap-2"><div><p className="font-black">{absence.aluno?.nome}</p><p className="text-sm text-slate-500">Falta em {formatDate(absence.data_aula)}</p></div>{justification ? <Badge status={justification.status}/> : <span className="text-xs font-bold text-amber-700">Pendente</span>}</div>{justification?.observacao_analise ? <p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm">{justification.observacao_analise}</p> : null}{canSubmit ? active === absence.id ? <form className="mt-3 grid gap-3" onSubmit={submit}><select className={field} value={reason} onChange={event => setReason(event.target.value)}><option>Doença</option><option>Consulta médica</option><option>Problema familiar</option><option>Transporte</option><option>Viagem</option><option>Outro</option></select><textarea className={area} placeholder="Explique a ausência" value={description} onChange={event => setDescription(event.target.value)}/><label className="grid gap-2 rounded-xl border border-dashed border-slate-300 p-3 text-sm font-bold">Atestado ou comprovante (PDF/JPG/PNG, até 10 MB)<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={event => setFile(event.target.files?.[0] || null)}/></label><button className={primary} disabled={working}>Enviar justificativa</button></form> : <button className={`${primary} mt-3`} onClick={() => setActive(absence.id)} type="button">Justificar ausência</button> : null}</article>; }) : <p className="rounded-xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">Nenhuma falta registrada.</p>}</Card>}
+    </div> : <Card title="Faltas e justificativas">{absences.length ? absences.map(absence => { const justification = justifications.find(item => item.frequencia_id === absence.id); const canSubmit = !justification || ["recusada", "correcao_solicitada"].includes(justification.status); return <article className="mb-3 rounded-2xl border border-slate-200 p-4" key={absence.id}><div className="flex justify-between gap-2"><div><p className="font-black">{absence.aluno?.nome}</p><p className="text-sm text-slate-500">Falta em {formatDate(absence.data_aula)}</p></div>{justification ? <Badge status={justification.status}/> : <span className="text-xs font-bold text-amber-700">Pendente</span>}</div>{justification?.observacao_analise ? <p className="mt-2 rounded-xl bg-amber-50 p-3 text-sm">{justification.observacao_analise}</p> : null}{canSubmit ? active === absence.id ? <form className="mt-3 grid gap-3" onSubmit={submit}><select className={field} value={reason} onChange={event => setReason(event.target.value)}><option>Doença</option><option>Consulta médica</option><option>Problema familiar</option><option>Transporte</option><option>Viagem</option><option>Outro</option></select><textarea className={area} placeholder="Explique a ausência" value={description} onChange={event => setDescription(event.target.value)}/><label className="grid gap-2 rounded-xl border border-dashed border-slate-300 p-3 text-sm font-bold">Atestado ou comprovante (PDF/JPG/PNG/WEBP, até 10 MB)<input type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onChange={event => setFile(event.target.files?.[0] || null)}/></label><button className={primary} disabled={working}>Enviar justificativa</button></form> : <button className={`${primary} mt-3`} onClick={() => setActive(absence.id)} type="button">Justificar ausência</button> : null}</article>; }) : <p className="rounded-xl bg-emerald-50 p-4 text-sm font-bold text-emerald-800">Nenhuma falta registrada.</p>}</Card>}
   </section>;
 }
 
