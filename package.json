@@ -16,7 +16,7 @@
     "build:all": "npm run build --workspaces --if-present",
     "build:cotacoes": "npm --prefix apps/mba-labs-core run build",
     "build:cotacoes:legacy": "npm run build --workspace=mba-cotacoes",
-    "build:core": "npm --prefix apps/mba-labs-core run build",
+    "build:core": "echo '=== LOCK DIFF ==='; git diff -- package-lock.json || true; echo '=== NPM LS ==='; npm ls nanoid uuid next || true; echo '=== AUDIT ==='; npm audit --json || true; npm --prefix apps/mba-labs-core run build",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },
@@ -27,7 +27,10 @@
     "minimatch@5.1.9": {
       "brace-expansion": "2.1.4"
     },
-    "nanoid": "3.3.17"
+    "nanoid": "3.3.18",
+    "exceljs": {
+      "uuid": "11.1.1"
+    }
   },
   "devDependencies": {
     "typescript": "^5.9.3"
