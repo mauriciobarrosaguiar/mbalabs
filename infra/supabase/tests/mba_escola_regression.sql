@@ -41,6 +41,7 @@ declare
   v_prof_sem uuid := (select id from qa_users where email='professor.sem.turma.alfa@qa.mbalabs.com.br');
   v_prof_multi uuid := (select id from qa_users where email='professor.multi@qa.mbalabs.com.br');
   v_resp_alfa uuid := (select id from qa_users where email='responsavel.alfa@qa.mbalabs.com.br');
+  v_resp2_alfa uuid := (select id from qa_users where email='responsavel2.alfa@qa.mbalabs.com.br');
   v_resp_beta uuid := (select id from qa_users where email='responsavel.beta@qa.mbalabs.com.br');
   v_inativo uuid := (select id from qa_users where email='inativo.alfa@qa.mbalabs.com.br');
   v_admin_inativa uuid := (select id from qa_users where email='admin.escola.inativa@qa.mbalabs.com.br');
@@ -49,6 +50,9 @@ declare
   v_doc_alfa text := (select storage_path from qa_docs where escola_id=v_alfa);
   v_doc_beta text := (select storage_path from qa_docs where escola_id=v_beta);
   v_invite uuid;
+  v_shared_student uuid;
+  v_private_meeting uuid;
+  v_shared_meeting uuid;
 begin
   perform set_config('request.jwt.claim.role','authenticated',true);
 
@@ -119,6 +123,34 @@ begin
   perform set_config('request.jwt.claim.sub',v_resp_beta::text,true);
   insert into qa_results values ('DOC_03_resp_beta_bloqueia_alfa', v_doc_alfa is not null and not public.escola_document_read_allowed(v_doc_alfa), coalesce(v_doc_alfa,'sem documento Alfa'));
   insert into qa_results values ('DOC_04_resp_beta_le_proprio', v_doc_beta is not null and public.escola_document_read_allowed(v_doc_beta), coalesce(v_doc_beta,'sem documento Beta'));
+
+  -- Dois responsáveis do mesmo aluno: reunião direcionada a um deles deve ser privada.
+  select ar1.aluno_id into v_shared_student
+  from public.escola_aluno_responsaveis ar1
+  join public.escola_aluno_responsaveis ar2 on ar2.aluno_id=ar1.aluno_id and ar2.escola_id=ar1.escola_id
+  where ar1.escola_id=v_alfa
+    and ar1.responsavel_id=v_resp_alfa
+    and ar2.responsavel_id=v_resp2_alfa
+  limit 1;
+
+  perform set_config('request.jwt.claim.sub',v_admin_alfa::text,true);
+  insert into public.escola_reunioes(escola_id,aluno_id,responsavel_id,criado_por,titulo,inicio,status)
+  values(v_alfa,v_shared_student,v_resp_alfa,v_admin_alfa,'QA PRIVADA RESPONSAVEL 1',now()+interval '1 day','agendada')
+  returning id into v_private_meeting;
+
+  insert into public.escola_reunioes(escola_id,aluno_id,responsavel_id,criado_por,titulo,inicio,status)
+  values(v_alfa,v_shared_student,null,v_admin_alfa,'QA REUNIAO COMPARTILHADA ALUNO',now()+interval '2 days','agendada')
+  returning id into v_shared_meeting;
+
+  perform set_config('request.jwt.claim.sub',v_resp2_alfa::text,true);
+  select count(*) into v_count from public.escola_reunioes where id=v_private_meeting;
+  insert into qa_results values ('MEETING_01_resp2_nao_ve_privada_resp1', v_count=0, v_count::text);
+
+  select count(*) into v_count from public.escola_student_timeline(v_shared_student) t where t.item_id=v_private_meeting;
+  insert into qa_results values ('MEETING_02_timeline_nao_vaza_privada', v_count=0, v_count::text);
+
+  select count(*) into v_count from public.escola_reunioes where id=v_shared_meeting;
+  insert into qa_results values ('MEETING_03_resp2_ve_reuniao_compartilhada', v_count=1, v_count::text);
 
   perform set_config('request.jwt.claim.sub',v_inativo::text,true);
   v_school := public.escola_current_school_id();
