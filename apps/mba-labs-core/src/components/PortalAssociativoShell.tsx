@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Banknote,
   Bell,
+  ChevronDown,
   ChevronRight,
   ClipboardCheck,
   ClipboardList,
@@ -15,6 +16,7 @@ import {
   LogOut,
   Map as MapIcon,
   Menu,
+  MoreHorizontal,
   Repeat,
   Settings,
   ShieldCheck,
@@ -30,25 +32,28 @@ type PortalNavItem = {
   label: string;
   section: string;
   icon: ComponentType<{ className?: string }>;
+  group: "principal" | "mais";
+  bottom?: boolean;
 };
 
 const navItems: PortalNavItem[] = [
-  { href: "/portal-associativo", label: "Início", section: "dashboard", icon: LayoutDashboard },
-  { href: "/portal-associativo/implantacao", label: "Começar aqui", section: "implantacao", icon: ClipboardCheck },
-  { href: "/portal-associativo/loteamentos", label: "Loteamentos", section: "loteamentos", icon: MapIcon },
-  { href: "/portal-associativo/pessoas", label: "Associados", section: "pessoas", icon: Users },
-  { href: "/portal-associativo/unidades", label: "Chácaras/Lotes", section: "unidades", icon: Home },
-  { href: "/portal-associativo/transferencias", label: "Transferir unidade", section: "transferencias", icon: Repeat },
-  { href: "/portal-associativo/financeiro", label: "Cobranças", section: "financeiro", icon: Banknote },
-  { href: "/portal-associativo/inadimplentes", label: "Atrasados", section: "inadimplentes", icon: FileText },
-  { href: "/portal-associativo/documentos", label: "Documentos", section: "documentos", icon: FolderOpen },
-  { href: "/portal-associativo/importacao", label: "Importação", section: "importacao", icon: Upload },
-  { href: "/portal-associativo/relatorios", label: "Relatórios", section: "relatorios", icon: FileText },
-  { href: "/portal-associativo/reunioes", label: "Reuniões", section: "reunioes", icon: ClipboardList },
-  { href: "/portal-associativo/avisos", label: "Avisos", section: "avisos", icon: Bell },
-  { href: "/portal-associativo/projetos", label: "Projetos", section: "projetos", icon: FolderKanban },
-  { href: "/portal-associativo/painel-associado", label: "Painel do associado", section: "painel", icon: ShieldCheck },
-  { href: "/portal-associativo/configuracoes", label: "Ajustes", section: "configuracoes", icon: Settings }
+  { href: "/portal-associativo", label: "Início", section: "dashboard", icon: LayoutDashboard, group: "principal", bottom: true },
+  { href: "/portal-associativo/pessoas", label: "Associados", section: "pessoas", icon: Users, group: "principal", bottom: true },
+  { href: "/portal-associativo/unidades", label: "Unidades", section: "unidades", icon: Home, group: "principal" },
+  { href: "/portal-associativo/financeiro", label: "Financeiro", section: "financeiro", icon: Banknote, group: "principal", bottom: true },
+  { href: "/portal-associativo/transferencias", label: "Transferir", section: "transferencias", icon: Repeat, group: "principal" },
+  { href: "/portal-associativo/avisos", label: "Avisos", section: "avisos", icon: Bell, group: "principal" },
+  { href: "/portal-associativo/configuracoes", label: "Configurações", section: "configuracoes", icon: Settings, group: "principal" },
+  { href: "/portal-associativo/painel-associado", label: "Meu painel", section: "painel", icon: ShieldCheck, group: "principal" },
+
+  { href: "/portal-associativo/implantacao", label: "Começar aqui", section: "implantacao", icon: ClipboardCheck, group: "mais" },
+  { href: "/portal-associativo/loteamentos", label: "Grupos/Loteamentos", section: "loteamentos", icon: MapIcon, group: "mais" },
+  { href: "/portal-associativo/inadimplentes", label: "Atrasados", section: "inadimplentes", icon: FileText, group: "mais" },
+  { href: "/portal-associativo/documentos", label: "Documentos", section: "documentos", icon: FolderOpen, group: "mais" },
+  { href: "/portal-associativo/importacao", label: "Importar planilha", section: "importacao", icon: Upload, group: "mais" },
+  { href: "/portal-associativo/relatorios", label: "Relatórios", section: "relatorios", icon: FileText, group: "mais" },
+  { href: "/portal-associativo/reunioes", label: "Reuniões", section: "reunioes", icon: ClipboardList, group: "mais" },
+  { href: "/portal-associativo/projetos", label: "Projetos", section: "projetos", icon: FolderKanban, group: "mais" }
 ];
 
 export function PortalAssociativoShell({
@@ -67,10 +72,12 @@ export function PortalAssociativoShell({
   can: (section: string) => boolean;
 }) {
   const visibleItems = navItems.filter((item) => can(item.section));
+  const mainItems = visibleItems.filter((item) => item.group === "principal");
+  const moreItems = visibleItems.filter((item) => item.group === "mais");
 
   return (
     <div className={`${styles.root} portal-associativo-module min-h-screen`}>
-      <header className={`${styles.mobileTop} sticky top-0 z-30 flex items-center justify-between px-6 py-5 lg:hidden`}>
+      <header className={`${styles.mobileTop} sticky top-0 z-30 flex items-center justify-between px-5 py-4 lg:hidden`}>
         <details className={styles.mobileMenu}>
           <summary className={styles.menuTrigger} aria-label="Abrir menu">
             <Menu className={`${styles.menuOpen} h-6 w-6`} aria-hidden />
@@ -79,7 +86,7 @@ export function PortalAssociativoShell({
           </summary>
           <div className={styles.mobileScrim} aria-hidden />
           <aside className={styles.mobilePanel}>
-            <SidebarContent activePath={activePath} companyName={companyName} items={visibleItems} roleLabel={roleLabel} userName={userName} />
+            <SidebarContent activePath={activePath} companyName={companyName} mainItems={mainItems} moreItems={moreItems} roleLabel={roleLabel} userName={userName} />
           </aside>
         </details>
 
@@ -90,15 +97,17 @@ export function PortalAssociativoShell({
         </Link>
       </header>
 
-      <div className="lg:grid lg:min-h-screen lg:grid-cols-[19rem_minmax(0,1fr)]">
+      <div className="lg:grid lg:min-h-screen lg:grid-cols-[17rem_minmax(0,1fr)]">
         <aside className={`${styles.sidebar} hidden lg:flex`}>
-          <SidebarContent activePath={activePath} companyName={companyName} items={visibleItems} roleLabel={roleLabel} userName={userName} />
+          <SidebarContent activePath={activePath} companyName={companyName} mainItems={mainItems} moreItems={moreItems} roleLabel={roleLabel} userName={userName} />
         </aside>
 
-        <main className="min-w-0 px-6 py-8 pb-12 sm:px-8 lg:px-10 xl:px-12">
+        <main className="min-w-0 px-5 py-6 pb-24 sm:px-7 lg:px-8 xl:px-10">
           <div className="mx-auto max-w-7xl">{children}</div>
         </main>
       </div>
+
+      <BottomMobileNav activePath={activePath} items={visibleItems} />
     </div>
   );
 }
@@ -106,53 +115,71 @@ export function PortalAssociativoShell({
 function SidebarContent({
   activePath,
   companyName,
-  items,
+  mainItems,
+  moreItems,
   roleLabel,
   userName
 }: {
   activePath: string;
   companyName: string;
-  items: PortalNavItem[];
+  mainItems: PortalNavItem[];
+  moreItems: PortalNavItem[];
   roleLabel?: string;
   userName?: string;
 }) {
   const initials = getInitials(userName || companyName);
+  const moreActive = moreItems.some((item) => isActivePath(item, activePath));
 
   return (
     <div className="flex min-h-full w-full flex-col">
       <Link className={styles.sidebarBrand} href="/portal-associativo">
         <span className={styles.brandMark}>
-          <Sparkles className="h-6 w-6" aria-hidden />
+          <Sparkles className="h-5 w-5" aria-hidden />
         </span>
         <span className="min-w-0">
-          <span className="block truncate text-lg font-black leading-tight">Portal Associativo</span>
-          <span className="block truncate text-sm font-semibold opacity-65" title={companyName}>{companyName}</span>
+          <span className="block truncate text-base font-black leading-tight">Portal Associativo</span>
+          <span className="block truncate text-xs font-semibold opacity-65" title={companyName}>{companyName}</span>
         </span>
       </Link>
 
       <div className={styles.userCard}>
         <span className={styles.userAvatar}>{initials}</span>
         <span className="min-w-0">
-          {userName ? <span className="block truncate text-base font-black" title={userName}>{userName}</span> : null}
-          {roleLabel ? <span className="block truncate text-sm font-semibold opacity-65" title={roleLabel}>{roleLabel}</span> : null}
+          {userName ? <span className="block truncate text-sm font-black" title={userName}>{userName}</span> : null}
+          {roleLabel ? <span className="block truncate text-xs font-semibold opacity-65" title={roleLabel}>{roleLabel}</span> : null}
         </span>
       </div>
 
-      <div className={styles.navSectionLabel}>Menu</div>
-      <nav className="grid gap-1.5" aria-label="Menu do Portal Associativo">
-        {items.map((item) => (
+      <div className={styles.navSectionLabel}>Principal</div>
+      <nav className="grid gap-1" aria-label="Menu principal do Portal Associativo">
+        {mainItems.map((item) => (
           <PortalNavLink activePath={activePath} item={item} key={item.href} />
         ))}
       </nav>
 
-      <div className="mt-auto grid gap-3 pt-6">
+      {moreItems.length ? (
+        <details className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-1" open={moreActive}>
+          <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-xl px-3 text-sm font-black text-white/85 transition hover:bg-white/10">
+            <MoreHorizontal className="h-4 w-4" aria-hidden />
+            Mais opções
+            <ChevronDown className="ml-auto h-4 w-4" aria-hidden />
+          </summary>
+          <nav className="mt-1 grid gap-1" aria-label="Menu avançado do Portal Associativo">
+            {moreItems.map((item) => (
+              <PortalNavLink activePath={activePath} compact item={item} key={item.href} />
+            ))}
+          </nav>
+        </details>
+      ) : null}
+
+      <div className="mt-auto grid gap-2 pt-5">
         <Link className={styles.sidebarAction} href="/dashboard">
-          <ArrowLeft className="h-5 w-5" aria-hidden />
+          <ArrowLeft className="h-4 w-4" aria-hidden />
           Voltar ao MBA Labs
         </Link>
         <form action="/sair" method="post">
           <button className={`${styles.sidebarAction} ${styles.sidebarActionGhost} w-full`} type="submit">
-            <LogOut className="h-5 w-5" aria-hidden />
+            <LogOut className="h-4 w-4" aria-hidden />
             Sair
           </button>
         </form>
@@ -164,24 +191,59 @@ function SidebarContent({
 function PortalNavLink({
   item,
   activePath,
+  compact = false
 }: {
   item: PortalNavItem;
   activePath: string;
+  compact?: boolean;
 }) {
   const Icon = item.icon;
-  const active = item.href === "/portal-associativo" ? activePath === item.href : activePath.startsWith(item.href);
+  const active = isActivePath(item, activePath);
 
   return (
     <Link
       aria-current={active ? "page" : undefined}
-      className={`${styles.navLink} group flex min-h-12 items-center gap-3 rounded-[24px] px-4 text-base font-semibold transition`}
+      className={`${styles.navLink} group flex items-center gap-2 rounded-[18px] px-3 font-semibold transition ${compact ? "min-h-9 text-sm" : "min-h-11 text-sm"}`}
       href={item.href}
     >
-      <Icon className="h-5 w-5 shrink-0" aria-hidden />
-      <span className="min-w-0 flex-1 whitespace-normal leading-tight">{item.label}</span>
+      <Icon className="h-4 w-4 shrink-0" aria-hidden />
+      <span className="min-w-0 flex-1 truncate leading-tight">{item.label}</span>
       {active ? <ChevronRight className="h-4 w-4 shrink-0" aria-hidden /> : null}
     </Link>
   );
+}
+
+function BottomMobileNav({ activePath, items }: { activePath: string; items: PortalNavItem[] }) {
+  const preferred = [
+    "/portal-associativo",
+    "/portal-associativo/financeiro",
+    "/portal-associativo/pessoas",
+    "/portal-associativo/configuracoes"
+  ];
+  const bottomItems = preferred
+    .map((href) => items.find((item) => item.href === href))
+    .filter(Boolean) as PortalNavItem[];
+  const visibleBottom = bottomItems.length ? bottomItems : items.filter((item) => item.bottom).slice(0, 4);
+  if (!visibleBottom.length) return null;
+
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-slate-200 bg-white/95 px-2 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.12)] backdrop-blur lg:hidden" aria-label="Atalhos principais">
+      {visibleBottom.slice(0, 4).map((item) => {
+        const Icon = item.icon;
+        const active = isActivePath(item, activePath);
+        return (
+          <Link key={item.href} href={item.href} className={`grid min-w-0 place-items-center gap-1 rounded-xl px-1 py-1.5 text-[11px] font-black ${active ? "bg-primary/10 text-primary" : "text-slate-600"}`}>
+            <Icon className="h-4 w-4" aria-hidden />
+            <span className="max-w-full truncate">{item.href.endsWith("configuracoes") ? "Mais" : item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function isActivePath(item: PortalNavItem, activePath: string) {
+  return item.href === "/portal-associativo" ? activePath === item.href : activePath.startsWith(item.href);
 }
 
 function getInitials(value: string) {
