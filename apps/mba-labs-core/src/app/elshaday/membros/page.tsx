@@ -3,13 +3,15 @@ import { createElshadayMember } from "../actions";
 import {
   dateBR,
   hasElshadayRole,
-  requireElshadayContext
+  requireElshadayContext,
+  requireElshadayRole
 } from "@/lib/elshaday";
 
 export const dynamic = "force-dynamic";
 
 export default async function ElshadayMembersPage() {
   const context = await requireElshadayContext("/elshaday/membros");
+  requireElshadayRole(context, ["admin", "pastor", "secretaria", "lider"]);
   const canManage = hasElshadayRole(context.papel, ["admin", "pastor", "secretaria"]);
 
   const { data: members, error } = await context.admin
