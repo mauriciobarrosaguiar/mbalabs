@@ -74,7 +74,31 @@ export async function requireElshadayContext(nextPath = "/elshaday"): Promise<El
     throw new Error(`Falha ao carregar o perfil da igreja: ${perfilError.message}`);
   }
 
-  if (!perfil?.papel) {
+  const portalPermission = current.permissoes.find(
+    (permission) => permission.appSlug === "elshaday" && permission.podeAcessar
+  );
+  const portalRole = current.tipo === "admin_empresa" ? "admin" : portalPermission?.perfil;
+  let papel = isElshadayRole(String(perfil?.papel ?? "")) ? (perfil.papel as ElshadayRole) : null;
+
+  if (isElshadayRole(String(portalRole ?? ""))) {
+    papel = portalRole as ElshadayRole;
+
+    if (!perfil || perfil.papel !== papel) {
+      const { error: syncError } = await admin.from("igreja_perfis").upsert({
+        igreja_id: igreja.id,
+        user_id: current.authUser.id,
+        papel,
+        ativo: true,
+        updated_at: new Date().toISOString()
+      }, { onConflict: "igreja_id,user_id" });
+
+      if (syncError) {
+        throw new Error(`Falha ao sincronizar o perfil da igreja: ${syncError.message}`);
+      }
+    }
+  }
+
+  if (!papel) {
     redirect("/acesso-bloqueado?app=elshaday&motivo=perfil");
   }
 
@@ -82,8 +106,12 @@ export async function requireElshadayContext(nextPath = "/elshaday"): Promise<El
     current,
     admin,
     igreja,
-    papel: perfil.papel as ElshadayRole
+    papel
   };
+}
+
+function isElshadayRole(value: string): value is ElshadayRole {
+  return ["admin", "pastor", "tesouraria", "secretaria", "lider", "membro"].includes(value);
 }
 
 export function hasElshadayRole(
