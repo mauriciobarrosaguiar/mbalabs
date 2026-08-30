@@ -18,7 +18,7 @@ export default async function ElshadayMembersPage() {
     .eq("igreja_id", context.igreja.id)
     .order("nome", { ascending: true });
 
-  if (error) throw new Error(\`Falha ao carregar membros: \${error.message}\`);
+  if (error) throw new Error(`Falha ao carregar membros: ${error.message}`);
 
   const activeCount = (members ?? []).filter((member: any) => member.situacao === "ativo").length;
 
@@ -170,7 +170,7 @@ function Field({
 function Status({ value }: { value: string }) {
   const active = value === "ativo";
   return (
-    <span className={\`inline-flex rounded-full px-3 py-1 text-xs font-black \${active ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}\`}>
+    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${active ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>
       {value}
     </span>
   );
