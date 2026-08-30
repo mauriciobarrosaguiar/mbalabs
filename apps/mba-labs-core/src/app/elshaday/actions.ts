@@ -57,7 +57,7 @@ export async function createElshadayMember(formData: FormData) {
     observacoes: nullable(formData, "observacoes")
   });
 
-  if (error) throw new Error(\`Falha ao cadastrar membro: \${error.message}\`);
+  if (error) throw new Error(`Falha ao cadastrar membro: ${error.message}`);
   revalidatePath("/elshaday");
   revalidatePath("/elshaday/membros");
 }
@@ -82,7 +82,7 @@ export async function createElshadayFinanceEntry(formData: FormData) {
     created_by: context.current.authUser.id
   });
 
-  if (error) throw new Error(\`Falha ao registrar entrada: \${error.message}\`);
+  if (error) throw new Error(`Falha ao registrar entrada: ${error.message}`);
   revalidatePath("/elshaday");
   revalidatePath("/elshaday/financeiro");
 }
@@ -112,7 +112,7 @@ export async function createElshadayEvent(formData: FormData) {
     created_by: context.current.authUser.id
   });
 
-  if (error) throw new Error(\`Falha ao cadastrar evento: \${error.message}\`);
+  if (error) throw new Error(`Falha ao cadastrar evento: ${error.message}`);
   revalidatePath("/elshaday");
   revalidatePath("/elshaday/eventos");
 }
@@ -154,7 +154,7 @@ export async function createElshadaySermon(formData: FormData) {
     created_by: context.current.authUser.id
   });
 
-  if (error) throw new Error(\`Falha ao salvar pregação: \${error.message}\`);
+  if (error) throw new Error(`Falha ao salvar pregação: ${error.message}`);
   revalidatePath("/elshaday");
   revalidatePath("/elshaday/pregacoes");
 }
@@ -177,6 +177,6 @@ export async function saveBibleFavorite(formData: FormData) {
     traducao: "almeida"
   }, { onConflict: "igreja_id,user_id,referencia,traducao" });
 
-  if (error) throw new Error(\`Falha ao favoritar: \${error.message}\`);
+  if (error) throw new Error(`Falha ao favoritar: ${error.message}`);
   revalidatePath("/elshaday/biblia");
 }
