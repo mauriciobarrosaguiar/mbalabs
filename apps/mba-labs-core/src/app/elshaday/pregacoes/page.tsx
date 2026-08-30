@@ -19,7 +19,7 @@ export default async function ElshadaySermonsPage() {
     .order("data_pregacao", { ascending: false })
     .limit(100);
 
-  if (error) throw new Error(\`Falha ao carregar pregações: \${error.message}\`);
+  if (error) throw new Error(`Falha ao carregar pregações: ${error.message}`);
 
   return (
     <div className="mx-auto grid max-w-7xl gap-6">
@@ -91,7 +91,7 @@ export default async function ElshadaySermonsPage() {
         </section>
       )}
 
-      <style>{\`
+      <style>{`
         .input {
           min-height: 3rem;
           border-radius: 1rem;
@@ -101,7 +101,7 @@ export default async function ElshadaySermonsPage() {
           outline: none;
         }
         .input:focus { border-color: rgb(5 150 105); }
-      \`}</style>
+      `}</style>
     </div>
   );
 }
