@@ -38,7 +38,9 @@ export default async function ElshadayFinancePage() {
 
   const entries = entriesResult.data ?? [];
   const members = membersResult.data ?? [];
-  const memberMap = new Map(members.map((member: any) => [member.id, member.nome]));
+  const memberMap = new Map<string, string>(
+    members.map((member: any) => [String(member.id), String(member.nome)])
+  );
 
   const monthEntries = entries.filter((entry: any) => {
     const date = String(entry.data_entrada);
@@ -159,7 +161,7 @@ export default async function ElshadayFinancePage() {
                     <td className="px-5 py-4">{dateBR(entry.data_entrada)}</td>
                     <td className="px-5 py-4 font-bold">{labelType(entry.tipo)}</td>
                     <td className="px-5 py-4 text-slate-600">
-                      {entry.anonimo ? "Anônimo" : (memberMap.get(entry.membro_id) ?? "Sem vínculo")}
+                      {entry.anonimo ? "Anônimo" : (memberMap.get(String(entry.membro_id ?? "")) ?? "Sem vínculo")}
                     </td>
                     <td className="px-5 py-4 text-slate-600">{labelPayment(entry.forma_pagamento)}</td>
                     <td className="px-5 py-4 text-right font-black">{moneyBR(entry.valor)}</td>
