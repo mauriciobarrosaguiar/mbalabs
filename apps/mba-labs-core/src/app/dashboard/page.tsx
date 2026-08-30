@@ -1,13 +1,20 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AppNav } from "@/components/AppNav";
 import { InstallAppCard } from "@/components/InstallAppCard";
 import { PwaRegister } from "@/components/PwaRegister";
-import { getDashboardData, isSuperAdminType } from "@/lib/core-data";
+import { getDashboardData, getLoginDestination, isSuperAdminType } from "@/lib/core-data";
 import { getInternalAppBySlug } from "@/lib/app-registry";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const destination = await getLoginDestination("/dashboard");
+
+  if (destination !== "/dashboard") {
+    redirect(destination);
+  }
+
   const { profile, apps, error } = await getDashboardData();
   const isAdminMaster = isSuperAdminType(profile.tipo);
   const visibleApps = isAdminMaster
