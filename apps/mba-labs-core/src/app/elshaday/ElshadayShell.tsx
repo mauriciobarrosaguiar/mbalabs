@@ -13,14 +13,6 @@ import {
 import type { ElshadayRole } from "@/lib/elshaday";
 import { roleLabel } from "@/lib/elshaday";
 
-const mainNav = [
-  { href: "/elshaday", label: "Início", icon: Home },
-  { href: "/elshaday/membros", label: "Membros", icon: UsersRound },
-  { href: "/elshaday/eventos", label: "Cultos e eventos", icon: CalendarDays },
-  { href: "/elshaday/pregacoes", label: "Pregações", icon: Mic2 },
-  { href: "/elshaday/biblia", label: "Bíblia", icon: BookOpen }
-];
-
 export function ElshadayShell({
   children,
   igrejaNome,
@@ -32,14 +24,16 @@ export function ElshadayShell({
   usuarioNome: string;
   papel: ElshadayRole;
 }) {
+  const canSeeMembers = ["admin", "pastor", "secretaria", "lider"].includes(papel);
   const canSeeFinance = papel === "admin" || papel === "tesouraria";
-  const nav = canSeeFinance
-    ? [
-        ...mainNav.slice(0, 2),
-        { href: "/elshaday/financeiro", label: "Dízimos e ofertas", icon: HandCoins },
-        ...mainNav.slice(2)
-      ]
-    : mainNav;
+  const nav = [
+    { href: "/elshaday", label: "Início", icon: Home },
+    ...(canSeeMembers ? [{ href: "/elshaday/membros", label: "Membros", icon: UsersRound }] : []),
+    ...(canSeeFinance ? [{ href: "/elshaday/financeiro", label: "Dízimos e ofertas", icon: HandCoins }] : []),
+    { href: "/elshaday/eventos", label: "Cultos e eventos", icon: CalendarDays },
+    { href: "/elshaday/pregacoes", label: "Pregações", icon: Mic2 },
+    { href: "/elshaday/biblia", label: "Bíblia", icon: BookOpen }
+  ];
 
   return (
     <div className="min-h-screen bg-[#f3f6f1] text-slate-900">
