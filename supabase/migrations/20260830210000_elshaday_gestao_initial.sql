@@ -188,8 +188,8 @@ as $$
   select exists (
     select 1
     from public.core_usuarios u
-    where u.id = auth.uid()
-      and u.tipo in ('super_admin', 'admin_master')
+    where (u.auth_user_id = auth.uid() or u.id = auth.uid())
+      and coalesce(u.tipo_global, u.tipo) in ('super_admin', 'admin_master')
       and u.status = 'ativo'
   );
 $$;
@@ -254,7 +254,10 @@ using (public.igreja_can_access(id));
 drop policy if exists igreja_membros_select on public.igreja_membros;
 create policy igreja_membros_select on public.igreja_membros
 for select to authenticated
-using (public.igreja_can_access(igreja_id));
+using (
+  public.igreja_has_role(igreja_id, array['admin','pastor','secretaria','lider'])
+  or user_id = auth.uid()
+);
 
 drop policy if exists igreja_membros_write on public.igreja_membros;
 create policy igreja_membros_write on public.igreja_membros
@@ -265,7 +268,10 @@ with check (public.igreja_has_role(igreja_id, array['admin','pastor','secretaria
 drop policy if exists igreja_perfis_select on public.igreja_perfis;
 create policy igreja_perfis_select on public.igreja_perfis
 for select to authenticated
-using (public.igreja_can_access(igreja_id));
+using (
+  public.igreja_has_role(igreja_id, array['admin','pastor'])
+  or user_id = auth.uid()
+);
 
 drop policy if exists igreja_perfis_write on public.igreja_perfis;
 create policy igreja_perfis_write on public.igreja_perfis
@@ -287,7 +293,15 @@ with check (public.igreja_has_role(igreja_id, array['admin','pastor','secretaria
 drop policy if exists igreja_evento_presencas_select on public.igreja_evento_presencas;
 create policy igreja_evento_presencas_select on public.igreja_evento_presencas
 for select to authenticated
-using (public.igreja_can_access(igreja_id));
+using (
+  public.igreja_has_role(igreja_id, array['admin','pastor','secretaria','lider'])
+  or exists (
+    select 1
+    from public.igreja_membros m
+    where m.id = membro_id
+      and m.user_id = auth.uid()
+  )
+);
 
 drop policy if exists igreja_evento_presencas_write on public.igreja_evento_presencas;
 create policy igreja_evento_presencas_write on public.igreja_evento_presencas
@@ -367,10 +381,68 @@ on conflict (slug) do update set
   logo_icone = excluded.logo_icone,
   updated_at = now();
 
-insert into public.igreja_igrejas (
-  slug, nome, nome_curto, cidade, estado, ativa
+insert into public.core_empresa_categorias (
+  nome, slug, descricao, status
 )
 values (
+  'Igreja',
+  'igreja',
+  'Igrejas e organizações religiosas atendidas pelo MBA Labs.',
+  'ativa'
+)
+on conflict (slug) do update set
+  nome = excluded.nome,
+  descricao = excluded.descricao,
+  status = 'ativa',
+  updated_at = now();
+
+insert into public.core_empresas (
+  categoria_id, nome, nome_fantasia, razao_social, cidade, estado, status, observacoes
+)
+select
+  categoria.id,
+  'Igreja Assembleia de Deus Elshaday - Palmas',
+  'Elshaday Palmas',
+  'Igreja Assembleia de Deus Elshaday - Palmas',
+  'Palmas',
+  'TO',
+  'ativa',
+  'Organização criada para implantação do Elshaday Gestão.'
+from public.core_empresa_categorias categoria
+where categoria.slug = 'igreja'
+  and not exists (
+    select 1
+    from public.core_empresas empresa
+    where lower(empresa.nome) = lower('Igreja Assembleia de Deus Elshaday - Palmas')
+  );
+
+insert into public.core_empresa_apps (
+  empresa_id, app_id, status, data_inicio, observacoes
+)
+select
+  empresa.id,
+  app.id,
+  'ativo',
+  current_date,
+  'Implantação inicial do Elshaday Gestão.'
+from public.core_empresas empresa
+join public.core_apps app on app.slug = 'elshaday'
+where lower(empresa.nome) = lower('Igreja Assembleia de Deus Elshaday - Palmas')
+on conflict (empresa_id, app_id) do update set
+  status = 'ativo',
+  updated_at = now();
+
+insert into public.igreja_igrejas (
+  empresa_id, slug, nome, nome_curto, cidade, estado, ativa
+)
+values (
+  (
+    select id
+    from public.core_empresas
+    where lower(nome) = lower('Igreja Assembleia de Deus Elshaday - Palmas')
+    order by created_at asc
+    limit 1
+  ),
   'assembleia-de-deus-elshaday-palmas',
   'Igreja Assembleia de Deus Elshaday - Palmas',
   'Elshaday Palmas',
@@ -379,6 +451,7 @@ values (
   true
 )
 on conflict (slug) do update set
+  empresa_id = excluded.empresa_id,
   nome = excluded.nome,
   nome_curto = excluded.nome_curto,
   cidade = excluded.cidade,
