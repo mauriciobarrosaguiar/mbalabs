@@ -21,14 +21,17 @@ export default async function ElshadayDashboardPage() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10);
+  const canSeeMembers = hasElshadayRole(context.papel, ["admin", "pastor", "secretaria", "lider"]);
   const canSeeFinance = hasElshadayRole(context.papel, ["admin", "tesouraria"]);
 
   const [membersResult, eventsResult, sermonsResult, financeResult] = await Promise.all([
-    context.admin
-      .from("igreja_membros")
-      .select("id", { count: "exact", head: true })
-      .eq("igreja_id", context.igreja.id)
-      .eq("situacao", "ativo"),
+    canSeeMembers
+      ? context.admin
+          .from("igreja_membros")
+          .select("id", { count: "exact", head: true })
+          .eq("igreja_id", context.igreja.id)
+          .eq("situacao", "ativo")
+      : Promise.resolve({ count: null, data: null, error: null }),
     context.admin
       .from("igreja_eventos")
       .select("id,titulo,tipo,inicio,local,pregador,tema")
@@ -64,13 +67,6 @@ export default async function ElshadayDashboardPage() {
 
   const cards = [
     {
-      label: "Membros ativos",
-      value: String(membersResult.count ?? 0),
-      detail: "Cadastro e acompanhamento",
-      href: "/elshaday/membros",
-      icon: UsersRound
-    },
-    {
       label: "Próximos cultos",
       value: String(eventsResult.data?.length ?? 0),
       detail: "Agenda e programação",
@@ -86,8 +82,18 @@ export default async function ElshadayDashboardPage() {
     }
   ];
 
+  if (canSeeMembers) {
+    cards.unshift({
+      label: "Membros ativos",
+      value: String(membersResult.count ?? 0),
+      detail: "Cadastro e acompanhamento",
+      href: "/elshaday/membros",
+      icon: UsersRound
+    });
+  }
+
   if (canSeeFinance) {
-    cards.splice(1, 0, {
+    cards.splice(canSeeMembers ? 1 : 0, 0, {
       label: "Entradas do mês",
       value: moneyBR(monthTotal),
       detail: `Dízimos ${moneyBR(titheTotal)} · Ofertas ${moneyBR(offeringTotal)}`,
