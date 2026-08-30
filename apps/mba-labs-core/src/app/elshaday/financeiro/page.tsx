@@ -33,8 +33,8 @@ export default async function ElshadayFinancePage() {
       .order("nome")
   ]);
 
-  if (entriesResult.error) throw new Error(\`Falha ao carregar entradas: \${entriesResult.error.message}\`);
-  if (membersResult.error) throw new Error(\`Falha ao carregar membros: \${membersResult.error.message}\`);
+  if (entriesResult.error) throw new Error(`Falha ao carregar entradas: ${entriesResult.error.message}`);
+  if (membersResult.error) throw new Error(`Falha ao carregar membros: ${membersResult.error.message}`);
 
   const entries = entriesResult.data ?? [];
   const members = membersResult.data ?? [];
@@ -171,7 +171,7 @@ export default async function ElshadayFinancePage() {
         )}
       </section>
 
-      <style>{\`
+      <style>{`
         .input {
           min-height: 3rem;
           border-radius: 1rem;
@@ -181,7 +181,7 @@ export default async function ElshadayFinancePage() {
           outline: none;
         }
         .input:focus { border-color: rgb(5 150 105); }
-      \`}</style>
+      `}</style>
     </div>
   );
 }
