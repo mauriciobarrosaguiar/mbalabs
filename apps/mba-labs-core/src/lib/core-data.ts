@@ -181,7 +181,12 @@ export async function getLoginDestination(nextPath = "/dashboard") {
     return "/acesso-bloqueado?motivo=usuario";
   }
 
-  if (canAccessRequestedPath(requestedPath, context.profile, context.appsLiberados ?? [])) {
+  // "/dashboard" e "/selecionar-app" são destinos de plataforma.
+  // Para usuários comuns, o login deve resolver primeiro quantos sistemas
+  // estão realmente liberados: 1 = acesso direto, 2+ = seletor.
+  const isPlatformLanding = requestedPath === "/dashboard" || requestedPath === "/selecionar-app";
+
+  if (!isPlatformLanding && canAccessRequestedPath(requestedPath, context.profile, context.appsLiberados ?? [])) {
     return requestedPath;
   }
 
@@ -193,13 +198,14 @@ function getFallbackDestination(profile: CoreProfile, appsLiberados: SharedAppAc
     return "/dashboard";
   }
 
-  if (profile.tipo === "admin_empresa") {
-    return "/empresa/dashboard";
-  }
-
   const availableApps = appsLiberados.filter((app) => app.canAccess);
 
   if (availableApps.length === 0) {
+    // Admin da empresa continua podendo administrar a conta mesmo sem app ativo.
+    if (profile.tipo === "admin_empresa") {
+      return "/empresa/dashboard";
+    }
+
     return "/acesso-bloqueado?motivo=sem-app";
   }
 
