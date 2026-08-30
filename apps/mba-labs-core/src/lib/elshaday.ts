@@ -153,10 +153,15 @@ export function moneyBR(value: number | string | null | undefined) {
 
 export function dateBR(value: string | Date | null | undefined) {
   if (!value) return "-";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-");
+    return `${day}/${month}/${year}`;
+  }
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "-";
   return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short"
+    dateStyle: "short",
+    timeZone: "America/Araguaina"
   }).format(date);
 }
 
@@ -166,6 +171,7 @@ export function dateTimeBR(value: string | Date | null | undefined) {
   if (Number.isNaN(date.getTime())) return "-";
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
-    timeStyle: "short"
+    timeStyle: "short",
+    timeZone: "America/Araguaina"
   }).format(date);
 }
