@@ -92,7 +92,7 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
     setLoading(true);
     setError("");
 
-    fetch(\`/api/elshaday/biblia?book=\${encodeURIComponent(bookId)}&chapter=\${chapter}\`, {
+    fetch(`/api/elshaday/biblia?book=${encodeURIComponent(bookId)}&chapter=${chapter}`, {
       signal: controller.signal
     })
       .then(async (response) => {
@@ -179,7 +179,7 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
         ) : (
           <div className="grid gap-1">
             {verses.map((verse) => {
-              const reference = \`\${book.name} \${chapter}:\${verse.number}\`;
+              const reference = `${book.name} ${chapter}:${verse.number}`;
               const favorite = favorites.has(reference);
               return (
                 <div className="group grid grid-cols-[auto_1fr_auto] gap-3 rounded-xl px-2 py-2 transition hover:bg-white" key={verse.number}>
@@ -189,7 +189,7 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
                     <input type="hidden" name="referencia" value={reference} />
                     <input type="hidden" name="texto" value={verse.text} />
                     <button
-                      className={\`grid size-9 place-items-center rounded-xl transition \${favorite ? "bg-rose-50 text-rose-500" : "text-slate-300 hover:bg-rose-50 hover:text-rose-500"}\`}
+                      className={`grid size-9 place-items-center rounded-xl transition ${favorite ? "bg-rose-50 text-rose-500" : "text-slate-300 hover:bg-rose-50 hover:text-rose-500"}`}
                       title={favorite ? "Favoritado" : "Favoritar versículo"}
                       type="submit"
                     >
