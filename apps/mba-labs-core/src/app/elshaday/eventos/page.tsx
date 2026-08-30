@@ -19,7 +19,7 @@ export default async function ElshadayEventsPage() {
     .order("inicio", { ascending: false })
     .limit(100);
 
-  if (error) throw new Error(\`Falha ao carregar eventos: \${error.message}\`);
+  if (error) throw new Error(`Falha ao carregar eventos: ${error.message}`);
 
   const now = Date.now();
   const upcoming = (events ?? []).filter((event: any) => new Date(event.inicio).getTime() >= now && event.status !== "cancelado");
@@ -108,7 +108,7 @@ export default async function ElshadayEventsPage() {
         </section>
       ) : null}
 
-      <style>{\`
+      <style>{`
         .input {
           min-height: 3rem;
           border-radius: 1rem;
@@ -118,7 +118,7 @@ export default async function ElshadayEventsPage() {
           outline: none;
         }
         .input:focus { border-color: rgb(5 150 105); }
-      \`}</style>
+      `}</style>
     </div>
   );
 }
@@ -155,7 +155,7 @@ function SectionTitle({ title, count }: { title: string; count: number }) {
 
 function EventCard({ event, muted = false }: { event: any; muted?: boolean }) {
   return (
-    <article className={\`rounded-[26px] border border-emerald-950/10 bg-white p-5 \${muted ? "opacity-75" : ""}\`}>
+    <article className={`rounded-[26px] border border-emerald-950/10 bg-white p-5 ${muted ? "opacity-75" : ""}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-black uppercase tracking-[.12em] text-[#176445]">{event.tipo}</p>
@@ -165,7 +165,7 @@ function EventCard({ event, muted = false }: { event: any; muted?: boolean }) {
       </div>
       {event.tema ? <p className="mt-4 font-bold text-[#176445]">{event.tema}</p> : null}
       <p className="mt-2 text-sm leading-6 text-slate-600">
-        {[event.pregador ? \`Pregador: \${event.pregador}\` : null, event.dirigente ? \`Dirigente: \${event.dirigente}\` : null, event.local].filter(Boolean).join(" · ") || "Programação em definição"}
+        {[event.pregador ? `Pregador: ${event.pregador}` : null, event.dirigente ? `Dirigente: ${event.dirigente}` : null, event.local].filter(Boolean).join(" · ") || "Programação em definição"}
       </p>
       {event.texto_biblico ? <p className="mt-3 text-sm font-semibold text-slate-700">📖 {event.texto_biblico}</p> : null}
     </article>
