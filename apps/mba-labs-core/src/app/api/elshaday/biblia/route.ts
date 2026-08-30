@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(\`https://bible-api.com/data/almeida/\${book}/\${chapter}\`, {
+    const response = await fetch(`https://bible-api.com/data/almeida/${book}/${chapter}`, {
       headers: { Accept: "application/json" },
       next: { revalidate: 60 * 60 * 24 }
     });
