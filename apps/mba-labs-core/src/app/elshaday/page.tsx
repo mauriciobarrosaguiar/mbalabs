@@ -90,7 +90,7 @@ export default async function ElshadayDashboardPage() {
     cards.splice(1, 0, {
       label: "Entradas do mês",
       value: moneyBR(monthTotal),
-      detail: \`Dízimos \${moneyBR(titheTotal)} · Ofertas \${moneyBR(offeringTotal)}\`,
+      detail: `Dízimos ${moneyBR(titheTotal)} · Ofertas ${moneyBR(offeringTotal)}`,
       href: "/elshaday/financeiro",
       icon: HandCoins
     });
