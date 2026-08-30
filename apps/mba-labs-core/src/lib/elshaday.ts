@@ -46,7 +46,7 @@ export async function requireElshadayContext(nextPath = "/elshaday"): Promise<El
   const { data: igreja, error: igrejaError } = await igrejaQuery.limit(1).maybeSingle();
 
   if (igrejaError) {
-    throw new Error(\`Falha ao carregar a igreja: \${igrejaError.message}\`);
+    throw new Error(`Falha ao carregar a igreja: ${igrejaError.message}`);
   }
 
   if (!igreja) {
@@ -71,7 +71,7 @@ export async function requireElshadayContext(nextPath = "/elshaday"): Promise<El
     .maybeSingle();
 
   if (perfilError) {
-    throw new Error(\`Falha ao carregar o perfil da igreja: \${perfilError.message}\`);
+    throw new Error(`Falha ao carregar o perfil da igreja: ${perfilError.message}`);
   }
 
   if (!perfil?.papel) {
