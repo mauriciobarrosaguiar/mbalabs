@@ -125,6 +125,10 @@ begin
   insert into qa_results values ('DOC_04_resp_beta_le_proprio', v_doc_beta is not null and public.escola_document_read_allowed(v_doc_beta), coalesce(v_doc_beta,'sem documento Beta'));
 
   -- Dois responsáveis do mesmo aluno: reunião direcionada a um deles deve ser privada.
+  -- Volta ao contexto do Admin Alfa antes de descobrir o aluno compartilhado,
+  -- pois o teste anterior estava autenticado como Responsável Beta.
+  perform set_config('request.jwt.claim.sub',v_admin_alfa::text,true);
+
   select ar1.aluno_id into v_shared_student
   from public.escola_aluno_responsaveis ar1
   join public.escola_aluno_responsaveis ar2 on ar2.aluno_id=ar1.aluno_id and ar2.escola_id=ar1.escola_id
