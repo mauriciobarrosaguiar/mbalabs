@@ -30,6 +30,18 @@ function positiveMoney(formData: FormData, key: string) {
   return Number(value.toFixed(2));
 }
 
+function palmasDateTimeIso(value: string) {
+  if (!value) throw new Error("Informe data e horário.");
+  const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)
+    ? `${value}:00-03:00`
+    : value;
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error("Data ou horário inválido.");
+  }
+  return parsed.toISOString();
+}
+
 export async function createElshadayMember(formData: FormData) {
   const context = await requireElshadayContext("/elshaday/membros");
   requireElshadayRole(context, ["admin", "pastor", "secretaria"]);
@@ -101,7 +113,7 @@ export async function createElshadayEvent(formData: FormData) {
     titulo,
     tipo: text(formData, "tipo") || "culto",
     descricao: nullable(formData, "descricao"),
-    inicio: new Date(inicio).toISOString(),
+    inicio: palmasDateTimeIso(inicio),
     local: nullable(formData, "local"),
     pregador: nullable(formData, "pregador"),
     dirigente: nullable(formData, "dirigente"),
