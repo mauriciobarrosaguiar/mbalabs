@@ -13,6 +13,10 @@ import {
   saveElshadayPixConfiguration,
   syncElshadayStaticPixReceipts
 } from "@/lib/elshaday-payments";
+import {
+  parseElshadayPixProvider,
+  saveElshadayPixProviderConfig
+} from "@/lib/elshaday-payment-providers";
 
 function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -990,4 +994,46 @@ export async function syncElshadayPixReceipts() {
       error instanceof Error ? error.message : "Não foi possível sincronizar os PIX."
     );
   }
+}
+
+
+export async function saveElshadayPixProviderSettings(formData: FormData) {
+  const context = await requireElshadayContext("/elshaday/financeiro/provedores");
+  requireElshadayRole(context, ["admin", "tesouraria"]);
+
+  try {
+    const provider = parseElshadayPixProvider(text(formData, "provider"));
+    const environment = text(formData, "ambiente") === "production" ? "production" : "sandbox";
+    const active = text(formData, "ativo") === "on";
+    const principal = text(formData, "principal") === "on";
+
+    await saveElshadayPixProviderConfig({
+      igrejaId: context.igreja.id,
+      provider,
+      environment,
+      active,
+      principal,
+      apelido: nullable(formData, "apelido"),
+      pixAddressKey: nullable(formData, "pix_address_key"),
+      updatedBy: context.current.authUser.id
+    });
+
+    await auditChurchAccess(context, "elshaday provedor pix configurado", {
+      provider,
+      environment,
+      active,
+      principal
+    });
+  } catch (error) {
+    redirectWithMessage(
+      "/elshaday/financeiro/provedores",
+      "erro",
+      error instanceof Error ? error.message : "Não foi possível salvar o provedor PIX."
+    );
+  }
+
+  revalidatePath("/elshaday/financeiro");
+  revalidatePath("/elshaday/financeiro/provedores");
+  revalidatePath("/elshaday/contribuir");
+  redirectWithMessage("/elshaday/financeiro/provedores", "ok", "provedor");
 }
