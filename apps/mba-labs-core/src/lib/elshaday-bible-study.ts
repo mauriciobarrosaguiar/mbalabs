@@ -3,6 +3,21 @@ export type BibleStudy = {
   chapter: string;
   observe: string[];
   application: string;
+  kingJamesNotes: Array<{
+    title: string;
+    text: string;
+    source: "King James Atualizada";
+  }>;
+};
+
+const KING_JAMES_NOTES: Record<string, Array<{ title: string; text: string; source: "King James Atualizada" }>> = {
+  "NEH:6": [
+    {
+      title: "Nota de estudo — Neemias 6",
+      source: "King James Atualizada",
+      text: "A cidade de Ono ficava quase 12 km a Sudeste de Jope, próxima de Lode, atual Lida (Ed 2.33), na região Oeste, povoada pelos judeus que retornavam (Ne 7.37; 11.35). Talvez tenha sido proposta como território neutro. Neemias reconheceu no convite uma armadilha (Gn 4.8; Jr 41.1-3). Os inimigos da obra do Senhor são incansáveis, ainda que se afastem por um tempo (Dt 6.16; Lc 4.12), sempre voltam ao ataque, lançando mão de ciladas, enganos, seduções e subversão. Neemias nos adverte sobre algumas das principais artimanhas dos adversários: 1) Espionagem (4.1-3); 2) Intimidações e até agressões (4.8); 3) Esgotamento físico e emocional; cansaço, depressão e tristeza; 4) Boatos, mal-entendidos e calúnias (6.5-8); 5) Falsas profecias e batalhas espirituais (6.10-14); 6) Revoltas e sabotagem entre famílias (6.17-19)."
+    }
+  ]
 };
 
 const THEMES: Record<string, string> = {
@@ -171,6 +186,7 @@ export function getBibleStudy(bookId: string, bookName: string, chapter: number,
     context: THEMES[bookId] ?? "Leia o livro observando seu contexto, seus temas repetidos e a forma como ele contribui para a mensagem das Escrituras.",
     chapter: specific ?? (bookName + " " + chapter + ": " + position),
     observe: OBSERVE[genre],
-    application: APPLICATION[genre]
+    application: APPLICATION[genre],
+    kingJamesNotes: KING_JAMES_NOTES[bookId + ":" + chapter] ?? []
   };
 }
