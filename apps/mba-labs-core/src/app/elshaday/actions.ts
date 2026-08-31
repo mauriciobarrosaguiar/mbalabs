@@ -7,6 +7,11 @@ import {
   requireElshadayContext,
   requireElshadayRole
 } from "@/lib/elshaday";
+import {
+  createElshadayStaticPixQrCode,
+  saveElshadayPixConfiguration,
+  syncElshadayStaticPixReceipts
+} from "@/lib/elshaday-payments";
 
 function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -829,4 +834,95 @@ export async function linkElshadayMemberAccess(formData: FormData) {
   revalidatePath("/elshaday/acessos");
   revalidatePath(returnTo);
   redirectWithMessage(returnTo, "ok", "vinculo");
+}
+
+
+export async function saveElshadayPixSettings(formData: FormData) {
+  const context = await requireElshadayContext("/elshaday/financeiro");
+  requireElshadayRole(context, ["admin", "tesouraria"]);
+
+  try {
+    const environment = text(formData, "ambiente") === "production" ? "production" : "sandbox";
+    const addressKey = text(formData, "pix_address_key");
+    const active = text(formData, "ativo") === "on";
+
+    if (active && !addressKey && !process.env.ELSHADAY_PIX_ADDRESS_KEY) {
+      throw new Error("Informe a chave PIX da igreja para ativar a integração.");
+    }
+
+    await saveElshadayPixConfiguration({
+      igrejaId: context.igreja.id,
+      environment,
+      active,
+      addressKey,
+      updatedBy: context.current.authUser.id
+    });
+
+    await auditChurchAccess(context, "elshaday configuração pix atualizada", {
+      environment,
+      active,
+      address_key_configured: Boolean(addressKey || process.env.ELSHADAY_PIX_ADDRESS_KEY)
+    });
+  } catch (error) {
+    redirectWithMessage(
+      "/elshaday/financeiro",
+      "erro",
+      error instanceof Error ? error.message : "Não foi possível salvar a configuração PIX."
+    );
+  }
+
+  revalidatePath("/elshaday/financeiro");
+  revalidatePath("/elshaday/contribuir");
+  redirectWithMessage("/elshaday/financeiro", "ok", "pix_config");
+}
+
+export async function generateElshadayStaticPix() {
+  const context = await requireElshadayContext("/elshaday/financeiro");
+  requireElshadayRole(context, ["admin", "tesouraria"]);
+
+  try {
+    const result = await createElshadayStaticPixQrCode(
+      context.igreja.id,
+      context.current.authUser.id
+    );
+
+    await auditChurchAccess(context, "elshaday qr pix gerado", {
+      static_qr_id: result.id
+    });
+  } catch (error) {
+    redirectWithMessage(
+      "/elshaday/financeiro",
+      "erro",
+      error instanceof Error ? error.message : "Não foi possível gerar o QR Code PIX."
+    );
+  }
+
+  revalidatePath("/elshaday/financeiro");
+  revalidatePath("/elshaday/contribuir");
+  redirectWithMessage("/elshaday/financeiro", "ok", "pix_qr");
+}
+
+export async function syncElshadayPixReceipts() {
+  const context = await requireElshadayContext("/elshaday/financeiro");
+  requireElshadayRole(context, ["admin", "tesouraria"]);
+
+  try {
+    const result = await syncElshadayStaticPixReceipts(context.igreja.id);
+
+    await auditChurchAccess(context, "elshaday pix sincronizado", result);
+
+    revalidatePath("/elshaday");
+    revalidatePath("/elshaday/financeiro");
+    redirectWithMessage(
+      "/elshaday/financeiro",
+      "ok",
+      `pix_sync:${result.imported}:${result.seen}`
+    );
+  } catch (error) {
+    redirectWithMessage(
+      "/elshaday/financeiro",
+      "erro",
+      error instanceof Error ? error.message : "Não foi possível sincronizar os PIX."
+    );
+  }
 }
