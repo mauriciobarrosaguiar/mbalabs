@@ -26,7 +26,7 @@ type PendingFavorite = {
   updatedAt: number;
 };
 
-const FAVORITE_QUEUE_KEY = "elshaday:bible-favorite-queue:v1";
+const FAVORITE_QUEUE_PREFIX = "elshaday:bible-favorite-queue:v1:";
 
 const BOOKS: Book[] = [
   { id: "GEN", name: "Gênesis", chapters: 50 },
@@ -99,7 +99,13 @@ const BOOKS: Book[] = [
 
 const NEW_TESTAMENT_START = BOOKS.findIndex((book) => book.id === "MAT");
 
-export function BibleReader({ favoriteReferences }: { favoriteReferences: string[] }) {
+export function BibleReader({
+  favoriteReferences,
+  userKey
+}: {
+  favoriteReferences: string[];
+  userKey: string;
+}) {
   const router = useRouter();
   const [bookId, setBookId] = useState("");
   const [chapter, setChapter] = useState<number | null>(null);
@@ -113,20 +119,21 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
   const [favoriteSet, setFavoriteSet] = useState<Set<string>>(
     () => new Set(favoriteReferences)
   );
+  const queueKey = FAVORITE_QUEUE_PREFIX + userKey;
 
   const book = useMemo(
     () => BOOKS.find((item) => item.id === bookId) ?? null,
     [bookId]
   );
   useEffect(() => {
-    const queued = readFavoriteQueue();
+    const queued = readFavoriteQueue(queueKey);
     const next = new Set(favoriteReferences);
     for (const item of queued) {
       if (item.favorito) next.add(item.referencia);
       else next.delete(item.referencia);
     }
     setFavoriteSet(next);
-  }, [favoriteReferences]);
+  }, [favoriteReferences, queueKey]);
 
   useEffect(() => {
     const updateOnline = () => setOnline(navigator.onLine);
@@ -134,7 +141,7 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
 
     const flush = async () => {
       setOnline(true);
-      const queue = readFavoriteQueue();
+      const queue = readFavoriteQueue(queueKey);
       if (!queue.length) return;
 
       const remaining: PendingFavorite[] = [];
@@ -149,7 +156,7 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
         }
       }
 
-      writeFavoriteQueue(remaining);
+      writeFavoriteQueue(queueKey, remaining);
       if (changed) router.refresh();
     };
 
@@ -163,7 +170,7 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
       window.removeEventListener("online", flush);
       window.removeEventListener("offline", onOffline);
     };
-  }, [router]);
+  }, [queueKey, router]);
 
   const filteredBooks = useMemo(() => {
     const term = normalize(search);
@@ -229,17 +236,17 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
     };
 
     if (!navigator.onLine) {
-      enqueueFavorite(operation);
+      enqueueFavorite(queueKey, operation);
       setOnline(false);
       return;
     }
 
     try {
       await persistFavorite(operation);
-      removeQueuedFavorite(referencia);
+      removeQueuedFavorite(queueKey, referencia);
       router.refresh();
     } catch {
-      enqueueFavorite(operation);
+      enqueueFavorite(queueKey, operation);
       setOnline(false);
     }
   }
@@ -658,10 +665,10 @@ function normalize(value: string) {
 }
 
 
-function readFavoriteQueue(): PendingFavorite[] {
+function readFavoriteQueue(queueKey): PendingFavorite[] {
   if (typeof window === "undefined") return [];
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(FAVORITE_QUEUE_KEY) || "[]");
+    const parsed = JSON.parse(window.localStorage.getItem(queueKey) || "[]");
     if (!Array.isArray(parsed)) return [];
     return parsed.filter(
       (item): item is PendingFavorite =>
@@ -675,26 +682,27 @@ function readFavoriteQueue(): PendingFavorite[] {
   }
 }
 
-function writeFavoriteQueue(items: PendingFavorite[]) {
+function writeFavoriteQueue(queueKey: string, items: PendingFavorite[]) {
   if (typeof window === "undefined") return;
   if (!items.length) {
-    window.localStorage.removeItem(FAVORITE_QUEUE_KEY);
+    window.localStorage.removeItem(queueKey);
     return;
   }
-  window.localStorage.setItem(FAVORITE_QUEUE_KEY, JSON.stringify(items));
+  window.localStorage.setItem(queueKey, JSON.stringify(items));
 }
 
-function enqueueFavorite(operation: PendingFavorite) {
-  const queue = readFavoriteQueue().filter(
+function enqueueFavorite(queueKey: string, operation: PendingFavorite) {
+  const queue = readFavoriteQueue(queueKey).filter(
     (item) => item.referencia !== operation.referencia
   );
   queue.push(operation);
-  writeFavoriteQueue(queue);
+  writeFavoriteQueue(queueKey, queue);
 }
 
-function removeQueuedFavorite(referencia: string) {
+function removeQueuedFavorite(queueKey: string, referencia: string) {
   writeFavoriteQueue(
-    readFavoriteQueue().filter((item) => item.referencia !== referencia)
+    queueKey,
+    readFavoriteQueue(queueKey).filter((item) => item.referencia !== referencia)
   );
 }
 
