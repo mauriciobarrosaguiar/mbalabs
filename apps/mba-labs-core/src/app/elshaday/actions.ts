@@ -433,11 +433,18 @@ export async function createElshadayAccess(formData: FormData) {
         throw new Error("Este membro já está vinculado a outro login.");
       }
 
-      await context.admin
+      const { data: conflictingMember, error: conflictError } = await context.admin
         .from("igreja_membros")
-        .update({ user_id: null, updated_at: new Date().toISOString() })
+        .select("id,nome")
         .eq("igreja_id", context.igreja.id)
-        .eq("user_id", authUser.id);
+        .eq("user_id", authUser.id)
+        .neq("id", membroId)
+        .maybeSingle();
+
+      if (conflictError) throw conflictError;
+      if (conflictingMember) {
+        throw new Error(`Este login já está vinculado ao membro ${conflictingMember.nome}.`);
+      }
 
       const { error: linkError } = await context.admin
         .from("igreja_membros")
