@@ -35,8 +35,8 @@ export default async function ElshadayFinancePage({
   requireElshadayRole(context, ["admin", "tesouraria"]);
 
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10);
+  const today = palmasDate(now);
+  const { monthStart, nextMonthStart } = monthBounds(today);
 
   const [entriesResult, membersResult, configResult, pixStatus] = await Promise.all([
     context.admin
@@ -260,7 +260,7 @@ export default async function ElshadayFinancePage({
           </label>
           <label className="grid gap-2 text-sm font-bold text-slate-700">
             Data
-            <input className="input" name="data_entrada" type="date" defaultValue={now.toISOString().slice(0, 10)} />
+            <input className="input" name="data_entrada" type="date" defaultValue={today} />
           </label>
           <label className="grid gap-2 text-sm font-bold text-slate-700">
             Membro
@@ -355,6 +355,27 @@ export default async function ElshadayFinancePage({
       `}</style>
     </div>
   );
+}
+
+function palmasDate(value: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Araguaina",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(value);
+}
+
+function monthBounds(today: string) {
+  const [yearText, monthText] = today.split("-");
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const nextYear = month === 12 ? year + 1 : year;
+  const nextMonth = month === 12 ? 1 : month + 1;
+  return {
+    monthStart: `${yearText}-${monthText}-01`,
+    nextMonthStart: `${String(nextYear).padStart(4, "0")}-${String(nextMonth).padStart(2, "0")}-01`
+  };
 }
 
 function readParam(value: string | string[] | undefined) {
