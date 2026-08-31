@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Archive, BookMarked, Mic2, Plus, Search } from "lucide-react";
+import { Archive, BookMarked, ChevronRight, Mic2, Play, Plus, Search } from "lucide-react";
 import { createElshadaySermon } from "../actions";
 import {
   dateBR,
@@ -41,7 +41,7 @@ export default async function ElshadaySermonsPage({
 
   return (
     <div className="mx-auto grid max-w-7xl gap-6">
-      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <header className="hidden flex-col justify-between gap-4 sm:flex-row sm:items-end lg:flex">
         <div>
           <p className="text-xs font-black uppercase tracking-[.16em] text-[#176445]">Acervo espiritual</p>
           <h1 className="mt-1 text-3xl font-black">Temas e pregações</h1>
@@ -52,7 +52,90 @@ export default async function ElshadaySermonsPage({
         </div>
       </header>
 
-      <form className="grid gap-3 rounded-[24px] border border-emerald-950/10 bg-white p-4 md:grid-cols-[1fr_180px_auto]" method="get">
+      <section className="grid gap-4 lg:hidden">
+        <div className="flex items-end justify-between gap-3 px-1">
+          <div>
+            <p className="text-sm font-semibold text-slate-500">Conteúdo</p>
+            <h1 className="mt-0.5 text-[30px] font-black tracking-tight text-slate-950">Palavras</h1>
+          </div>
+          <Search className="text-slate-700" size={24} />
+        </div>
+
+        {rows[0] ? (
+          <Link
+            className="overflow-hidden rounded-[28px] bg-[#322019] text-white shadow-[0_16px_38px_rgba(50,32,25,.18)]"
+            href={"/elshaday/pregacoes/" + rows[0].id}
+          >
+            <div className="relative min-h-[245px] p-5">
+              <div className="absolute -right-10 -top-8 size-44 rounded-full bg-[#d4aa54]/25 blur-2xl" />
+              <div className="relative flex min-h-[205px] flex-col">
+                <div className="flex items-center justify-between">
+                  <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[.14em] text-[#f4d992]">
+                    Em destaque
+                  </span>
+                  <span className="grid size-11 place-items-center rounded-full bg-white/12">
+                    <Play size={18} fill="currentColor" />
+                  </span>
+                </div>
+                <div className="mt-auto">
+                  <p className="text-xs font-black uppercase tracking-[.14em] text-[#f4d992]">
+                    {rows[0].tema || "Palavra"}
+                  </p>
+                  <h2 className="mt-2 text-[28px] font-black leading-[1.08] tracking-tight">{rows[0].titulo}</h2>
+                  <p className="mt-3 text-sm font-semibold text-white/70">{rows[0].pregador}</p>
+                </div>
+              </div>
+            </div>
+          </Link>
+        ) : null}
+
+        <details className="rounded-[22px] border border-slate-200 bg-white shadow-sm">
+          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-4 font-black text-slate-900">
+            <span className="inline-flex items-center gap-2">
+              <Search size={18} className="text-[#176445]" />
+              Buscar mensagens
+            </span>
+            <ChevronRight size={18} className="text-slate-400" />
+          </summary>
+          <form className="grid gap-3 border-t border-slate-100 p-4" method="get">
+            <input className="input" name="q" defaultValue={q} placeholder="Título, tema, pregador..." />
+            <select className="input" name="status" defaultValue={status}>
+              <option value="ativo">Ativas</option>
+              <option value="arquivado">Arquivadas</option>
+            </select>
+            <button className="min-h-12 rounded-2xl bg-slate-900 px-5 font-black text-white" type="submit">
+              Buscar
+            </button>
+          </form>
+        </details>
+
+        <div>
+          <div className="mb-3 flex items-center justify-between px-1">
+            <h2 className="text-xl font-black text-slate-950">Mais recentes</h2>
+            <span className="text-xs font-bold text-slate-500">{rows.length} mensagens</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {rows.slice(1).map((sermon: any) => (
+              <Link
+                className="min-w-0 rounded-[22px] border border-emerald-950/10 bg-white p-4 shadow-sm"
+                href={"/elshaday/pregacoes/" + sermon.id}
+                key={sermon.id}
+              >
+                <div className="grid size-10 place-items-center rounded-[13px] bg-emerald-50 text-[#123d2d]">
+                  <Mic2 size={19} />
+                </div>
+                <p className="mt-4 line-clamp-3 font-black leading-snug text-slate-950">{sermon.titulo}</p>
+                <p className="mt-2 truncate text-xs font-semibold text-slate-500">{sermon.pregador}</p>
+                {sermon.texto_base ? (
+                  <p className="mt-2 truncate text-[11px] font-bold text-[#176445]">{sermon.texto_base}</p>
+                ) : null}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <form className="hidden gap-3 rounded-[24px] border border-emerald-950/10 bg-white p-4 md:grid-cols-[1fr_180px_auto] lg:grid" method="get">
         <label className="relative">
           <Search className="absolute left-3 top-3.5 text-slate-400" size={17} />
           <input
@@ -118,7 +201,7 @@ export default async function ElshadaySermonsPage({
           Nenhuma pregação encontrada.
         </div>
       ) : (
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <section className="hidden gap-4 md:grid-cols-2 lg:grid xl:grid-cols-3">
           {rows.map((sermon: any) => (
             <Link
               className="rounded-[26px] border border-emerald-950/10 bg-white p-5 transition hover:-translate-y-0.5 hover:shadow-md"
