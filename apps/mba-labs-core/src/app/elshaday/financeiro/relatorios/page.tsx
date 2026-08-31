@@ -84,7 +84,9 @@ export default async function FinanceReportsPage({
   const offers = total - tithes;
   const cash = sum(validRows.filter((item: any) => item.forma_pagamento === "dinheiro"));
   const pix = sum(validRows.filter((item: any) => item.forma_pagamento === "pix"));
-  const memberMap = new Map(members.map((item: any) => [String(item.id), String(item.nome)]));
+  const memberMap = new Map<string, string>(
+    members.map((item: any): [string, string] => [String(item.id), String(item.nome)])
+  );
   const exportQuery = buildExportQuery({ start, end, type, payment, status, memberId });
   const closing = closingResult.data ?? null;
   const ok = read(query.ok);
