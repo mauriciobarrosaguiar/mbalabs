@@ -54,10 +54,10 @@ export default async function ElshadayBiblePage({
     <div className="mx-auto grid max-w-6xl gap-6">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="text-xs font-black uppercase tracking-[.16em] text-[#176445]">Área do membro</p>
+          <p className="text-xs font-black uppercase tracking-[.16em] text-[#176445]">Leitura e estudo</p>
           <h1 className="mt-1 text-3xl font-black">Bíblia Online</h1>
           <p className="mt-2 text-slate-600">
-            João Ferreira de Almeida · leitura, favoritos e anotações pessoais.
+            João Ferreira de Almeida · escolha livre do livro, leitura confortável, favoritos, comentários e anotações.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -76,8 +76,8 @@ export default async function ElshadayBiblePage({
         <div className="mb-5 flex items-center gap-3 rounded-2xl bg-emerald-50 p-4 text-sm leading-6 text-emerald-950">
           <BookOpen className="shrink-0" size={21} />
           <p>
-            Selecione um livro e capítulo. Você pode favoritar versículos durante a leitura e registrar
-            anotações pessoais abaixo.
+            Escolha primeiro o livro e depois o capítulo. Nenhum texto é aberto automaticamente.
+            Durante a leitura você pode favoritar versículos e consultar comentários de estudo.
           </p>
         </div>
         <BibleReader favoriteReferences={favoriteReferences} />
