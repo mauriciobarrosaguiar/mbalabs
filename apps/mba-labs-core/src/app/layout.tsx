@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { RouteThemeController } from "@/components/RouteThemeController";
+import { PwaRegister } from "@/components/PwaRegister";
 import "./globals.css";
 import "./mba-blue-theme.css";
 
@@ -190,6 +191,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: routeThemeScript }} />
         <script dangerouslySetInnerHTML={{ __html: encodingFixScript }} />
         <RouteThemeController />
+        <PwaRegister />
         {children}
       </body>
     </html>

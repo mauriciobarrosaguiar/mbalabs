@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   BookOpenText,
@@ -13,12 +14,19 @@ import {
   Plus,
   Search
 } from "lucide-react";
-import { saveBibleFavorite } from "../actions";
 import { getBibleStudy } from "@/lib/elshaday-bible-study";
 
 type Book = { id: string; name: string; chapters: number };
 type Verse = { number: number; text: string };
 type Testament = "todos" | "antigo" | "novo";
+type PendingFavorite = {
+  referencia: string;
+  texto: string;
+  favorito: boolean;
+  updatedAt: number;
+};
+
+const FAVORITE_QUEUE_PREFIX = "elshaday:bible-favorite-queue:v1:";
 
 const BOOKS: Book[] = [
   { id: "GEN", name: "Gênesis", chapters: 50 },
@@ -91,7 +99,14 @@ const BOOKS: Book[] = [
 
 const NEW_TESTAMENT_START = BOOKS.findIndex((book) => book.id === "MAT");
 
-export function BibleReader({ favoriteReferences }: { favoriteReferences: string[] }) {
+export function BibleReader({
+  favoriteReferences,
+  userKey
+}: {
+  favoriteReferences: string[];
+  userKey: string;
+}) {
+  const router = useRouter();
   const [bookId, setBookId] = useState("");
   const [chapter, setChapter] = useState<number | null>(null);
   const [verses, setVerses] = useState<Verse[]>([]);
@@ -100,12 +115,62 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
   const [search, setSearch] = useState("");
   const [testament, setTestament] = useState<Testament>("todos");
   const [fontSize, setFontSize] = useState(18);
+  const [online, setOnline] = useState(true);
+  const [favoriteSet, setFavoriteSet] = useState<Set<string>>(
+    () => new Set(favoriteReferences)
+  );
+  const queueKey = FAVORITE_QUEUE_PREFIX + userKey;
 
   const book = useMemo(
     () => BOOKS.find((item) => item.id === bookId) ?? null,
     [bookId]
   );
-  const favorites = useMemo(() => new Set(favoriteReferences), [favoriteReferences]);
+  useEffect(() => {
+    const queued = readFavoriteQueue(queueKey);
+    const next = new Set(favoriteReferences);
+    for (const item of queued) {
+      if (item.favorito) next.add(item.referencia);
+      else next.delete(item.referencia);
+    }
+    setFavoriteSet(next);
+  }, [favoriteReferences, queueKey]);
+
+  useEffect(() => {
+    const updateOnline = () => setOnline(navigator.onLine);
+    updateOnline();
+
+    const flush = async () => {
+      setOnline(true);
+      const queue = readFavoriteQueue(queueKey);
+      if (!queue.length) return;
+
+      const remaining: PendingFavorite[] = [];
+      let changed = false;
+
+      for (const item of queue) {
+        try {
+          await persistFavorite(item);
+          changed = true;
+        } catch {
+          remaining.push(item);
+        }
+      }
+
+      writeFavoriteQueue(queueKey, remaining);
+      if (changed) router.refresh();
+    };
+
+    const onOffline = () => setOnline(false);
+    window.addEventListener("online", flush);
+    window.addEventListener("offline", onOffline);
+
+    if (navigator.onLine) void flush();
+
+    return () => {
+      window.removeEventListener("online", flush);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, [queueKey, router]);
 
   const filteredBooks = useMemo(() => {
     const term = normalize(search);
@@ -152,6 +217,39 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
 
     return () => controller.abort();
   }, [bookId, chapter]);
+
+  async function toggleFavorite(referencia: string, texto: string) {
+    const favorito = !favoriteSet.has(referencia);
+
+    setFavoriteSet((current) => {
+      const next = new Set(current);
+      if (favorito) next.add(referencia);
+      else next.delete(referencia);
+      return next;
+    });
+
+    const operation: PendingFavorite = {
+      referencia,
+      texto,
+      favorito,
+      updatedAt: Date.now()
+    };
+
+    if (!navigator.onLine) {
+      enqueueFavorite(queueKey, operation);
+      setOnline(false);
+      return;
+    }
+
+    try {
+      await persistFavorite(operation);
+      removeQueuedFavorite(queueKey, referencia);
+      router.refresh();
+    } catch {
+      enqueueFavorite(queueKey, operation);
+      setOnline(false);
+    }
+  }
 
   function chooseBook(id: string) {
     setBookId(id);
@@ -310,6 +408,12 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
 
   return (
     <div className="grid gap-5">
+      {!online ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
+          Modo offline · capítulos já abertos continuam disponíveis e favoritos serão sincronizados quando a internet voltar.
+        </div>
+      ) : null}
+
       <div className="flex flex-col justify-between gap-3 rounded-[24px] border border-emerald-950/10 bg-white p-4 sm:flex-row sm:items-center">
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -395,7 +499,7 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
               <div className="grid gap-1">
                 {verses.map((verse) => {
                   const reference = book.name + " " + chapter + ":" + verse.number;
-                  const favorite = favorites.has(reference);
+                  const favorite = favoriteSet.has(reference);
                   return (
                     <div
                       className="group grid grid-cols-[1fr_auto] gap-3 rounded-xl px-2 py-2.5 transition hover:bg-white/80"
@@ -410,22 +514,20 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
                         </sup>
                         {verse.text}
                       </p>
-                      <form action={saveBibleFavorite}>
-                        <input type="hidden" name="referencia" value={reference} />
-                        <input type="hidden" name="texto" value={verse.text} />
-                        <button
-                          className={
-                            "mt-1 grid size-9 place-items-center rounded-xl transition " +
-                            (favorite
-                              ? "bg-rose-50 text-rose-500"
-                              : "text-slate-300 hover:bg-rose-50 hover:text-rose-500")
-                          }
-                          title={favorite ? "Favoritado" : "Favoritar versículo"}
-                          type="submit"
-                        >
-                          <Heart size={17} fill={favorite ? "currentColor" : "none"} />
-                        </button>
-                      </form>
+                      <button
+                        aria-pressed={favorite}
+                        className={
+                          "mt-1 grid size-9 place-items-center rounded-xl transition " +
+                          (favorite
+                            ? "bg-rose-50 text-rose-500"
+                            : "text-slate-300 hover:bg-rose-50 hover:text-rose-500")
+                        }
+                        onClick={() => void toggleFavorite(reference, verse.text)}
+                        title={favorite ? "Remover dos favoritos" : "Favoritar versículo"}
+                        type="button"
+                      >
+                        <Heart size={17} fill={favorite ? "currentColor" : "none"} />
+                      </button>
                     </div>
                   );
                 })}
@@ -560,4 +662,58 @@ function normalize(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+
+function readFavoriteQueue(queueKey: string): PendingFavorite[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(queueKey) || "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (item): item is PendingFavorite =>
+        Boolean(item) &&
+        typeof item.referencia === "string" &&
+        typeof item.texto === "string" &&
+        typeof item.favorito === "boolean"
+    );
+  } catch {
+    return [];
+  }
+}
+
+function writeFavoriteQueue(queueKey: string, items: PendingFavorite[]) {
+  if (typeof window === "undefined") return;
+  if (!items.length) {
+    window.localStorage.removeItem(queueKey);
+    return;
+  }
+  window.localStorage.setItem(queueKey, JSON.stringify(items));
+}
+
+function enqueueFavorite(queueKey: string, operation: PendingFavorite) {
+  const queue = readFavoriteQueue(queueKey).filter(
+    (item) => item.referencia !== operation.referencia
+  );
+  queue.push(operation);
+  writeFavoriteQueue(queueKey, queue);
+}
+
+function removeQueuedFavorite(queueKey: string, referencia: string) {
+  writeFavoriteQueue(
+    queueKey,
+    readFavoriteQueue(queueKey).filter((item) => item.referencia !== referencia)
+  );
+}
+
+async function persistFavorite(operation: PendingFavorite) {
+  const response = await fetch("/api/elshaday/biblia/favoritos", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(operation)
+  });
+
+  if (!response.ok) {
+    throw new Error("Falha ao sincronizar favorito.");
+  }
 }

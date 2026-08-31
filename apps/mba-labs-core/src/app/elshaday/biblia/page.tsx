@@ -70,7 +70,10 @@ export default async function ElshadayBiblePage({
       </header>
 
       <section className="rounded-[30px] border border-emerald-950/10 bg-white p-4 shadow-sm sm:p-6">
-        <BibleReader favoriteReferences={favoriteReferences} />
+        <BibleReader
+          favoriteReferences={favoriteReferences}
+          userKey={context.current.authUser.id}
+        />
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[.8fr_1.2fr]">
