@@ -56,6 +56,7 @@ export default async function ElshadayFinancePage({
       .from("igreja_pix_configuracoes")
       .select("ambiente,ativo,pix_address_key")
       .eq("igreja_id", context.igreja.id)
+      .eq("provider", "asaas")
       .maybeSingle(),
     getElshadayPixStatus(context.igreja.id)
   ]);
@@ -95,8 +96,16 @@ export default async function ElshadayFinancePage({
             Entradas manuais e recebimentos PIX automáticos no mesmo financeiro.
           </p>
         </div>
-        <div className="grid size-12 place-items-center rounded-2xl bg-[#123d2d] text-[#f1d79d]">
-          <HandCoins size={25} />
+        <div className="flex items-center gap-3">
+          <Link
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-950/10 bg-white px-4 text-sm font-black text-[#123d2d] shadow-sm"
+            href="/elshaday/financeiro/provedores"
+          >
+            <Webhook size={17} /> Provedores PIX
+          </Link>
+          <div className="grid size-12 place-items-center rounded-2xl bg-[#123d2d] text-[#f1d79d]">
+            <HandCoins size={25} />
+          </div>
         </div>
       </header>
 
