@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { ArrowLeft, KeyRound, Mail, MapPin, PencilLine, Phone, ShieldCheck, UserRoundCheck } from "lucide-react";
 import {
   createElshadayAccess,
@@ -378,7 +379,7 @@ function Data({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Info({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function Info({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <article className="rounded-[24px] border border-emerald-950/10 bg-white p-5">
       <div className="text-[#176445]">{icon}</div>
@@ -388,7 +389,7 @@ function Info({ icon, label, value }: { icon: React.ReactNode; label: string; va
   );
 }
 
-function Message({ kind, children }: { kind: "success" | "error"; children: React.ReactNode }) {
+function Message({ kind, children }: { kind: "success" | "error"; children: ReactNode }) {
   return (
     <div className={`rounded-2xl border p-4 text-sm font-bold ${
       kind === "success"
