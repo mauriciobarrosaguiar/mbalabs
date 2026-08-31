@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { randomUUID } from "node:crypto";
-import { CalendarDays, Filter, Plus, Repeat2, Search } from "lucide-react";
+import { CalendarDays, ChevronRight, Filter, MapPin, Plus, Repeat2, Search } from "lucide-react";
 import { createElshadayEvent } from "../actions";
 import { dateTimeBR, hasElshadayRole, requireElshadayContext } from "@/lib/elshaday";
 import { EventSubmitButton } from "./EventSubmitButton";
@@ -51,7 +51,7 @@ export default async function ElshadayEventsPage({
 
   return (
     <div className="mx-auto grid max-w-7xl gap-6">
-      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <header className="hidden flex-col justify-between gap-4 sm:flex-row sm:items-end lg:flex">
         <div>
           <p className="text-xs font-black uppercase tracking-[.16em] text-[#176445]">Agenda</p>
           <h1 className="mt-1 text-3xl font-black">Cultos e eventos</h1>
@@ -64,8 +64,132 @@ export default async function ElshadayEventsPage({
         </div>
       </header>
 
+      <section className="grid gap-4 lg:hidden">
+        <div className="flex items-end justify-between gap-3 px-1">
+          <div>
+            <p className="text-sm font-semibold text-slate-500">Programação</p>
+            <h1 className="mt-0.5 text-[30px] font-black tracking-tight text-slate-950">Agenda</h1>
+          </div>
+          {canManage ? (
+            <a
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#123d2d] px-4 text-sm font-black text-white shadow-sm"
+              href="#novo-evento"
+            >
+              <Plus size={17} />
+              Novo
+            </a>
+          ) : null}
+        </div>
+
+        {upcoming[0] ? (
+          <Link
+            className="relative min-h-[220px] overflow-hidden rounded-[28px] bg-[#123d2d] p-5 text-white shadow-[0_16px_38px_rgba(18,61,45,.20)]"
+            href={"/elshaday/eventos/" + upcoming[0].id}
+          >
+            <div className="absolute -right-12 -top-10 size-44 rounded-full bg-[#d4aa54]/25 blur-2xl" />
+            <div className="relative flex min-h-[180px] flex-col">
+              <div className="flex items-center justify-between">
+                <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[.14em] text-[#f4d992]">
+                  Próximo
+                </span>
+                <CalendarDays size={22} className="text-[#f4d992]" />
+              </div>
+              <div className="mt-auto">
+                <p className="text-xs font-black uppercase tracking-[.14em] text-emerald-100/70">
+                  {upcoming[0].tipo}
+                </p>
+                <h2 className="mt-2 text-2xl font-black leading-tight">{upcoming[0].titulo}</h2>
+                <p className="mt-3 font-bold text-emerald-50">{dateTimeBR(upcoming[0].inicio)}</p>
+                {upcoming[0].local ? (
+                  <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-emerald-50/70">
+                    <MapPin size={14} />
+                    {upcoming[0].local}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </Link>
+        ) : (
+          <div className="rounded-[26px] border border-dashed border-emerald-950/15 bg-white p-7 text-center text-slate-500">
+            <CalendarDays className="mx-auto text-[#176445]" size={30} />
+            <p className="mt-3 font-black text-slate-900">Nenhuma programação futura</p>
+          </div>
+        )}
+
+        <details className="rounded-[22px] border border-slate-200 bg-white shadow-sm">
+          <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-4 font-black text-slate-900">
+            <span className="inline-flex items-center gap-2">
+              <Filter size={18} className="text-[#176445]" />
+              Filtrar agenda
+            </span>
+            <ChevronRight size={18} className="text-slate-400" />
+          </summary>
+          <form className="grid gap-3 border-t border-slate-100 p-4" method="get">
+            <label className="relative">
+              <Search className="absolute left-3 top-3.5 text-slate-400" size={17} />
+              <input
+                className="input pl-10"
+                name="q"
+                defaultValue={q}
+                placeholder="Buscar programação"
+              />
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <select className="input min-w-0" name="status" defaultValue={status}>
+                <option value="">Status</option>
+                <option value="agendado">Agendado</option>
+                <option value="realizado">Realizado</option>
+                <option value="cancelado">Cancelado</option>
+              </select>
+              <select className="input min-w-0" name="tipo" defaultValue={type}>
+                <option value="">Tipo</option>
+                <option value="culto">Culto</option>
+                <option value="ceia">Santa Ceia</option>
+                <option value="ebd">EBD</option>
+                <option value="vigilia">Vigília</option>
+                <option value="congresso">Congresso</option>
+                <option value="reuniao">Reunião</option>
+                <option value="seminario">Seminário</option>
+                <option value="evento">Evento</option>
+              </select>
+            </div>
+            <button className="min-h-12 rounded-2xl bg-slate-900 px-5 font-black text-white" type="submit">
+              Aplicar filtros
+            </button>
+          </form>
+        </details>
+
+        <div>
+          <div className="mb-3 flex items-center justify-between px-1">
+            <h2 className="text-xl font-black text-slate-950">Próximos</h2>
+            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">
+              {upcoming.length}
+            </span>
+          </div>
+          <div className="grid gap-3">
+            {upcoming.map((event: any) => (
+              <Link
+                className="flex items-center gap-3 rounded-[22px] border border-emerald-950/10 bg-white p-3 shadow-sm"
+                href={"/elshaday/eventos/" + event.id}
+                key={event.id}
+              >
+                <div className="grid size-14 shrink-0 place-items-center rounded-[16px] bg-emerald-50 text-[#123d2d]">
+                  <CalendarDays size={22} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-black text-slate-950">{event.titulo}</p>
+                  <p className="mt-1 truncate text-xs font-semibold text-slate-500">{dateTimeBR(event.inicio)}</p>
+                  {event.local ? <p className="mt-1 truncate text-xs text-slate-500">{event.local}</p> : null}
+                </div>
+                <ChevronRight className="shrink-0 text-slate-400" size={20} />
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <form
-        className="grid gap-3 rounded-[24px] border border-emerald-950/10 bg-white p-4 md:grid-cols-[1fr_180px_180px_auto]"
+        className="hidden gap-3 rounded-[24px] border border-emerald-950/10 bg-white p-4 md:grid-cols-[1fr_180px_180px_auto] lg:grid"
         method="get"
       >
         <label className="relative">
@@ -101,6 +225,7 @@ export default async function ElshadayEventsPage({
 
       {canManage ? (
         <details
+          id="novo-evento"
           className="rounded-[28px] border border-emerald-950/10 bg-white p-5 shadow-sm"
           open={rows.length === 0}
         >
@@ -180,8 +305,10 @@ export default async function ElshadayEventsPage({
         </details>
       ) : null}
 
-      <EventSection title="Próximas programações" rows={upcoming} />
-      {history.length ? <EventSection title="Histórico" rows={history} /> : null}
+      <div className="hidden lg:grid lg:gap-6">
+        <EventSection title="Próximas programações" rows={upcoming} />
+        {history.length ? <EventSection title="Histórico" rows={history} /> : null}
+      </div>
 
       <style>
         {".input{min-height:3rem;border-radius:1rem;border:1px solid #cbd5e1;background:#fff!important;padding:0 1rem;outline:none;color:#0f172a!important;-webkit-text-fill-color:#0f172a!important;opacity:1;color-scheme:light}.input::placeholder{color:#64748b!important;-webkit-text-fill-color:#64748b!important;opacity:1}.input:focus{border-color:#047857;box-shadow:0 0 0 1px #047857}.input option{background:#fff;color:#0f172a}input:-webkit-autofill{-webkit-text-fill-color:#0f172a!important;-webkit-box-shadow:0 0 0 1000px #fff inset!important}"}
