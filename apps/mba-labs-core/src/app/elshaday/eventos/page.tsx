@@ -1,7 +1,9 @@
 import Link from "next/link";
-import { CalendarDays, Filter, Plus, Search } from "lucide-react";
+import { randomUUID } from "node:crypto";
+import { CalendarDays, Filter, Plus, Repeat2, Search } from "lucide-react";
 import { createElshadayEvent } from "../actions";
 import { dateTimeBR, hasElshadayRole, requireElshadayContext } from "@/lib/elshaday";
+import { EventSubmitButton } from "./EventSubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +21,7 @@ export default async function ElshadayEventsPage({
 
   let request = context.admin
     .from("igreja_eventos")
-    .select("id,titulo,tipo,descricao,inicio,fim,local,pregador,dirigente,tema,texto_biblico,publico,status")
+    .select("id,titulo,tipo,descricao,inicio,fim,local,pregador,dirigente,tema,texto_biblico,publico,status,serie_id,recorrencia_tipo,recorrencia_ate,recorrencia_ordem")
     .eq("igreja_id", context.igreja.id)
     .order("inicio", { ascending: false })
     .limit(250);
@@ -45,6 +47,7 @@ export default async function ElshadayEventsPage({
   );
   const upcomingIds = new Set(upcoming.map((item: any) => String(item.id)));
   const history = rows.filter((event: any) => !upcomingIds.has(String(event.id)));
+  const createIdempotencyKey = randomUUID();
 
   return (
     <div className="mx-auto grid max-w-7xl gap-6">
@@ -88,6 +91,7 @@ export default async function ElshadayEventsPage({
           <option value="vigilia">Vigília</option>
           <option value="congresso">Congresso</option>
           <option value="reuniao">Reunião</option>
+          <option value="seminario">Seminário</option>
           <option value="evento">Evento especial</option>
         </select>
         <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 font-black text-white">
@@ -107,6 +111,7 @@ export default async function ElshadayEventsPage({
           </summary>
 
           <form action={createElshadayEvent} className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <input type="hidden" name="idempotency_key" value={createIdempotencyKey} />
             <Field label="Título" name="titulo" required placeholder="Ex.: Culto de Celebração" />
             <label className="grid gap-2 text-sm font-bold text-slate-700">
               Tipo
@@ -117,6 +122,7 @@ export default async function ElshadayEventsPage({
                 <option value="vigilia">Vigília</option>
                 <option value="congresso">Congresso</option>
                 <option value="reuniao">Reunião</option>
+                <option value="seminario">Seminário</option>
                 <option value="evento">Evento especial</option>
               </select>
             </label>
@@ -139,17 +145,36 @@ export default async function ElshadayEventsPage({
                 <option value="lideranca">Liderança</option>
               </select>
             </label>
+            <label className="grid gap-2 text-sm font-bold text-slate-800">
+              Recorrência
+              <select className="input" name="recorrencia_tipo" defaultValue="nenhuma">
+                <option value="nenhuma">Não repetir</option>
+                <option value="diaria">Todos os dias</option>
+                <option value="semanal">Toda semana</option>
+                <option value="quinzenal">A cada 15 dias</option>
+                <option value="mensal">Todo mês</option>
+              </select>
+            </label>
+            <label className="grid gap-2 text-sm font-bold text-slate-800">
+              Repetir até
+              <input className="input" name="recorrencia_ate" type="date" />
+              <span className="text-xs font-medium leading-5 text-slate-600">
+                Preencha somente quando escolher uma recorrência.
+              </span>
+            </label>
             <label className="grid gap-2 text-sm font-bold text-slate-700 sm:col-span-2 lg:col-span-3">
               Descrição / programação
               <textarea
-                className="min-h-24 rounded-2xl border border-slate-200 p-4 outline-none focus:border-emerald-600"
+                className="min-h-24 rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 outline-none placeholder:text-slate-500 focus:border-emerald-700"
                 name="descricao"
               />
             </label>
             <div className="sm:col-span-2 lg:col-span-3">
-              <button className="min-h-12 rounded-2xl bg-[#123d2d] px-6 font-black text-white">
-                Salvar programação
-              </button>
+              <EventSubmitButton
+                className="min-h-12 rounded-2xl bg-[#123d2d] px-6 font-black text-white"
+                label="Salvar programação"
+                pendingLabel="Salvando..."
+              />
             </div>
           </form>
         </details>
@@ -159,7 +184,7 @@ export default async function ElshadayEventsPage({
       {history.length ? <EventSection title="Histórico" rows={history} /> : null}
 
       <style>
-        {".input{min-height:3rem;border-radius:1rem;border:1px solid rgb(226 232 240);background:white;padding:0 1rem;outline:none}.input:focus{border-color:rgb(5 150 105)}"}
+        {".input{min-height:3rem;border-radius:1rem;border:1px solid #cbd5e1;background:#fff!important;padding:0 1rem;outline:none;color:#0f172a!important;-webkit-text-fill-color:#0f172a!important;opacity:1;color-scheme:light}.input::placeholder{color:#64748b!important;-webkit-text-fill-color:#64748b!important;opacity:1}.input:focus{border-color:#047857;box-shadow:0 0 0 1px #047857}.input option{background:#fff;color:#0f172a}input:-webkit-autofill{-webkit-text-fill-color:#0f172a!important;-webkit-box-shadow:0 0 0 1000px #fff inset!important}"}
       </style>
     </div>
   );
@@ -190,6 +215,12 @@ function EventSection({ title, rows }: { title: string; rows: any[] }) {
                 <div>
                   <p className="text-xs font-black uppercase tracking-[.12em] text-[#176445]">{event.tipo}</p>
                   <h3 className="mt-1 text-xl font-black">{event.titulo}</h3>
+                  {event.serie_id ? (
+                    <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-black uppercase tracking-wide text-amber-800">
+                      <Repeat2 size={13} />
+                      {recurrenceLabel(event.recorrencia_tipo)}
+                    </span>
+                  ) : null}
                 </div>
                 <span className={"rounded-full px-3 py-1 text-xs font-black " + statusClass(event.status)}>
                   {event.status}
@@ -238,6 +269,16 @@ function read(value: string | string[] | undefined) {
 
 function escapeLike(value: string) {
   return value.replace(/[%,]/g, " ").trim();
+}
+
+function recurrenceLabel(value: string) {
+  const labels: Record<string, string> = {
+    diaria: "Diário",
+    semanal: "Semanal",
+    quinzenal: "Quinzenal",
+    mensal: "Mensal"
+  };
+  return labels[value] ?? "Recorrente";
 }
 
 function statusClass(value: string) {

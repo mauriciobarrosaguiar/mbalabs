@@ -53,6 +53,88 @@ function palmasDateTimeIso(value: string) {
   return parsed.toISOString();
 }
 
+const EVENT_RECURRENCE_TYPES = ["nenhuma", "diaria", "semanal", "quinzenal", "mensal"] as const;
+type EventRecurrenceType = (typeof EVENT_RECURRENCE_TYPES)[number];
+
+function eventRecurrenceType(value: string): EventRecurrenceType {
+  const normalized = value || "nenhuma";
+  if (!EVENT_RECURRENCE_TYPES.includes(normalized as EventRecurrenceType)) {
+    throw new Error("Recorrência inválida.");
+  }
+  return normalized as EventRecurrenceType;
+}
+
+function padDatePart(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function recurringLocalAt(
+  baseValue: string,
+  type: Exclude<EventRecurrenceType, "nenhuma">,
+  occurrence: number
+) {
+  const match = baseValue.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+  if (!match) throw new Error("Data de início inválida.");
+
+  const year = Number(match[1]);
+  const month = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+
+  let next: Date;
+
+  if (type === "mensal") {
+    const targetMonthIndex = month + occurrence;
+    const targetYear = year + Math.floor(targetMonthIndex / 12);
+    const targetMonth = ((targetMonthIndex % 12) + 12) % 12;
+    const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+    next = new Date(
+      Date.UTC(targetYear, targetMonth, Math.min(day, lastDay), hour, minute)
+    );
+  } else {
+    const stepDays = type === "diaria" ? 1 : type === "semanal" ? 7 : 14;
+    next = new Date(
+      Date.UTC(year, month, day + stepDays * occurrence, hour, minute)
+    );
+  }
+
+  return [
+    next.getUTCFullYear(),
+    padDatePart(next.getUTCMonth() + 1),
+    padDatePart(next.getUTCDate())
+  ].join("-") + "T" + padDatePart(next.getUTCHours()) + ":" + padDatePart(next.getUTCMinutes());
+}
+
+function buildRecurringLocalStarts(
+  start: string,
+  type: EventRecurrenceType,
+  until: string | null
+) {
+  if (type === "nenhuma") return [start];
+  if (!until || !/^\d{4}-\d{2}-\d{2}$/.test(until)) {
+    throw new Error("Informe até quando a programação deve se repetir.");
+  }
+  if (until < start.slice(0, 10)) {
+    throw new Error("A data final da recorrência não pode ser anterior ao primeiro evento.");
+  }
+
+  const result = [start];
+  let cursor = start;
+
+  while (result.length < 400) {
+    cursor = recurringLocalAt(start, type, result.length);
+    if (cursor.slice(0, 10) > until) break;
+    result.push(cursor);
+  }
+
+  if (result.length >= 400 && cursor.slice(0, 10) <= until) {
+    throw new Error("A recorrência gerou eventos demais. Reduza o período.");
+  }
+
+  return result;
+}
+
 const MEMBER_STATUS = ["ativo", "afastado", "visitante", "transferido", "inativo"] as const;
 
 function memberStatus(value: string) {
@@ -171,13 +253,42 @@ export async function createElshadayEvent(formData: FormData) {
   if (titulo.length < 2) throw new Error("Informe o nome do culto ou evento.");
   if (!inicio) throw new Error("Informe data e horário.");
 
-  const { error } = await context.admin.from("igreja_eventos").insert({
+  const recurrence = eventRecurrenceType(text(formData, "recorrencia_tipo"));
+  const recurrenceUntil = recurrence === "nenhuma" ? null : nullable(formData, "recorrencia_ate");
+  const starts = buildRecurringLocalStarts(inicio, recurrence, recurrenceUntil);
+  const firstStartIso = palmasDateTimeIso(inicio);
+  const fimRaw = nullable(formData, "fim");
+  const durationMs = fimRaw
+    ? new Date(palmasDateTimeIso(fimRaw)).getTime() - new Date(firstStartIso).getTime()
+    : null;
+
+  if (durationMs !== null && durationMs <= 0) {
+    throw new Error("O término precisa ser posterior ao início.");
+  }
+
+  const idempotencyBase = text(formData, "idempotency_key") || crypto.randomUUID();
+  const firstIdempotency = idempotencyBase + ":0";
+
+  const { data: existing, error: existingError } = await context.admin
+    .from("igreja_eventos")
+    .select("id")
+    .eq("igreja_id", context.igreja.id)
+    .eq("idempotency_key", firstIdempotency)
+    .maybeSingle();
+
+  if (existingError) throw new Error(existingError.message);
+  if (existing?.id) {
+    revalidatePath("/elshaday");
+    revalidatePath("/elshaday/eventos");
+    return;
+  }
+
+  const seriesId = recurrence === "nenhuma" ? null : crypto.randomUUID();
+  const common = {
     igreja_id: context.igreja.id,
     titulo,
     tipo: text(formData, "tipo") || "culto",
     descricao: nullable(formData, "descricao"),
-    inicio: palmasDateTimeIso(inicio),
-    fim: nullable(formData, "fim") ? palmasDateTimeIso(String(formData.get("fim"))) : null,
     local: nullable(formData, "local"),
     pregador: nullable(formData, "pregador"),
     dirigente: nullable(formData, "dirigente"),
@@ -185,10 +296,31 @@ export async function createElshadayEvent(formData: FormData) {
     texto_biblico: nullable(formData, "texto_biblico"),
     publico: text(formData, "publico") || "todos",
     status: "agendado",
-    created_by: context.current.authUser.id
+    created_by: context.current.authUser.id,
+    serie_id: seriesId,
+    recorrencia_tipo: recurrence,
+    recorrencia_ate: recurrenceUntil
+  };
+
+  const rows = starts.map((localStart, index) => {
+    const startIso = palmasDateTimeIso(localStart);
+    return {
+      ...common,
+      inicio: startIso,
+      fim: durationMs === null
+        ? null
+        : new Date(new Date(startIso).getTime() + durationMs).toISOString(),
+      recorrencia_ordem: recurrence === "nenhuma" ? null : index + 1,
+      idempotency_key: idempotencyBase + ":" + index
+    };
   });
 
-  if (error) throw new Error(`Falha ao cadastrar evento: ${error.message}`);
+  const { error } = await context.admin.from("igreja_eventos").insert(rows);
+
+  if (error && error.code !== "23505") {
+    throw new Error(`Falha ao cadastrar evento: ${error.message}`);
+  }
+
   revalidatePath("/elshaday");
   revalidatePath("/elshaday/eventos");
 }

@@ -62,7 +62,7 @@ async function audit(context: any, action: string, details: Record<string, unkno
 async function assertEvent(context: any, id: string) {
   const { data, error } = await context.admin
     .from("igreja_eventos")
-    .select("id,igreja_id,status,inicio")
+    .select("id,igreja_id,status,inicio,fim,serie_id,recorrencia_tipo,recorrencia_ate,recorrencia_ordem")
     .eq("id", id)
     .eq("igreja_id", context.igreja.id)
     .maybeSingle();
@@ -88,32 +88,104 @@ export async function updateElshadayEvent(formData: FormData) {
   requireElshadayRole(context, ["admin", "pastor", "secretaria", "lider"]);
 
   try {
-    await assertEvent(context, eventId);
+    const current = await assertEvent(context, eventId);
     const titulo = text(formData, "titulo");
     const inicio = palmasDateTimeIso(text(formData, "inicio"));
+    const fim = palmasDateTimeIso(nullable(formData, "fim"));
     if (titulo.length < 2 || !inicio) throw new Error("Informe título, data e horário.");
+    if (fim && new Date(fim).getTime() <= new Date(inicio).getTime()) {
+      throw new Error("O término precisa ser posterior ao início.");
+    }
 
-    const { error } = await context.admin
-      .from("igreja_eventos")
-      .update({
-        titulo,
-        tipo: text(formData, "tipo") || "culto",
-        descricao: nullable(formData, "descricao"),
-        inicio,
-        fim: palmasDateTimeIso(nullable(formData, "fim")),
-        local: nullable(formData, "local"),
-        pregador: nullable(formData, "pregador"),
-        dirigente: nullable(formData, "dirigente"),
-        tema: nullable(formData, "tema"),
-        texto_biblico: nullable(formData, "texto_biblico"),
-        publico: text(formData, "publico") || "todos",
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", eventId)
-      .eq("igreja_id", context.igreja.id);
+    const requestedScope = text(formData, "escopo_recorrencia") || "este";
+    const scope = ["este", "futuros", "serie"].includes(requestedScope)
+      ? requestedScope
+      : "este";
 
-    if (error) throw new Error(error.message);
-    await audit(context, "elshaday evento atualizado", { evento_id: eventId });
+    const common = {
+      titulo,
+      tipo: text(formData, "tipo") || "culto",
+      descricao: nullable(formData, "descricao"),
+      local: nullable(formData, "local"),
+      pregador: nullable(formData, "pregador"),
+      dirigente: nullable(formData, "dirigente"),
+      tema: nullable(formData, "tema"),
+      texto_biblico: nullable(formData, "texto_biblico"),
+      publico: text(formData, "publico") || "todos",
+      updated_at: new Date().toISOString()
+    };
+
+    let updatedCount = 1;
+
+    if (current.serie_id && scope !== "este") {
+      let seriesQuery = context.admin
+        .from("igreja_eventos")
+        .select("id,inicio,fim")
+        .eq("igreja_id", context.igreja.id)
+        .eq("serie_id", current.serie_id)
+        .order("inicio");
+
+      if (scope === "futuros") {
+        seriesQuery = seriesQuery.gte("inicio", current.inicio);
+      }
+
+      const { data: targets, error: targetsError } = await seriesQuery;
+      if (targetsError) throw new Error(targetsError.message);
+      if (!targets?.length) throw new Error("Nenhum evento da série foi localizado.");
+
+      const deltaMs =
+        new Date(inicio).getTime() - new Date(current.inicio).getTime();
+      const durationMs = fim
+        ? new Date(fim).getTime() - new Date(inicio).getTime()
+        : null;
+
+      const results = await Promise.all(
+        targets.map(async (target: any) => {
+          const shiftedStart = new Date(
+            new Date(target.inicio).getTime() + deltaMs
+          ).toISOString();
+          const shiftedEnd =
+            durationMs === null
+              ? null
+              : new Date(
+                  new Date(shiftedStart).getTime() + durationMs
+                ).toISOString();
+
+          return context.admin
+            .from("igreja_eventos")
+            .update({
+              ...common,
+              inicio: shiftedStart,
+              fim: shiftedEnd
+            })
+            .eq("id", target.id)
+            .eq("igreja_id", context.igreja.id);
+        })
+      );
+
+      const failed = results.find((result: any) => result.error);
+      if (failed?.error) throw new Error(failed.error.message);
+      updatedCount = targets.length;
+    } else {
+      const { error } = await context.admin
+        .from("igreja_eventos")
+        .update({
+          ...common,
+          inicio,
+          fim
+        })
+        .eq("id", eventId)
+        .eq("igreja_id", context.igreja.id);
+
+      if (error) throw new Error(error.message);
+    }
+
+    await audit(context, "elshaday evento atualizado", {
+      evento_id: eventId,
+      escopo: scope,
+      serie_id: current.serie_id,
+      quantidade: updatedCount
+    });
   } catch (error) {
     withMessage(returnTo, "erro", error instanceof Error ? error.message : "Falha ao atualizar evento.");
   }
