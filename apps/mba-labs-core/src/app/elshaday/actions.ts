@@ -8,6 +8,7 @@ import {
   requireElshadayRole
 } from "@/lib/elshaday";
 import {
+  createElshadayIdentifiedPixCharge,
   createElshadayStaticPixQrCode,
   saveElshadayPixConfiguration,
   syncElshadayStaticPixReceipts
@@ -836,6 +837,70 @@ export async function linkElshadayMemberAccess(formData: FormData) {
   redirectWithMessage(returnTo, "ok", "vinculo");
 }
 
+
+export async function createElshadayIdentifiedPix(formData: FormData) {
+  const context = await requireElshadayContext("/elshaday/contribuir");
+  if (!hasElshadayRole(context.papel, ["admin", "pastor", "tesouraria", "secretaria", "lider", "membro"])) {
+    throw new Error("Perfil sem acesso.");
+  }
+
+  try {
+    const rawType = text(formData, "tipo");
+    const allowedTypes = ["dizimo", "oferta", "oferta_especial", "campanha", "outro"] as const;
+    if (!allowedTypes.includes(rawType as (typeof allowedTypes)[number])) {
+      throw new Error("Selecione um tipo de contribuição válido.");
+    }
+
+    const { data: member, error: memberError } = await context.admin
+      .from("igreja_membros")
+      .select("id,nome,cpf,email,telefone,whatsapp,situacao")
+      .eq("igreja_id", context.igreja.id)
+      .eq("user_id", context.current.authUser.id)
+      .maybeSingle();
+
+    if (memberError) throw new Error(memberError.message);
+    if (!member) {
+      throw new Error("Seu login ainda não está vinculado a uma ficha de membro. Procure a Secretaria.");
+    }
+    if (String(member.situacao) === "inativo") {
+      throw new Error("Seu cadastro de membro está inativo. Procure a Secretaria para atualizar.");
+    }
+
+    const result = await createElshadayIdentifiedPixCharge({
+      igrejaId: context.igreja.id,
+      member: {
+        id: String(member.id),
+        nome: String(member.nome),
+        cpf: member.cpf ? String(member.cpf) : null,
+        email: member.email ? String(member.email) : null,
+        telefone: member.telefone ? String(member.telefone) : null,
+        whatsapp: member.whatsapp ? String(member.whatsapp) : null
+      },
+      type: rawType as (typeof allowedTypes)[number],
+      value: positiveMoney(formData, "valor"),
+      description: nullable(formData, "descricao"),
+      createdBy: context.current.authUser.id
+    });
+
+    await auditChurchAccess(context, "elshaday pix identificado criado", {
+      membro_id: member.id,
+      cobranca_id: result.id,
+      provider_payment_id: result.paymentId,
+      tipo: rawType
+    });
+
+    revalidatePath("/elshaday/contribuir");
+    redirect(
+      `/elshaday/contribuir?cobranca=${encodeURIComponent(result.id)}&ok=${encodeURIComponent("pix_identificado")}`
+    );
+  } catch (error) {
+    redirectWithMessage(
+      "/elshaday/contribuir",
+      "erro",
+      error instanceof Error ? error.message : "Não foi possível gerar o PIX identificado."
+    );
+  }
+}
 
 export async function saveElshadayPixSettings(formData: FormData) {
   const context = await requireElshadayContext("/elshaday/financeiro");

@@ -41,7 +41,7 @@ export default async function ElshadayFinancePage({
   const [entriesResult, membersResult, configResult, pixStatus] = await Promise.all([
     context.admin
       .from("igreja_financeiro_entradas")
-      .select("id,membro_id,tipo,descricao,valor,forma_pagamento,data_entrada,anonimo,observacoes,created_at,origem,provider,provider_payment_id,recebido_em,status")
+      .select("id,membro_id,tipo,descricao,valor,forma_pagamento,data_entrada,anonimo,observacoes,created_at,origem,provider,provider_payment_id,pix_cobranca_id,recebido_em,status")
       .eq("igreja_id", context.igreja.id)
       .order("data_entrada", { ascending: false })
       .order("created_at", { ascending: false })
@@ -331,7 +331,7 @@ export default async function ElshadayFinancePage({
                       {entry.anonimo ? "Anônimo" : (memberMap.get(String(entry.membro_id ?? "")) ?? "Sem vínculo")}
                     </td>
                     <td className="px-5 py-4 text-slate-600">{labelPayment(entry.forma_pagamento)}</td>
-                    <td className="px-5 py-4"><OriginBadge origin={entry.origem} /></td>
+                    <td className="px-5 py-4"><OriginBadge identified={Boolean(entry.pix_cobranca_id)} origin={entry.origem} /></td>
                     <td className="px-5 py-4"><EntryStatus value={entry.status} /></td>
                     <td className="px-5 py-4 text-right font-black">{moneyBR(entry.valor)}</td>
                   </tr>
@@ -431,7 +431,21 @@ function IntegrationStatus({ ready }: { ready: boolean }) {
   );
 }
 
-function OriginBadge({ origin }: { origin: string }) {
+function OriginBadge({
+  origin,
+  identified
+}: {
+  origin: string;
+  identified: boolean;
+}) {
+  if (identified) {
+    return (
+      <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-black text-violet-800">
+        PIX identificado
+      </span>
+    );
+  }
+
   const automatic = origin !== "manual";
   return (
     <span className={`rounded-full px-2.5 py-1 text-xs font-black ${
