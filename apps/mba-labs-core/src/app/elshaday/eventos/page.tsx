@@ -91,6 +91,7 @@ export default async function ElshadayEventsPage({
           <option value="vigilia">Vigília</option>
           <option value="congresso">Congresso</option>
           <option value="reuniao">Reunião</option>
+          <option value="seminario">Seminário</option>
           <option value="evento">Evento especial</option>
         </select>
         <button className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 font-black text-white">
@@ -121,6 +122,7 @@ export default async function ElshadayEventsPage({
                 <option value="vigilia">Vigília</option>
                 <option value="congresso">Congresso</option>
                 <option value="reuniao">Reunião</option>
+                <option value="seminario">Seminário</option>
                 <option value="evento">Evento especial</option>
               </select>
             </label>
