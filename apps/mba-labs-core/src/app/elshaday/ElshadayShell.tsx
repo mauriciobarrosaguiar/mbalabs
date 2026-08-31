@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import {
+  ArrowLeft,
   BookOpen,
   CalendarDays,
   Church,
@@ -76,9 +77,15 @@ export function ElshadayShell({
             <p className="font-black">{usuarioNome}</p>
             <p className="mt-1 text-sm text-emerald-100/70">{roleLabel(papel)}</p>
             <Link className="mt-4 flex items-center gap-2 text-sm font-bold text-[#f1d79d]" href="/dashboard">
-              <LogOut size={16} />
+              <ArrowLeft size={16} />
               Voltar ao MBA Labs
             </Link>
+            <form action="/sair" className="mt-3" method="post">
+              <button className="flex w-full items-center gap-2 text-sm font-bold text-white" type="submit">
+                <LogOut size={16} />
+                Sair do sistema
+              </button>
+            </form>
           </div>
         </aside>
 
@@ -94,9 +101,17 @@ export function ElshadayShell({
                   <p className="truncate text-xs text-slate-500">{igrejaNome}</p>
                 </div>
               </div>
-              <Link className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black" href="/dashboard">
-                MBA Labs
-              </Link>
+              <div className="flex shrink-0 items-center gap-2">
+                <Link className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black" href="/dashboard">
+                  MBA Labs
+                </Link>
+                <form action="/sair" method="post">
+                  <button className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-[#123d2d] px-3 py-2 text-xs font-black text-white" type="submit">
+                    <LogOut size={14} />
+                    Sair
+                  </button>
+                </form>
+              </div>
             </div>
             <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
               {nav.map(({ href, label, icon: Icon }) => (
