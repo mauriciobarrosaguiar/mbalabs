@@ -390,6 +390,7 @@ export async function updateElshadayFinanceEntry(formData: FormData) {
       .eq("igreja_id", context.igreja.id)
       .maybeSingle();
     if (findError || !entry) throw new Error("Lançamento não localizado.");
+    if (entry.origem !== "manual") throw new Error("Recebimentos automáticos não podem ser editados manualmente.");
     if (entry.status === "estornado") throw new Error("Lançamento estornado não pode ser editado.");
     if (await financeMonthClosed(context, String(entry.data_entrada))) {
       throw new Error("Esta competência está fechada. Reabra o mês antes de editar.");
@@ -441,11 +442,12 @@ export async function voidElshadayFinanceEntry(formData: FormData) {
     if (motivo.length < 4) throw new Error("Informe o motivo do estorno.");
     const { data: entry, error: findError } = await context.admin
       .from("igreja_financeiro_entradas")
-      .select("id,data_entrada,status")
+      .select("id,data_entrada,status,origem")
       .eq("id", entryId)
       .eq("igreja_id", context.igreja.id)
       .maybeSingle();
     if (findError || !entry) throw new Error("Lançamento não localizado.");
+    if (entry.origem !== "manual") throw new Error("Recebimentos automáticos devem ser estornados pelo fluxo do provedor.");
     if (entry.status === "estornado") throw new Error("Este lançamento já está estornado.");
     if (await financeMonthClosed(context, String(entry.data_entrada))) {
       throw new Error("Esta competência está fechada. Reabra o mês antes de estornar.");
