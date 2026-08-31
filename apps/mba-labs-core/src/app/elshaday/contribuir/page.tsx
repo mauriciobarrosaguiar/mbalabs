@@ -13,6 +13,7 @@ import {
   requireElshadayContext
 } from "@/lib/elshaday";
 import { getElshadayPixStatus } from "@/lib/elshaday-payments";
+import { getElshadayIdentifiedPixStatus } from "@/lib/elshaday-payment-providers";
 import { createElshadayIdentifiedPix } from "../actions";
 import { PixCopyButton } from "./PixCopyButton";
 
@@ -25,7 +26,10 @@ export default async function ElshadayContributePage({
 }) {
   const query = await searchParams;
   const context = await requireElshadayContext("/elshaday/contribuir");
-  const pix = await getElshadayPixStatus(context.igreja.id);
+  const [pix, identifiedPix] = await Promise.all([
+    getElshadayPixStatus(context.igreja.id),
+    getElshadayIdentifiedPixStatus(context.igreja.id)
+  ]);
 
   const { data: member, error: memberError } = await context.admin
     .from("igreja_membros")
@@ -75,7 +79,7 @@ export default async function ElshadayContributePage({
     Boolean(member?.id) &&
     String(member?.situacao ?? "") !== "inativo" &&
     hasCpf &&
-    pix.ready;
+    Boolean(identifiedPix?.ready);
 
   return (
     <div className="mx-auto grid max-w-5xl gap-6">
@@ -110,6 +114,7 @@ export default async function ElshadayContributePage({
               <h2 className="mt-1 text-xl font-black">Escolha o tipo e informe o valor</h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Depois do pagamento, a confirmação entra no financeiro já ligada ao seu cadastro e à categoria escolhida.
+                {identifiedPix?.name ? <> Provedor atual: <strong>{identifiedPix.name}</strong>.</> : null}
               </p>
             </div>
           </div>
@@ -124,11 +129,11 @@ export default async function ElshadayContributePage({
             </Requirement>
           ) : !hasCpf ? (
             <Requirement>
-              Seu cadastro ainda não possui CPF. O CPF é necessário para o Asaas criar o pagador da cobrança identificada. Procure a Secretaria para completar a ficha.
+              Seu cadastro ainda não possui CPF. O CPF é necessário para gerar a cobrança PIX identificada. Procure a Secretaria para completar a ficha.
             </Requirement>
-          ) : !pix.ready ? (
+          ) : !identifiedPix?.ready ? (
             <Requirement>
-              A integração PIX da igreja ainda não está totalmente ativada pela Tesouraria.
+              O provedor PIX principal da igreja ainda não está totalmente ativado pela Tesouraria.
             </Requirement>
           ) : (
             <form action={createElshadayIdentifiedPix} className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -419,6 +424,8 @@ function readParam(value: string | string[] | undefined) {
 }
 
 function imageSource(value: string) {
-  if (value.startsWith("data:image/")) return value;
+  if (value.startsWith("data:image/") || value.startsWith("https://") || value.startsWith("http://")) {
+    return value;
+  }
   return `data:image/png;base64,${value}`;
 }
