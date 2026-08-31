@@ -248,13 +248,17 @@ async function getChurchCoreUser(context: any, usuarioId: string) {
 }
 
 async function auditChurchAccess(context: any, acao: string, detalhes: Record<string, unknown>) {
-  await context.admin.from("core_logs").insert({
-    empresa_id: context.igreja.empresa_id,
-    usuario_id: context.current.usuario.id,
-    app_slug: "elshaday",
-    acao,
-    detalhes
-  }).catch(() => null);
+  try {
+    await context.admin.from("core_logs").insert({
+      empresa_id: context.igreja.empresa_id,
+      usuario_id: context.current.usuario.id,
+      app_slug: "elshaday",
+      acao,
+      detalhes
+    });
+  } catch {
+    // O log nunca deve impedir a ação principal de acesso.
+  }
 }
 
 export async function createElshadayAccess(formData: FormData) {
