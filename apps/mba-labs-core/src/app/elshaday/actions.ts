@@ -177,6 +177,7 @@ export async function createElshadayEvent(formData: FormData) {
     tipo: text(formData, "tipo") || "culto",
     descricao: nullable(formData, "descricao"),
     inicio: palmasDateTimeIso(inicio),
+    fim: nullable(formData, "fim") ? palmasDateTimeIso(String(formData.get("fim"))) : null,
     local: nullable(formData, "local"),
     pregador: nullable(formData, "pregador"),
     dirigente: nullable(formData, "dirigente"),
@@ -226,6 +227,8 @@ export async function createElshadaySermon(formData: FormData) {
     conclusao: nullable(formData, "conclusao"),
     observacoes: nullable(formData, "observacoes"),
     video_url: nullable(formData, "video_url"),
+    audio_url: nullable(formData, "audio_url"),
+    arquivo_url: nullable(formData, "arquivo_url"),
     created_by: context.current.authUser.id
   });
 
