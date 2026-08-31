@@ -158,6 +158,24 @@ export const internalApps: InternalAppDefinition[] = [
     ]
   },
   {
+    slug: "elshaday",
+    name: "Elshaday Gestão",
+    description: "Gestão de membros, dízimos e ofertas, cultos, eventos, pregações e Bíblia online.",
+    urlPath: "/elshaday",
+    alternatePaths: [
+      { label: "App direto - /elshaday", value: "/elshaday" },
+      { label: "Entrada compatível - /apps/elshaday", value: "/apps/elshaday" }
+    ],
+    profileOptions: [
+      { label: "Administrador", value: "admin" },
+      { label: "Pastor", value: "pastor" },
+      { label: "Tesouraria", value: "tesouraria" },
+      { label: "Secretaria", value: "secretaria" },
+      { label: "Líder", value: "lider" },
+      { label: "Membro", value: "membro" }
+    ]
+  },
+  {
     slug: "google-empresas",
     name: "Google Empresas",
     description: "Painel privado para cadastrar, autorizar, criar e verificar Perfis da Empresa no Google.",

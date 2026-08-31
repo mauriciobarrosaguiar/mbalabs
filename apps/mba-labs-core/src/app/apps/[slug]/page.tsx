@@ -8,7 +8,8 @@ const internalDestinations: Record<string, string> = {
   lavagestor: "/lavagestor",
   bikecomanda: "/bikecomanda",
   "portal-associativo": "/portal-associativo",
-  dronegestor: "/apps/dronegestor/calculadora"
+  dronegestor: "/apps/dronegestor/calculadora",
+  elshaday: "/elshaday"
 };
 
 export default async function AppEntryPage({

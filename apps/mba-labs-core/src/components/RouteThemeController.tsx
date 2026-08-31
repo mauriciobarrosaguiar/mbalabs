@@ -13,7 +13,8 @@ const SYSTEM_ROUTE_PREFIXES = [
   "/bikecomanda",
   "/lexgestor",
   "/portal-associativo",
-  "/mba-escola"
+  "/mba-escola",
+  "/elshaday"
 ];
 
 function isMbaPlatformRoute(pathname: string) {

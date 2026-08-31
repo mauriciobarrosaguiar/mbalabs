@@ -1186,7 +1186,8 @@ function canAccessRequestedPath(path: string, profile: CoreProfile, appsLiberado
       pathname.startsWith("/bikecomanda") ||
       pathname.startsWith("/portal-associativo") ||
       pathname.startsWith("/lexgestor") ||
-      pathname.startsWith("/mba-escola")
+      pathname.startsWith("/mba-escola") ||
+      pathname.startsWith("/elshaday")
     );
   }
 
@@ -1207,6 +1208,10 @@ function canAccessRequestedPath(path: string, profile: CoreProfile, appsLiberado
 }
 
 function getAppSlugFromPath(path: string) {
+  if (path === "/elshaday" || path.startsWith("/elshaday/")) {
+    return "elshaday";
+  }
+
   if (path === "/mba-escola" || path.startsWith("/mba-escola/")) {
     return "mba-escola";
   }
