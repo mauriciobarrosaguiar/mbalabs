@@ -53,8 +53,10 @@ export async function GET(request: Request) {
   }
 
   const rows = entriesResult.data ?? [];
-  const memberMap = new Map(
-    (membersResult.data ?? []).map((member: any) => [String(member.id), String(member.nome)])
+  const memberMap = new Map<string, string>(
+    (membersResult.data ?? []).map(
+      (member: any): [string, string] => [String(member.id), String(member.nome)]
+    )
   );
   const filenameBase = "elshaday-financeiro-" + start + "-a-" + end;
 
@@ -66,7 +68,11 @@ export async function GET(request: Request) {
       rows,
       memberMap
     });
-    return new Response(bytes, {
+    const pdfBody = bytes.buffer.slice(
+      bytes.byteOffset,
+      bytes.byteOffset + bytes.byteLength
+    ) as ArrayBuffer;
+    return new Response(pdfBody, {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": 'attachment; filename="' + filenameBase + '.pdf"',
