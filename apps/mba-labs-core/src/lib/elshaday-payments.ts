@@ -73,6 +73,7 @@ export async function getElshadayPixStatus(igrejaId: string) {
     .from("igreja_pix_configuracoes")
     .select("igreja_id,provider,ambiente,ativo,pix_address_key,static_qr_id,static_qr_payload,static_qr_image,static_qr_provider_payload")
     .eq("igreja_id", igrejaId)
+    .eq("provider", "asaas")
     .maybeSingle();
 
   if (error) throw new Error(error.message);
@@ -113,6 +114,7 @@ export async function saveElshadayPixConfiguration(input: {
     .from("igreja_pix_configuracoes")
     .select("ambiente,pix_address_key")
     .eq("igreja_id", input.igrejaId)
+    .eq("provider", "asaas")
     .maybeSingle();
 
   if (currentError) throw new Error(currentError.message);
@@ -143,7 +145,7 @@ export async function saveElshadayPixConfiguration(input: {
 
   const { error } = await admin
     .from("igreja_pix_configuracoes")
-    .upsert(payload, { onConflict: "igreja_id" });
+    .upsert(payload, { onConflict: "igreja_id,provider" });
 
   if (error) throw new Error(error.message);
 }
@@ -190,7 +192,7 @@ export async function createElshadayStaticPixQrCode(igrejaId: string, updatedBy:
         updated_by: updatedBy,
         updated_at: new Date().toISOString()
       },
-      { onConflict: "igreja_id" }
+      { onConflict: "igreja_id,provider" }
     );
 
   if (error) throw new Error(error.message);
@@ -354,6 +356,7 @@ export async function syncElshadayStaticPixReceipts(igrejaId: string) {
     .from("igreja_pix_configuracoes")
     .select("static_qr_id")
     .eq("igreja_id", igrejaId)
+    .eq("provider", "asaas")
     .maybeSingle();
 
   if (configError) throw new Error(configError.message);
@@ -897,6 +900,7 @@ async function requireOperationalSettings(igrejaId: string) {
     .from("igreja_pix_configuracoes")
     .select("pix_address_key,ativo,ambiente")
     .eq("igreja_id", igrejaId)
+    .eq("provider", "asaas")
     .maybeSingle();
 
   if (error) throw new Error(error.message);
