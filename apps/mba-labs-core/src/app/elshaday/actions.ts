@@ -124,6 +124,25 @@ export async function createElshadayFinanceEntry(formData: FormData) {
 
   const anonimo = text(formData, "anonimo") === "on";
   const membroId = anonimo ? null : nullable(formData, "membro_id");
+  const dataEntrada = text(formData, "data_entrada") || new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Araguaina",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+  const competencia = dataEntrada.slice(0, 7);
+
+  const { data: fechamento, error: fechamentoError } = await context.admin
+    .from("igreja_financeiro_fechamentos")
+    .select("status")
+    .eq("igreja_id", context.igreja.id)
+    .eq("competencia", competencia)
+    .maybeSingle();
+
+  if (fechamentoError) throw new Error("Falha ao validar fechamento: " + fechamentoError.message);
+  if (fechamento?.status === "fechado") {
+    throw new Error("A competência " + competencia + " está fechada. Reabra o mês antes de lançar uma entrada.");
+  }
 
   const { error } = await context.admin.from("igreja_financeiro_entradas").insert({
     igreja_id: context.igreja.id,
@@ -132,7 +151,7 @@ export async function createElshadayFinanceEntry(formData: FormData) {
     descricao: nullable(formData, "descricao"),
     valor: positiveMoney(formData, "valor"),
     forma_pagamento: text(formData, "forma_pagamento") || "dinheiro",
-    data_entrada: text(formData, "data_entrada") || new Date().toISOString().slice(0, 10),
+    data_entrada: dataEntrada,
     anonimo,
     observacoes: nullable(formData, "observacoes"),
     created_by: context.current.authUser.id
