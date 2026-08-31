@@ -219,7 +219,7 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
               value={search}
             />
           </label>
-          <div className="flex gap-2 overflow-x-auto">
+          <div className="grid grid-cols-3 gap-2">
             {([
               ["todos", "Todos"],
               ["antigo", "Antigo Testamento"],
@@ -227,7 +227,7 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
             ] as const).map(([value, label]) => (
               <button
                 className={
-                  "min-h-12 shrink-0 rounded-2xl px-4 text-sm font-black transition " +
+                  "min-h-14 min-w-0 rounded-2xl px-2 text-center text-[13px] font-black leading-tight whitespace-normal transition sm:min-h-12 sm:px-4 sm:text-sm " +
                   (testament === value
                     ? "bg-[#123d2d] text-white"
                     : "border border-slate-200 bg-white text-slate-700")
