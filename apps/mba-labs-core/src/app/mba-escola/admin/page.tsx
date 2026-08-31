@@ -11,6 +11,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   LoaderCircle,
+  LogOut,
   Mail,
   MapPin,
   Pencil,
@@ -340,6 +341,11 @@ export default function MbaEscolaAdminPage() {
             <Link className={secondary} href="/mba-escola">
               <ArrowLeft size={17} /> <span className="hidden sm:inline">Voltar ao MBA Escola</span><span className="sm:hidden">Voltar</span>
             </Link>
+            <form action="/sair" method="post">
+              <button className={secondary} type="submit">
+                <LogOut size={17} /> <span className="hidden sm:inline">Sair</span>
+              </button>
+            </form>
           </div>
         </div>
       </header>
