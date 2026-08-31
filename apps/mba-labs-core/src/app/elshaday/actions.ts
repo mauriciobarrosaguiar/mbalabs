@@ -68,8 +68,12 @@ function padDatePart(value: number) {
   return String(value).padStart(2, "0");
 }
 
-function nextRecurringLocal(value: string, type: Exclude<EventRecurrenceType, "nenhuma">) {
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
+function recurringLocalAt(
+  baseValue: string,
+  type: Exclude<EventRecurrenceType, "nenhuma">,
+  occurrence: number
+) {
+  const match = baseValue.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/);
   if (!match) throw new Error("Data de início inválida.");
 
   const year = Number(match[1]);
@@ -81,14 +85,18 @@ function nextRecurringLocal(value: string, type: Exclude<EventRecurrenceType, "n
   let next: Date;
 
   if (type === "mensal") {
-    const targetMonthIndex = month + 1;
+    const targetMonthIndex = month + occurrence;
     const targetYear = year + Math.floor(targetMonthIndex / 12);
     const targetMonth = ((targetMonthIndex % 12) + 12) % 12;
     const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
-    next = new Date(Date.UTC(targetYear, targetMonth, Math.min(day, lastDay), hour, minute));
+    next = new Date(
+      Date.UTC(targetYear, targetMonth, Math.min(day, lastDay), hour, minute)
+    );
   } else {
-    const days = type === "diaria" ? 1 : type === "semanal" ? 7 : 14;
-    next = new Date(Date.UTC(year, month, day + days, hour, minute));
+    const stepDays = type === "diaria" ? 1 : type === "semanal" ? 7 : 14;
+    next = new Date(
+      Date.UTC(year, month, day + stepDays * occurrence, hour, minute)
+    );
   }
 
   return [
@@ -115,7 +123,7 @@ function buildRecurringLocalStarts(
   let cursor = start;
 
   while (result.length < 400) {
-    cursor = nextRecurringLocal(cursor, type);
+    cursor = recurringLocalAt(start, type, result.length);
     if (cursor.slice(0, 10) > until) break;
     result.push(cursor);
   }
