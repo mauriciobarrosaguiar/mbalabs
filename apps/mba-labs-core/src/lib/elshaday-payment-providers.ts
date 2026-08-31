@@ -17,6 +17,7 @@ export type ElshadayProviderDefinition = {
   adapterStatus: "operational" | "prepared";
   supportsIdentifiedPix: boolean;
   supportsStaticPix: boolean;
+  requiresPixKey: boolean;
   environmentVariableNames: string[];
   optionalEnvironmentVariableNames?: string[];
   notes: string;
@@ -31,6 +32,7 @@ export const ELSHADAY_PIX_PROVIDERS: ElshadayProviderDefinition[] = [
     adapterStatus: "operational",
     supportsIdentifiedPix: true,
     supportsStaticPix: true,
+    requiresPixKey: true,
     environmentVariableNames: [
       "ELSHADAY_ASAAS_API_KEY",
       "ELSHADAY_ASAAS_WEBHOOK_TOKEN"
@@ -46,6 +48,7 @@ export const ELSHADAY_PIX_PROVIDERS: ElshadayProviderDefinition[] = [
     adapterStatus: "prepared",
     supportsIdentifiedPix: true,
     supportsStaticPix: false,
+    requiresPixKey: false,
     environmentVariableNames: [
       "ELSHADAY_MERCADOPAGO_ACCESS_TOKEN",
       "ELSHADAY_MERCADOPAGO_WEBHOOK_SECRET"
@@ -60,6 +63,7 @@ export const ELSHADAY_PIX_PROVIDERS: ElshadayProviderDefinition[] = [
     adapterStatus: "prepared",
     supportsIdentifiedPix: true,
     supportsStaticPix: false,
+    requiresPixKey: false,
     environmentVariableNames: ["ELSHADAY_PAGBANK_TOKEN"],
     notes: "Estrutura preparada para pedidos PIX, QR Code e retorno de status por webhook."
   },
@@ -71,12 +75,13 @@ export const ELSHADAY_PIX_PROVIDERS: ElshadayProviderDefinition[] = [
     adapterStatus: "prepared",
     supportsIdentifiedPix: true,
     supportsStaticPix: true,
+    requiresPixKey: true,
     environmentVariableNames: [
       "ELSHADAY_EFI_CLIENT_ID",
       "ELSHADAY_EFI_CLIENT_SECRET",
-      "ELSHADAY_EFI_CERTIFICATE_BASE64",
-      "ELSHADAY_EFI_PIX_KEY"
+      "ELSHADAY_EFI_CERTIFICATE_BASE64"
     ],
+    optionalEnvironmentVariableNames: ["ELSHADAY_EFI_PIX_KEY"],
     notes: "Conector preparado para API Pix com OAuth, certificado, txid e webhook."
   },
   {
@@ -87,14 +92,14 @@ export const ELSHADAY_PIX_PROVIDERS: ElshadayProviderDefinition[] = [
     adapterStatus: "prepared",
     supportsIdentifiedPix: true,
     supportsStaticPix: true,
+    requiresPixKey: true,
     environmentVariableNames: [
       "ELSHADAY_INTER_CLIENT_ID",
       "ELSHADAY_INTER_CLIENT_SECRET",
       "ELSHADAY_INTER_CERTIFICATE_BASE64",
-      "ELSHADAY_INTER_PRIVATE_KEY_BASE64",
-      "ELSHADAY_INTER_PIX_KEY"
+      "ELSHADAY_INTER_PRIVATE_KEY_BASE64"
     ],
-    optionalEnvironmentVariableNames: ["ELSHADAY_INTER_ACCOUNT"],
+    optionalEnvironmentVariableNames: ["ELSHADAY_INTER_PIX_KEY", "ELSHADAY_INTER_ACCOUNT"],
     notes: "Conector preparado para API Pix PJ com OAuth, certificado e webhook."
   }
 ];
@@ -137,10 +142,22 @@ export async function listElshadayPixProviderStatus(igrejaId: string) {
       configured: Boolean(String(process.env[name] ?? "").trim())
     }));
     const credentialsConfigured = requiredEnvironment.every((item) => item.configured);
+    const environmentPixKey =
+      definition.id === "asaas"
+        ? process.env.ELSHADAY_PIX_ADDRESS_KEY
+        : definition.id === "efi"
+          ? process.env.ELSHADAY_EFI_PIX_KEY
+          : definition.id === "inter"
+            ? process.env.ELSHADAY_INTER_PIX_KEY
+            : "";
+    const pixKeyConfigured = !definition.requiresPixKey || Boolean(
+      String(config?.pix_address_key ?? environmentPixKey ?? "").trim()
+    );
     const ready =
       definition.adapterStatus === "operational" &&
       Boolean(config?.ativo) &&
-      credentialsConfigured;
+      credentialsConfigured &&
+      pixKeyConfigured;
 
     return {
       ...definition,
@@ -148,6 +165,7 @@ export async function listElshadayPixProviderStatus(igrejaId: string) {
       requiredEnvironment,
       optionalEnvironment,
       credentialsConfigured,
+      pixKeyConfigured,
       ready,
       webhookUrl: buildProviderWebhookUrl(definition.id)
     };
@@ -173,6 +191,15 @@ export async function saveElshadayPixProviderConfig(input: {
     );
   }
 
+  const { data: current, error: currentError } = await admin
+    .from("igreja_pix_configuracoes")
+    .select("ambiente,pix_address_key")
+    .eq("igreja_id", input.igrejaId)
+    .eq("provider", input.provider)
+    .maybeSingle();
+
+  if (currentError) throw new Error(currentError.message);
+
   if (input.principal) {
     const { error: clearError } = await admin
       .from("igreja_pix_configuracoes")
@@ -182,6 +209,15 @@ export async function saveElshadayPixProviderConfig(input: {
 
     if (clearError) throw new Error(clearError.message);
   }
+
+  const nextPixKey = input.pixAddressKey?.trim() || null;
+  const asaasQrChanged =
+    input.provider === "asaas" &&
+    Boolean(current) &&
+    (
+      String(current?.ambiente ?? "sandbox") !== input.environment ||
+      String(current?.pix_address_key ?? "") !== String(nextPixKey ?? "")
+    );
 
   const { error } = await admin
     .from("igreja_pix_configuracoes")
@@ -193,8 +229,16 @@ export async function saveElshadayPixProviderConfig(input: {
         ativo: input.active,
         principal: input.principal,
         apelido: input.apelido?.trim() || null,
-        pix_address_key: input.pixAddressKey?.trim() || null,
+        pix_address_key: nextPixKey,
         config_publica: {},
+        ...(asaasQrChanged
+          ? {
+              static_qr_id: null,
+              static_qr_payload: null,
+              static_qr_image: null,
+              static_qr_provider_payload: null
+            }
+          : {}),
         updated_by: input.updatedBy,
         updated_at: new Date().toISOString()
       },
