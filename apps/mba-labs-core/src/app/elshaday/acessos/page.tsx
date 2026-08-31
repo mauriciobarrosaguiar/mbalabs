@@ -85,9 +85,13 @@ export default async function ElshadayAccessPage({
   const profiles = profilesResult.data ?? [];
   const members = membersResult.data ?? [];
 
-  const permissionByUser = new Map(permissions.map((row: any) => [String(row.usuario_id), row]));
-  const profileByAuth = new Map(profiles.map((row: any) => [String(row.user_id), row]));
-  const memberByAuth = new Map(
+  const permissionByUser = new Map<string, any>(
+    permissions.map((row: any) => [String(row.usuario_id), row])
+  );
+  const profileByAuth = new Map<string, any>(
+    profiles.map((row: any) => [String(row.user_id), row])
+  );
+  const memberByAuth = new Map<string, any>(
     members.filter((row: any) => row.user_id).map((row: any) => [String(row.user_id), row])
   );
 
