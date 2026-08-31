@@ -189,6 +189,7 @@ export default async function EventDetail({
                 <option value="vigilia">Vigília</option>
                 <option value="congresso">Congresso</option>
                 <option value="reuniao">Reunião</option>
+                <option value="seminario">Seminário</option>
                 <option value="evento">Evento especial</option>
               </select>
             </label>
