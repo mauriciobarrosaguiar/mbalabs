@@ -6,6 +6,7 @@ import {
   CircleX,
   Clock3,
   PencilLine,
+  Repeat2,
   UsersRound
 } from "lucide-react";
 import {
@@ -19,6 +20,7 @@ import {
   setElshadayEventStatus,
   updateElshadayEvent
 } from "../../completion-actions";
+import { EventSubmitButton } from "../EventSubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -86,6 +88,12 @@ export default async function EventDetail({
           <div>
             <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">{event.tipo}</p>
             <h1 className="mt-1 text-3xl font-black">{event.titulo}</h1>
+            {event.serie_id ? (
+              <span className="mt-3 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-amber-800">
+                <Repeat2 size={15} />
+                Recorrência {recurrenceLabel(event.recorrencia_tipo)}
+              </span>
+            ) : null}
             <p className="mt-2 text-slate-600">
               {dateTimeBR(event.inicio)}
               {event.local ? " · " + event.local : ""}
@@ -120,6 +128,15 @@ export default async function EventDetail({
             <Info label="Dirigente" value={event.dirigente} />
             <Info label="Local" value={event.local} />
             <Info label="Descrição" value={event.descricao} />
+            {event.serie_id ? (
+              <Info
+                label="Recorrência"
+                value={
+                  recurrenceLabel(event.recorrencia_tipo) +
+                  (event.recorrencia_ate ? " · até " + dateOnlyBR(event.recorrencia_ate) : "")
+                }
+              />
+            ) : null}
           </dl>
         </article>
 
@@ -140,7 +157,7 @@ export default async function EventDetail({
                       "min-h-10 rounded-xl px-4 text-sm font-black " +
                       (event.status === status
                         ? "bg-[#123d2d] text-white"
-                        : "border border-slate-200 bg-white")
+                        : "border border-slate-300 bg-white text-slate-900")
                     }
                   >
                     {status}
@@ -214,13 +231,32 @@ export default async function EventDetail({
               <textarea
                 name="descricao"
                 defaultValue={event.descricao ?? ""}
-                className="min-h-24 rounded-2xl border border-slate-200 p-4"
+                className="min-h-24 rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 placeholder:text-slate-500"
               />
             </label>
+
+            {event.serie_id ? (
+              <label className="grid gap-2 text-sm font-bold text-slate-800 sm:col-span-2 lg:col-span-3">
+                Aplicar esta alteração em
+                <select className="input" name="escopo_recorrencia" defaultValue="este">
+                  <option value="este">Somente este culto/evento</option>
+                  <option value="futuros">Este e todos os próximos da série</option>
+                  <option value="serie">Toda a recorrência, inclusive anteriores</option>
+                </select>
+                <span className="text-xs font-medium leading-5 text-slate-600">
+                  Se mudar data ou horário em “este e próximos”, os próximos eventos serão deslocados pelo mesmo intervalo.
+                </span>
+              </label>
+            ) : (
+              <input type="hidden" name="escopo_recorrencia" value="este" />
+            )}
+
             <div className="sm:col-span-2 lg:col-span-3">
-              <button className="min-h-12 rounded-2xl bg-slate-900 px-6 font-black text-white">
-                Salvar alterações
-              </button>
+              <EventSubmitButton
+                className="min-h-12 rounded-2xl bg-slate-900 px-6 font-black text-white"
+                label="Salvar alterações"
+                pendingLabel="Salvando..."
+              />
             </div>
           </form>
         </details>
@@ -292,7 +328,7 @@ export default async function EventDetail({
       ) : null}
 
       <style>
-        {".input{min-height:3rem;border-radius:1rem;border:1px solid rgb(226 232 240);background:white;padding:0 1rem;outline:none}.input:focus{border-color:rgb(5 150 105)}"}
+        {".input{min-height:3rem;border-radius:1rem;border:1px solid #cbd5e1;background:#fff!important;padding:0 1rem;outline:none;color:#0f172a!important;-webkit-text-fill-color:#0f172a!important;opacity:1;color-scheme:light}.input::placeholder{color:#64748b!important;-webkit-text-fill-color:#64748b!important;opacity:1}.input:focus{border-color:#047857;box-shadow:0 0 0 1px #047857}.input option{background:#fff;color:#0f172a}input:-webkit-autofill{-webkit-text-fill-color:#0f172a!important;-webkit-box-shadow:0 0 0 1000px #fff inset!important}"}
       </style>
     </div>
   );
@@ -381,6 +417,21 @@ function localInput(value: string) {
 
 function read(value: string | string[] | undefined) {
   return Array.isArray(value) ? String(value[0] ?? "") : String(value ?? "");
+}
+
+function recurrenceLabel(value: string) {
+  const labels: Record<string, string> = {
+    diaria: "diária",
+    semanal: "semanal",
+    quinzenal: "quinzenal",
+    mensal: "mensal"
+  };
+  return labels[value] ?? "recorrente";
+}
+
+function dateOnlyBR(value: string) {
+  const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? match[3] + "/" + match[2] + "/" + match[1] : value;
 }
 
 function statusClass(value: string) {
