@@ -4,9 +4,12 @@ import {
   BookOpen,
   CalendarDays,
   CalendarHeart,
+  ChevronRight,
+  Church,
   HandCoins,
   MapPin,
   Mic2,
+  Play,
   Sparkles,
   UsersRound
 } from "lucide-react";
@@ -38,21 +41,19 @@ export default async function ElshadayDashboardPage() {
       : Promise.resolve({ count: null, data: null, error: null }),
     context.admin
       .from("igreja_eventos")
-      .select("id,titulo,tipo,inicio,fim,local,pregador,dirigente,tema,texto_biblico,publico,status")
+      .select("id,titulo,tipo,inicio,fim,local,pregador,dirigente,tema,texto_biblico,publico,status,banner_url,serie_id,recorrencia_tipo")
       .eq("igreja_id", context.igreja.id)
       .gte("inicio", now.toISOString())
       .neq("status", "cancelado")
       .order("inicio", { ascending: true })
-      .limit(isMember ? 12 : 5),
-    !isMember
-      ? context.admin
-          .from("igreja_pregacoes")
-          .select("id,titulo,tema,pregador,data_pregacao,texto_base")
-          .eq("igreja_id", context.igreja.id)
-          .eq("status", "ativo")
-          .order("data_pregacao", { ascending: false })
-          .limit(4)
-      : Promise.resolve({ data: [], error: null }),
+      .limit(12),
+    context.admin
+      .from("igreja_pregacoes")
+      .select("id,titulo,tema,pregador,data_pregacao,texto_base,esboco,video_url,arquivo_url")
+      .eq("igreja_id", context.igreja.id)
+      .eq("status", "ativo")
+      .order("data_pregacao", { ascending: false })
+      .limit(6),
     !isMember && canSeeFinance
       ? context.admin
           .from("igreja_financeiro_entradas")
@@ -64,14 +65,11 @@ export default async function ElshadayDashboardPage() {
       : Promise.resolve({ data: [], error: null })
   ]);
 
-  if (eventsResult.error) {
-    throw new Error("Falha ao carregar a programação: " + eventsResult.error.message);
-  }
+  if (eventsResult.error) throw new Error("Falha ao carregar a programação: " + eventsResult.error.message);
+  if (sermonsResult.error) throw new Error("Falha ao carregar as pregações: " + sermonsResult.error.message);
 
-  if (isMember) {
-    return <MemberHome events={eventsResult.data ?? []} />;
-  }
-
+  const events = eventsResult.data ?? [];
+  const sermons = sermonsResult.data ?? [];
   const entries = financeResult.data ?? [];
   const monthTotal = entries.reduce((sum: number, row: any) => sum + Number(row.valor ?? 0), 0);
   const titheTotal = entries
@@ -81,17 +79,30 @@ export default async function ElshadayDashboardPage() {
     .filter((row: any) => row.tipo !== "dizimo")
     .reduce((sum: number, row: any) => sum + Number(row.valor ?? 0), 0);
 
+  const mobileHome = (
+    <MobileAppHome
+      events={events}
+      sermons={sermons}
+      usuarioNome={context.current.usuario.nome}
+      papel={context.papel}
+      membersCount={membersResult.count ?? 0}
+      monthTotal={monthTotal}
+    />
+  );
+
+  if (isMember) return mobileHome;
+
   const cards = [
     {
       label: "Próximos cultos",
-      value: String(eventsResult.data?.length ?? 0),
+      value: String(events.length),
       detail: "Agenda e programação",
       href: "/elshaday/eventos",
       icon: CalendarDays
     },
     {
       label: "Pregações salvas",
-      value: String(sermonsResult.data?.length ?? 0),
+      value: String(sermons.length),
       detail: "Últimos registros",
       href: "/elshaday/pregacoes",
       icon: Mic2
@@ -119,200 +130,336 @@ export default async function ElshadayDashboardPage() {
   }
 
   return (
-    <div className="mx-auto grid max-w-7xl gap-7">
-      <section className="overflow-hidden rounded-[32px] bg-[#123d2d] p-6 text-white shadow-xl shadow-emerald-950/10 sm:p-8">
-        <div className="max-w-3xl">
-          <p className="text-xs font-black uppercase tracking-[.18em] text-[#f1d79d]">Painel da igreja</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">
-            {context.igreja.nome_curto}
-          </h1>
-          <p className="mt-3 max-w-2xl leading-7 text-emerald-50/75">
-            Um único lugar para organizar pessoas, finanças, cultos, mensagens e leitura bíblica.
-          </p>
-        </div>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link className="rounded-2xl bg-[#d4aa54] px-5 py-3 font-black text-[#123d2d]" href="/elshaday/eventos">
-            Novo culto ou evento
-          </Link>
-          <Link className="rounded-2xl border border-white/20 bg-white/5 px-5 py-3 font-black" href="/elshaday/biblia">
-            <BookOpen className="mr-2 inline" size={18} />
-            Abrir Bíblia
-          </Link>
-        </div>
-      </section>
+    <>
+      <div className="lg:hidden">{mobileHome}</div>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map(({ label, value, detail, href, icon: Icon }) => (
-          <Link
-            className="group rounded-[26px] border border-emerald-950/10 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            href={href}
-            key={label}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="grid size-11 place-items-center rounded-2xl bg-emerald-50 text-[#176445]">
-                <Icon size={22} />
+      <div className="mx-auto hidden max-w-7xl gap-7 lg:grid">
+        <section className="overflow-hidden rounded-[32px] bg-[#123d2d] p-8 text-white shadow-xl shadow-emerald-950/10">
+          <div className="max-w-3xl">
+            <p className="text-xs font-black uppercase tracking-[.18em] text-[#f1d79d]">Painel da igreja</p>
+            <h1 className="mt-2 text-4xl font-black tracking-tight">{context.igreja.nome_curto}</h1>
+            <p className="mt-3 max-w-2xl leading-7 text-emerald-50/75">
+              Gestão de pessoas, finanças, cultos, mensagens e leitura bíblica.
+            </p>
+          </div>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link className="rounded-2xl bg-[#d4aa54] px-5 py-3 font-black text-[#123d2d]" href="/elshaday/eventos">
+              Novo culto ou evento
+            </Link>
+            <Link className="rounded-2xl border border-white/20 bg-white/5 px-5 py-3 font-black" href="/elshaday/biblia">
+              <BookOpen className="mr-2 inline" size={18} />
+              Abrir Bíblia
+            </Link>
+          </div>
+        </section>
+
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {cards.map(({ label, value, detail, href, icon: Icon }) => (
+            <Link
+              className="group rounded-[26px] border border-emerald-950/10 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+              href={href}
+              key={label}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="grid size-11 place-items-center rounded-2xl bg-emerald-50 text-[#176445]">
+                  <Icon size={22} />
+                </div>
+                <ArrowRight className="text-slate-300 transition group-hover:text-[#176445]" size={18} />
               </div>
-              <ArrowRight className="text-slate-300 transition group-hover:text-[#176445]" size={18} />
-            </div>
-            <p className="mt-5 text-sm font-bold text-slate-500">{label}</p>
-            <p className="mt-1 text-2xl font-black tracking-tight">{value}</p>
-            <p className="mt-2 text-xs leading-5 text-slate-500">{detail}</p>
-          </Link>
-        ))}
+              <p className="mt-5 text-sm font-bold text-slate-500">{label}</p>
+              <p className="mt-1 text-2xl font-black tracking-tight">{value}</p>
+              <p className="mt-2 text-xs leading-5 text-slate-500">{detail}</p>
+            </Link>
+          ))}
+        </section>
+
+        <section className="grid gap-5 xl:grid-cols-2">
+          <DashboardList
+            eyebrow="Agenda"
+            title="Próximos cultos e eventos"
+            href="/elshaday/eventos"
+            empty="Nenhum culto futuro cadastrado."
+          >
+            {events.slice(0, 5).map((event: any) => (
+              <div className="rounded-2xl bg-slate-50 p-4" key={event.id}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="font-black">{event.titulo}</p>
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">
+                    {dateTimeBR(event.inicio)}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-slate-600">
+                  {[event.tema, event.pregador, event.local].filter(Boolean).join(" · ") || "Programação em definição"}
+                </p>
+              </div>
+            ))}
+          </DashboardList>
+
+          <DashboardList
+            eyebrow="Conteúdo"
+            title="Últimas pregações"
+            href="/elshaday/pregacoes"
+            empty="Nenhuma pregação cadastrada."
+          >
+            {sermons.slice(0, 4).map((sermon: any) => (
+              <div className="rounded-2xl bg-slate-50 p-4" key={sermon.id}>
+                <p className="font-black">{sermon.titulo}</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {[sermon.pregador, sermon.texto_base].filter(Boolean).join(" · ")}
+                </p>
+                {sermon.tema ? <p className="mt-2 text-sm font-semibold text-[#176445]">{sermon.tema}</p> : null}
+              </div>
+            ))}
+          </DashboardList>
+        </section>
+      </div>
+    </>
+  );
+}
+
+function MobileAppHome({
+  events,
+  sermons,
+  usuarioNome,
+  papel,
+  membersCount,
+  monthTotal
+}: {
+  events: any[];
+  sermons: any[];
+  usuarioNome: string;
+  papel: string;
+  membersCount: number;
+  monthTotal: number;
+}) {
+  const firstName = usuarioNome.trim().split(/\s+/)[0] || usuarioNome;
+  const nextEvent = events[0];
+
+  return (
+    <div className="mx-auto grid max-w-2xl gap-5">
+      <section className="flex items-center justify-between gap-3 px-1 pt-1">
+        <div>
+          <p className="text-sm font-semibold text-slate-500">{greeting()},</p>
+          <h1 className="mt-0.5 text-[28px] font-black tracking-tight text-slate-950">{firstName}</h1>
+        </div>
+        <div className="grid size-12 place-items-center rounded-full bg-emerald-50 text-[#123d2d]">
+          <Church size={23} />
+        </div>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-2">
-        <article className="rounded-[28px] border border-emerald-950/10 bg-white p-5 sm:p-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">Agenda</p>
-              <h2 className="mt-1 text-xl font-black">Próximos cultos e eventos</h2>
+      {nextEvent ? (
+        <Link
+          className="group relative min-h-[250px] overflow-hidden rounded-[30px] bg-[#0f3b2b] p-6 text-white shadow-[0_18px_45px_rgba(18,61,45,.22)]"
+          href={"/elshaday/eventos/" + nextEvent.id}
+        >
+          <div className="absolute -right-12 -top-10 size-48 rounded-full bg-[#d4aa54]/20 blur-2xl" />
+          <div className="absolute -bottom-16 -left-12 size-52 rounded-full bg-emerald-300/10 blur-2xl" />
+          <div className="relative flex h-full min-h-[202px] flex-col">
+            <div className="flex items-center justify-between gap-3">
+              <span className="rounded-full bg-white/12 px-3 py-1.5 text-[11px] font-black uppercase tracking-[.14em] text-[#f4d992]">
+                Próxima programação
+              </span>
+              <CalendarHeart size={22} className="text-[#f4d992]" />
             </div>
-            <Link className="text-sm font-black text-[#176445]" href="/elshaday/eventos">Ver agenda</Link>
+            <div className="mt-auto">
+              <p className="text-xs font-black uppercase tracking-[.16em] text-emerald-100/70">
+                {typeLabel(nextEvent.tipo)}
+              </p>
+              <h2 className="mt-2 max-w-[90%] text-[30px] font-black leading-[1.05] tracking-tight">
+                {nextEvent.titulo}
+              </h2>
+              <p className="mt-4 font-bold text-emerald-50">{dateTimeBR(nextEvent.inicio)}</p>
+              <p className="mt-1 text-sm text-emerald-50/70">
+                {[nextEvent.local, nextEvent.pregador].filter(Boolean).join(" · ") || "Detalhes da programação"}
+              </p>
+              <div className="mt-4 inline-flex items-center gap-2 text-sm font-black text-[#f4d992]">
+                Ver detalhes <ChevronRight size={17} />
+              </div>
+            </div>
           </div>
-          <div className="mt-5 grid gap-3">
-            {(eventsResult.data ?? []).length === 0 ? (
-              <Empty text="Nenhum culto futuro cadastrado." />
-            ) : (
-              (eventsResult.data ?? []).map((event: any) => (
-                <div className="rounded-2xl bg-slate-50 p-4" key={event.id}>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-black">{event.titulo}</p>
-                    <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">
-                      {dateTimeBR(event.inicio)}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-sm text-slate-600">
-                    {[event.tema, event.pregador, event.local].filter(Boolean).join(" · ") || "Programação em definição"}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        </article>
+        </Link>
+      ) : (
+        <Link
+          className="rounded-[30px] border border-dashed border-emerald-950/15 bg-white p-7 text-center shadow-sm"
+          href="/elshaday/eventos"
+        >
+          <CalendarHeart className="mx-auto text-[#176445]" size={34} />
+          <h2 className="mt-3 text-xl font-black">Agenda da igreja</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-500">Nenhuma programação futura cadastrada.</p>
+        </Link>
+      )}
 
-        <article className="rounded-[28px] border border-emerald-950/10 bg-white p-5 sm:p-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">Conteúdo</p>
-              <h2 className="mt-1 text-xl font-black">Últimas pregações</h2>
-            </div>
-            <Link className="text-sm font-black text-[#176445]" href="/elshaday/pregacoes">Ver acervo</Link>
+      <section className="rounded-[26px] border border-emerald-950/10 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-black tracking-tight text-slate-950">Minha agenda</h2>
+            <p className="mt-0.5 text-xs font-semibold text-slate-500">Próximos encontros</p>
           </div>
-          <div className="mt-5 grid gap-3">
-            {(sermonsResult.data ?? []).length === 0 ? (
-              <Empty text="Nenhuma pregação cadastrada." />
-            ) : (
-              (sermonsResult.data ?? []).map((sermon: any) => (
-                <div className="rounded-2xl bg-slate-50 p-4" key={sermon.id}>
-                  <p className="font-black">{sermon.titulo}</p>
-                  <p className="mt-1 text-sm text-slate-600">
-                    {[sermon.pregador, sermon.texto_base].filter(Boolean).join(" · ")}
-                  </p>
-                  {sermon.tema ? <p className="mt-2 text-sm font-semibold text-[#176445]">{sermon.tema}</p> : null}
+          <Link className="text-sm font-black text-[#176445]" href="/elshaday/eventos">
+            Ver todos
+          </Link>
+        </div>
+
+        <div className="mt-4 grid gap-2">
+          {events.slice(0, 3).map((event: any) => (
+            <Link
+              className="flex items-center gap-3 rounded-[18px] bg-[#f7f8f4] p-3"
+              href={"/elshaday/eventos/" + event.id}
+              key={event.id}
+            >
+              <div className="grid size-12 shrink-0 place-items-center rounded-[14px] bg-[#123d2d] text-[#f4d992]">
+                <CalendarDays size={20} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-black text-slate-900">{event.titulo}</p>
+                <p className="mt-1 truncate text-xs font-semibold text-slate-500">{dateTimeBR(event.inicio)}</p>
+              </div>
+              <ChevronRight className="shrink-0 text-slate-400" size={19} />
+            </Link>
+          ))}
+          {!events.length ? <p className="py-3 text-center text-sm text-slate-500">Sem programações futuras.</p> : null}
+        </div>
+      </section>
+
+      <section className="rounded-[26px] border border-emerald-950/10 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">Para sua edificação</p>
+            <h2 className="mt-1 text-xl font-black tracking-tight text-slate-950">Palavras recentes</h2>
+          </div>
+          <Link className="text-sm font-black text-[#176445]" href="/elshaday/pregacoes">
+            Ver todos
+          </Link>
+        </div>
+
+        {!sermons.length ? (
+          <div className="mt-4 rounded-[20px] bg-[#f7f8f4] p-5 text-center text-sm text-slate-500">
+            Nenhuma pregação publicada ainda.
+          </div>
+        ) : (
+          <>
+            <Link
+              className="mt-4 block overflow-hidden rounded-[22px] bg-[#321f18] text-white"
+              href={"/elshaday/pregacoes/" + sermons[0].id}
+            >
+              <div className="relative min-h-[165px] overflow-hidden p-5">
+                <div className="absolute -right-7 -top-7 size-36 rounded-full bg-[#d4aa54]/30 blur-2xl" />
+                <div className="relative flex h-full min-h-[125px] flex-col justify-between">
+                  <div className="grid size-10 place-items-center rounded-full bg-white/12">
+                    <Play size={18} fill="currentColor" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-[.15em] text-[#f4d992]">
+                      Palavra em destaque
+                    </p>
+                    <h3 className="mt-2 text-2xl font-black leading-tight">{sermons[0].titulo}</h3>
+                    <p className="mt-2 text-sm text-white/70">{sermons[0].pregador}</p>
+                  </div>
                 </div>
-              ))
-            )}
-          </div>
-        </article>
+              </div>
+            </Link>
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              {sermons.slice(1, 3).map((sermon: any) => (
+                <Link
+                  className="min-w-0 rounded-[20px] bg-[#f7f8f4] p-4"
+                  href={"/elshaday/pregacoes/" + sermon.id}
+                  key={sermon.id}
+                >
+                  <Mic2 className="text-[#176445]" size={20} />
+                  <p className="mt-3 line-clamp-2 font-black leading-snug text-slate-900">{sermon.titulo}</p>
+                  <p className="mt-2 truncate text-xs font-semibold text-slate-500">{sermon.pregador}</p>
+                </Link>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+
+      <section className="grid grid-cols-2 gap-3">
+        <QuickLink
+          href="/elshaday/biblia"
+          icon={<BookOpen size={22} />}
+          label="Bíblia"
+          detail="Leia e faça anotações"
+        />
+        <QuickLink
+          href="/elshaday/contribuir"
+          icon={<HandCoins size={22} />}
+          label="Contribua"
+          detail="Dízimos e ofertas"
+        />
+        {papel !== "membro" ? (
+          <>
+            <QuickLink
+              href="/elshaday/membros"
+              icon={<UsersRound size={22} />}
+              label="Membros"
+              detail={membersCount + " ativos"}
+            />
+            <QuickLink
+              href="/elshaday/financeiro"
+              icon={<Sparkles size={22} />}
+              label="Financeiro"
+              detail={moneyBR(monthTotal) + " no mês"}
+            />
+          </>
+        ) : null}
       </section>
     </div>
   );
 }
 
-function MemberHome({ events }: { events: any[] }) {
+function QuickLink({
+  href,
+  icon,
+  label,
+  detail
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  detail: string;
+}) {
   return (
-    <div className="mx-auto grid max-w-7xl gap-6">
-      <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+    <Link
+      className="rounded-[22px] border border-emerald-950/10 bg-white p-4 shadow-sm transition active:scale-[.99]"
+      href={href}
+    >
+      <div className="grid size-11 place-items-center rounded-[14px] bg-emerald-50 text-[#123d2d]">{icon}</div>
+      <p className="mt-4 font-black text-slate-950">{label}</p>
+      <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">{detail}</p>
+    </Link>
+  );
+}
+
+function DashboardList({
+  eyebrow,
+  title,
+  href,
+  empty,
+  children
+}: {
+  eyebrow: string;
+  title: string;
+  href: string;
+  empty: string;
+  children: React.ReactNode;
+}) {
+  const childArray = Array.isArray(children) ? children : [children];
+  return (
+    <article className="rounded-[28px] border border-emerald-950/10 bg-white p-6">
+      <div className="flex items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-black uppercase tracking-[.14em] text-amber-900">
-            <Sparkles size={14} />
-            Programação
-          </div>
-          <h1 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">
-            Próximos cultos e eventos
-          </h1>
-          <p className="mt-2 max-w-2xl leading-7 text-slate-600">
-            Acompanhe a programação da igreja. No celular, deslize os cards para o lado.
-          </p>
+          <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">{eyebrow}</p>
+          <h2 className="mt-1 text-xl font-black">{title}</h2>
         </div>
-        <Link
-          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-emerald-950/10 bg-white px-4 text-sm font-black text-[#176445]"
-          href="/elshaday/eventos"
-        >
-          Ver agenda completa
-        </Link>
-      </section>
-
-      {events.length === 0 ? (
-        <div className="rounded-[30px] border border-dashed border-emerald-950/15 bg-white p-10 text-center">
-          <CalendarHeart className="mx-auto text-[#176445]" size={34} />
-          <h2 className="mt-4 text-xl font-black">Nenhuma programação futura</h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Assim que um culto ou evento for cadastrado, ele aparecerá aqui.
-          </p>
-        </div>
-      ) : (
-        <section
-          aria-label="Carrossel da programação"
-          className="-mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8"
-        >
-          {events.map((event: any, index: number) => (
-            <Link
-              className="group relative min-h-[310px] w-[84vw] max-w-[390px] shrink-0 snap-start overflow-hidden rounded-[30px] border border-emerald-950/10 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg sm:w-[360px]"
-              href={"/elshaday/eventos/" + event.id}
-              key={event.id}
-            >
-              <div className="absolute inset-x-0 top-0 h-1.5 bg-[#d4aa54]" />
-              <div className="flex items-start justify-between gap-3">
-                <div className="grid size-12 place-items-center rounded-2xl bg-[#123d2d] text-[#f1d79d]">
-                  <CalendarDays size={23} />
-                </div>
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-emerald-800">
-                  {event.tipo || "culto"}
-                </span>
-              </div>
-
-              <p className="mt-6 text-xs font-black uppercase tracking-[.14em] text-[#176445]">
-                {index === 0 ? "Próxima programação" : "Em breve"}
-              </p>
-              <h2 className="mt-2 text-2xl font-black leading-tight">{event.titulo}</h2>
-
-              <div className="mt-5 grid gap-3 text-sm">
-                <div className="flex items-start gap-3">
-                  <CalendarHeart className="mt-0.5 shrink-0 text-[#b6872f]" size={18} />
-                  <span className="font-bold text-slate-700">{dateTimeBR(event.inicio)}</span>
-                </div>
-                {event.local ? (
-                  <div className="flex items-start gap-3">
-                    <MapPin className="mt-0.5 shrink-0 text-[#b6872f]" size={18} />
-                    <span className="text-slate-600">{event.local}</span>
-                  </div>
-                ) : null}
-                {event.pregador ? (
-                  <div className="flex items-start gap-3">
-                    <Mic2 className="mt-0.5 shrink-0 text-[#b6872f]" size={18} />
-                    <span className="text-slate-600">{event.pregador}</span>
-                  </div>
-                ) : null}
-              </div>
-
-              {event.tema ? (
-                <div className="mt-5 rounded-2xl bg-emerald-50 p-4">
-                  <p className="text-xs font-black uppercase tracking-wide text-emerald-700">Tema</p>
-                  <p className="mt-1 font-bold text-emerald-950">{event.tema}</p>
-                </div>
-              ) : null}
-
-              <div className="mt-5 flex items-center gap-2 text-sm font-black text-[#176445]">
-                Ver programação
-                <ArrowRight className="transition group-hover:translate-x-1" size={17} />
-              </div>
-            </Link>
-          ))}
-        </section>
-      )}
-    </div>
+        <Link className="text-sm font-black text-[#176445]" href={href}>Ver todos</Link>
+      </div>
+      <div className="mt-5 grid gap-3">
+        {childArray.length ? children : <Empty text={empty} />}
+      </div>
+    </article>
   );
 }
 
@@ -322,4 +469,31 @@ function Empty({ text }: { text: string }) {
       {text}
     </div>
   );
+}
+
+function greeting() {
+  const hour = Number(
+    new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Araguaina",
+      hour: "2-digit",
+      hour12: false
+    }).format(new Date()).replace(/\D/g, "")
+  );
+  if (hour < 12) return "Bom dia";
+  if (hour < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
+function typeLabel(value: string) {
+  const labels: Record<string, string> = {
+    culto: "Culto",
+    ceia: "Santa Ceia",
+    ebd: "Escola Bíblica",
+    vigilia: "Vigília",
+    congresso: "Congresso",
+    reuniao: "Reunião",
+    seminario: "Seminário",
+    evento: "Evento"
+  };
+  return labels[value] ?? "Programação";
 }
