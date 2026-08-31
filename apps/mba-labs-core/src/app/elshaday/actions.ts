@@ -43,6 +43,28 @@ function palmasDateTimeIso(value: string) {
   return parsed.toISOString();
 }
 
+const MEMBER_STATUS = ["ativo", "afastado", "visitante", "transferido", "inativo"] as const;
+
+function memberStatus(value: string) {
+  if (!MEMBER_STATUS.includes(value as (typeof MEMBER_STATUS)[number])) {
+    throw new Error("Situação do membro inválida.");
+  }
+  return value as (typeof MEMBER_STATUS)[number];
+}
+
+function safeElshadayReturn(formData: FormData, fallback: string) {
+  const candidate = text(formData, "return_to");
+  if (!candidate.startsWith("/elshaday/") || candidate.startsWith("//")) {
+    return fallback;
+  }
+  return candidate;
+}
+
+function redirectWithMessage(path: string, kind: "ok" | "erro", message: string): never {
+  const separator = path.includes("?") ? "&" : "?";
+  redirect(`${path}${separator}${kind}=${encodeURIComponent(message)}`);
+}
+
 export async function createElshadayMember(formData: FormData) {
   const context = await requireElshadayContext("/elshaday/membros");
   requireElshadayRole(context, ["admin", "pastor", "secretaria"]);
@@ -50,29 +72,40 @@ export async function createElshadayMember(formData: FormData) {
   const nome = text(formData, "nome");
   if (nome.length < 2) throw new Error("Informe o nome do membro.");
 
-  const { error } = await context.admin.from("igreja_membros").insert({
+  const email = nullable(formData, "email");
+  const estado = nullable(formData, "estado");
+
+  const { data, error } = await context.admin.from("igreja_membros").insert({
     igreja_id: context.igreja.id,
     nome,
     data_nascimento: nullableDate(formData, "data_nascimento"),
+    cpf: nullable(formData, "cpf"),
     telefone: nullable(formData, "telefone"),
     whatsapp: nullable(formData, "whatsapp"),
-    email: nullable(formData, "email"),
+    email: email ? email.toLowerCase() : null,
     endereco: nullable(formData, "endereco"),
     bairro: nullable(formData, "bairro"),
     cidade: nullable(formData, "cidade"),
-    estado: nullable(formData, "estado"),
+    estado: estado ? estado.toUpperCase().slice(0, 2) : null,
     data_conversao: nullableDate(formData, "data_conversao"),
     data_batismo: nullableDate(formData, "data_batismo"),
     data_entrada: nullableDate(formData, "data_entrada"),
     cargo: nullable(formData, "cargo"),
     ministerio: nullable(formData, "ministerio"),
-    situacao: text(formData, "situacao") || "ativo",
+    situacao: memberStatus(text(formData, "situacao") || "ativo"),
     observacoes: nullable(formData, "observacoes")
-  });
+  }).select("id").single();
 
   if (error) throw new Error(`Falha ao cadastrar membro: ${error.message}`);
+
+  await auditChurchAccess(context, "elshaday membro cadastrado", {
+    membro_id: data.id,
+    nome
+  });
+
   revalidatePath("/elshaday");
   revalidatePath("/elshaday/membros");
+  redirectWithMessage(`/elshaday/membros/${data.id}`, "ok", "cadastrado");
 }
 
 export async function createElshadayFinanceEntry(formData: FormData) {
@@ -204,8 +237,8 @@ function accessRole(value: string) {
   return value as (typeof ELSHADAY_ROLES)[number];
 }
 
-function accessRedirect(kind: "ok" | "erro", message: string) {
-  redirect(`/elshaday/acessos?${kind}=${encodeURIComponent(message)}`);
+function accessRedirect(kind: "ok" | "erro", message: string, returnTo = "/elshaday/acessos"): never {
+  redirectWithMessage(returnTo, kind, message);
 }
 
 async function getElshadayAppId(admin: any) {
@@ -264,6 +297,7 @@ async function auditChurchAccess(context: any, acao: string, detalhes: Record<st
 export async function createElshadayAccess(formData: FormData) {
   const context = await requireElshadayContext("/elshaday/acessos");
   requireElshadayRole(context, ["admin"]);
+  const returnTo = safeElshadayReturn(formData, "/elshaday/acessos");
 
   try {
     if (!context.igreja.empresa_id) throw new Error("Igreja sem organização vinculada.");
@@ -420,11 +454,12 @@ export async function createElshadayAccess(formData: FormData) {
       membro_id: membroId
     });
   } catch (error) {
-    accessRedirect("erro", error instanceof Error ? error.message : "Não foi possível criar o acesso.");
+    accessRedirect("erro", error instanceof Error ? error.message : "Não foi possível criar o acesso.", returnTo);
   }
 
   revalidatePath("/elshaday/acessos");
-  accessRedirect("ok", "convite");
+  revalidatePath("/elshaday/membros");
+  accessRedirect("ok", "convite", returnTo);
 }
 
 export async function updateElshadayAccessRole(formData: FormData) {
@@ -592,4 +627,199 @@ export async function sendElshadayPasswordEmail(formData: FormData) {
   }
 
   accessRedirect("ok", "senha");
+}
+
+
+export async function updateElshadayMember(formData: FormData) {
+  const context = await requireElshadayContext("/elshaday/membros");
+  requireElshadayRole(context, ["admin", "pastor", "secretaria"]);
+  const membroId = text(formData, "membro_id");
+  const returnTo = safeElshadayReturn(formData, `/elshaday/membros/${membroId}`);
+
+  try {
+    const nome = text(formData, "nome");
+    if (nome.length < 2) throw new Error("Informe o nome do membro.");
+
+    const { data: existing, error: existingError } = await context.admin
+      .from("igreja_membros")
+      .select("id")
+      .eq("id", membroId)
+      .eq("igreja_id", context.igreja.id)
+      .maybeSingle();
+
+    if (existingError || !existing) throw new Error("Membro não pertence a esta igreja.");
+
+    const email = nullable(formData, "email");
+    const estado = nullable(formData, "estado");
+
+    const { error } = await context.admin
+      .from("igreja_membros")
+      .update({
+        nome,
+        data_nascimento: nullableDate(formData, "data_nascimento"),
+        cpf: nullable(formData, "cpf"),
+        telefone: nullable(formData, "telefone"),
+        whatsapp: nullable(formData, "whatsapp"),
+        email: email ? email.toLowerCase() : null,
+        endereco: nullable(formData, "endereco"),
+        bairro: nullable(formData, "bairro"),
+        cidade: nullable(formData, "cidade"),
+        estado: estado ? estado.toUpperCase().slice(0, 2) : null,
+        data_conversao: nullableDate(formData, "data_conversao"),
+        data_batismo: nullableDate(formData, "data_batismo"),
+        data_entrada: nullableDate(formData, "data_entrada"),
+        cargo: nullable(formData, "cargo"),
+        ministerio: nullable(formData, "ministerio"),
+        situacao: memberStatus(text(formData, "situacao") || "ativo"),
+        observacoes: nullable(formData, "observacoes"),
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", membroId)
+      .eq("igreja_id", context.igreja.id);
+
+    if (error) throw error;
+
+    await auditChurchAccess(context, "elshaday membro atualizado", {
+      membro_id: membroId,
+      nome
+    });
+  } catch (error) {
+    redirectWithMessage(
+      returnTo,
+      "erro",
+      error instanceof Error ? error.message : "Não foi possível atualizar o membro."
+    );
+  }
+
+  revalidatePath("/elshaday");
+  revalidatePath("/elshaday/membros");
+  revalidatePath(returnTo);
+  redirectWithMessage(returnTo, "ok", "atualizado");
+}
+
+export async function setElshadayMemberStatus(formData: FormData) {
+  const context = await requireElshadayContext("/elshaday/membros");
+  requireElshadayRole(context, ["admin", "pastor", "secretaria"]);
+  const membroId = text(formData, "membro_id");
+  const returnTo = safeElshadayReturn(formData, `/elshaday/membros/${membroId}`);
+
+  try {
+    const situacao = memberStatus(text(formData, "situacao"));
+    const { data, error } = await context.admin
+      .from("igreja_membros")
+      .update({ situacao, updated_at: new Date().toISOString() })
+      .eq("id", membroId)
+      .eq("igreja_id", context.igreja.id)
+      .select("id")
+      .maybeSingle();
+
+    if (error || !data) throw new Error("Membro não pertence a esta igreja.");
+
+    await auditChurchAccess(context, "elshaday situação de membro alterada", {
+      membro_id: membroId,
+      situacao
+    });
+  } catch (error) {
+    redirectWithMessage(
+      returnTo,
+      "erro",
+      error instanceof Error ? error.message : "Não foi possível alterar a situação."
+    );
+  }
+
+  revalidatePath("/elshaday");
+  revalidatePath("/elshaday/membros");
+  revalidatePath(returnTo);
+  redirectWithMessage(returnTo, "ok", "situacao");
+}
+
+export async function linkElshadayMemberAccess(formData: FormData) {
+  const context = await requireElshadayContext("/elshaday/membros");
+  requireElshadayRole(context, ["admin"]);
+  const membroId = text(formData, "membro_id");
+  const usuarioId = nullable(formData, "usuario_id");
+  const returnTo = safeElshadayReturn(formData, `/elshaday/membros/${membroId}`);
+
+  try {
+    if (!context.igreja.empresa_id) throw new Error("Igreja sem organização vinculada.");
+
+    const { data: member, error: memberError } = await context.admin
+      .from("igreja_membros")
+      .select("id,user_id")
+      .eq("id", membroId)
+      .eq("igreja_id", context.igreja.id)
+      .maybeSingle();
+
+    if (memberError || !member) throw new Error("Membro não pertence a esta igreja.");
+
+    if (!usuarioId) {
+      const { error: unlinkError } = await context.admin
+        .from("igreja_membros")
+        .update({ user_id: null, updated_at: new Date().toISOString() })
+        .eq("id", membroId)
+        .eq("igreja_id", context.igreja.id);
+
+      if (unlinkError) throw unlinkError;
+
+      await auditChurchAccess(context, "elshaday membro desvinculado de acesso", {
+        membro_id: membroId
+      });
+    } else {
+      const coreUser = await getChurchCoreUser(context, usuarioId);
+      if (!coreUser.auth_user_id) throw new Error("O acesso selecionado ainda não possui autenticação.");
+
+      const appId = await getElshadayAppId(context.admin);
+      const { data: permission, error: permissionError } = await context.admin
+        .from("core_usuario_app_permissoes")
+        .select("id,status")
+        .eq("usuario_id", coreUser.id)
+        .eq("empresa_id", context.igreja.empresa_id)
+        .eq("app_id", appId)
+        .maybeSingle();
+
+      if (permissionError || !permission || permission.status !== "ativo") {
+        throw new Error("O usuário selecionado não possui acesso ativo ao Elshaday.");
+      }
+
+      const { data: conflict, error: conflictError } = await context.admin
+        .from("igreja_membros")
+        .select("id,nome")
+        .eq("igreja_id", context.igreja.id)
+        .eq("user_id", coreUser.auth_user_id)
+        .neq("id", membroId)
+        .maybeSingle();
+
+      if (conflictError) throw conflictError;
+      if (conflict) {
+        throw new Error(`Este login já está vinculado ao membro ${conflict.nome}.`);
+      }
+
+      const { error: linkError } = await context.admin
+        .from("igreja_membros")
+        .update({
+          user_id: coreUser.auth_user_id,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", membroId)
+        .eq("igreja_id", context.igreja.id);
+
+      if (linkError) throw linkError;
+
+      await auditChurchAccess(context, "elshaday membro vinculado a acesso", {
+        membro_id: membroId,
+        usuario_id: coreUser.id
+      });
+    }
+  } catch (error) {
+    redirectWithMessage(
+      returnTo,
+      "erro",
+      error instanceof Error ? error.message : "Não foi possível atualizar o vínculo."
+    );
+  }
+
+  revalidatePath("/elshaday/membros");
+  revalidatePath("/elshaday/acessos");
+  revalidatePath(returnTo);
+  redirectWithMessage(returnTo, "ok", "vinculo");
 }
