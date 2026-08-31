@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import type { ElshadayRole } from "@/lib/elshaday";
 import { roleLabel } from "@/lib/elshaday";
-import { ElshadayMobileMenu } from "./ElshadayMobileMenu";
+import { ElshadayMobileAppChrome } from "./ElshadayMobileAppChrome";
 
 export function ElshadayShell({
   children,
@@ -91,15 +91,13 @@ export function ElshadayShell({
         </aside>
 
         <div className="min-w-0">
-          <header className="sticky top-0 z-20 border-b border-emerald-950/10 bg-[#f3f6f1]/95 px-4 py-3 backdrop-blur lg:hidden">
-            <ElshadayMobileMenu
-              igrejaNome={igrejaNome}
-              usuarioNome={usuarioNome}
-              papel={papel}
-            />
-          </header>
+          <ElshadayMobileAppChrome
+            igrejaNome={igrejaNome}
+            usuarioNome={usuarioNome}
+            papel={papel}
+          />
 
-          <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+          <main className="px-4 pb-28 pt-4 sm:px-6 sm:pt-6 lg:p-8">{children}</main>
         </div>
       </div>
     </div>
