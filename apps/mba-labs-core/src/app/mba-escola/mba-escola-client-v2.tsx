@@ -9,6 +9,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   LoaderCircle,
+  LogOut,
   School,
   ShieldCheck,
   Sparkles
@@ -237,6 +238,15 @@ export default function MbaEscolaClientV2() {
               <LayoutDashboard size={18} />
               <span className="hidden sm:inline">MBA Labs</span>
             </Link>
+            <form action="/sair" method="post">
+              <button
+                className="flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-[#3546AE] px-3.5 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#2f3f9f]"
+                type="submit"
+              >
+                <LogOut size={18} />
+                <span className="hidden sm:inline">Sair</span>
+              </button>
+            </form>
           </div>
         </div>
       </header>
