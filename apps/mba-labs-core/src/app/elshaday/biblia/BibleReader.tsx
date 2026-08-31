@@ -472,31 +472,61 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
 
                 <div className="border-t border-[#eee5d1] p-5 sm:p-6">
                   <div className="grid gap-5">
-                    <StudyBlock title={"Contexto de " + book.name} text={study.context} />
-                    <StudyBlock title={"Comentário de " + book.name + " " + chapter} text={study.chapter} />
-
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[.12em] text-[#8c6a28]">
-                        Observe durante a leitura
-                      </p>
-                      <ol className="mt-3 grid gap-3">
-                        {study.observe.map((item, index) => (
-                          <li className="flex gap-3 text-sm leading-6 text-slate-700" key={item}>
-                            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[#123d2d] text-xs font-black text-white">
-                              {index + 1}
-                            </span>
-                            <span>{item}</span>
-                          </li>
+                    {study.kingJamesNotes.length ? (
+                      <div className="grid gap-4">
+                        {study.kingJamesNotes.map((note) => (
+                          <article
+                            className="rounded-2xl border border-[#dfd2b4] bg-[#fffaf0] p-4 sm:p-5"
+                            key={note.title}
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-[#123d2d] px-3 py-1 text-[11px] font-black uppercase tracking-[.12em] text-[#f1d79d]">
+                                {note.source}
+                              </span>
+                              <span className="text-xs font-bold text-slate-400">
+                                Nota fornecida pelo usuário
+                              </span>
+                            </div>
+                            <h4 className="mt-3 font-black text-slate-900">{note.title}</h4>
+                            <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700">
+                              {note.text}
+                            </p>
+                          </article>
                         ))}
-                      </ol>
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-[#dfd2b4] bg-[#fffaf0] p-5 text-sm leading-6 text-slate-600">
+                        Ainda não há comentário King James cadastrado para este capítulo.
+                      </div>
+                    )}
 
-                    <StudyBlock title="Aplicação e reflexão" text={study.application} />
+                    <details className="rounded-2xl border border-slate-200 bg-slate-50">
+                      <summary className="cursor-pointer list-none p-4 font-black text-slate-800">
+                        Abrir guia de leitura Elshaday
+                      </summary>
+                      <div className="grid gap-5 border-t border-slate-200 p-4 sm:p-5">
+                        <StudyBlock title={"Contexto de " + book.name} text={study.context} />
+                        <StudyBlock title={"Visão geral de " + book.name + " " + chapter} text={study.chapter} />
 
-                    <p className="rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">
-                      Comentários de estudo Elshaday: conteúdo editorial próprio para auxiliar a leitura.
-                      Eles não substituem o texto bíblico nem reproduzem notas editoriais proprietárias de outras edições.
-                    </p>
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-[.12em] text-[#8c6a28]">
+                            Observe durante a leitura
+                          </p>
+                          <ol className="mt-3 grid gap-3">
+                            {study.observe.map((item, index) => (
+                              <li className="flex gap-3 text-sm leading-6 text-slate-700" key={item}>
+                                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[#123d2d] text-xs font-black text-white">
+                                  {index + 1}
+                                </span>
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+
+                        <StudyBlock title="Aplicação e reflexão" text={study.application} />
+                      </div>
+                    </details>
                   </div>
                 </div>
               </details>
