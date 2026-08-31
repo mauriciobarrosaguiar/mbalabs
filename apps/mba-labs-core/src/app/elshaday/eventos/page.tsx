@@ -121,6 +121,7 @@ export default async function ElshadayEventsPage({
               </select>
             </label>
             <Field label="Data e horário" name="inicio" type="datetime-local" required />
+            <Field label="Término (opcional)" name="fim" type="datetime-local" />
             <Field label="Local" name="local" placeholder="Templo sede" />
             <Field label="Pregador" name="pregador" />
             <Field label="Dirigente" name="dirigente" />
