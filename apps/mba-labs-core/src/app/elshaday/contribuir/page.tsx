@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import {
   BadgeCheck,
   CircleAlert,
@@ -338,7 +339,7 @@ function IdentifiedChargeCard({ charge }: { charge: any }) {
   );
 }
 
-function Requirement({ children }: { children: React.ReactNode }) {
+function Requirement({ children }: { children: ReactNode }) {
   return (
     <div className="mt-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
       <CircleAlert className="mt-0.5 shrink-0" size={19} />
@@ -352,7 +353,7 @@ function Message({
   children
 }: {
   kind: "success" | "error";
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className={`rounded-2xl border p-4 text-sm font-bold ${
