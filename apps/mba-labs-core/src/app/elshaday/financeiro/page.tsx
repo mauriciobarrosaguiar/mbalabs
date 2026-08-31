@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   CheckCircle2,
   CircleAlert,
@@ -433,7 +434,7 @@ function EntryStatus({ value }: { value: string }) {
   );
 }
 
-function Message({ kind, children }: { kind: "success" | "error"; children: React.ReactNode }) {
+function Message({ kind, children }: { kind: "success" | "error"; children: ReactNode }) {
   return (
     <div className={`rounded-2xl border p-4 text-sm font-bold ${
       kind === "success"
