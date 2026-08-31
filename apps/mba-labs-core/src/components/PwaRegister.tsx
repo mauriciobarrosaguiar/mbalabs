@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 
-const FAVORITE_QUEUE_KEY = "elshaday:bible-favorite-queue:v1";
 
 export function PwaRegister() {
   useEffect(() => {
@@ -20,8 +19,6 @@ export function PwaRegister() {
         void registration.update().catch(() => undefined);
 
         if (window.location.pathname === "/login" && navigator.onLine) {
-          window.localStorage.removeItem(FAVORITE_QUEUE_KEY);
-
           const target =
             navigator.serviceWorker.controller ??
             registration.active ??
