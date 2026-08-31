@@ -120,9 +120,17 @@ export default async function ElshadayMembersPage({
               WhatsApp, e-mail, endereço, bairro, cidade, UF/estado, cargo, ministério, situação e observações.
               Registros já existentes por e-mail ou CPF são ignorados.
             </div>
-            <button className="inline-flex min-h-11 w-fit items-center gap-2 rounded-xl bg-sky-900 px-5 font-black text-white">
-              <Upload size={17} /> Importar arquivo
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button className="inline-flex min-h-11 w-fit items-center gap-2 rounded-xl bg-sky-900 px-5 font-black text-white">
+                <Upload size={17} /> Importar arquivo
+              </button>
+              <a
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-sky-200 bg-white px-5 font-black text-sky-900"
+                href="/api/elshaday/membros/modelo-importacao"
+              >
+                <FileSpreadsheet size={17} /> Baixar modelo XLSX
+              </a>
+            </div>
           </form>
         </details>
       ) : null}
