@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import {
   CheckCircle2,
   CircleAlert,
+  FileBarChart,
   HandCoins,
   LockKeyhole,
   QrCode,
@@ -96,7 +97,13 @@ export default async function ElshadayFinancePage({
             Entradas manuais e recebimentos PIX automáticos no mesmo financeiro.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-950/10 bg-white px-4 text-sm font-black text-[#123d2d] shadow-sm"
+            href="/elshaday/financeiro/relatorios"
+          >
+            <FileBarChart size={17} /> Relatórios e fechamento
+          </Link>
           <Link
             className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-950/10 bg-white px-4 text-sm font-black text-[#123d2d] shadow-sm"
             href="/elshaday/financeiro/provedores"
@@ -329,6 +336,7 @@ export default async function ElshadayFinancePage({
                   <th className="px-5 py-4">Origem</th>
                   <th className="px-5 py-4">Status</th>
                   <th className="px-5 py-4 text-right">Valor</th>
+                  <th className="px-5 py-4"></th>
                 </tr>
               </thead>
               <tbody>
@@ -343,6 +351,14 @@ export default async function ElshadayFinancePage({
                     <td className="px-5 py-4"><OriginBadge identified={Boolean(entry.pix_cobranca_id)} origin={entry.origem} /></td>
                     <td className="px-5 py-4"><EntryStatus value={entry.status} /></td>
                     <td className="px-5 py-4 text-right font-black">{moneyBR(entry.valor)}</td>
+                    <td className="px-5 py-4 text-right">
+                      <Link
+                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black"
+                        href={"/elshaday/financeiro/lancamentos/" + entry.id}
+                      >
+                        Abrir
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>

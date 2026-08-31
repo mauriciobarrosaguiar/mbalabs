@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Search, UserCheck, UserPlus, UsersRound } from "lucide-react";
+import { FileSpreadsheet, Search, Upload, UserCheck, UserPlus, UsersRound } from "lucide-react";
 import { createElshadayMember } from "../actions";
+import { importElshadayMembers } from "../completion-actions";
 import {
   dateBR,
   hasElshadayRole,
@@ -79,11 +80,60 @@ export default async function ElshadayMembersPage({
         </div>
       </header>
 
+      {readParam(params.ok) ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-900">
+          {memberSuccess(readParam(params.ok))}
+        </div>
+      ) : null}
+      {readParam(params.erro) ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-800">
+          {readParam(params.erro)}
+        </div>
+      ) : null}
+
       <section className="grid gap-4 sm:grid-cols-3">
         <Kpi label="Membros ativos" value={activeCount} />
         <Kpi label="Visitantes" value={visitorCount} />
         <Kpi label="Com acesso digital" value={linkedCount} />
       </section>
+
+      {canManage ? (
+        <details className="rounded-[28px] border border-sky-200 bg-sky-50 p-5 shadow-sm">
+          <summary className="cursor-pointer list-none font-black text-sky-950">
+            <span className="inline-flex items-center gap-2">
+              <FileSpreadsheet size={19} /> Importar membros por CSV/XLSX
+            </span>
+          </summary>
+          <form action={importElshadayMembers} className="mt-5 grid gap-4">
+            <label className="grid gap-2 text-sm font-bold text-slate-700">
+              Arquivo
+              <input
+                className="rounded-2xl border border-sky-200 bg-white p-3"
+                name="arquivo"
+                type="file"
+                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                required
+              />
+            </label>
+            <div className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-600">
+              Colunas reconhecidas: <strong>nome</strong>, nascimento/data_nascimento, CPF, telefone,
+              WhatsApp, e-mail, endereço, bairro, cidade, UF/estado, cargo, ministério, situação e observações.
+              Registros já existentes por e-mail ou CPF são ignorados.
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button className="inline-flex min-h-11 w-fit items-center gap-2 rounded-xl bg-sky-900 px-5 font-black text-white">
+                <Upload size={17} /> Importar arquivo
+              </button>
+              <a
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-sky-200 bg-white px-5 font-black text-sky-900"
+                href="/api/elshaday/membros/modelo-importacao"
+              >
+                <FileSpreadsheet size={17} /> Baixar modelo XLSX
+              </a>
+            </div>
+          </form>
+        </details>
+      ) : null}
 
       {canManage ? (
         <details
@@ -280,6 +330,14 @@ export default async function ElshadayMembersPage({
 
 function readParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? String(value[0] ?? "") : String(value ?? "");
+}
+
+function memberSuccess(code: string) {
+  if (code.startsWith("importados:")) {
+    const parts = code.split(":");
+    return "Importação concluída: " + (parts[1] ?? "0") + " membro(s) importado(s) e " + (parts[2] ?? "0") + " ignorado(s).";
+  }
+  return "Operação concluída.";
 }
 
 function Field({

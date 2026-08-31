@@ -1,12 +1,17 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowLeft, KeyRound, Mail, MapPin, PencilLine, Phone, ShieldCheck, UserRoundCheck } from "lucide-react";
+import { ArrowLeft, Camera, KeyRound, Mail, MapPin, PencilLine, Phone, ShieldCheck, Trash2, UserRoundCheck, UsersRound } from "lucide-react";
 import {
   createElshadayAccess,
   linkElshadayMemberAccess,
   setElshadayMemberStatus,
   updateElshadayMember
 } from "../../actions";
+import {
+  addElshadayMemberRelation,
+  removeElshadayMemberRelation,
+  uploadElshadayMemberPhoto
+} from "../../completion-actions";
 import {
   dateBR,
   hasElshadayRole,
@@ -57,6 +62,38 @@ export default async function ElshadayMemberDetailPage({
         <Link className="mt-4 inline-flex font-black text-[#176445]" href="/elshaday/membros">Voltar para membros</Link>
       </div>
     );
+  }
+
+  const [relationsResult, allMembersResult] = await Promise.all([
+    context.admin
+      .from("igreja_membro_relacoes")
+      .select("id,parente_id,tipo,observacoes,created_at")
+      .eq("igreja_id", context.igreja.id)
+      .eq("membro_id", id)
+      .order("created_at"),
+    context.admin
+      .from("igreja_membros")
+      .select("id,nome,situacao")
+      .eq("igreja_id", context.igreja.id)
+      .neq("id", id)
+      .order("nome")
+  ]);
+
+  if (relationsResult.error) throw new Error("Falha ao carregar família: " + relationsResult.error.message);
+  if (allMembersResult.error) throw new Error("Falha ao carregar membros relacionados: " + allMembersResult.error.message);
+
+  const allMembers = allMembersResult.data ?? [];
+  const memberNameById = new Map<string, string>(
+    allMembers.map((item: any): [string, string] => [String(item.id), String(item.nome)])
+  );
+  const relations = relationsResult.data ?? [];
+
+  let signedPhotoUrl: string | null = null;
+  if (member.foto_url) {
+    const { data: signed } = await context.admin.storage
+      .from("igreja-membros")
+      .createSignedUrl(String(member.foto_url), 60 * 60);
+    signedPhotoUrl = signed?.signedUrl ?? null;
   }
 
   let accessUsers: any[] = [];
@@ -130,8 +167,18 @@ export default async function ElshadayMemberDetailPage({
             ) : null}
           </div>
         </div>
-        <div className="grid size-12 place-items-center rounded-2xl bg-[#123d2d] text-[#f1d79d]">
-          <UserRoundCheck size={25} />
+        <div className="flex items-center gap-3">
+          {signedPhotoUrl ? (
+            <img
+              alt={"Foto de " + member.nome}
+              className="size-20 rounded-2xl border border-emerald-950/10 object-cover shadow-sm"
+              src={signedPhotoUrl}
+            />
+          ) : (
+            <div className="grid size-20 place-items-center rounded-2xl bg-[#123d2d] text-[#f1d79d]">
+              <UserRoundCheck size={32} />
+            </div>
+          )}
         </div>
       </header>
 
@@ -162,6 +209,111 @@ export default async function ElshadayMemberDetailPage({
             <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{member.observacoes || "Nenhuma observação registrada."}</p>
           </div>
         ) : null}
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <article className="rounded-[28px] border border-emerald-950/10 bg-white p-5">
+          <div className="flex items-center gap-2">
+            <UsersRound size={19} className="text-[#176445]" />
+            <h2 className="font-black">Família e relacionamentos</h2>
+          </div>
+
+          {relations.length === 0 ? (
+            <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+              Nenhum vínculo familiar registrado.
+            </p>
+          ) : (
+            <div className="mt-4 grid gap-2">
+              {relations.map((relation: any) => (
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4" key={relation.id}>
+                  <div>
+                    <p className="font-black">{memberNameById.get(String(relation.parente_id)) || "Membro"}</p>
+                    <p className="mt-1 text-xs text-slate-500">{relationLabel(relation.tipo)}</p>
+                    {relation.observacoes ? (
+                      <p className="mt-2 text-xs text-slate-600">{relation.observacoes}</p>
+                    ) : null}
+                  </div>
+                  {canManage ? (
+                    <form action={removeElshadayMemberRelation}>
+                      <input type="hidden" name="membro_id" value={member.id} />
+                      <input type="hidden" name="relacao_id" value={relation.id} />
+                      <input type="hidden" name="return_to" value={"/elshaday/membros/" + member.id} />
+                      <button className="grid size-9 place-items-center rounded-xl bg-white text-red-600" title="Remover vínculo">
+                        <Trash2 size={16} />
+                      </button>
+                    </form>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {canManage ? (
+            <form action={addElshadayMemberRelation} className="mt-5 grid gap-3 border-t border-slate-100 pt-5">
+              <input type="hidden" name="membro_id" value={member.id} />
+              <input type="hidden" name="return_to" value={"/elshaday/membros/" + member.id} />
+              <select className="input" name="parente_id" defaultValue="" required>
+                <option value="">Selecione outro membro</option>
+                {allMembers.map((item: any) => (
+                  <option key={item.id} value={item.id}>{item.nome} · {item.situacao}</option>
+                ))}
+              </select>
+              <select className="input" name="tipo" defaultValue="conjuge">
+                <option value="conjuge">Cônjuge</option>
+                <option value="pai">Pai</option>
+                <option value="mae">Mãe</option>
+                <option value="filho">Filho</option>
+                <option value="filha">Filha</option>
+                <option value="irmao">Irmão</option>
+                <option value="irma">Irmã</option>
+                <option value="responsavel">Responsável</option>
+                <option value="dependente">Dependente</option>
+                <option value="outro">Outro</option>
+              </select>
+              <input className="input" name="observacoes" placeholder="Observação opcional" />
+              <button className="min-h-11 rounded-xl bg-slate-900 px-5 text-sm font-black text-white">
+                Adicionar vínculo
+              </button>
+            </form>
+          ) : null}
+        </article>
+
+        <article className="rounded-[28px] border border-sky-200 bg-sky-50 p-5">
+          <div className="flex items-center gap-2 text-sky-950">
+            <Camera size={19} />
+            <h2 className="font-black">Foto do membro</h2>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-sky-900/70">
+            A foto fica em armazenamento privado e é exibida por link temporário autenticado.
+          </p>
+          {signedPhotoUrl ? (
+            <img
+              alt={"Foto de " + member.nome}
+              className="mt-4 size-40 rounded-3xl object-cover shadow-sm"
+              src={signedPhotoUrl}
+            />
+          ) : (
+            <div className="mt-4 grid size-40 place-items-center rounded-3xl bg-white text-sky-900/40">
+              <UserRoundCheck size={42} />
+            </div>
+          )}
+          {canManage ? (
+            <form action={uploadElshadayMemberPhoto} className="mt-4 grid gap-3">
+              <input type="hidden" name="membro_id" value={member.id} />
+              <input type="hidden" name="return_to" value={"/elshaday/membros/" + member.id} />
+              <input
+                className="rounded-2xl border border-sky-200 bg-white p-3 text-sm"
+                name="foto"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                required
+              />
+              <button className="min-h-11 rounded-xl bg-sky-900 px-5 text-sm font-black text-white">
+                Enviar foto
+              </button>
+            </form>
+          ) : null}
+        </article>
       </section>
 
       {canManage ? (
@@ -342,7 +494,10 @@ function successMessage(code: string) {
     atualizado: "Ficha atualizada com sucesso.",
     situacao: "Situação do membro atualizada.",
     vinculo: "Vínculo com o acesso digital atualizado.",
-    convite: "Acesso criado e convite enviado para o e-mail do membro."
+    convite: "Acesso criado e convite enviado para o e-mail do membro.",
+    familia: "Vínculo familiar salvo.",
+    familia_removida: "Vínculo familiar removido.",
+    foto: "Foto do membro atualizada."
   };
   return map[code] ?? "Alteração concluída.";
 }
@@ -399,6 +554,22 @@ function Message({ kind, children }: { kind: "success" | "error"; children: Reac
       {children}
     </div>
   );
+}
+
+function relationLabel(value: string) {
+  const labels: Record<string, string> = {
+    conjuge: "Cônjuge",
+    pai: "Pai",
+    mae: "Mãe",
+    filho: "Filho",
+    filha: "Filha",
+    irmao: "Irmão",
+    irma: "Irmã",
+    responsavel: "Responsável",
+    dependente: "Dependente",
+    outro: "Outro"
+  };
+  return labels[value] ?? value;
 }
 
 function Status({ value }: { value: string }) {
