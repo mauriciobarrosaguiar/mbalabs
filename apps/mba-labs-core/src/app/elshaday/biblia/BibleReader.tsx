@@ -1,11 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Heart, LoaderCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpenText,
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  LoaderCircle,
+  MessageSquareText,
+  Minus,
+  Plus,
+  Search
+} from "lucide-react";
 import { saveBibleFavorite } from "../actions";
+import { getBibleStudy } from "@/lib/elshaday-bible-study";
 
 type Book = { id: string; name: string; chapters: number };
 type Verse = { number: number; text: string };
+type Testament = "todos" | "antigo" | "novo";
 
 const BOOKS: Book[] = [
   { id: "GEN", name: "Gênesis", chapters: 50 },
@@ -76,23 +89,51 @@ const BOOKS: Book[] = [
   { id: "REV", name: "Apocalipse", chapters: 22 }
 ];
 
+const NEW_TESTAMENT_START = BOOKS.findIndex((book) => book.id === "MAT");
+
 export function BibleReader({ favoriteReferences }: { favoriteReferences: string[] }) {
-  const [bookId, setBookId] = useState("JHN");
-  const [chapter, setChapter] = useState(3);
+  const [bookId, setBookId] = useState("");
+  const [chapter, setChapter] = useState<number | null>(null);
   const [verses, setVerses] = useState<Verse[]>([]);
   const [translation, setTranslation] = useState("João Ferreira de Almeida");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [testament, setTestament] = useState<Testament>("todos");
+  const [fontSize, setFontSize] = useState(18);
 
-  const book = useMemo(() => BOOKS.find((item) => item.id === bookId) ?? BOOKS[0], [bookId]);
+  const book = useMemo(
+    () => BOOKS.find((item) => item.id === bookId) ?? null,
+    [bookId]
+  );
   const favorites = useMemo(() => new Set(favoriteReferences), [favoriteReferences]);
 
+  const filteredBooks = useMemo(() => {
+    const term = normalize(search);
+    return BOOKS.filter((item, index) => {
+      const belongs =
+        testament === "todos" ||
+        (testament === "antigo" && index < NEW_TESTAMENT_START) ||
+        (testament === "novo" && index >= NEW_TESTAMENT_START);
+      const matches = !term || normalize(item.name).includes(term);
+      return belongs && matches;
+    });
+  }, [search, testament]);
+
   useEffect(() => {
+    if (!bookId || !chapter) {
+      setVerses([]);
+      setLoading(false);
+      setError("");
+      return;
+    }
+
     const controller = new AbortController();
     setLoading(true);
     setError("");
+    setVerses([]);
 
-    fetch(`/api/elshaday/biblia?book=${encodeURIComponent(bookId)}&chapter=${chapter}`, {
+    fetch("/api/elshaday/biblia?book=" + encodeURIComponent(bookId) + "&chapter=" + chapter, {
       signal: controller.signal
     })
       .then(async (response) => {
@@ -105,103 +146,405 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
         setTranslation(data.translation || "João Ferreira de Almeida");
       })
       .catch((reason) => {
-        if (reason?.name !== "AbortError") setError(reason?.message || "Falha ao consultar a Bíblia.");
+        if (reason?.name !== "AbortError") {
+          setError(reason?.message || "Falha ao consultar a Bíblia.");
+        }
       })
       .finally(() => setLoading(false));
 
     return () => controller.abort();
   }, [bookId, chapter]);
 
-  function changeBook(nextBookId: string) {
-    const nextBook = BOOKS.find((item) => item.id === nextBookId);
-    setBookId(nextBookId);
-    setChapter((current) => Math.min(current, nextBook?.chapters ?? 1));
+  function chooseBook(id: string) {
+    setBookId(id);
+    setChapter(null);
+    setVerses([]);
+    setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function chooseChapter(number: number) {
+    setChapter(number);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function goToBookChooser() {
+    setBookId("");
+    setChapter(null);
+    setVerses([]);
+    setSearch("");
+    setError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function goPrevious() {
+    if (!book || !chapter) return;
     if (chapter > 1) {
-      setChapter((value) => value - 1);
+      setChapter(chapter - 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
-    const index = BOOKS.findIndex((item) => item.id === bookId);
+
+    const index = BOOKS.findIndex((item) => item.id === book.id);
     if (index <= 0) return;
     const previous = BOOKS[index - 1];
     setBookId(previous.id);
     setChapter(previous.chapters);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function goNext() {
+    if (!book || !chapter) return;
     if (chapter < book.chapters) {
-      setChapter((value) => value + 1);
+      setChapter(chapter + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
-    const index = BOOKS.findIndex((item) => item.id === bookId);
+
+    const index = BOOKS.findIndex((item) => item.id === book.id);
     if (index < 0 || index >= BOOKS.length - 1) return;
     setBookId(BOOKS[index + 1].id);
     setChapter(1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
+
+  if (!book) {
+    return (
+      <div className="grid gap-6">
+        <div className="rounded-[28px] bg-gradient-to-br from-[#123d2d] to-[#1b6045] p-6 text-white sm:p-8">
+          <div className="flex items-center gap-3 text-[#f1d79d]">
+            <BookOpenText size={24} />
+            <span className="text-xs font-black uppercase tracking-[.18em]">Comece sua leitura</span>
+          </div>
+          <h2 className="mt-3 text-2xl font-black sm:text-3xl">Qual livro você quer ler?</h2>
+          <p className="mt-2 max-w-2xl leading-7 text-emerald-50/80">
+            Escolha livremente um dos 66 livros. Nenhum capítulo é aberto automaticamente.
+          </p>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+          <label className="relative">
+            <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+            <input
+              className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 outline-none focus:border-emerald-600"
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar livro, ex.: Neemias, João, Salmos..."
+              value={search}
+            />
+          </label>
+          <div className="flex gap-2 overflow-x-auto">
+            {([
+              ["todos", "Todos"],
+              ["antigo", "Antigo Testamento"],
+              ["novo", "Novo Testamento"]
+            ] as const).map(([value, label]) => (
+              <button
+                className={
+                  "min-h-12 shrink-0 rounded-2xl px-4 text-sm font-black transition " +
+                  (testament === value
+                    ? "bg-[#123d2d] text-white"
+                    : "border border-slate-200 bg-white text-slate-700")
+                }
+                key={value}
+                onClick={() => setTestament(value)}
+                type="button"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {filteredBooks.map((item) => (
+            <button
+              className="group min-h-28 rounded-[22px] border border-emerald-950/10 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-emerald-700/30 hover:shadow-md"
+              key={item.id}
+              onClick={() => chooseBook(item.id)}
+              type="button"
+            >
+              <span className="text-xs font-black uppercase tracking-[.12em] text-[#b6872f]">
+                {testamentLabel(item.id)}
+              </span>
+              <p className="mt-2 text-lg font-black text-slate-900">{item.name}</p>
+              <p className="mt-1 text-xs text-slate-500">{item.chapters} capítulo{item.chapters === 1 ? "" : "s"}</p>
+              <div className="mt-3 flex items-center gap-1 text-xs font-black text-[#176445]">
+                Escolher
+                <ChevronRight className="transition group-hover:translate-x-1" size={14} />
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {!filteredBooks.length ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+            Nenhum livro encontrado com essa busca.
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (!chapter) {
+    return (
+      <div className="grid gap-6">
+        <button
+          className="inline-flex w-fit items-center gap-2 text-sm font-black text-[#176445]"
+          onClick={goToBookChooser}
+          type="button"
+        >
+          <ArrowLeft size={16} /> Escolher outro livro
+        </button>
+
+        <section className="rounded-[30px] bg-[#123d2d] p-6 text-white sm:p-8">
+          <p className="text-xs font-black uppercase tracking-[.16em] text-[#f1d79d]">
+            {testamentLabel(book.id)}
+          </p>
+          <h2 className="mt-2 text-3xl font-black">{book.name}</h2>
+          <p className="mt-2 text-emerald-50/75">
+            Escolha um capítulo para começar a leitura.
+          </p>
+        </section>
+
+        <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
+          {Array.from({ length: book.chapters }, (_, index) => index + 1).map((number) => (
+            <button
+              className="aspect-square rounded-2xl border border-emerald-950/10 bg-white text-sm font-black transition hover:bg-[#123d2d] hover:text-white"
+              key={number}
+              onClick={() => chooseChapter(number)}
+              type="button"
+            >
+              {number}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  const study = getBibleStudy(book.id, book.name, chapter, book.chapters);
 
   return (
     <div className="grid gap-5">
-      <div className="grid gap-3 sm:grid-cols-[1fr_170px_auto]">
-        <label className="grid gap-2 text-sm font-bold text-slate-700">
-          Livro
-          <select className="min-h-12 rounded-2xl border border-slate-200 bg-white px-4" value={bookId} onChange={(event) => changeBook(event.target.value)}>
-            {BOOKS.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+      <div className="flex flex-col justify-between gap-3 rounded-[24px] border border-emerald-950/10 bg-white p-4 sm:flex-row sm:items-center">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-black"
+            onClick={goToBookChooser}
+            type="button"
+          >
+            <BookOpenText size={16} /> Livros
+          </button>
+          <select
+            className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold"
+            value={book.id}
+            onChange={(event) => {
+              setBookId(event.target.value);
+              setChapter(1);
+            }}
+          >
+            {BOOKS.map((item) => (
+              <option key={item.id} value={item.id}>{item.name}</option>
+            ))}
           </select>
-        </label>
-        <label className="grid gap-2 text-sm font-bold text-slate-700">
-          Capítulo
-          <select className="min-h-12 rounded-2xl border border-slate-200 bg-white px-4" value={chapter} onChange={(event) => setChapter(Number(event.target.value))}>
-            {Array.from({ length: book.chapters }, (_, index) => index + 1).map((number) => <option key={number} value={number}>{number}</option>)}
+          <select
+            className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold"
+            value={chapter}
+            onChange={(event) => setChapter(Number(event.target.value))}
+          >
+            {Array.from({ length: book.chapters }, (_, index) => index + 1).map((number) => (
+              <option key={number} value={number}>Capítulo {number}</option>
+            ))}
           </select>
-        </label>
-        <div className="flex items-end gap-2">
-          <button className="grid size-12 place-items-center rounded-2xl border border-slate-200 bg-white" onClick={goPrevious} type="button" aria-label="Capítulo anterior"><ChevronLeft /></button>
-          <button className="grid size-12 place-items-center rounded-2xl bg-[#123d2d] text-white" onClick={goNext} type="button" aria-label="Próximo capítulo"><ChevronRight /></button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="mr-1 text-xs font-bold text-slate-400">Letra</span>
+          <button
+            aria-label="Diminuir letra"
+            className="grid size-9 place-items-center rounded-xl border border-slate-200 bg-white disabled:opacity-40"
+            disabled={fontSize <= 16}
+            onClick={() => setFontSize((value) => Math.max(16, value - 1))}
+            type="button"
+          >
+            <Minus size={15} />
+          </button>
+          <span className="min-w-8 text-center text-sm font-black">{fontSize}</span>
+          <button
+            aria-label="Aumentar letra"
+            className="grid size-9 place-items-center rounded-xl border border-slate-200 bg-white disabled:opacity-40"
+            disabled={fontSize >= 22}
+            onClick={() => setFontSize((value) => Math.min(22, value + 1))}
+            type="button"
+          >
+            <Plus size={15} />
+          </button>
         </div>
       </div>
 
-      <div className="rounded-[26px] bg-[#f8faf7] p-4 sm:p-6">
-        <div className="mb-6 border-b border-emerald-950/10 pb-4">
-          <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">{translation}</p>
-          <h2 className="mt-1 text-2xl font-black">{book.name} {chapter}</h2>
-        </div>
+      <article className="overflow-hidden rounded-[30px] border border-[#e8dfc8] bg-[#fffdf7] shadow-sm">
+        <header className="border-b border-[#e8dfc8] px-5 py-6 text-center sm:px-10 sm:py-8">
+          <p className="text-xs font-black uppercase tracking-[.16em] text-[#8c6a28]">{translation}</p>
+          <h2 className="mt-2 font-serif text-3xl font-bold text-slate-900 sm:text-4xl">
+            {book.name} {chapter}
+          </h2>
+          <p className="mt-2 text-xs font-semibold text-slate-400">
+            Capítulo {chapter} de {book.chapters}
+          </p>
+        </header>
 
         {loading ? (
-          <div className="grid min-h-48 place-items-center text-slate-500">
-            <LoaderCircle className="animate-spin" size={30} />
+          <div className="grid min-h-72 place-items-center text-slate-500">
+            <div className="text-center">
+              <LoaderCircle className="mx-auto animate-spin text-[#176445]" size={32} />
+              <p className="mt-3 text-sm">Carregando capítulo...</p>
+            </div>
           </div>
         ) : error ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold leading-6 text-red-800">{error}</div>
-        ) : verses.length === 0 ? (
-          <p className="py-10 text-center text-slate-500">Capítulo sem conteúdo retornado.</p>
-        ) : (
-          <div className="grid gap-1">
-            {verses.map((verse) => {
-              const reference = `${book.name} ${chapter}:${verse.number}`;
-              const favorite = favorites.has(reference);
-              return (
-                <div className="group grid grid-cols-[auto_1fr_auto] gap-3 rounded-xl px-2 py-2 transition hover:bg-white" key={verse.number}>
-                  <span className="pt-1 text-xs font-black text-[#b6872f]">{verse.number}</span>
-                  <p className="text-[17px] leading-8 text-slate-800">{verse.text}</p>
-                  <form action={saveBibleFavorite}>
-                    <input type="hidden" name="referencia" value={reference} />
-                    <input type="hidden" name="texto" value={verse.text} />
-                    <button
-                      className={`grid size-9 place-items-center rounded-xl transition ${favorite ? "bg-rose-50 text-rose-500" : "text-slate-300 hover:bg-rose-50 hover:text-rose-500"}`}
-                      title={favorite ? "Favoritado" : "Favoritar versículo"}
-                      type="submit"
-                    >
-                      <Heart size={17} fill={favorite ? "currentColor" : "none"} />
-                    </button>
-                  </form>
-                </div>
-              );
-            })}
+          <div className="m-5 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold leading-6 text-red-800 sm:m-8">
+            {error}
           </div>
+        ) : verses.length === 0 ? (
+          <p className="py-16 text-center text-slate-500">Capítulo sem conteúdo retornado.</p>
+        ) : (
+          <>
+            <div className="mx-auto max-w-4xl px-4 py-7 sm:px-10 sm:py-10">
+              <div className="grid gap-1">
+                {verses.map((verse) => {
+                  const reference = book.name + " " + chapter + ":" + verse.number;
+                  const favorite = favorites.has(reference);
+                  return (
+                    <div
+                      className="group grid grid-cols-[1fr_auto] gap-3 rounded-xl px-2 py-2.5 transition hover:bg-white/80"
+                      key={verse.number}
+                    >
+                      <p
+                        className="font-serif leading-[2.05] text-slate-800"
+                        style={{ fontSize: fontSize + "px" }}
+                      >
+                        <sup className="mr-2 select-none font-sans text-[11px] font-black text-[#b6872f]">
+                          {verse.number}
+                        </sup>
+                        {verse.text}
+                      </p>
+                      <form action={saveBibleFavorite}>
+                        <input type="hidden" name="referencia" value={reference} />
+                        <input type="hidden" name="texto" value={verse.text} />
+                        <button
+                          className={
+                            "mt-1 grid size-9 place-items-center rounded-xl transition " +
+                            (favorite
+                              ? "bg-rose-50 text-rose-500"
+                              : "text-slate-300 hover:bg-rose-50 hover:text-rose-500")
+                          }
+                          title={favorite ? "Favoritado" : "Favoritar versículo"}
+                          type="submit"
+                        >
+                          <Heart size={17} fill={favorite ? "currentColor" : "none"} />
+                        </button>
+                      </form>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <section className="border-t border-[#e8dfc8] bg-[#f8f3e7] px-4 py-6 sm:px-8 sm:py-8">
+              <details className="group mx-auto max-w-4xl rounded-[24px] border border-[#dfd2b4] bg-white">
+                <summary className="cursor-pointer list-none p-5 sm:p-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#123d2d] text-[#f1d79d]">
+                        <MessageSquareText size={21} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[.12em] text-[#8c6a28]">
+                          Bíblia de estudo
+                        </p>
+                        <h3 className="mt-1 font-black text-slate-900">
+                          Clique aqui para ver os comentários
+                        </h3>
+                      </div>
+                    </div>
+                    <ChevronRight className="shrink-0 text-slate-400 transition group-open:rotate-90" size={20} />
+                  </div>
+                </summary>
+
+                <div className="border-t border-[#eee5d1] p-5 sm:p-6">
+                  <div className="grid gap-5">
+                    <StudyBlock title={"Contexto de " + book.name} text={study.context} />
+                    <StudyBlock title={"Comentário de " + book.name + " " + chapter} text={study.chapter} />
+
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[.12em] text-[#8c6a28]">
+                        Observe durante a leitura
+                      </p>
+                      <ol className="mt-3 grid gap-3">
+                        {study.observe.map((item, index) => (
+                          <li className="flex gap-3 text-sm leading-6 text-slate-700" key={item}>
+                            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[#123d2d] text-xs font-black text-white">
+                              {index + 1}
+                            </span>
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    <StudyBlock title="Aplicação e reflexão" text={study.application} />
+
+                    <p className="rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-500">
+                      Comentários de estudo Elshaday: conteúdo editorial próprio para auxiliar a leitura.
+                      Eles não substituem o texto bíblico nem reproduzem notas editoriais proprietárias de outras edições.
+                    </p>
+                  </div>
+                </div>
+              </details>
+            </section>
+          </>
         )}
+      </article>
+
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white font-black disabled:opacity-40"
+          disabled={book.id === BOOKS[0].id && chapter === 1}
+          onClick={goPrevious}
+          type="button"
+        >
+          <ChevronLeft size={18} /> Anterior
+        </button>
+        <button
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#123d2d] font-black text-white disabled:opacity-40"
+          disabled={book.id === BOOKS[BOOKS.length - 1].id && chapter === book.chapters}
+          onClick={goNext}
+          type="button"
+        >
+          Próximo <ChevronRight size={18} />
+        </button>
       </div>
     </div>
   );
+}
+
+function StudyBlock({ title, text }: { title: string; text: string }) {
+  return (
+    <div>
+      <p className="text-xs font-black uppercase tracking-[.12em] text-[#8c6a28]">{title}</p>
+      <p className="mt-2 text-sm leading-7 text-slate-700">{text}</p>
+    </div>
+  );
+}
+
+function testamentLabel(bookId: string) {
+  const index = BOOKS.findIndex((book) => book.id === bookId);
+  return index >= NEW_TESTAMENT_START ? "Novo Testamento" : "Antigo Testamento";
+}
+
+function normalize(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 }

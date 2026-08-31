@@ -14,8 +14,8 @@ const BOOK_IDS = new Set([
 export async function GET(request: NextRequest) {
   await requireAppAccess("elshaday", "/elshaday/biblia");
 
-  const book = String(request.nextUrl.searchParams.get("book") ?? "JHN").toUpperCase();
-  const chapter = Number(request.nextUrl.searchParams.get("chapter") ?? "3");
+  const book = String(request.nextUrl.searchParams.get("book") ?? "").toUpperCase();
+  const chapter = Number(request.nextUrl.searchParams.get("chapter") ?? "0");
 
   if (!BOOK_IDS.has(book) || !Number.isInteger(chapter) || chapter < 1 || chapter > 150) {
     return NextResponse.json({ error: "Livro ou capítulo inválido." }, { status: 400 });
