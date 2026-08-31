@@ -665,7 +665,7 @@ function normalize(value: string) {
 }
 
 
-function readFavoriteQueue(queueKey): PendingFavorite[] {
+function readFavoriteQueue(queueKey: string): PendingFavorite[] {
   if (typeof window === "undefined") return [];
   try {
     const parsed = JSON.parse(window.localStorage.getItem(queueKey) || "[]");
