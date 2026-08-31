@@ -8,6 +8,7 @@ import {
   Home,
   LogOut,
   Mic2,
+  QrCode,
   ShieldCheck,
   UsersRound
 } from "lucide-react";
@@ -32,6 +33,7 @@ export function ElshadayShell({
     { href: "/elshaday", label: "Início", icon: Home },
     ...(canSeeMembers ? [{ href: "/elshaday/membros", label: "Membros", icon: UsersRound }] : []),
     ...(canSeeFinance ? [{ href: "/elshaday/financeiro", label: "Dízimos e ofertas", icon: HandCoins }] : []),
+    { href: "/elshaday/contribuir", label: "Contribuir via PIX", icon: QrCode },
     { href: "/elshaday/eventos", label: "Cultos e eventos", icon: CalendarDays },
     { href: "/elshaday/pregacoes", label: "Pregações", icon: Mic2 },
     { href: "/elshaday/biblia", label: "Bíblia", icon: BookOpen },
