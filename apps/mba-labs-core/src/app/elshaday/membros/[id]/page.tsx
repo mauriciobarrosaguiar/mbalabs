@@ -83,7 +83,9 @@ export default async function ElshadayMemberDetailPage({
   if (allMembersResult.error) throw new Error("Falha ao carregar membros relacionados: " + allMembersResult.error.message);
 
   const allMembers = allMembersResult.data ?? [];
-  const memberNameById = new Map(allMembers.map((item: any) => [String(item.id), String(item.nome)]));
+  const memberNameById = new Map<string, string>(
+    allMembers.map((item: any): [string, string] => [String(item.id), String(item.nome)])
+  );
   const relations = relationsResult.data ?? [];
 
   let signedPhotoUrl: string | null = null;
