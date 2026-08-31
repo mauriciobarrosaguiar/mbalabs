@@ -95,7 +95,6 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
   const [bookId, setBookId] = useState("");
   const [chapter, setChapter] = useState<number | null>(null);
   const [verses, setVerses] = useState<Verse[]>([]);
-  const [translation, setTranslation] = useState("João Ferreira de Almeida");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -143,7 +142,6 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
       })
       .then((data) => {
         setVerses(Array.isArray(data.verses) ? data.verses : []);
-        setTranslation(data.translation || "João Ferreira de Almeida");
       })
       .catch((reason) => {
         if (reason?.name !== "AbortError") {
@@ -211,17 +209,6 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
   if (!book) {
     return (
       <div className="grid gap-6">
-        <div className="rounded-[28px] bg-gradient-to-br from-[#123d2d] to-[#1b6045] p-6 text-white sm:p-8">
-          <div className="flex items-center gap-3 text-[#f1d79d]">
-            <BookOpenText size={24} />
-            <span className="text-xs font-black uppercase tracking-[.18em]">Comece sua leitura</span>
-          </div>
-          <h2 className="mt-3 text-2xl font-black sm:text-3xl">Qual livro você quer ler?</h2>
-          <p className="mt-2 max-w-2xl leading-7 text-emerald-50/80">
-            Escolha livremente um dos 66 livros. Nenhum capítulo é aberto automaticamente.
-          </p>
-        </div>
-
         <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
           <label className="relative">
             <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
@@ -301,9 +288,6 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
             {testamentLabel(book.id)}
           </p>
           <h2 className="mt-2 text-3xl font-black">{book.name}</h2>
-          <p className="mt-2 text-emerald-50/75">
-            Escolha um capítulo para começar a leitura.
-          </p>
         </section>
 
         <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
@@ -384,8 +368,7 @@ export function BibleReader({ favoriteReferences }: { favoriteReferences: string
 
       <article className="overflow-hidden rounded-[30px] border border-[#e8dfc8] bg-[#fffdf7] shadow-sm">
         <header className="border-b border-[#e8dfc8] px-5 py-6 text-center sm:px-10 sm:py-8">
-          <p className="text-xs font-black uppercase tracking-[.16em] text-[#8c6a28]">{translation}</p>
-          <h2 className="mt-2 font-serif text-3xl font-bold text-slate-900 sm:text-4xl">
+          <h2 className="font-serif text-3xl font-bold text-slate-900 sm:text-4xl">
             {book.name} {chapter}
           </h2>
           <p className="mt-2 text-xs font-semibold text-slate-400">

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { ElshadayRole } from "@/lib/elshaday";
 import { roleLabel } from "@/lib/elshaday";
+import { ElshadayMobileMenu } from "./ElshadayMobileMenu";
 
 export function ElshadayShell({
   children,
@@ -91,40 +92,11 @@ export function ElshadayShell({
 
         <div className="min-w-0">
           <header className="sticky top-0 z-20 border-b border-emerald-950/10 bg-[#f3f6f1]/95 px-4 py-3 backdrop-blur lg:hidden">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#123d2d] text-[#f1d79d]">
-                  <Church size={22} />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate font-black">Elshaday Gestão</p>
-                  <p className="truncate text-xs text-slate-500">{igrejaNome}</p>
-                </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Link className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black" href="/dashboard">
-                  MBA Labs
-                </Link>
-                <form action="/sair" method="post">
-                  <button className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-[#123d2d] px-3 py-2 text-xs font-black text-white" type="submit">
-                    <LogOut size={14} />
-                    Sair
-                  </button>
-                </form>
-              </div>
-            </div>
-            <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
-              {nav.map(({ href, label, icon: Icon }) => (
-                <Link
-                  className="flex shrink-0 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold"
-                  href={href}
-                  key={href}
-                >
-                  <Icon size={15} />
-                  {label}
-                </Link>
-              ))}
-            </nav>
+            <ElshadayMobileMenu
+              igrejaNome={igrejaNome}
+              usuarioNome={usuarioNome}
+              papel={papel}
+            />
           </header>
 
           <main className="p-4 sm:p-6 lg:p-8">{children}</main>

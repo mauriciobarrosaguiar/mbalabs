@@ -1,4 +1,4 @@
-import { BookOpen, Heart, NotebookPen, Search, Trash2 } from "lucide-react";
+import { Heart, NotebookPen, Search, Trash2 } from "lucide-react";
 import { requireElshadayContext } from "@/lib/elshaday";
 import { BibleReader } from "./BibleReader";
 import {
@@ -56,9 +56,6 @@ export default async function ElshadayBiblePage({
         <div>
           <p className="text-xs font-black uppercase tracking-[.16em] text-[#176445]">Leitura e estudo</p>
           <h1 className="mt-1 text-3xl font-black">Bíblia Online</h1>
-          <p className="mt-2 text-slate-600">
-            João Ferreira de Almeida · escolha livre do livro, leitura confortável, favoritos, comentários e anotações.
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <span className="flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black shadow-sm">
@@ -73,13 +70,6 @@ export default async function ElshadayBiblePage({
       </header>
 
       <section className="rounded-[30px] border border-emerald-950/10 bg-white p-4 shadow-sm sm:p-6">
-        <div className="mb-5 flex items-center gap-3 rounded-2xl bg-emerald-50 p-4 text-sm leading-6 text-emerald-950">
-          <BookOpen className="shrink-0" size={21} />
-          <p>
-            Escolha primeiro o livro e depois o capítulo. Nenhum texto é aberto automaticamente.
-            Durante a leitura você pode favoritar versículos e consultar comentários de estudo.
-          </p>
-        </div>
         <BibleReader favoriteReferences={favoriteReferences} />
       </section>
 
