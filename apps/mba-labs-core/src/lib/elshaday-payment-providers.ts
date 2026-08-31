@@ -60,12 +60,12 @@ export const ELSHADAY_PIX_PROVIDERS: ElshadayProviderDefinition[] = [
     name: "PagBank",
     category: "gateway",
     authMode: "access_token",
-    adapterStatus: "prepared",
+    adapterStatus: "operational",
     supportsIdentifiedPix: true,
     supportsStaticPix: false,
     requiresPixKey: false,
     environmentVariableNames: ["ELSHADAY_PAGBANK_TOKEN"],
-    notes: "Estrutura preparada para pedidos PIX, QR Code e retorno de status por webhook."
+    notes: "Conector operacional para PIX identificado via API Order, QR Code, idempotência, webhook e validação server-to-server."
   },
   {
     id: "efi",
@@ -246,6 +246,19 @@ export async function saveElshadayPixProviderConfig(input: {
     );
 
   if (error) throw new Error(error.message);
+}
+
+export async function getElshadayIdentifiedPixStatus(igrejaId: string) {
+  const statuses = await listElshadayPixProviderStatus(igrejaId);
+  const primary = statuses.find((item) => item.config?.principal) ?? null;
+
+  if (primary) return primary;
+
+  const asaas = statuses.find((item) => item.id === "asaas");
+  if (asaas?.ready) return asaas;
+
+  const firstReady = statuses.find((item) => item.ready);
+  return firstReady ?? asaas ?? statuses[0];
 }
 
 export async function getElshadayPrimaryPixProvider(igrejaId: string) {
