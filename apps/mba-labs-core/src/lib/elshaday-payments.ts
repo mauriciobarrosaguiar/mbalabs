@@ -1,6 +1,8 @@
 import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getElshadayPrimaryPixProvider } from "@/lib/elshaday-payment-providers";
+import { createElshadayPagBankIdentifiedPixCharge } from "@/lib/elshaday-pagbank";
 
 type ElshadayPixEnvironment = "sandbox" | "production";
 
@@ -205,6 +207,29 @@ export async function createElshadayStaticPixQrCode(igrejaId: string, updatedBy:
 }
 
 export async function createElshadayIdentifiedPixCharge(input: {
+  igrejaId: string;
+  member: ElshadayMemberForPayment;
+  type: ElshadayContributionType;
+  value: number;
+  description?: string | null;
+  createdBy: string;
+}) {
+  const provider = await getElshadayPrimaryPixProvider(input.igrejaId);
+
+  if (provider === "pagbank") {
+    return createElshadayPagBankIdentifiedPixCharge(input);
+  }
+
+  if (provider === "asaas") {
+    return createElshadayAsaasIdentifiedPixCharge(input);
+  }
+
+  throw new Error(
+    `O provedor ${provider} ainda não possui adaptador transacional ativo para PIX identificado.`
+  );
+}
+
+async function createElshadayAsaasIdentifiedPixCharge(input: {
   igrejaId: string;
   member: ElshadayMemberForPayment;
   type: ElshadayContributionType;

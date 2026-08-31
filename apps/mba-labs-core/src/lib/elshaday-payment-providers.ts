@@ -60,12 +60,12 @@ export const ELSHADAY_PIX_PROVIDERS: ElshadayProviderDefinition[] = [
     name: "PagBank",
     category: "gateway",
     authMode: "access_token",
-    adapterStatus: "prepared",
+    adapterStatus: "operational",
     supportsIdentifiedPix: true,
     supportsStaticPix: false,
     requiresPixKey: false,
     environmentVariableNames: ["ELSHADAY_PAGBANK_TOKEN"],
-    notes: "Estrutura preparada para pedidos PIX, QR Code e retorno de status por webhook."
+    notes: "Conector operacional para PIX identificado via API Order, QR Code, idempotência, webhook e validação server-to-server."
   },
   {
     id: "efi",
@@ -185,6 +185,10 @@ export async function saveElshadayPixProviderConfig(input: {
   const admin = getSupabaseAdmin() as any;
   const definition = getElshadayPixProviderDefinition(input.provider);
 
+  if (input.principal && !input.active) {
+    throw new Error("O provedor principal precisa estar ativo.");
+  }
+
   if (input.principal && definition.adapterStatus !== "operational") {
     throw new Error(
       `${definition.name} já está preparado na arquitetura, mas o adaptador transacional ainda não foi ativado.`
@@ -248,6 +252,19 @@ export async function saveElshadayPixProviderConfig(input: {
   if (error) throw new Error(error.message);
 }
 
+export async function getElshadayIdentifiedPixStatus(igrejaId: string) {
+  const statuses = await listElshadayPixProviderStatus(igrejaId);
+  const primary = statuses.find((item) => item.config?.principal) ?? null;
+
+  if (primary) return primary;
+
+  const asaas = statuses.find((item) => item.id === "asaas");
+  if (asaas?.ready) return asaas;
+
+  const firstReady = statuses.find((item) => item.ready);
+  return firstReady ?? asaas ?? statuses[0];
+}
+
 export async function getElshadayPrimaryPixProvider(igrejaId: string) {
   const admin = getSupabaseAdmin() as any;
   const { data: primary, error: primaryError } = await admin
@@ -259,7 +276,7 @@ export async function getElshadayPrimaryPixProvider(igrejaId: string) {
 
   if (primaryError) throw new Error(primaryError.message);
 
-  if (primary?.provider) {
+  if (primary?.provider && primary.ativo) {
     return primary.provider as ElshadayPixProvider;
   }
 
