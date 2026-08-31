@@ -468,7 +468,13 @@ export const adminResources = {
           { label: "LexGestor - Administrador", value: "administrador" },
           { label: "LexGestor - Advogado", value: "advogado" },
           { label: "LexGestor - Assistente", value: "assistente" },
-          { label: "LexGestor - Financeiro/leitura", value: "financeiro_leitura" }
+          { label: "LexGestor - Financeiro/leitura", value: "financeiro_leitura" },
+          { label: "Elshaday - Administrador", value: "admin" },
+          { label: "Elshaday - Pastor", value: "pastor" },
+          { label: "Elshaday - Tesouraria", value: "tesouraria" },
+          { label: "Elshaday - Secretaria", value: "secretaria" },
+          { label: "Elshaday - Líder", value: "lider" },
+          { label: "Elshaday - Membro", value: "membro" }
         ]
       }
     ]
