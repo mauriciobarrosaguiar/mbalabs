@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenCheck, ClipboardList, Drone, FileSpreadsheet, FileText, FolderCheck, Home, Map, PlaneTakeoff, Settings2, SlidersHorizontal, X } from "lucide-react";
+import { BookOpenCheck, ClipboardList, Drone, FileSpreadsheet, FileText, FolderCheck, Home, LogOut, Map, PlaneTakeoff, Settings2, SlidersHorizontal, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
 
@@ -34,6 +34,25 @@ export function DroneAppShell({ children }: { children: ReactNode }) {
   const moreActive = moreItems.some((item)=>pathname.startsWith(item.href));
 
   return <div className={`min-h-screen ${fieldFlow ? "drone-field-flow pb-0" : "pb-[calc(5.5rem+env(safe-area-inset-bottom))]"} md:pb-0`}>
+    {!printView && <div className="fixed right-3 top-3 z-[100] hidden items-center gap-2 md:flex print:hidden">
+      <Link href="/dashboard" className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[#d8e4db] bg-white/95 px-3 text-xs font-black text-[#315b4d] no-underline shadow-lg backdrop-blur">
+        MBA Labs
+      </Link>
+      <form action="/sair" method="post">
+        <button type="submit" className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#075b43] px-3 text-xs font-black text-white shadow-lg">
+          <LogOut size={16}/>
+          Sair
+        </button>
+      </form>
+    </div>}
+
+    {fieldFlow && !printView && <form action="/sair" method="post" className="fixed right-3 top-3 z-[130] md:hidden print:hidden">
+      <button type="submit" className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-[#075b43] px-3 text-xs font-black text-white shadow-xl">
+        <LogOut size={15}/>
+        Sair
+      </button>
+    </form>}
+
     {children}
 
     {!fieldFlow && <nav className={`drone-mobile-nav fixed inset-x-0 bottom-0 z-[80] border-t border-[#d8e4db] bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_26px_rgba(4,50,35,.08)] backdrop-blur-xl md:hidden ${printView ? "print:hidden" : ""}`} aria-label="Navegação do DroneGestor">
@@ -65,6 +84,17 @@ export function DroneAppShell({ children }: { children: ReactNode }) {
               <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#e9f5ed] text-[#087a55]"><Icon size={21}/></span>
               <span className="min-w-0"><strong className="block text-sm font-black text-[#103d2f]">{item.title}</strong><span className="mt-0.5 block text-xs leading-4 text-[#708077]">{item.text}</span></span>
             </Link>; })}
+            <div className="mt-2 grid grid-cols-2 gap-2 border-t border-[#dce8df] pt-3">
+              <Link href="/dashboard" onClick={()=>setMoreOpen(false)} className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[#dce8df] bg-white px-3 text-sm font-black text-[#315b4d] no-underline">
+                MBA Labs
+              </Link>
+              <form action="/sair" method="post">
+                <button type="submit" className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#075b43] px-3 text-sm font-black text-white">
+                  <LogOut size={17}/>
+                  Sair
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </section>
