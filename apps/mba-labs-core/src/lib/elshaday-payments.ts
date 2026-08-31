@@ -464,9 +464,6 @@ async function markEventProcessed(eventId: string, processingError: string | nul
 async function requireOperationalSettings(igrejaId: string) {
   const status = await getElshadayPixStatus(igrejaId);
   const apiKey = String(process.env.ELSHADAY_ASAAS_API_KEY ?? "").trim();
-  const addressKey = String(
-    process.env.ELSHADAY_PIX_ADDRESS_KEY ?? status.addressKeyConfigured && ""
-  ).trim();
 
   const admin = getSupabaseAdmin() as any;
   const { data: config, error } = await admin
