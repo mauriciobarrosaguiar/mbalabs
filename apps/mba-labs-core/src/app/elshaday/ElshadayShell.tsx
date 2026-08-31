@@ -4,6 +4,7 @@ import {
   BookOpen,
   CalendarDays,
   Church,
+  FileBarChart,
   HandCoins,
   Home,
   LogOut,
@@ -32,7 +33,10 @@ export function ElshadayShell({
   const nav = [
     { href: "/elshaday", label: "Início", icon: Home },
     ...(canSeeMembers ? [{ href: "/elshaday/membros", label: "Membros", icon: UsersRound }] : []),
-    ...(canSeeFinance ? [{ href: "/elshaday/financeiro", label: "Dízimos e ofertas", icon: HandCoins }] : []),
+    ...(canSeeFinance ? [
+      { href: "/elshaday/financeiro", label: "Dízimos e ofertas", icon: HandCoins },
+      { href: "/elshaday/financeiro/relatorios", label: "Relatórios financeiros", icon: FileBarChart }
+    ] : []),
     { href: "/elshaday/contribuir", label: "Contribuir via PIX", icon: QrCode },
     { href: "/elshaday/eventos", label: "Cultos e eventos", icon: CalendarDays },
     { href: "/elshaday/pregacoes", label: "Pregações", icon: Mic2 },
