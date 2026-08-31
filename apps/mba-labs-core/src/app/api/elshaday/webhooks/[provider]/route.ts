@@ -3,6 +3,7 @@ import {
   getElshadayPixProviderDefinition,
   parseElshadayPixProvider
 } from "@/lib/elshaday-payment-providers";
+import { processElshadayPagBankWebhook } from "@/lib/elshaday-pagbank";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -33,7 +34,7 @@ export async function GET(
 }
 
 export async function POST(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ provider: string }> }
 ) {
   try {
@@ -53,6 +54,12 @@ export async function POST(
       );
     }
 
+    if (provider === "pagbank") {
+      const payload = await request.json();
+      const result = await processElshadayPagBankWebhook(payload);
+      return NextResponse.json(result);
+    }
+
     return NextResponse.json(
       {
         ok: false,
@@ -61,10 +68,12 @@ export async function POST(
       },
       { status: 409 }
     );
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Erro ao processar webhook PIX.";
+    const invalidProvider = message === "Provedor PIX inválido.";
     return NextResponse.json(
-      { ok: false, error: "Provedor PIX inválido." },
-      { status: 404 }
+      { ok: false, error: message },
+      { status: invalidProvider ? 404 : 500 }
     );
   }
 }
