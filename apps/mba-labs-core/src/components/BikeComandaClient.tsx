@@ -11,6 +11,7 @@ import {
   CreditCard,
   FileText,
   LayoutDashboard,
+  LogOut,
   Save,
   Settings,
   UserRound,
@@ -271,10 +272,18 @@ export function BikeComandaClient({ active, sections }: ClientProps) {
           ))}
         </nav>
 
-        <Link className="mt-4 inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg border border-[#d9e6ee] bg-white px-3 text-sm font-bold shadow-sm" href="/dashboard">
-          <ArrowLeft className="h-4 w-4" aria-hidden />
-          Voltar ao MBA Labs
-        </Link>
+        <div className="mt-4 grid shrink-0 gap-2">
+          <Link className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#d9e6ee] bg-white px-3 text-sm font-bold shadow-sm" href="/dashboard">
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Voltar ao MBA Labs
+          </Link>
+          <form action="/sair" method="post">
+            <button className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#0f4665] px-3 text-sm font-bold text-white shadow-sm" type="submit">
+              <LogOut className="h-4 w-4" aria-hidden />
+              Sair do sistema
+            </button>
+          </form>
+        </div>
       </aside>
 
       <header className="sticky top-0 z-10 border-b border-[#d9e6ee] bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
@@ -283,9 +292,17 @@ export function BikeComandaClient({ active, sections }: ClientProps) {
             <div className="font-black text-[#0f4665]">BikeComanda</div>
             <div className="text-xs text-[#5d7180]">Comandas para bicicletarias</div>
           </Link>
-          <Link className="rounded-lg border border-[#d9e6ee] px-3 py-2 text-sm font-bold" href="/dashboard">
-            MBA Labs
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link className="rounded-lg border border-[#d9e6ee] px-3 py-2 text-sm font-bold" href="/dashboard">
+              MBA Labs
+            </Link>
+            <form action="/sair" method="post">
+              <button className="inline-flex min-h-10 items-center gap-1.5 rounded-lg bg-[#0f4665] px-3 py-2 text-sm font-bold text-white" type="submit">
+                <LogOut className="h-4 w-4" aria-hidden />
+                <span className="hidden sm:inline">Sair</span>
+              </button>
+            </form>
+          </div>
         </div>
         <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
           {sections.map((item) => (
