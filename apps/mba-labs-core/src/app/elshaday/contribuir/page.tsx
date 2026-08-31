@@ -2,6 +2,9 @@ import type { ReactNode } from "react";
 import {
   BadgeCheck,
   CircleAlert,
+  Gift,
+  HandCoins,
+  Heart,
   HeartHandshake,
   QrCode,
   ReceiptText,
@@ -43,6 +46,10 @@ export default async function ElshadayContributePage({
   const chargeId = readParam(query.cobranca);
   const errorMessage = readParam(query.erro);
   const ok = readParam(query.ok);
+  const requestedType = readParam(query.tipo);
+  const selectedType = ["dizimo", "oferta", "oferta_especial", "campanha", "outro"].includes(requestedType)
+    ? requestedType
+    : "dizimo";
 
   let currentCharge: any = null;
   let recentCharges: any[] = [];
@@ -83,7 +90,7 @@ export default async function ElshadayContributePage({
 
   return (
     <div className="mx-auto grid max-w-5xl gap-6">
-      <header className="text-center">
+      <header className="hidden text-center lg:block">
         <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[#123d2d] text-[#f1d79d]">
           <HeartHandshake size={28} />
         </div>
@@ -93,6 +100,43 @@ export default async function ElshadayContributePage({
           Gere um PIX identificado para que Dízimo, Oferta ou Campanha entre automaticamente na categoria correta.
         </p>
       </header>
+
+      <section className="grid gap-4 lg:hidden">
+        <div className="px-1">
+          <p className="text-sm font-semibold text-slate-500">Generosidade</p>
+          <h1 className="mt-0.5 text-[30px] font-black tracking-tight text-slate-950">Contribua</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Escolha como deseja contribuir com a obra.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <ContributionTypeCard
+            href="/elshaday/contribuir?tipo=dizimo#contribuir"
+            icon={<HandCoins size={22} />}
+            label="Dízimo"
+            active={selectedType === "dizimo"}
+          />
+          <ContributionTypeCard
+            href="/elshaday/contribuir?tipo=oferta#contribuir"
+            icon={<Heart size={22} />}
+            label="Oferta"
+            active={selectedType === "oferta"}
+          />
+          <ContributionTypeCard
+            href="/elshaday/contribuir?tipo=campanha#contribuir"
+            icon={<Gift size={22} />}
+            label="Campanha"
+            active={selectedType === "campanha"}
+          />
+          <ContributionTypeCard
+            href="/elshaday/contribuir?tipo=outro#contribuir"
+            icon={<HeartHandshake size={22} />}
+            label="Outros"
+            active={selectedType === "outro" || selectedType === "oferta_especial"}
+          />
+        </div>
+      </section>
 
       {errorMessage ? (
         <Message kind="error">{errorMessage}</Message>
@@ -104,7 +148,7 @@ export default async function ElshadayContributePage({
       {currentCharge ? (
         <IdentifiedChargeCard charge={currentCharge} />
       ) : (
-        <section className="rounded-[32px] border border-emerald-950/10 bg-white p-5 shadow-sm sm:p-7">
+        <section id="contribuir" className="rounded-[28px] border border-emerald-950/10 bg-white p-5 shadow-sm sm:p-7">
           <div className="flex items-start gap-3">
             <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-emerald-100 text-emerald-800">
               <ReceiptText size={22} />
@@ -139,7 +183,7 @@ export default async function ElshadayContributePage({
             <form action={createElshadayIdentifiedPix} className="mt-6 grid gap-4 sm:grid-cols-2">
               <label className="grid gap-2 text-sm font-bold text-slate-700">
                 Tipo da contribuição
-                <select className="input" name="tipo" defaultValue="dizimo" required>
+                <select className="input" name="tipo" defaultValue={selectedType} required>
                   <option value="dizimo">Dízimo</option>
                   <option value="oferta">Oferta</option>
                   <option value="oferta_especial">Oferta especial</option>
@@ -257,14 +301,55 @@ export default async function ElshadayContributePage({
         .input {
           min-height: 3rem;
           border-radius: 1rem;
-          border: 1px solid rgb(226 232 240);
-          background: white;
+          border: 1px solid #cbd5e1;
+          background: #fff !important;
           padding: 0 1rem;
           outline: none;
+          color: #0f172a !important;
+          -webkit-text-fill-color: #0f172a !important;
+          color-scheme: light;
         }
-        .input:focus { border-color: rgb(5 150 105); }
+        .input::placeholder { color: #64748b; opacity: 1; }
+        .input:focus { border-color: #047857; box-shadow: 0 0 0 1px #047857; }
       `}</style>
     </div>
+  );
+}
+
+function ContributionTypeCard({
+  href,
+  icon,
+  label,
+  active
+}: {
+  href: string;
+  icon: ReactNode;
+  label: string;
+  active: boolean;
+}) {
+  return (
+    <a
+      className={
+        "rounded-[22px] border p-4 shadow-sm transition active:scale-[.99] " +
+        (active
+          ? "border-[#123d2d] bg-[#123d2d] text-white"
+          : "border-emerald-950/10 bg-white text-slate-950")
+      }
+      href={href}
+    >
+      <div
+        className={
+          "grid size-11 place-items-center rounded-[14px] " +
+          (active ? "bg-white/12 text-[#f4d992]" : "bg-emerald-50 text-[#123d2d]")
+        }
+      >
+        {icon}
+      </div>
+      <p className="mt-4 text-lg font-black">{label}</p>
+      <p className={"mt-1 text-xs font-semibold " + (active ? "text-emerald-50/70" : "text-slate-500")}>
+        Toque para selecionar
+      </p>
+    </a>
   );
 }
 
