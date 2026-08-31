@@ -781,23 +781,39 @@ async function getOrCreateAsaasCustomer(input: {
   const existingId = stringValue(existing?.provider_customer_id);
   if (existingId) return { id: existingId, created: false };
 
-  const customer = await asaasRequest<Record<string, unknown>>(
+  const externalReference = `elshaday_membro:${input.member.id}`;
+  const customerQuery = new URLSearchParams({
+    externalReference,
+    limit: "1",
+    offset: "0"
+  });
+  const customerSearch = await asaasRequest<{ data?: Array<Record<string, unknown>> }>(
     input.settings,
-    "/customers",
-    {
-      method: "POST",
-      body: {
-        name: input.member.nome.trim(),
-        cpfCnpj: input.cpf,
-        email: input.member.email?.trim() || undefined,
-        mobilePhone: onlyDigits(input.member.whatsapp || input.member.telefone).slice(-11) || undefined,
-        externalReference: `elshaday_membro:${input.member.id}`,
-        notificationDisabled: true
-      }
-    }
+    `/customers?${customerQuery.toString()}`,
+    { method: "GET" }
   );
 
-  const customerId = stringValue(customer.id);
+  let customer = Array.isArray(customerSearch.data) ? customerSearch.data[0] : null;
+
+  if (!customer) {
+    customer = await asaasRequest<Record<string, unknown>>(
+      input.settings,
+      "/customers",
+      {
+        method: "POST",
+        body: {
+          name: input.member.nome.trim(),
+          cpfCnpj: input.cpf,
+          email: input.member.email?.trim() || undefined,
+          mobilePhone: onlyDigits(input.member.whatsapp || input.member.telefone).slice(-11) || undefined,
+          externalReference,
+          notificationDisabled: true
+        }
+      }
+    );
+  }
+
+  const customerId = stringValue(customer?.id);
   if (!customerId) {
     throw new Error("O Asaas não retornou o identificador do pagador.");
   }
