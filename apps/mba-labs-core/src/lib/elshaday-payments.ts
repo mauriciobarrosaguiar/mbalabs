@@ -93,12 +93,34 @@ export async function saveElshadayPixConfiguration(input: {
   updatedBy: string;
 }) {
   const admin = getSupabaseAdmin() as any;
+  const { data: current, error: currentError } = await admin
+    .from("igreja_pix_configuracoes")
+    .select("ambiente,pix_address_key")
+    .eq("igreja_id", input.igrejaId)
+    .maybeSingle();
+
+  if (currentError) throw new Error(currentError.message);
+
+  const nextAddressKey = input.addressKey.trim() || null;
+  const changed =
+    Boolean(current) &&
+    (String(current?.ambiente ?? "sandbox") !== input.environment ||
+      String(current?.pix_address_key ?? "") !== String(nextAddressKey ?? ""));
+
   const payload = {
     igreja_id: input.igrejaId,
     provider: "asaas",
     ambiente: input.environment,
     ativo: input.active,
-    pix_address_key: input.addressKey.trim() || null,
+    pix_address_key: nextAddressKey,
+    ...(changed
+      ? {
+          static_qr_id: null,
+          static_qr_payload: null,
+          static_qr_image: null,
+          static_qr_provider_payload: null
+        }
+      : {}),
     updated_by: input.updatedBy,
     updated_at: new Date().toISOString()
   };
