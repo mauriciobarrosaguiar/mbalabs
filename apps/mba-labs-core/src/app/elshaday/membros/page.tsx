@@ -33,8 +33,8 @@ export default async function ElshadayMembersPage({
   const situacao = readParam(params.situacao);
   const ministerio = readParam(params.ministerio);
 
-  const ministries = Array.from(
-    new Set(
+  const ministries: string[] = Array.from(
+    new Set<string>(
       allMembers
         .map((member: any) => String(member.ministerio ?? "").trim())
         .filter(Boolean)
