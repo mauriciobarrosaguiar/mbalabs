@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  ArrowLeft,
   CheckCircle2,
   Clock3,
   Database,
@@ -10,6 +11,7 @@ import {
   HardDrive,
   History,
   LoaderCircle,
+  LogOut,
   RefreshCw,
   Save,
   School,
@@ -330,6 +332,19 @@ export default function MbaEscolaSecurityPage() {
   return (
     <main className="cotacoes-module min-h-screen bg-[#F6F8FC] px-4 pb-12 pt-4 text-[#172033] sm:px-6">
       <div className="mx-auto grid max-w-7xl gap-5">
+        <div className="flex flex-wrap justify-end gap-2">
+          <a className={secondary} href="/mba-escola/admin">
+            <ArrowLeft size={17} />
+            Voltar ao admin
+          </a>
+          <form action="/sair" method="post">
+            <button className={secondary} type="submit">
+              <LogOut size={17} />
+              Sair
+            </button>
+          </form>
+        </div>
+
         <section className="overflow-hidden rounded-[30px] bg-gradient-to-br from-[#3546AE] via-[#5061D3] to-[#1FA69A] p-5 text-white shadow-[0_28px_70px_-44px_rgba(47,55,130,0.8)] sm:p-7">
           <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
             <div>
