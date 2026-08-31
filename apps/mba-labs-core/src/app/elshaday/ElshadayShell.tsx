@@ -8,6 +8,7 @@ import {
   Home,
   LogOut,
   Mic2,
+  ShieldCheck,
   UsersRound
 } from "lucide-react";
 import type { ElshadayRole } from "@/lib/elshaday";
@@ -26,13 +27,15 @@ export function ElshadayShell({
 }) {
   const canSeeMembers = ["admin", "pastor", "secretaria", "lider"].includes(papel);
   const canSeeFinance = papel === "admin" || papel === "tesouraria";
+  const canManageAccess = papel === "admin";
   const nav = [
     { href: "/elshaday", label: "Início", icon: Home },
     ...(canSeeMembers ? [{ href: "/elshaday/membros", label: "Membros", icon: UsersRound }] : []),
     ...(canSeeFinance ? [{ href: "/elshaday/financeiro", label: "Dízimos e ofertas", icon: HandCoins }] : []),
     { href: "/elshaday/eventos", label: "Cultos e eventos", icon: CalendarDays },
     { href: "/elshaday/pregacoes", label: "Pregações", icon: Mic2 },
-    { href: "/elshaday/biblia", label: "Bíblia", icon: BookOpen }
+    { href: "/elshaday/biblia", label: "Bíblia", icon: BookOpen },
+    ...(canManageAccess ? [{ href: "/elshaday/acessos", label: "Acessos e perfis", icon: ShieldCheck }] : [])
   ];
 
   return (
