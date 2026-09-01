@@ -8,6 +8,10 @@ import {
   requireElshadayContext,
   requireElshadayRole
 } from "@/lib/elshaday";
+import {
+  removeElshadayContentImage,
+  uploadElshadayContentImage
+} from "@/lib/elshaday-media";
 
 function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -62,7 +66,7 @@ async function audit(context: any, action: string, details: Record<string, unkno
 async function assertEvent(context: any, id: string) {
   const { data, error } = await context.admin
     .from("igreja_eventos")
-    .select("id,igreja_id,status,inicio,fim,serie_id,recorrencia_tipo,recorrencia_ate,recorrencia_ordem")
+    .select("id,igreja_id,status,inicio,fim,serie_id,recorrencia_tipo,recorrencia_ate,recorrencia_ordem,banner_url")
     .eq("id", id)
     .eq("igreja_id", context.igreja.id)
     .maybeSingle();
@@ -73,7 +77,7 @@ async function assertEvent(context: any, id: string) {
 async function assertSermon(context: any, id: string) {
   const { data, error } = await context.admin
     .from("igreja_pregacoes")
-    .select("id,igreja_id,status")
+    .select("id,igreja_id,status,banner_url")
     .eq("id", id)
     .eq("igreja_id", context.igreja.id)
     .maybeSingle();
@@ -102,7 +106,14 @@ export async function updateElshadayEvent(formData: FormData) {
       ? requestedScope
       : "este";
 
-    const common = {
+    const newBannerUrl = await uploadElshadayContentImage(
+      context.admin,
+      context.igreja.id,
+      "eventos",
+      formData.get("imagem")
+    );
+
+    const common: Record<string, unknown> = {
       titulo,
       tipo: text(formData, "tipo") || "culto",
       descricao: nullable(formData, "descricao"),
@@ -114,6 +125,7 @@ export async function updateElshadayEvent(formData: FormData) {
       publico: text(formData, "publico") || "todos",
       updated_at: new Date().toISOString()
     };
+    if (newBannerUrl) common.banner_url = newBannerUrl;
 
     let updatedCount = 1;
 
@@ -180,11 +192,16 @@ export async function updateElshadayEvent(formData: FormData) {
       if (error) throw new Error(error.message);
     }
 
+    if (newBannerUrl && current.banner_url && current.banner_url !== newBannerUrl) {
+      await removeElshadayContentImage(context.admin, current.banner_url);
+    }
+
     await audit(context, "elshaday evento atualizado", {
       evento_id: eventId,
       escopo: scope,
       serie_id: current.serie_id,
-      quantidade: updatedCount
+      quantidade: updatedCount,
+      banner_atualizado: Boolean(newBannerUrl)
     });
   } catch (error) {
     withMessage(returnTo, "erro", error instanceof Error ? error.message : "Falha ao atualizar evento.");
@@ -343,18 +360,36 @@ export async function updateElshadaySermon(formData: FormData) {
   requireElshadayRole(context, ["admin", "pastor", "secretaria", "lider"]);
 
   try {
-    await assertSermon(context, sermonId);
+    const current = await assertSermon(context, sermonId);
+    const newBannerUrl = await uploadElshadayContentImage(
+      context.admin,
+      context.igreja.id,
+      "pregacoes",
+      formData.get("imagem")
+    );
+    const payload: Record<string, unknown> = sermonPayload(formData);
+    if (newBannerUrl) payload.banner_url = newBannerUrl;
+
     const { error } = await context.admin
       .from("igreja_pregacoes")
-      .update(sermonPayload(formData))
+      .update(payload)
       .eq("id", sermonId)
       .eq("igreja_id", context.igreja.id);
     if (error) throw new Error(error.message);
-    await audit(context, "elshaday pregacao atualizada", { pregacao_id: sermonId });
+
+    if (newBannerUrl && current.banner_url && current.banner_url !== newBannerUrl) {
+      await removeElshadayContentImage(context.admin, current.banner_url);
+    }
+
+    await audit(context, "elshaday pregacao atualizada", {
+      pregacao_id: sermonId,
+      banner_atualizado: Boolean(newBannerUrl)
+    });
   } catch (error) {
     withMessage(returnTo, "erro", error instanceof Error ? error.message : "Falha ao atualizar pregação.");
   }
 
+  revalidatePath("/elshaday");
   revalidatePath("/elshaday/pregacoes");
   revalidatePath(returnTo);
   withMessage(returnTo, "ok", "pregacao_atualizada");
