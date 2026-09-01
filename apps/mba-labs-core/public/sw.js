@@ -1,7 +1,8 @@
-const CACHE_VERSION = "mba-labs-pwa-v2";
+const CACHE_VERSION = "mba-labs-pwa-v3";
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const ELSHADAY_PAGE_CACHE = `${CACHE_VERSION}-elshaday-pages`;
 const BIBLE_CACHE = `${CACHE_VERSION}-bible`;
+const MEDIA_CACHE = `${CACHE_VERSION}-media`;
 const OFFLINE_URL = "/offline";
 
 const SAFE_ELSHADAY_PAGES = new Set([
@@ -50,6 +51,16 @@ self.addEventListener("message", (event) => {
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
+
+  const isElshadayPublicMedia =
+    request.method === "GET" &&
+    url.protocol === "https:" &&
+    url.pathname.includes("/storage/v1/object/public/igreja-midia/");
+
+  if (isElshadayPublicMedia) {
+    event.respondWith(cacheFirstMedia(request));
+    return;
+  }
 
   if (url.origin !== self.location.origin) return;
 
@@ -148,4 +159,21 @@ async function cacheFirstStatic(request) {
   const copy = response.clone();
   void caches.open(STATIC_CACHE).then((cache) => cache.put(request, copy));
   return response;
+}
+
+
+async function cacheFirstMedia(request) {
+  const cache = await caches.open(MEDIA_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(request);
+    if (response && (response.ok || response.type === "opaque")) {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    return cached || Response.error();
+  }
 }
