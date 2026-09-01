@@ -186,9 +186,17 @@ export default async function ElshadayEventsPage({
                 href={"/elshaday/eventos/" + event.id}
                 key={event.id}
               >
-                <div className="grid size-14 shrink-0 place-items-center rounded-[16px] bg-emerald-50 text-[#123d2d]">
-                  <CalendarDays size={22} />
-                </div>
+                {event.banner_url ? (
+                  <img
+                    alt=""
+                    className="size-14 shrink-0 rounded-[16px] object-cover"
+                    src={event.banner_url}
+                  />
+                ) : (
+                  <div className="grid size-14 shrink-0 place-items-center rounded-[16px] bg-emerald-50 text-[#123d2d]">
+                    <CalendarDays size={22} />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-black text-slate-950">{event.titulo}</p>
                   <p className="mt-1 truncate text-xs font-semibold text-slate-500">{dateTimeBR(event.inicio)}</p>
