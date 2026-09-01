@@ -229,14 +229,6 @@ export function ElshadayMobileAppChrome({
             </p>
             <p className="mt-0.5 truncate text-xs font-semibold text-slate-500">{igrejaNome}</p>
           </Link>
-          <button
-            aria-label="Abrir menu mais"
-            className="grid size-11 place-items-center rounded-full border border-emerald-950/10 bg-white text-[#123d2d] shadow-sm"
-            onClick={() => setOpen(true)}
-            type="button"
-          >
-            <Menu size={23} />
-          </button>
         </div>
       </header>
 
