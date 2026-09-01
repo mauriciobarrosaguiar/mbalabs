@@ -94,8 +94,7 @@ export default async function ElshadayEventsPage({
 
         {mediaItems.length ? (
           <ElshadayMediaCarousel items={mediaItems} />
-        ) : (
-                  {upcoming[0] ? (
+        ) : upcoming[0] ? (
                     <Link
                       className="relative min-h-[220px] overflow-hidden rounded-[28px] bg-[#123d2d] p-5 text-white shadow-[0_16px_38px_rgba(18,61,45,.20)]"
                       href={"/elshaday/eventos/" + upcoming[0].id}
@@ -129,7 +128,6 @@ export default async function ElshadayEventsPage({
                       <p className="mt-3 font-black text-slate-900">Nenhuma programação futura</p>
                     </div>
                   )}
-        )}
 
         <details className="rounded-[22px] border border-slate-200 bg-white shadow-sm">
           <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-4 font-black text-slate-900">
