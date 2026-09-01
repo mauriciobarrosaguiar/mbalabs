@@ -163,7 +163,7 @@ export default async function ElshadayAccessPage({
         </div>
       </section>
 
-      <details className="rounded-[28px] border border-emerald-950/10 bg-white p-5 shadow-sm" open={rows.length === 0}>
+      <details className="rounded-[28px] border border-emerald-950/10 bg-white p-5 shadow-sm">
         <summary className="cursor-pointer list-none font-black">
           <span className="inline-flex items-center gap-2">
             <UserPlus size={19} className="text-[#176445]" />
