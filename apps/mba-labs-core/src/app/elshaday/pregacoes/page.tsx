@@ -6,6 +6,7 @@ import {
   hasElshadayRole,
   requireElshadayContext
 } from "@/lib/elshaday";
+import { ElshadayMediaCarousel } from "../ElshadayMediaCarousel";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export default async function ElshadaySermonsPage({
 
   let request = context.admin
     .from("igreja_pregacoes")
-    .select("id,titulo,tema,pregador,data_pregacao,texto_base,versiculos,esboco,status")
+    .select("id,titulo,tema,pregador,data_pregacao,texto_base,versiculos,esboco,status,banner_url")
     .eq("igreja_id", context.igreja.id)
     .order("data_pregacao", { ascending: false })
     .limit(250);
@@ -38,6 +39,16 @@ export default async function ElshadaySermonsPage({
   const { data: sermons, error } = await request;
   if (error) throw new Error("Falha ao carregar pregações: " + error.message);
   const rows = sermons ?? [];
+  const mediaItems = rows
+    .filter((sermon: any) => Boolean(sermon.banner_url))
+    .slice(0, 8)
+    .map((sermon: any) => ({
+      id: String(sermon.id),
+      href: "/elshaday/pregacoes/" + sermon.id,
+      title: sermon.titulo,
+      subtitle: sermon.pregador,
+      imageUrl: sermon.banner_url
+    }));
 
   return (
     <div className="mx-auto grid max-w-7xl gap-6">
@@ -61,33 +72,37 @@ export default async function ElshadaySermonsPage({
           <Search className="text-slate-700" size={24} />
         </div>
 
-        {rows[0] ? (
-          <Link
-            className="overflow-hidden rounded-[28px] bg-[#322019] text-white shadow-[0_16px_38px_rgba(50,32,25,.18)]"
-            href={"/elshaday/pregacoes/" + rows[0].id}
-          >
-            <div className="relative min-h-[245px] p-5">
-              <div className="absolute -right-10 -top-8 size-44 rounded-full bg-[#d4aa54]/25 blur-2xl" />
-              <div className="relative flex min-h-[205px] flex-col">
-                <div className="flex items-center justify-between">
-                  <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[.14em] text-[#f4d992]">
-                    Em destaque
-                  </span>
-                  <span className="grid size-11 place-items-center rounded-full bg-white/12">
-                    <Play size={18} fill="currentColor" />
-                  </span>
-                </div>
-                <div className="mt-auto">
-                  <p className="text-xs font-black uppercase tracking-[.14em] text-[#f4d992]">
-                    {rows[0].tema || "Palavra"}
-                  </p>
-                  <h2 className="mt-2 text-[28px] font-black leading-[1.08] tracking-tight">{rows[0].titulo}</h2>
-                  <p className="mt-3 text-sm font-semibold text-white/70">{rows[0].pregador}</p>
-                </div>
-              </div>
-            </div>
-          </Link>
-        ) : null}
+        {mediaItems.length ? (
+          <ElshadayMediaCarousel items={mediaItems} />
+        ) : (
+                  {rows[0] ? (
+                    <Link
+                      className="overflow-hidden rounded-[28px] bg-[#322019] text-white shadow-[0_16px_38px_rgba(50,32,25,.18)]"
+                      href={"/elshaday/pregacoes/" + rows[0].id}
+                    >
+                      <div className="relative min-h-[245px] p-5">
+                        <div className="absolute -right-10 -top-8 size-44 rounded-full bg-[#d4aa54]/25 blur-2xl" />
+                        <div className="relative flex min-h-[205px] flex-col">
+                          <div className="flex items-center justify-between">
+                            <span className="rounded-full bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[.14em] text-[#f4d992]">
+                              Em destaque
+                            </span>
+                            <span className="grid size-11 place-items-center rounded-full bg-white/12">
+                              <Play size={18} fill="currentColor" />
+                            </span>
+                          </div>
+                          <div className="mt-auto">
+                            <p className="text-xs font-black uppercase tracking-[.14em] text-[#f4d992]">
+                              {rows[0].tema || "Palavra"}
+                            </p>
+                            <h2 className="mt-2 text-[28px] font-black leading-[1.08] tracking-tight">{rows[0].titulo}</h2>
+                            <p className="mt-3 text-sm font-semibold text-white/70">{rows[0].pregador}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ) : null}
+        )}
 
         <details className="rounded-[22px] border border-slate-200 bg-white shadow-sm">
           <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-4 font-black text-slate-900">
@@ -155,14 +170,25 @@ export default async function ElshadaySermonsPage({
       {canManage ? (
         <details
           className="rounded-[28px] border border-emerald-950/10 bg-white p-5 shadow-sm"
-          open={rows.length === 0}
         >
           <summary className="cursor-pointer list-none font-black">
             <span className="inline-flex items-center gap-2">
               <Plus size={19} className="text-[#176445]" /> Registrar pregação
             </span>
           </summary>
-          <form action={createElshadaySermon} className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <form action={createElshadaySermon} className="mt-5 grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <label className="grid min-w-0 gap-2 text-sm font-bold text-slate-800 sm:col-span-2 lg:col-span-3">
+              Imagem de capa / banner
+              <input
+                className="w-full min-w-0 rounded-2xl border border-slate-300 bg-white p-3 text-sm text-slate-900"
+                name="imagem"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+              />
+              <span className="text-xs font-medium leading-5 text-slate-500">
+                Opcional. JPG, PNG ou WebP de até 5 MB. Essa imagem poderá aparecer nos carrosséis do app.
+              </span>
+            </label>
             <Field label="Título da mensagem" name="titulo" required />
             <Field label="Tema" name="tema" />
             <Field label="Pregador" name="pregador" required />
@@ -271,7 +297,7 @@ function TextArea({ label, name }: { label: string; name: string }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-slate-700">
       {label}
-      <textarea className="min-h-28 rounded-2xl border border-slate-200 p-4 outline-none focus:border-emerald-600" name={name} />
+      <textarea className="textarea-mobile min-h-28 min-w-0 rounded-2xl border border-slate-300 p-4 outline-none placeholder:text-slate-500 focus:border-emerald-700" name={name} />
     </label>
   );
 }
