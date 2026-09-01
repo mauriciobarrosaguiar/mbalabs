@@ -66,7 +66,7 @@ export default async function ElshadayMembersPage({
   const linkedCount = allMembers.filter((member: any) => Boolean(member.user_id)).length;
 
   return (
-    <div className="mx-auto grid max-w-7xl gap-6">
+    <div className="mx-auto grid min-w-0 max-w-7xl gap-6">
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs font-black uppercase tracking-[.16em] text-[#176445]">Pessoas</p>
@@ -138,7 +138,6 @@ export default async function ElshadayMembersPage({
       {canManage ? (
         <details
           className="rounded-[28px] border border-emerald-950/10 bg-white p-5 shadow-sm"
-          open={allMembers.length === 0}
         >
           <summary className="cursor-pointer list-none font-black">
             <span className="inline-flex items-center gap-2">
@@ -146,7 +145,7 @@ export default async function ElshadayMembersPage({
               Cadastrar novo membro
             </span>
           </summary>
-          <form action={createElshadayMember} className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <form action={createElshadayMember} className="mt-5 grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <Field label="Nome completo" name="nome" required />
             <Field label="Nascimento" name="data_nascimento" type="date" />
             <Field label="CPF" name="cpf" />
@@ -164,7 +163,7 @@ export default async function ElshadayMembersPage({
             <Field label="UF" name="estado" defaultValue="TO" maxLength={2} />
             <label className="grid gap-2 text-sm font-bold text-slate-700">
               Situação
-              <select className="input" name="situacao" defaultValue="ativo">
+              <select className="input w-full min-w-0" name="situacao" defaultValue="ativo">
                 <option value="ativo">Ativo</option>
                 <option value="afastado">Afastado</option>
                 <option value="visitante">Visitante</option>
@@ -186,7 +185,7 @@ export default async function ElshadayMembersPage({
       ) : null}
 
       <section className="rounded-[28px] border border-emerald-950/10 bg-white p-5 shadow-sm">
-        <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_190px_220px_auto]" method="get">
+        <form className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_190px_220px_auto]" method="get">
           <label className="relative">
             <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
@@ -196,7 +195,7 @@ export default async function ElshadayMembersPage({
               placeholder="Buscar nome, telefone, e-mail, cargo..."
             />
           </label>
-          <select className="input" defaultValue={situacao} name="situacao">
+          <select className="input w-full min-w-0" defaultValue={situacao} name="situacao">
             <option value="">Todas as situações</option>
             <option value="ativo">Ativos</option>
             <option value="afastado">Afastados</option>
@@ -204,7 +203,7 @@ export default async function ElshadayMembersPage({
             <option value="transferido">Transferidos</option>
             <option value="inativo">Inativos</option>
           </select>
-          <select className="input" defaultValue={ministerio} name="ministerio">
+          <select className="input w-full min-w-0" defaultValue={ministerio} name="ministerio">
             <option value="">Todos os ministérios</option>
             {ministries.map((value) => (
               <option key={value} value={value}>{value}</option>
@@ -359,7 +358,7 @@ function Field({
     <label className="grid gap-2 text-sm font-bold text-slate-700">
       {label}
       <input
-        className="input"
+        className="input w-full min-w-0"
         defaultValue={defaultValue}
         maxLength={maxLength}
         name={name}
