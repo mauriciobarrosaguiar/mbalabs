@@ -74,8 +74,7 @@ export default async function ElshadaySermonsPage({
 
         {mediaItems.length ? (
           <ElshadayMediaCarousel items={mediaItems} />
-        ) : (
-                  {rows[0] ? (
+        ) : rows[0] ? (
                     <Link
                       className="overflow-hidden rounded-[28px] bg-[#322019] text-white shadow-[0_16px_38px_rgba(50,32,25,.18)]"
                       href={"/elshaday/pregacoes/" + rows[0].id}
@@ -102,7 +101,6 @@ export default async function ElshadaySermonsPage({
                       </div>
                     </Link>
                   ) : null}
-        )}
 
         <details className="rounded-[22px] border border-slate-200 bg-white shadow-sm">
           <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between px-4 font-black text-slate-900">
@@ -257,7 +255,7 @@ export default async function ElshadaySermonsPage({
       )}
 
       <style>
-        {".input{min-height:3rem;border-radius:1rem;border:1px solid rgb(226 232 240);background:white;padding:0 1rem;outline:none}.input:focus{border-color:rgb(5 150 105)}"}
+        {".input{min-height:3rem;min-width:0;width:100%;border-radius:1rem;border:1px solid #cbd5e1;background:#fff!important;padding:0 1rem;outline:none;color:#0f172a!important;-webkit-text-fill-color:#0f172a!important;opacity:1;color-scheme:light}.input::placeholder{color:#64748b!important;-webkit-text-fill-color:#64748b!important;opacity:1}.input:focus{border-color:#047857;box-shadow:0 0 0 1px #047857}.input option{background:#fff;color:#0f172a}"}
       </style>
     </div>
   );
