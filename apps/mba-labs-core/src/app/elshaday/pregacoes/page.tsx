@@ -134,9 +134,17 @@ export default async function ElshadaySermonsPage({
                 href={"/elshaday/pregacoes/" + sermon.id}
                 key={sermon.id}
               >
-                <div className="grid size-10 place-items-center rounded-[13px] bg-emerald-50 text-[#123d2d]">
-                  <Mic2 size={19} />
-                </div>
+                {sermon.banner_url ? (
+                  <img
+                    alt=""
+                    className="aspect-[16/9] w-full rounded-[14px] object-cover"
+                    src={sermon.banner_url}
+                  />
+                ) : (
+                  <div className="grid size-10 place-items-center rounded-[13px] bg-emerald-50 text-[#123d2d]">
+                    <Mic2 size={19} />
+                  </div>
+                )}
                 <p className="mt-4 line-clamp-3 font-black leading-snug text-slate-950">{sermon.titulo}</p>
                 <p className="mt-2 truncate text-xs font-semibold text-slate-500">{sermon.pregador}</p>
                 {sermon.texto_base ? (
