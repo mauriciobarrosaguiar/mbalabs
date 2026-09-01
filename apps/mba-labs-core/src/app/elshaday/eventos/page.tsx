@@ -4,6 +4,7 @@ import { CalendarDays, ChevronRight, Filter, MapPin, Plus, Repeat2, Search } fro
 import { createElshadayEvent } from "../actions";
 import { dateTimeBR, hasElshadayRole, requireElshadayContext } from "@/lib/elshaday";
 import { EventSubmitButton } from "./EventSubmitButton";
+import { ElshadayMediaCarousel } from "../ElshadayMediaCarousel";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function ElshadayEventsPage({
 
   let request = context.admin
     .from("igreja_eventos")
-    .select("id,titulo,tipo,descricao,inicio,fim,local,pregador,dirigente,tema,texto_biblico,publico,status,serie_id,recorrencia_tipo,recorrencia_ate,recorrencia_ordem")
+    .select("id,titulo,tipo,descricao,inicio,fim,local,pregador,dirigente,tema,texto_biblico,publico,status,serie_id,recorrencia_tipo,recorrencia_ate,recorrencia_ordem,banner_url")
     .eq("igreja_id", context.igreja.id)
     .order("inicio", { ascending: false })
     .limit(250);
@@ -48,6 +49,16 @@ export default async function ElshadayEventsPage({
   const upcomingIds = new Set(upcoming.map((item: any) => String(item.id)));
   const history = rows.filter((event: any) => !upcomingIds.has(String(event.id)));
   const createIdempotencyKey = randomUUID();
+  const mediaItems = upcoming
+    .filter((event: any) => Boolean(event.banner_url))
+    .slice(0, 8)
+    .map((event: any) => ({
+      id: String(event.id),
+      href: "/elshaday/eventos/" + event.id,
+      title: event.titulo,
+      subtitle: dateTimeBR(event.inicio),
+      imageUrl: event.banner_url
+    }));
 
   return (
     <div className="mx-auto grid max-w-7xl gap-6">
@@ -81,39 +92,43 @@ export default async function ElshadayEventsPage({
           ) : null}
         </div>
 
-        {upcoming[0] ? (
-          <Link
-            className="relative min-h-[220px] overflow-hidden rounded-[28px] bg-[#123d2d] p-5 text-white shadow-[0_16px_38px_rgba(18,61,45,.20)]"
-            href={"/elshaday/eventos/" + upcoming[0].id}
-          >
-            <div className="absolute -right-12 -top-10 size-44 rounded-full bg-[#d4aa54]/25 blur-2xl" />
-            <div className="relative flex min-h-[180px] flex-col">
-              <div className="flex items-center justify-between">
-                <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[.14em] text-[#f4d992]">
-                  Próximo
-                </span>
-                <CalendarDays size={22} className="text-[#f4d992]" />
-              </div>
-              <div className="mt-auto">
-                <p className="text-xs font-black uppercase tracking-[.14em] text-emerald-100/70">
-                  {upcoming[0].tipo}
-                </p>
-                <h2 className="mt-2 text-2xl font-black leading-tight">{upcoming[0].titulo}</h2>
-                <p className="mt-3 font-bold text-emerald-50">{dateTimeBR(upcoming[0].inicio)}</p>
-                {upcoming[0].local ? (
-                  <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-emerald-50/70">
-                    <MapPin size={14} />
-                    {upcoming[0].local}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          </Link>
+        {mediaItems.length ? (
+          <ElshadayMediaCarousel items={mediaItems} />
         ) : (
-          <div className="rounded-[26px] border border-dashed border-emerald-950/15 bg-white p-7 text-center text-slate-500">
-            <CalendarDays className="mx-auto text-[#176445]" size={30} />
-            <p className="mt-3 font-black text-slate-900">Nenhuma programação futura</p>
-          </div>
+                  {upcoming[0] ? (
+                    <Link
+                      className="relative min-h-[220px] overflow-hidden rounded-[28px] bg-[#123d2d] p-5 text-white shadow-[0_16px_38px_rgba(18,61,45,.20)]"
+                      href={"/elshaday/eventos/" + upcoming[0].id}
+                    >
+                      <div className="absolute -right-12 -top-10 size-44 rounded-full bg-[#d4aa54]/25 blur-2xl" />
+                      <div className="relative flex min-h-[180px] flex-col">
+                        <div className="flex items-center justify-between">
+                          <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[.14em] text-[#f4d992]">
+                            Próximo
+                          </span>
+                          <CalendarDays size={22} className="text-[#f4d992]" />
+                        </div>
+                        <div className="mt-auto">
+                          <p className="text-xs font-black uppercase tracking-[.14em] text-emerald-100/70">
+                            {upcoming[0].tipo}
+                          </p>
+                          <h2 className="mt-2 text-2xl font-black leading-tight">{upcoming[0].titulo}</h2>
+                          <p className="mt-3 font-bold text-emerald-50">{dateTimeBR(upcoming[0].inicio)}</p>
+                          {upcoming[0].local ? (
+                            <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-emerald-50/70">
+                              <MapPin size={14} />
+                              {upcoming[0].local}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    </Link>
+                  ) : (
+                    <div className="rounded-[26px] border border-dashed border-emerald-950/15 bg-white p-7 text-center text-slate-500">
+                      <CalendarDays className="mx-auto text-[#176445]" size={30} />
+                      <p className="mt-3 font-black text-slate-900">Nenhuma programação futura</p>
+                    </div>
+                  )}
         )}
 
         <details className="rounded-[22px] border border-slate-200 bg-white shadow-sm">
@@ -227,7 +242,6 @@ export default async function ElshadayEventsPage({
         <details
           id="novo-evento"
           className="rounded-[28px] border border-emerald-950/10 bg-white p-5 shadow-sm"
-          open={rows.length === 0}
         >
           <summary className="cursor-pointer list-none font-black">
             <span className="inline-flex items-center gap-2">
@@ -235,8 +249,20 @@ export default async function ElshadayEventsPage({
             </span>
           </summary>
 
-          <form action={createElshadayEvent} className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <form action={createElshadayEvent} className="mt-5 grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <input type="hidden" name="idempotency_key" value={createIdempotencyKey} />
+            <label className="grid min-w-0 gap-2 text-sm font-bold text-slate-800 sm:col-span-2 lg:col-span-3">
+              Imagem de capa / banner
+              <input
+                className="w-full min-w-0 rounded-2xl border border-slate-300 bg-white p-3 text-sm text-slate-900"
+                name="imagem"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+              />
+              <span className="text-xs font-medium leading-5 text-slate-500">
+                Opcional. JPG, PNG ou WebP de até 5 MB. Em uma recorrência, a mesma capa será usada na série.
+              </span>
+            </label>
             <Field label="Título" name="titulo" required placeholder="Ex.: Culto de Celebração" />
             <label className="grid gap-2 text-sm font-bold text-slate-700">
               Tipo
