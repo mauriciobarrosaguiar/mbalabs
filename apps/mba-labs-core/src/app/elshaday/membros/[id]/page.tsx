@@ -249,32 +249,37 @@ export default async function ElshadayMemberDetailPage({
           )}
 
           {canManage ? (
-            <form action={addElshadayMemberRelation} className="mt-5 grid gap-3 border-t border-slate-100 pt-5">
-              <input type="hidden" name="membro_id" value={member.id} />
-              <input type="hidden" name="return_to" value={"/elshaday/membros/" + member.id} />
-              <select className="input" name="parente_id" defaultValue="" required>
-                <option value="">Selecione outro membro</option>
-                {allMembers.map((item: any) => (
-                  <option key={item.id} value={item.id}>{item.nome} · {item.situacao}</option>
-                ))}
-              </select>
-              <select className="input" name="tipo" defaultValue="conjuge">
-                <option value="conjuge">Cônjuge</option>
-                <option value="pai">Pai</option>
-                <option value="mae">Mãe</option>
-                <option value="filho">Filho</option>
-                <option value="filha">Filha</option>
-                <option value="irmao">Irmão</option>
-                <option value="irma">Irmã</option>
-                <option value="responsavel">Responsável</option>
-                <option value="dependente">Dependente</option>
-                <option value="outro">Outro</option>
-              </select>
-              <input className="input" name="observacoes" placeholder="Observação opcional" />
-              <button className="min-h-11 rounded-xl bg-slate-900 px-5 text-sm font-black text-white">
-                Adicionar vínculo
-              </button>
-            </form>
+            <details className="mt-5 border-t border-slate-100 pt-4">
+              <summary className="cursor-pointer list-none text-sm font-black text-[#176445]">
+                Adicionar vínculo familiar
+              </summary>
+              <form action={addElshadayMemberRelation} className="mt-4 grid min-w-0 gap-3">
+                <input type="hidden" name="membro_id" value={member.id} />
+                <input type="hidden" name="return_to" value={"/elshaday/membros/" + member.id} />
+                <select className="input" name="parente_id" defaultValue="" required>
+                  <option value="">Selecione outro membro</option>
+                  {allMembers.map((item: any) => (
+                    <option key={item.id} value={item.id}>{item.nome} · {item.situacao}</option>
+                  ))}
+                </select>
+                <select className="input" name="tipo" defaultValue="conjuge">
+                  <option value="conjuge">Cônjuge</option>
+                  <option value="pai">Pai</option>
+                  <option value="mae">Mãe</option>
+                  <option value="filho">Filho</option>
+                  <option value="filha">Filha</option>
+                  <option value="irmao">Irmão</option>
+                  <option value="irma">Irmã</option>
+                  <option value="responsavel">Responsável</option>
+                  <option value="dependente">Dependente</option>
+                  <option value="outro">Outro</option>
+                </select>
+                <input className="input" name="observacoes" placeholder="Observação opcional" />
+                <button className="min-h-11 rounded-xl bg-slate-900 px-5 text-sm font-black text-white">
+                  Adicionar vínculo
+                </button>
+              </form>
+            </details>
           ) : null}
         </article>
 
@@ -298,20 +303,25 @@ export default async function ElshadayMemberDetailPage({
             </div>
           )}
           {canManage ? (
-            <form action={uploadElshadayMemberPhoto} className="mt-4 grid gap-3">
-              <input type="hidden" name="membro_id" value={member.id} />
-              <input type="hidden" name="return_to" value={"/elshaday/membros/" + member.id} />
-              <input
-                className="w-full min-w-0 rounded-2xl border border-sky-200 bg-white p-3 text-sm text-slate-900"
-                name="foto"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                required
-              />
-              <button className="min-h-11 rounded-xl bg-sky-900 px-5 text-sm font-black text-white">
-                Enviar foto
-              </button>
-            </form>
+            <details className="mt-4">
+              <summary className="cursor-pointer list-none text-sm font-black text-sky-900">
+                {signedPhotoUrl ? "Trocar foto" : "Adicionar foto"}
+              </summary>
+              <form action={uploadElshadayMemberPhoto} className="mt-4 grid min-w-0 gap-3">
+                <input type="hidden" name="membro_id" value={member.id} />
+                <input type="hidden" name="return_to" value={"/elshaday/membros/" + member.id} />
+                <input
+                  className="w-full min-w-0 rounded-2xl border border-sky-200 bg-white p-3 text-sm text-slate-900"
+                  name="foto"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  required
+                />
+                <button className="min-h-11 rounded-xl bg-sky-900 px-5 text-sm font-black text-white">
+                  Enviar foto
+                </button>
+              </form>
+            </details>
           ) : null}
         </article>
       </section>
