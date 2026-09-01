@@ -19,6 +19,7 @@ import {
   moneyBR,
   requireElshadayContext
 } from "@/lib/elshaday";
+import { ElshadayMediaCarousel } from "./ElshadayMediaCarousel";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export default async function ElshadayDashboardPage() {
       .limit(12),
     context.admin
       .from("igreja_pregacoes")
-      .select("id,titulo,tema,pregador,data_pregacao,texto_base,esboco,video_url,arquivo_url")
+      .select("id,titulo,tema,pregador,data_pregacao,texto_base,esboco,video_url,arquivo_url,banner_url")
       .eq("igreja_id", context.igreja.id)
       .eq("status", "ativo")
       .order("data_pregacao", { ascending: false })
@@ -234,6 +235,26 @@ function MobileAppHome({
 }) {
   const firstName = usuarioNome.trim().split(/\s+/)[0] || usuarioNome;
   const nextEvent = events[0];
+  const mediaItems = [
+    ...events
+      .filter((event: any) => Boolean(event.banner_url))
+      .map((event: any) => ({
+        id: "evento-" + event.id,
+        href: "/elshaday/eventos/" + event.id,
+        title: event.titulo,
+        subtitle: typeLabel(event.tipo),
+        imageUrl: event.banner_url
+      })),
+    ...sermons
+      .filter((sermon: any) => Boolean(sermon.banner_url))
+      .map((sermon: any) => ({
+        id: "pregacao-" + sermon.id,
+        href: "/elshaday/pregacoes/" + sermon.id,
+        title: sermon.titulo,
+        subtitle: sermon.pregador,
+        imageUrl: sermon.banner_url
+      }))
+  ].slice(0, 8);
 
   return (
     <div className="mx-auto grid max-w-2xl gap-5">
@@ -247,7 +268,9 @@ function MobileAppHome({
         </div>
       </section>
 
-      {nextEvent ? (
+      {mediaItems.length ? (
+        <ElshadayMediaCarousel items={mediaItems} />
+      ) : nextEvent ? (
         <Link
           className="group relative min-h-[250px] overflow-hidden rounded-[30px] bg-[#0f3b2b] p-6 text-white shadow-[0_18px_45px_rgba(18,61,45,.22)]"
           href={"/elshaday/eventos/" + nextEvent.id}

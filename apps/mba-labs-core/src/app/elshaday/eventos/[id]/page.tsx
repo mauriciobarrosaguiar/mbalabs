@@ -75,8 +75,18 @@ export default async function EventDetail({
   const error = read(query.erro);
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-6">
-      <header>
+    <div className="mx-auto grid min-w-0 max-w-6xl gap-6">
+      {event.banner_url ? (
+        <div className="overflow-hidden rounded-[28px] border border-emerald-950/10 bg-white shadow-sm">
+          <img
+            alt={"Capa de " + event.titulo}
+            className="aspect-[16/9] w-full object-cover"
+            src={event.banner_url}
+          />
+        </div>
+      ) : null}
+
+      <header className="min-w-0">
         <Link
           href="/elshaday/eventos"
           className="inline-flex items-center gap-2 text-sm font-black text-[#176445]"
@@ -87,7 +97,7 @@ export default async function EventDetail({
         <div className="mt-4 flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
           <div>
             <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">{event.tipo}</p>
-            <h1 className="mt-1 text-3xl font-black">{event.titulo}</h1>
+            <h1 className="mt-1 break-words text-2xl font-black leading-tight sm:text-3xl">{event.titulo}</h1>
             {event.serie_id ? (
               <span className="mt-3 inline-flex items-center gap-2 rounded-full bg-amber-50 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-amber-800">
                 <Repeat2 size={15} />
@@ -176,9 +186,21 @@ export default async function EventDetail({
               <PencilLine size={18} /> Editar evento
             </span>
           </summary>
-          <form action={updateElshadayEvent} className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <form action={updateElshadayEvent} className="mt-5 grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <input type="hidden" name="evento_id" value={id} />
             <input type="hidden" name="return_to" value={"/elshaday/eventos/" + id} />
+            <label className="grid min-w-0 gap-2 text-sm font-bold text-slate-800 sm:col-span-2 lg:col-span-3">
+              Trocar imagem de capa
+              <input
+                className="w-full min-w-0 rounded-2xl border border-slate-300 bg-white p-3 text-sm text-slate-900"
+                name="imagem"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+              />
+              <span className="text-xs font-medium leading-5 text-slate-500">
+                Opcional. Ao aplicar à série, a nova capa também será aplicada aos eventos selecionados.
+              </span>
+            </label>
             <Field label="Título" name="titulo" defaultValue={event.titulo} required />
             <label className="grid gap-2 text-sm font-bold">
               Tipo
