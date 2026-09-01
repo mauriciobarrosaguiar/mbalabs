@@ -48,8 +48,18 @@ export default async function SermonDetail({
   const points = Array.isArray(sermon.pontos) ? sermon.pontos : [];
 
   return (
-    <div className="mx-auto grid max-w-5xl gap-6">
-      <header>
+    <div className="mx-auto grid min-w-0 max-w-5xl gap-6">
+      {sermon.banner_url ? (
+        <div className="overflow-hidden rounded-[28px] border border-emerald-950/10 bg-white shadow-sm">
+          <img
+            alt={"Capa de " + sermon.titulo}
+            className="aspect-[16/9] w-full object-cover"
+            src={sermon.banner_url}
+          />
+        </div>
+      ) : null}
+
+      <header className="min-w-0">
         <Link
           href="/elshaday/pregacoes"
           className="inline-flex items-center gap-2 text-sm font-black text-[#176445]"
@@ -61,7 +71,7 @@ export default async function SermonDetail({
             <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">
               {dateBR(sermon.data_pregacao)} · {sermon.pregador}
             </p>
-            <h1 className="mt-1 text-3xl font-black">{sermon.titulo}</h1>
+            <h1 className="mt-1 break-words text-2xl font-black leading-tight sm:text-3xl">{sermon.titulo}</h1>
             {sermon.tema ? <p className="mt-2 text-lg font-bold text-[#176445]">{sermon.tema}</p> : null}
           </div>
           <span className={"rounded-full px-3 py-1 text-xs font-black " + (sermon.status === "arquivado" ? "bg-slate-200 text-slate-700" : "bg-emerald-100 text-emerald-800")}>
@@ -130,9 +140,21 @@ export default async function SermonDetail({
                 <PencilLine size={18} /> Editar pregação
               </span>
             </summary>
-            <form action={updateElshadaySermon} className="mt-5 grid gap-4 sm:grid-cols-2">
+            <form action={updateElshadaySermon} className="mt-5 grid min-w-0 gap-4 sm:grid-cols-2">
               <input type="hidden" name="pregacao_id" value={id} />
               <input type="hidden" name="return_to" value={"/elshaday/pregacoes/" + id} />
+              <label className="grid min-w-0 gap-2 text-sm font-bold text-slate-800 sm:col-span-2">
+                Trocar imagem de capa
+                <input
+                  className="w-full min-w-0 rounded-2xl border border-slate-300 bg-white p-3 text-sm text-slate-900"
+                  name="imagem"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                />
+                <span className="text-xs font-medium leading-5 text-slate-500">
+                  Opcional. Se escolher uma nova imagem, ela substitui a capa atual.
+                </span>
+              </label>
               <Field label="Título" name="titulo" defaultValue={sermon.titulo} required />
               <Field label="Tema" name="tema" defaultValue={sermon.tema ?? ""} />
               <Field label="Pregador" name="pregador" defaultValue={sermon.pregador} required />
@@ -182,7 +204,7 @@ export default async function SermonDetail({
       ) : null}
 
       <style>
-        {".input{min-height:3rem;border-radius:1rem;border:1px solid rgb(226 232 240);background:white;padding:0 1rem;outline:none}.input:focus{border-color:rgb(5 150 105)}"}
+        {".input{min-height:3rem;min-width:0;width:100%;border-radius:1rem;border:1px solid #cbd5e1;background:#fff!important;padding:0 1rem;outline:none;color:#0f172a!important;-webkit-text-fill-color:#0f172a!important;color-scheme:light}.input::placeholder{color:#64748b!important;opacity:1}.input:focus{border-color:#047857;box-shadow:0 0 0 1px #047857}"}
       </style>
     </div>
   );
@@ -246,7 +268,7 @@ function TextArea({
     <label className="grid gap-2 text-sm font-bold">
       {label}
       <textarea
-        className="min-h-28 rounded-2xl border border-slate-200 p-4"
+        className="min-h-28 min-w-0 rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 placeholder:text-slate-500"
         name={name}
         defaultValue={defaultValue}
       />
