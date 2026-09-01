@@ -148,13 +148,13 @@ export default async function ElshadayMemberDetailPage({
   const errorMessage = readParam(query.erro);
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-6">
-      <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+    <div className="mx-auto grid min-w-0 max-w-6xl gap-6">
+      <header className="flex min-w-0 flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
           <Link className="inline-flex items-center gap-2 text-sm font-black text-[#176445]" href="/elshaday/membros">
             <ArrowLeft size={17} /> Voltar para membros
           </Link>
-          <h1 className="mt-3 text-3xl font-black">{member.nome}</h1>
+          <h1 className="mt-3 break-words text-2xl font-black leading-tight sm:text-3xl">{member.nome}</h1>
           <div className="mt-2 flex flex-wrap gap-2">
             <Status value={member.situacao} />
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
@@ -185,7 +185,7 @@ export default async function ElshadayMemberDetailPage({
       {ok ? <Message kind="success">{successMessage(ok)}</Message> : null}
       {errorMessage ? <Message kind="error">{errorMessage}</Message> : null}
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Info icon={<Phone size={18} />} label="Telefone/WhatsApp" value={member.whatsapp || member.telefone || "-"} />
         <Info icon={<Mail size={18} />} label="E-mail" value={member.email || "-"} />
         <Info icon={<MapPin size={18} />} label="Localização" value={[member.bairro, member.cidade, member.estado].filter(Boolean).join(" · ") || "-"} />
@@ -302,7 +302,7 @@ export default async function ElshadayMemberDetailPage({
               <input type="hidden" name="membro_id" value={member.id} />
               <input type="hidden" name="return_to" value={"/elshaday/membros/" + member.id} />
               <input
-                className="rounded-2xl border border-sky-200 bg-white p-3 text-sm"
+                className="w-full min-w-0 rounded-2xl border border-sky-200 bg-white p-3 text-sm text-slate-900"
                 name="foto"
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
@@ -464,19 +464,27 @@ export default async function ElshadayMemberDetailPage({
       <style>{`
         .input {
           min-height: 3rem;
+          min-width: 0;
+          width: 100%;
           border-radius: 1rem;
-          border: 1px solid rgb(226 232 240);
-          background: white;
+          border: 1px solid #cbd5e1;
+          background: #fff;
           padding: 0 1rem;
           outline: none;
+          color: #0f172a;
+          -webkit-text-fill-color: #0f172a;
         }
         .textarea {
           min-height: 6rem;
+          min-width: 0;
+          width: 100%;
           border-radius: 1rem;
-          border: 1px solid rgb(226 232 240);
-          background: white;
+          border: 1px solid #cbd5e1;
+          background: #fff;
           padding: 1rem;
           outline: none;
+          color: #0f172a;
+          -webkit-text-fill-color: #0f172a;
         }
         .input:focus, .textarea:focus { border-color: rgb(5 150 105); }
       `}</style>
@@ -529,17 +537,17 @@ function Data({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-slate-50 p-4">
       <p className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-2 text-sm font-bold text-slate-800">{value}</p>
+      <p className="mt-2 [overflow-wrap:anywhere] text-sm font-bold text-slate-800">{value}</p>
     </div>
   );
 }
 
 function Info({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
-    <article className="rounded-[24px] border border-emerald-950/10 bg-white p-5">
+    <article className="min-w-0 rounded-[24px] border border-emerald-950/10 bg-white p-5">
       <div className="text-[#176445]">{icon}</div>
       <p className="mt-3 text-xs font-black uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 break-words text-sm font-bold">{value}</p>
+      <p className="mt-1 [overflow-wrap:anywhere] text-sm font-bold text-slate-900">{value}</p>
     </article>
   );
 }
