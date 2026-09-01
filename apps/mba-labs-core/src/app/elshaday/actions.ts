@@ -17,6 +17,7 @@ import {
   parseElshadayPixProvider,
   saveElshadayPixProviderConfig
 } from "@/lib/elshaday-payment-providers";
+import { uploadElshadayContentImage } from "@/lib/elshaday-media";
 
 function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -283,6 +284,13 @@ export async function createElshadayEvent(formData: FormData) {
     return;
   }
 
+  const bannerUrl = await uploadElshadayContentImage(
+    context.admin,
+    context.igreja.id,
+    "eventos",
+    formData.get("imagem")
+  );
+
   const seriesId = recurrence === "nenhuma" ? null : crypto.randomUUID();
   const common = {
     igreja_id: context.igreja.id,
@@ -299,7 +307,8 @@ export async function createElshadayEvent(formData: FormData) {
     created_by: context.current.authUser.id,
     serie_id: seriesId,
     recorrencia_tipo: recurrence,
-    recorrencia_ate: recurrenceUntil
+    recorrencia_ate: recurrenceUntil,
+    banner_url: bannerUrl
   };
 
   const rows = starts.map((localStart, index) => {
@@ -345,6 +354,13 @@ export async function createElshadaySermon(formData: FormData) {
     .filter(Boolean)
     .map((item, index) => ({ ordem: index + 1, texto: item }));
 
+  const bannerUrl = await uploadElshadayContentImage(
+    context.admin,
+    context.igreja.id,
+    "pregacoes",
+    formData.get("imagem")
+  );
+
   const { error } = await context.admin.from("igreja_pregacoes").insert({
     igreja_id: context.igreja.id,
     titulo,
@@ -361,6 +377,7 @@ export async function createElshadaySermon(formData: FormData) {
     video_url: nullable(formData, "video_url"),
     audio_url: nullable(formData, "audio_url"),
     arquivo_url: nullable(formData, "arquivo_url"),
+    banner_url: bannerUrl,
     created_by: context.current.authUser.id
   });
 
