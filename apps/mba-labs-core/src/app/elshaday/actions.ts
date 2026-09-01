@@ -17,7 +17,10 @@ import {
   parseElshadayPixProvider,
   saveElshadayPixProviderConfig
 } from "@/lib/elshaday-payment-providers";
-import { uploadElshadayContentImage } from "@/lib/elshaday-media";
+import {
+  removeElshadayContentImage,
+  uploadElshadayContentImage
+} from "@/lib/elshaday-media";
 
 function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -326,8 +329,11 @@ export async function createElshadayEvent(formData: FormData) {
 
   const { error } = await context.admin.from("igreja_eventos").insert(rows);
 
-  if (error && error.code !== "23505") {
-    throw new Error(`Falha ao cadastrar evento: ${error.message}`);
+  if (error) {
+    if (bannerUrl) await removeElshadayContentImage(context.admin, bannerUrl);
+    if (error.code !== "23505") {
+      throw new Error(`Falha ao cadastrar evento: ${error.message}`);
+    }
   }
 
   revalidatePath("/elshaday");
@@ -381,7 +387,10 @@ export async function createElshadaySermon(formData: FormData) {
     created_by: context.current.authUser.id
   });
 
-  if (error) throw new Error(`Falha ao salvar pregação: ${error.message}`);
+  if (error) {
+    if (bannerUrl) await removeElshadayContentImage(context.admin, bannerUrl);
+    throw new Error(`Falha ao salvar pregação: ${error.message}`);
+  }
   revalidatePath("/elshaday");
   revalidatePath("/elshaday/pregacoes");
 }
