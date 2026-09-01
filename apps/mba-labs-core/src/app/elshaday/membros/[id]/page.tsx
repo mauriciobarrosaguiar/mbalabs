@@ -327,7 +327,7 @@ export default async function ElshadayMemberDetailPage({
       </section>
 
       {canManage ? (
-        <details className="rounded-[28px] border border-emerald-950/10 bg-white p-5" open={false}>
+        <details className="rounded-[28px] border border-emerald-950/10 bg-white p-5">
           <summary className="cursor-pointer list-none font-black">
             <span className="inline-flex items-center gap-2"><PencilLine size={18} /> Editar ficha</span>
           </summary>
