@@ -257,7 +257,7 @@ export default async function ElshadayFinancePage({
         </article>
       </section>
 
-      <details className="rounded-[28px] border border-emerald-950/10 bg-white p-5 shadow-sm" open={entries.length === 0}>
+      <details className="rounded-[28px] border border-emerald-950/10 bg-white p-5 shadow-sm">
         <summary className="cursor-pointer list-none font-black">Registrar entrada manual</summary>
         <form action={createElshadayFinanceEntry} className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <label className="grid gap-2 text-sm font-bold text-slate-700">
