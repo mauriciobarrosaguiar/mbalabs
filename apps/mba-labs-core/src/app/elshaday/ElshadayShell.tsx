@@ -47,8 +47,8 @@ export function ElshadayShell({
   ];
 
   return (
-    <div className="min-h-screen bg-[#f3f6f1] text-slate-900">
-      <div className="mx-auto grid min-h-screen max-w-[1600px] lg:grid-cols-[285px_1fr]">
+    <div className="min-h-screen overflow-x-hidden bg-[#f3f6f1] text-slate-900">
+      <div className="mx-auto grid min-h-screen w-full min-w-0 max-w-[1600px] lg:grid-cols-[285px_minmax(0,1fr)]">
         <aside className="hidden border-r border-emerald-950/10 bg-[#123d2d] p-5 text-white lg:flex lg:flex-col">
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
             <div className="grid size-12 place-items-center rounded-2xl bg-[#d4aa54] text-[#123d2d]">
@@ -90,14 +90,14 @@ export function ElshadayShell({
           </div>
         </aside>
 
-        <div className="min-w-0">
+        <div className="min-w-0 max-w-full overflow-x-hidden">
           <ElshadayMobileAppChrome
             igrejaNome={igrejaNome}
             usuarioNome={usuarioNome}
             papel={papel}
           />
 
-          <main className="px-4 pb-28 pt-4 sm:px-6 sm:pt-6 lg:p-8">{children}</main>
+          <main className="min-w-0 max-w-full overflow-x-hidden px-4 pb-28 pt-4 sm:px-6 sm:pt-6 lg:p-8">{children}</main>
         </div>
       </div>
     </div>
