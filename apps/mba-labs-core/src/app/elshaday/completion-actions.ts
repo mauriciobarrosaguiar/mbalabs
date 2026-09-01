@@ -192,7 +192,12 @@ export async function updateElshadayEvent(formData: FormData) {
       if (error) throw new Error(error.message);
     }
 
-    if (newBannerUrl && current.banner_url && current.banner_url !== newBannerUrl) {
+    if (
+      newBannerUrl &&
+      current.banner_url &&
+      current.banner_url !== newBannerUrl &&
+      (!current.serie_id || scope === "serie")
+    ) {
       await removeElshadayContentImage(context.admin, current.banner_url);
     }
 
