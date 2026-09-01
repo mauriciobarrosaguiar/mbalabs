@@ -168,23 +168,46 @@ export function UpdatePasswordForm() {
   useEffect(() => {
     const supabase = createSupabaseClient();
     let active = true;
+    let recoveryResolved = false;
+
+    const acceptRecoverySession = () => {
+      if (!active || recoveryResolved) return;
+      recoveryResolved = true;
+      setRecoveryReady(true);
+      setCheckingLink(false);
+    };
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       if (!active) return;
       if (event === "PASSWORD_RECOVERY" || session) {
-        setRecoveryReady(true);
-        setCheckingLink(false);
+        acceptRecoverySession();
       }
     });
 
     void supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      setRecoveryReady(Boolean(data.session));
-      setCheckingLink(false);
+      if (data.session) acceptRecoverySession();
     });
+
+    // O SDK processa o token de recuperação da URL de forma assíncrona.
+    // Em dispositivos móveis, getSession() pode retornar vazio antes do
+    // evento PASSWORD_RECOVERY. Aguarde a inicialização antes de invalidar.
+    const invalidLinkTimer = window.setTimeout(() => {
+      void supabase.auth.getSession().then(({ data }) => {
+        if (!active || recoveryResolved) return;
+        if (data.session) {
+          acceptRecoverySession();
+          return;
+        }
+
+        recoveryResolved = true;
+        setRecoveryReady(false);
+        setCheckingLink(false);
+      });
+    }, 4_000);
 
     return () => {
       active = false;
+      window.clearTimeout(invalidLinkTimer);
       listener.subscription.unsubscribe();
     };
   }, []);
