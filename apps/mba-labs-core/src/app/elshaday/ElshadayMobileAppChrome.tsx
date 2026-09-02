@@ -148,9 +148,6 @@ export function ElshadayMobileAppChrome({
             <div className="flex items-center justify-between px-5 pb-4 pt-4">
               <div>
                 <p className="text-xl font-black tracking-tight text-slate-950">Menu mais</p>
-                <p className="mt-1 text-xs font-semibold text-slate-500">
-                  Acessos e recursos do Elshaday
-                </p>
               </div>
               <button
                 aria-label="Fechar menu"
@@ -171,7 +168,7 @@ export function ElshadayMobileAppChrome({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-lg font-black text-slate-950">{usuarioNome}</p>
                     <p className="mt-0.5 text-sm font-semibold text-[#176445]">{ROLE_LABEL[papel]}</p>
-                    <p className="mt-1 truncate text-xs text-slate-500">{igrejaNome}</p>
+                    <p className="mt-1 truncate text-xs text-slate-600">{igrejaNome}</p>
                   </div>
                 </div>
               </div>
@@ -187,7 +184,7 @@ export function ElshadayMobileAppChrome({
                       <Icon size={21} />
                     </div>
                     <span className="flex-1 font-black text-slate-900">{label}</span>
-                    <ChevronRight className="text-slate-400" size={20} />
+                    <ChevronRight className="text-slate-600" size={20} />
                   </Link>
                 ))}
               </div>
@@ -239,7 +236,7 @@ export function ElshadayMobileAppChrome({
             <p className="truncate text-[20px] font-black leading-tight tracking-tight text-slate-950">
               Elshaday
             </p>
-            <p className="mt-0.5 truncate text-xs font-semibold text-slate-500">{igrejaNome}</p>
+            <p className="mt-0.5 truncate text-xs font-semibold text-slate-600">{igrejaNome}</p>
           </Link>
         </div>
       </header>
