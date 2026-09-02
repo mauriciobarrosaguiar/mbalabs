@@ -19,7 +19,7 @@ import { ElshadaySubmitButton } from "../ElshadaySubmitButton";
 
 export const dynamic = "force-dynamic";
 
-const CONTENT_EDITOR_ROLES = ["admin", "pastor", "secretaria", "lider"] as const;
+const CONTENT_EDITOR_ROLES = ["admin", "pastor"] as const;
 
 function read(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] ?? "" : value ?? "";

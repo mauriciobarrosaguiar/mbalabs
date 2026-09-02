@@ -32,10 +32,10 @@ export function ElshadayShell({
 }) {
   const canSeeMembers = ["admin", "pastor", "secretaria", "lider"].includes(papel);
   const canSeeFinance = papel === "admin" || papel === "tesouraria";
-  const canManageContent = ["admin", "pastor", "secretaria", "lider"].includes(papel);
+  const canManageContent = ["admin", "pastor"].includes(papel);
   const canManageAccess = papel === "admin";
   const nav = [
-    { href: "/elshaday", label: "Início", icon: Home },
+    { href: "/elshaday/gestao", label: "Início", icon: Home },
     ...(canSeeMembers ? [{ href: "/elshaday/membros", label: "Membros", icon: UsersRound }] : []),
     ...(canSeeFinance ? [
       { href: "/elshaday/financeiro", label: "Dízimos e ofertas", icon: HandCoins },
@@ -80,7 +80,11 @@ export function ElshadayShell({
           <div className="mt-auto rounded-2xl border border-white/10 bg-white/5 p-4">
             <p className="font-black">{usuarioNome}</p>
             <p className="mt-1 text-sm text-emerald-100/70">{roleLabel(papel)}</p>
-            <Link className="mt-4 flex items-center gap-2 text-sm font-bold text-[#f1d79d]" href="/dashboard">
+            <Link className="mt-4 flex items-center gap-2 text-sm font-bold text-[#f1d79d]" href="/elshaday">
+              <Church size={16} />
+              Ver página pública
+            </Link>
+            <Link className="mt-3 flex items-center gap-2 text-sm font-bold text-[#f1d79d]" href="/dashboard">
               <ArrowLeft size={16} />
               Voltar ao MBA Labs
             </Link>

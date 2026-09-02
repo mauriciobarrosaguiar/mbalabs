@@ -50,7 +50,7 @@ export function ElshadayMobileAppChrome({
 
   const canSeeMembers = ["admin", "pastor", "secretaria", "lider"].includes(papel);
   const canSeeFinance = papel === "admin" || papel === "tesouraria";
-  const canManageContent = ["admin", "pastor", "secretaria", "lider"].includes(papel);
+  const canManageContent = ["admin", "pastor"].includes(papel);
   const canManageAccess = papel === "admin";
 
   useEffect(() => setMounted(true), []);
@@ -80,7 +80,7 @@ export function ElshadayMobileAppChrome({
     () => [
       { href: "/elshaday/pregacoes", label: "Palavras", icon: Mic2 },
       { href: "/elshaday/eventos", label: "Agenda", icon: CalendarDays },
-      { href: "/elshaday", label: "Home", icon: Home, exact: true },
+      { href: "/elshaday/gestao", label: "Home", icon: Home, exact: true },
       { href: "/elshaday/contribuir", label: "Contribua", icon: HandHeart },
       { href: "#mais", label: "Mais", icon: Menu, action: true }
     ],
@@ -194,6 +194,13 @@ export function ElshadayMobileAppChrome({
 
               <div className="mt-4 grid gap-2">
                 <Link
+                  className="flex min-h-14 items-center gap-3 rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 font-bold text-[#123d2d]"
+                  href="/elshaday"
+                >
+                  <Church size={19} />
+                  Ver página pública
+                </Link>
+                <Link
                   className="flex min-h-14 items-center gap-3 rounded-[18px] border border-slate-200 bg-white px-4 font-bold text-slate-700"
                   href="/dashboard"
                 >
@@ -224,11 +231,11 @@ export function ElshadayMobileAppChrome({
           <Link
             aria-label="Ir para a Home"
             className="grid size-12 shrink-0 place-items-center rounded-[16px] bg-[#123d2d] text-[#f3d58e] shadow-sm"
-            href="/elshaday"
+            href="/elshaday/gestao"
           >
             <Church size={25} strokeWidth={2.2} />
           </Link>
-          <Link className="min-w-0 flex-1" href="/elshaday">
+          <Link className="min-w-0 flex-1" href="/elshaday/gestao">
             <p className="truncate text-[20px] font-black leading-tight tracking-tight text-slate-950">
               Elshaday
             </p>
