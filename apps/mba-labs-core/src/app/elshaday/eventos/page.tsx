@@ -110,7 +110,7 @@ export default async function ElshadayEventsPage({
                           <h2 className="mt-2 text-2xl font-black leading-tight">{upcoming[0].titulo}</h2>
                           <p className="mt-3 font-bold text-emerald-50">{dateTimeBR(upcoming[0].inicio)}</p>
                           {upcoming[0].local ? (
-                            <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-emerald-50/70">
+                            <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-emerald-50/85">
                               <MapPin size={14} />
                               {upcoming[0].local}
                             </p>
