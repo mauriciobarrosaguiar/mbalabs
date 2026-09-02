@@ -17,12 +17,14 @@ export function ElshadayPublicShell({
     ? "/elshaday/gestao"
     : "/login?next=%2Felshaday%2Fgestao";
   const internalLabel = hasInternalAccess ? "Área interna" : "Entrar";
+  const publicHomeHref = hasInternalAccess ? "/elshaday/publico" : "/elshaday";
+  const publicAgendaHref = publicHomeHref + "#agenda";
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f3f6f1] text-slate-950">
       <header className="sticky top-0 z-40 border-b border-emerald-950/10 bg-[#123d2d]/95 text-white backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-          <Link className="flex min-w-0 items-center gap-3" href="/elshaday">
+          <Link className="flex min-w-0 items-center gap-3" href={publicHomeHref}>
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#d4aa54] text-[#123d2d]">
               <Church size={22} />
             </span>
@@ -33,7 +35,7 @@ export function ElshadayPublicShell({
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex">
-            <Link className="rounded-xl px-3 py-2 text-sm font-bold text-emerald-50/85 hover:bg-white/10" href="/elshaday#agenda">
+            <Link className="rounded-xl px-3 py-2 text-sm font-bold text-emerald-50/85 hover:bg-white/10" href={publicAgendaHref}>
               Agenda
             </Link>
             <Link className="rounded-xl px-3 py-2 text-sm font-bold text-emerald-50/85 hover:bg-white/10" href="/elshaday/contribuir">
@@ -84,10 +86,10 @@ export function ElshadayPublicShell({
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-emerald-950/10 bg-white/95 px-2 py-2 shadow-[0_-8px_30px_rgba(15,23,42,.08)] backdrop-blur md:hidden">
         <div className={"mx-auto grid max-w-lg " + (hasInternalAccess ? "grid-cols-3" : "grid-cols-4")}>
-          <Link className="grid place-items-center gap-1 py-1 text-[11px] font-black text-[#123d2d]" href="/elshaday">
+          <Link className="grid place-items-center gap-1 py-1 text-[11px] font-black text-[#123d2d]" href={publicHomeHref}>
             <Church size={20} /> Início
           </Link>
-          <Link className="grid place-items-center gap-1 py-1 text-[11px] font-black text-[#123d2d]" href="/elshaday#agenda">
+          <Link className="grid place-items-center gap-1 py-1 text-[11px] font-black text-[#123d2d]" href={publicAgendaHref}>
             <CalendarDays size={20} /> Agenda
           </Link>
           <Link className="grid place-items-center gap-1 py-1 text-[11px] font-black text-[#123d2d]" href="/elshaday/contribuir">
