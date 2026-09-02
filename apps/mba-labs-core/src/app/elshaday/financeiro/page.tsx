@@ -142,7 +142,7 @@ export default async function ElshadayFinancePage({
               <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">Integração</p>
               <h2 className="mt-1 text-xl font-black">PIX automático · Asaas</h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                O webhook confirma o pagamento e cria a entrada financeira automaticamente.
+                Você pode usar somente uma chave PIX para recebimento simples ou cadastrar a API Asaas para confirmação automática.
               </p>
             </div>
             <IntegrationStatus ready={pixStatus.ready} />
@@ -173,6 +173,39 @@ export default async function ElshadayFinancePage({
                 placeholder="E-mail, telefone, CPF/CNPJ ou chave aleatória"
               />
             </label>
+
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950 sm:col-span-2">
+              <strong>Opção simples:</strong> se você quiser apenas receber contribuições por PIX, basta informar a chave acima e salvar.
+              Ela aparecerá na página pública para qualquer pessoa copiar, mesmo sem login e sem API.
+            </div>
+
+            <label className="grid gap-2 text-sm font-bold text-slate-700">
+              API Key Asaas
+              <input
+                className="input"
+                name="asaas_api_key"
+                type="password"
+                autoComplete="new-password"
+                placeholder={pixStatus.apiKeyConfigured ? "Já cadastrada — deixe em branco para manter" : "Cole a API Key da conta Asaas"}
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm font-bold text-slate-700">
+              Token do webhook
+              <input
+                className="input"
+                name="asaas_webhook_token"
+                type="password"
+                autoComplete="new-password"
+                placeholder={pixStatus.webhookTokenConfigured ? "Já cadastrado — deixe em branco para manter" : "Cadastre um token secreto para o webhook"}
+              />
+            </label>
+
+            <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950 sm:col-span-2">
+              <strong>Opção automática:</strong> preencha a API Key e o token do webhook para ativar a confirmação automática.
+              As credenciais são armazenadas criptografadas e nunca são exibidas novamente.
+              Para outros bancos e gateways, use <Link className="font-black underline" href="/elshaday/financeiro/provedores">Provedores PIX</Link>.
+            </div>
 
             <label className="flex min-h-12 items-center gap-3 rounded-2xl bg-slate-50 px-4 text-sm font-bold sm:col-span-2">
               <input
