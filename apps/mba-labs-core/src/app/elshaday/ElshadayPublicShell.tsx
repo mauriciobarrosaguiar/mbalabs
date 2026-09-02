@@ -19,7 +19,7 @@ export function ElshadayPublicShell({
   const internalLabel = hasInternalAccess ? "Área interna" : "Entrar";
 
   return (
-    <div className="min-h-screen bg-[#f3f6f1] text-slate-950">
+    <div className="min-h-screen overflow-x-hidden bg-[#f3f6f1] text-slate-950">
       <header className="sticky top-0 z-40 border-b border-emerald-950/10 bg-[#123d2d]/95 text-white backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
           <Link className="flex min-w-0 items-center gap-3" href="/elshaday">
@@ -28,7 +28,7 @@ export function ElshadayPublicShell({
             </span>
             <span className="min-w-0">
               <span className="block truncate font-black">{igrejaNomeCurto}</span>
-              <span className="block text-[11px] font-semibold text-emerald-50/65">Palmas - TO</span>
+              <span className="block text-[11px] font-semibold text-emerald-50/85">Palmas - TO</span>
             </span>
           </Link>
 
@@ -55,7 +55,7 @@ export function ElshadayPublicShell({
         </div>
       </header>
 
-      <main className="mx-auto min-h-[calc(100vh-130px)] max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
+      <main className="mx-auto min-h-[calc(100vh-130px)] min-w-0 max-w-6xl overflow-x-hidden px-4 py-4 sm:px-6 sm:py-8">
         {children}
       </main>
 
@@ -71,13 +71,13 @@ export function ElshadayPublicShell({
             <HandCoins size={20} /> Contribuir
           </Link>
           <Link className="grid place-items-center gap-1 py-1 text-[11px] font-black text-[#123d2d]" href="/cadastro-membro">
-            <UserRoundPlus size={20} /> Cadastro
+            <UserRoundPlus size={20} /> Membro
           </Link>
         </div>
       </nav>
 
-      <footer className="mb-16 border-t border-emerald-950/10 bg-white px-4 py-6 text-center text-xs text-slate-500 md:mb-0">
-        {igrejaNome} · Agenda e contribuições públicas
+      <footer className="mb-16 border-t border-emerald-950/10 bg-white px-4 py-6 text-center text-xs text-slate-600 md:mb-0">
+        {igrejaNome}
       </footer>
     </div>
   );
