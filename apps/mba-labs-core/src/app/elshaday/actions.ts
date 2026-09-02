@@ -173,7 +173,7 @@ function redirectWithMessage(path: string, kind: "ok" | "erro", message: string)
 
 export async function createElshadayMember(formData: FormData) {
   const context = await requireElshadayContext("/elshaday/membros");
-  requireElshadayRole(context, ["admin", "pastor", "secretaria"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
   const nome = text(formData, "nome");
   if (nome.length < 2) throw new Error("Informe o nome do membro.");
@@ -260,7 +260,7 @@ export async function createElshadayFinanceEntry(formData: FormData) {
 
 export async function createElshadayEvent(formData: FormData) {
   const context = await requireElshadayContext("/elshaday/eventos");
-  requireElshadayRole(context, ["admin", "pastor", "secretaria", "lider"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
   const titulo = text(formData, "titulo");
   const inicio = text(formData, "inicio");
@@ -357,7 +357,7 @@ export async function createElshadayEvent(formData: FormData) {
 
 export async function createElshadaySermon(formData: FormData) {
   const context = await requireElshadayContext("/elshaday/pregacoes");
-  requireElshadayRole(context, ["admin", "pastor", "secretaria", "lider"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
   const titulo = text(formData, "titulo");
   const pregador = text(formData, "pregador");
@@ -867,7 +867,7 @@ export async function sendElshadayPasswordEmail(formData: FormData) {
 
 export async function updateElshadayMember(formData: FormData) {
   const context = await requireElshadayContext("/elshaday/membros");
-  requireElshadayRole(context, ["admin", "pastor", "secretaria"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
   const membroId = text(formData, "membro_id");
   const returnTo = safeElshadayReturn(formData, `/elshaday/membros/${membroId}`);
 
@@ -934,7 +934,7 @@ export async function updateElshadayMember(formData: FormData) {
 
 export async function setElshadayMemberStatus(formData: FormData) {
   const context = await requireElshadayContext("/elshaday/membros");
-  requireElshadayRole(context, ["admin", "pastor", "secretaria"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
   const membroId = text(formData, "membro_id");
   const returnTo = safeElshadayReturn(formData, `/elshaday/membros/${membroId}`);
 
