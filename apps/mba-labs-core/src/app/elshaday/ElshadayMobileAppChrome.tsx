@@ -18,6 +18,7 @@ import {
   Menu,
   Mic2,
   QrCode,
+  Settings2,
   ShieldCheck,
   UserRound,
   UsersRound,
@@ -49,6 +50,7 @@ export function ElshadayMobileAppChrome({
 
   const canSeeMembers = ["admin", "pastor", "secretaria", "lider"].includes(papel);
   const canSeeFinance = papel === "admin" || papel === "tesouraria";
+  const canManageContent = ["admin", "pastor", "secretaria", "lider"].includes(papel);
   const canManageAccess = papel === "admin";
 
   useEffect(() => setMounted(true), []);
@@ -99,6 +101,9 @@ export function ElshadayMobileAppChrome({
             icon: FileBarChart
           }
         ]
+      : []),
+    ...(canManageContent
+      ? [{ href: "/elshaday/configuracoes", label: "Configurações", icon: Settings2 }]
       : []),
     ...(canManageAccess
       ? [{ href: "/elshaday/acessos", label: "Acessos e perfis", icon: ShieldCheck }]
