@@ -61,14 +61,14 @@ export default async function ElshadaySettingsPage({
   }
 
   const items = manualResult.data ?? [];
-  const manualByTitle = new Map(
+  const manualByTitle = new Map<string, any>(
     items
       .filter((item: any) => Boolean(item.imagem_url))
       .map((item: any) => [
         String(item.titulo ?? "").trim().toLocaleLowerCase("pt-BR"),
         item
-      ])
-      .filter(([key]: any[]) => Boolean(key))
+      ] as [string, any])
+      .filter(([key]) => Boolean(key))
   );
   const seenSeries = new Set<string>();
   const agendaItems = (agendaResult.data ?? [])
