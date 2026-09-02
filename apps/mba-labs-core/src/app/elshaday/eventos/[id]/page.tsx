@@ -34,7 +34,7 @@ export default async function EventDetail({
   const { id } = await params;
   const query = await searchParams;
   const context = await requireElshadayContext("/elshaday/eventos/" + id);
-  const canManage = hasElshadayRole(context.papel, ["admin", "pastor", "secretaria", "lider"]);
+  const canManage = hasElshadayRole(context.papel, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
   const [eventResult, membersResult, presenceResult] = await Promise.all([
     context.admin
