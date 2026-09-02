@@ -48,9 +48,9 @@ export function ElshadayMobileAppChrome({
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  const canSeeMembers = ["admin", "pastor", "secretaria", "lider"].includes(papel);
+  const canSeeMembers = papel !== "membro";
   const canSeeFinance = papel === "admin" || papel === "tesouraria";
-  const canManageContent = ["admin", "pastor"].includes(papel);
+  const canManageContent = papel !== "membro";
   const canManageAccess = papel === "admin";
 
   useEffect(() => setMounted(true), []);
