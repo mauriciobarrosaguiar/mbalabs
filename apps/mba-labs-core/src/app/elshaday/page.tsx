@@ -281,14 +281,25 @@ function MobileAppHome({
       order: Number(event.ordem_home ?? 10)
     }));
 
-  const configuredMediaItems = carouselItems.map((item: any) => ({
-    id: "carrossel-" + item.id,
-    href: item.link_url || null,
-    title: item.titulo || null,
-    subtitle: item.subtitulo || null,
-    imageUrl: item.imagem_url,
-    order: Number(item.ordem ?? 10)
-  }));
+  const syncedTitleKeys = new Set(
+    syncedAgendaItems
+      .map((item: any) => String(item.title ?? "").trim().toLocaleLowerCase("pt-BR"))
+      .filter(Boolean)
+  );
+
+  const configuredMediaItems = carouselItems
+    .filter((item: any) => {
+      const key = String(item.titulo ?? "").trim().toLocaleLowerCase("pt-BR");
+      return !key || !syncedTitleKeys.has(key);
+    })
+    .map((item: any) => ({
+      id: "carrossel-" + item.id,
+      href: item.link_url || null,
+      title: item.titulo || null,
+      subtitle: item.subtitulo || null,
+      imageUrl: item.imagem_url,
+      order: Number(item.ordem ?? 10)
+    }));
 
   const synchronizedMediaItems = [...syncedAgendaItems, ...configuredMediaItems]
     .sort((a, b) => a.order - b.order)
