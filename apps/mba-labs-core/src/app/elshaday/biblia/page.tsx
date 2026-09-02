@@ -82,9 +82,6 @@ export default async function ElshadayBiblePage({
             <NotebookPen className="text-[#176445]" size={19} />
             <h2 className="font-black">Nova anotação</h2>
           </div>
-          <p className="mt-2 text-sm leading-6 text-slate-500">
-            Se já existir uma anotação com a mesma referência, ela será atualizada.
-          </p>
           <form action={saveBibleNote} className="mt-4 grid gap-3">
             <label className="grid gap-2 text-sm font-bold">
               Referência
@@ -109,19 +106,18 @@ export default async function ElshadayBiblePage({
           <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
             <div>
               <h2 className="font-black">Meu material salvo</h2>
-              <p className="mt-1 text-sm text-slate-500">Pesquise em favoritos e anotações.</p>
             </div>
             <form className="relative" method="get">
-              <Search className="absolute left-3 top-3.5 text-slate-400" size={16} />
+              <Search className="absolute left-3 top-3.5 text-slate-600" size={16} />
               <input className="input pl-9" name="q" defaultValue={read(query.q)} placeholder="Buscar..." />
             </form>
           </div>
 
           <div className="mt-5 grid gap-5">
             <div>
-              <p className="text-xs font-black uppercase tracking-[.12em] text-slate-400">Favoritos</p>
+              <p className="text-xs font-black uppercase tracking-[.12em] text-slate-600">Favoritos</p>
               {!favorites.length ? (
-                <p className="mt-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+                <p className="mt-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
                   Nenhum favorito encontrado.
                 </p>
               ) : (
@@ -152,9 +148,9 @@ export default async function ElshadayBiblePage({
             </div>
 
             <div>
-              <p className="text-xs font-black uppercase tracking-[.12em] text-slate-400">Anotações</p>
+              <p className="text-xs font-black uppercase tracking-[.12em] text-slate-600">Anotações</p>
               {!notes.length ? (
-                <p className="mt-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+                <p className="mt-3 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
                   Nenhuma anotação encontrada.
                 </p>
               ) : (
@@ -197,7 +193,7 @@ export default async function ElshadayBiblePage({
         </article>
       </section>
 
-      <p className="text-center text-xs leading-5 text-slate-500">
+      <p className="text-center text-xs leading-5 text-slate-600">
         Texto bíblico consultado via bible-api.com. Favoritos e anotações ficam vinculados exclusivamente ao seu login.
       </p>
 
