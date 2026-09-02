@@ -41,7 +41,7 @@ export function ElshadayMediaCarousel({
   }
 
   const slide = (
-    <div className="relative block aspect-[16/9] w-full">
+    <div className="relative block aspect-[4/3] w-full sm:aspect-[16/9]">
       <img
         alt={active.title || "Destaque da igreja"}
         className="absolute inset-0 h-full w-full object-cover"
@@ -51,14 +51,14 @@ export function ElshadayMediaCarousel({
       {active.title || active.subtitle ? (
         <>
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/18 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 p-5 text-white">
+          <div className="absolute inset-x-0 bottom-0 p-4 text-white sm:p-5">
             {active.subtitle ? (
-              <p className="text-[11px] font-black uppercase tracking-[.14em] text-white/70">
+              <p className="text-[11px] font-black uppercase tracking-[.14em] text-white/90 [text-shadow:0_1px_5px_rgba(0,0,0,.55)]">
                 {active.subtitle}
               </p>
             ) : null}
             {active.title ? (
-              <h2 className="mt-1 line-clamp-2 text-2xl font-black leading-tight tracking-tight">
+              <h2 className="mt-1 line-clamp-2 text-[clamp(1.35rem,6vw,2rem)] font-black leading-tight tracking-tight text-white [text-shadow:0_2px_8px_rgba(0,0,0,.55)]">
                 {active.title}
               </h2>
             ) : null}
