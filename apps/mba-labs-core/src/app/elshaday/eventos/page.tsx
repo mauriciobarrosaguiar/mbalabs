@@ -22,7 +22,7 @@ export default async function ElshadayEventsPage({
 
   let request = context.admin
     .from("igreja_eventos")
-    .select("id,titulo,tipo,descricao,inicio,fim,local,pregador,dirigente,tema,texto_biblico,publico,status,serie_id,recorrencia_tipo,recorrencia_ate,recorrencia_ordem,banner_url")
+    .select("id,titulo,tipo,descricao,inicio,fim,local,pregador,dirigente,tema,texto_biblico,publico,status,serie_id,recorrencia_tipo,recorrencia_ate,recorrencia_ordem,banner_url,destacar_home,ordem_home")
     .eq("igreja_id", context.igreja.id)
     .order("inicio", { ascending: false })
     .limit(250);
@@ -269,7 +269,27 @@ export default async function ElshadayEventsPage({
                 Opcional. JPG, PNG ou WebP de até 5 MB. Em uma recorrência, a mesma capa será usada na série.
               </span>
             </label>
-            <Field label="Título" name="titulo" required placeholder="Ex.: Culto de Celebração" />
+            <div className="grid gap-3 rounded-[22px] border border-emerald-200 bg-emerald-50/70 p-4 sm:col-span-2 lg:col-span-3">
+              <label className="flex items-start gap-3">
+                <input
+                  className="mt-0.5 size-5 shrink-0 accent-[#123d2d]"
+                  defaultChecked
+                  name="destacar_home"
+                  type="checkbox"
+                />
+                <span>
+                  <span className="block font-black text-slate-900">Destacar no carrossel da Home</span>
+                  <span className="mt-1 block text-xs font-semibold leading-5 text-slate-600">
+                    A Agenda controla este destaque. Título, data, imagem e alterações futuras serão refletidos automaticamente na Home.
+                  </span>
+                </span>
+              </label>
+              <label className="grid gap-2 text-sm font-bold text-slate-700 sm:max-w-[220px]">
+                Ordem na Home
+                <input className="input" defaultValue="10" min={0} max={9999} name="ordem_home" type="number" />
+              </label>
+            </div>
+                        <Field label="Título" name="titulo" required placeholder="Ex.: Culto de Celebração" />
             <label className="grid gap-2 text-sm font-bold text-slate-700">
               Tipo
               <select className="input" name="tipo" defaultValue="culto">
