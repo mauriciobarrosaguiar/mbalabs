@@ -68,27 +68,23 @@ export async function PublicElshadayHome() {
   ].slice(0, 10);
 
   return (
-    <div className="grid gap-6 pb-20 md:pb-0">
-      <section className="overflow-hidden rounded-[32px] bg-[#123d2d] p-6 text-white shadow-[0_18px_45px_rgba(18,61,45,.18)] sm:p-9">
+    <div className="grid min-w-0 gap-5 overflow-x-hidden pb-20 md:gap-6 md:pb-0">
+      <section className="min-w-0 overflow-hidden rounded-[28px] bg-[#123d2d] p-5 text-white shadow-[0_18px_45px_rgba(18,61,45,.18)] sm:rounded-[32px] sm:p-9">
         <div className="max-w-3xl">
           <div className="grid size-14 place-items-center rounded-[18px] bg-[#d4aa54] text-[#123d2d]">
             <Church size={28} />
           </div>
           <p className="mt-5 text-xs font-black uppercase tracking-[.18em] text-[#f1d79d]">Seja bem-vindo</p>
-          <h1 className="mt-2 text-3xl font-black leading-tight tracking-tight sm:text-5xl">{igreja.nome}</h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-emerald-50/80 sm:text-base">
-            Acompanhe nossa programação, participe dos cultos e, se desejar, contribua com a obra por PIX.
-            Você não precisa ser membro nem ter login para acessar esta página.
-          </p>
+          <h1 className="mt-2 text-[clamp(1.85rem,8vw,3rem)] font-black leading-[1.04] tracking-tight">{igreja.nome}</h1>
           <div className="mt-6 grid gap-3 sm:flex sm:flex-wrap">
-            <a className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[#d4aa54] px-5 font-black text-[#123d2d]" href="#agenda">
+            <a className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl sm:w-auto bg-[#d4aa54] px-5 font-black text-[#123d2d]" href="#agenda">
               <CalendarDays size={19} /> Ver agenda
             </a>
-            <Link className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/10 px-5 font-black text-white" href="/elshaday/contribuir">
+            <Link className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl sm:w-auto border border-white/15 bg-white/10 px-5 font-black text-white" href="/elshaday/contribuir">
               <HandCoins size={19} /> Contribuir via PIX
             </Link>
-            <Link className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-5 font-black text-white" href="/cadastro-membro">
-              <UserRoundPlus size={19} /> Cadastro de membro
+            <Link className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl sm:w-auto border border-white/15 bg-white/5 px-5 font-black text-white" href="/cadastro-membro">
+              <UserRoundPlus size={19} /> Seja membro
             </Link>
           </div>
         </div>
@@ -101,7 +97,6 @@ export async function PublicElshadayHome() {
           <div>
             <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">Programação</p>
             <h2 className="mt-1 text-2xl font-black tracking-tight">Agenda da igreja</h2>
-            <p className="mt-2 text-sm text-slate-500">Próximos cultos e eventos abertos ao público.</p>
           </div>
           <CalendarDays className="text-[#176445]" size={26} />
         </div>
@@ -119,7 +114,7 @@ export async function PublicElshadayHome() {
                     <span className="shrink-0 text-xs font-black text-[#176445]">{dateTimeBR(event.inicio)}</span>
                   </div>
                   {event.tema ? <p className="mt-2 text-sm font-bold text-slate-700">{event.tema}</p> : null}
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-slate-500">
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-slate-600">
                     {event.local ? <span className="inline-flex items-center gap-1"><MapPin size={13} /> {event.local}</span> : null}
                     {event.pregador ? <span>Pregador: {event.pregador}</span> : null}
                   </div>
@@ -128,7 +123,7 @@ export async function PublicElshadayHome() {
             </article>
           ))}
           {!events.length ? (
-            <div className="rounded-[20px] border border-dashed border-slate-200 p-7 text-center text-sm text-slate-500">
+            <div className="rounded-[20px] border border-dashed border-slate-200 p-7 text-center text-sm text-slate-600">
               Nenhuma programação pública futura cadastrada.
             </div>
           ) : null}
@@ -141,9 +136,6 @@ export async function PublicElshadayHome() {
             <HeartHandshake size={23} />
           </div>
           <h2 className="mt-5 text-2xl font-black">Deseja contribuir?</h2>
-          <p className="mt-2 text-sm leading-6 text-emerald-50/75">
-            Acesse a chave PIX ou o PIX Copia e Cola da igreja. Não é necessário login.
-          </p>
           <span className="mt-5 inline-flex items-center gap-2 text-sm font-black text-[#f4d992]">
             Abrir contribuição <ChevronRight size={17} />
           </span>
@@ -153,12 +145,9 @@ export async function PublicElshadayHome() {
           <div className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-[#176445]">
             <UserRoundPlus size={23} />
           </div>
-          <h2 className="mt-5 text-2xl font-black">Quero me cadastrar</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Preencha sua ficha de membro pelo celular, sem precisar entrar no aplicativo.
-          </p>
-          <span className="mt-5 inline-flex items-center gap-2 text-sm font-black text-[#176445]">
-            Fazer cadastro <ChevronRight size={17} />
+          <h2 className="mt-5 text-2xl font-black text-slate-950">Seja membro</h2>
+          <span className="mt-4 inline-flex items-center gap-2 text-sm font-black text-[#176445]">
+            Fazer meu cadastro <ChevronRight size={17} />
           </span>
         </Link>
       </section>
@@ -174,7 +163,7 @@ export async function PublicElshadayHome() {
                 ) : null}
                 <div className="p-4">
                   <h3 className="line-clamp-3 font-black text-slate-950">{sermon.titulo}</h3>
-                  <p className="mt-2 text-xs font-semibold text-slate-500">{sermon.pregador}</p>
+                  <p className="mt-2 text-xs font-semibold text-slate-600">{sermon.pregador}</p>
                 </div>
               </article>
             ))}
