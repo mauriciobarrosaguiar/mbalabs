@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
-import { requireAppAccess } from "@/lib/core-data";
+import { getSessionProfile, isSuperAdminType, requireAppAccess } from "@/lib/core-data";
 
 export type ElshadayRole =
   | "admin"
@@ -24,6 +24,87 @@ export type ElshadayContext = {
   };
   papel: ElshadayRole;
 };
+
+export async function getPublicElshadayContext() {
+  const admin = createSupabaseAdminClient() as any;
+  const { data: igreja, error } = await admin
+    .from("igreja_igrejas")
+    .select("id,empresa_id,slug,nome,nome_curto,cidade,estado")
+    .eq("slug", "assembleia-de-deus-elshaday-palmas")
+    .eq("ativa", true)
+    .maybeSingle();
+
+  if (error) throw new Error(`Falha ao carregar a igreja: ${error.message}`);
+  if (!igreja) throw new Error("Igreja Elshaday não configurada.");
+
+  return { admin, igreja };
+}
+
+export async function getOptionalElshadayContext(): Promise<ElshadayContext | null> {
+  const session = await getSessionProfile();
+  if (!session.user || !session.profile || session.profile.status !== "ativo") return null;
+
+  const isAdminMaster = isSuperAdminType(session.profile.tipo);
+  const appsLiberados = session.appsLiberados ?? [];
+  const hasAppAccess =
+    isAdminMaster ||
+    appsLiberados.some((app: any) => String(app.slug) === "elshaday" && Boolean(app.canAccess));
+
+  if (!hasAppAccess) return null;
+
+  const current = {
+    authUser: {
+      id: session.user.id,
+      email: session.user.email
+    },
+    usuario: session.profile,
+    empresaId: session.profile.empresa_id,
+    tipo: session.profile.tipo,
+    isAdminMaster,
+    permissoes: session.permissoes ?? [],
+    appsLiberados
+  } as Awaited<ReturnType<typeof requireAppAccess>>;
+
+  const admin = createSupabaseAdminClient() as any;
+  let igrejaQuery = admin
+    .from("igreja_igrejas")
+    .select("id,empresa_id,slug,nome,nome_curto,cidade,estado")
+    .eq("ativa", true);
+
+  igrejaQuery = isAdminMaster
+    ? igrejaQuery.eq("slug", "assembleia-de-deus-elshaday-palmas")
+    : igrejaQuery.eq("empresa_id", session.profile.empresa_id);
+
+  const { data: igreja, error: igrejaError } = await igrejaQuery.limit(1).maybeSingle();
+  if (igrejaError || !igreja) return null;
+
+  if (isAdminMaster) {
+    return { current, admin, igreja, papel: "admin" };
+  }
+
+  const { data: perfil, error: perfilError } = await admin
+    .from("igreja_perfis")
+    .select("papel,ativo")
+    .eq("igreja_id", igreja.id)
+    .eq("user_id", session.user.id)
+    .eq("ativo", true)
+    .maybeSingle();
+
+  if (perfilError) return null;
+
+  const portalPermission = (session.permissoes ?? []).find(
+    (permission: any) => permission.appSlug === "elshaday" && permission.podeAcessar
+  );
+  const portalRole = session.profile.tipo === "admin_empresa" ? "admin" : portalPermission?.perfil;
+  const papel = isElshadayRole(String(portalRole ?? ""))
+    ? (portalRole as ElshadayRole)
+    : isElshadayRole(String(perfil?.papel ?? ""))
+      ? (perfil.papel as ElshadayRole)
+      : null;
+
+  if (!papel) return null;
+  return { current, admin, igreja, papel };
+}
 
 export async function requireElshadayContext(nextPath = "/elshaday"): Promise<ElshadayContext> {
   const current = await requireAppAccess("elshaday", nextPath);
