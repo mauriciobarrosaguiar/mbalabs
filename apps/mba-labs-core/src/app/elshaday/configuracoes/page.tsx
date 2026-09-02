@@ -96,13 +96,9 @@ export default async function ElshadaySettingsPage({
     <div className="mx-auto grid max-w-5xl gap-5">
       <header className="flex items-end justify-between gap-4 px-1">
         <div>
-          <p className="text-sm font-semibold text-slate-500">Administração visual</p>
           <h1 className="mt-0.5 text-[30px] font-black tracking-tight text-slate-950 lg:text-3xl">
             Configurações
           </h1>
-          <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
-            A Agenda controla os destaques de cultos e eventos da Home. Aqui ficam também banners avulsos para avisos que não pertencem à Agenda.
-          </p>
         </div>
         <div className="hidden size-12 place-items-center rounded-2xl bg-[#123d2d] text-[#f1d79d] sm:grid">
           <Settings2 size={24} />
@@ -137,7 +133,7 @@ export default async function ElshadaySettingsPage({
         {!agendaItems.length ? (
           <div className="mt-4 rounded-[20px] border border-dashed border-emerald-300 bg-white/70 p-5 text-center">
             <p className="font-black text-slate-900">Nenhum evento da Agenda está destacado na Home.</p>
-            <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+            <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">
               Abra um culto ou evento e marque “Destacar no carrossel da Home”.
             </p>
           </div>
@@ -164,7 +160,7 @@ export default async function ElshadaySettingsPage({
                     </span>
                   </div>
                   <p className="mt-1 truncate font-black text-slate-950">{event.titulo}</p>
-                  <p className="mt-1 truncate text-xs font-semibold text-slate-500">
+                  <p className="mt-1 truncate text-xs font-semibold text-slate-600">
                     Ordem {event.ordem_home} · {new Intl.DateTimeFormat("pt-BR", {
                       dateStyle: "short",
                       timeStyle: "short",
@@ -185,7 +181,7 @@ export default async function ElshadaySettingsPage({
           </div>
           <div>
             <h2 className="text-xl font-black tracking-tight text-slate-950">Carrossel da Home</h2>
-            <p className="mt-0.5 text-xs font-semibold text-slate-500">
+            <p className="mt-0.5 text-xs font-semibold text-slate-600">
               {agendaItems.length} da Agenda · {items.length} {items.length === 1 ? "banner avulso" : "banners avulsos"}
             </p>
           </div>
@@ -209,7 +205,7 @@ export default async function ElshadaySettingsPage({
                 required
                 type="file"
               />
-              <span className="text-xs font-semibold text-slate-500">
+              <span className="text-xs font-semibold text-slate-600">
                 JPG, PNG ou WebP, até 5 MB. Para a Home, prefira imagem horizontal 16:9.
               </span>
             </label>
@@ -244,7 +240,7 @@ export default async function ElshadaySettingsPage({
                 name="link_url"
                 placeholder="/elshaday/eventos ou https://..."
               />
-              <span className="text-xs font-semibold text-slate-500">
+              <span className="text-xs font-semibold text-slate-600">
                 Opcional. Sem link, a imagem permanece apenas como destaque visual.
               </span>
             </label>
@@ -264,7 +260,7 @@ export default async function ElshadaySettingsPage({
           <div className="rounded-[26px] border border-dashed border-emerald-950/15 bg-white p-7 text-center shadow-sm">
             <Images className="mx-auto text-[#176445]" size={34} />
             <h2 className="mt-3 text-xl font-black text-slate-950">Carrossel ainda vazio</h2>
-            <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
+            <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
               Use banners avulsos apenas para avisos que não pertencem à Agenda. Cultos e eventos devem ser destacados diretamente no cadastro da Agenda.
             </p>
           </div>
@@ -315,7 +311,7 @@ export default async function ElshadaySettingsPage({
                   <p className="truncate font-black text-slate-950">
                     {item.titulo || "Destaque sem título"}
                   </p>
-                  <p className="mt-1 truncate text-xs font-semibold text-slate-500">
+                  <p className="mt-1 truncate text-xs font-semibold text-slate-600">
                     Ordem {item.ordem}
                     {item.link_url ? " · " + item.link_url : " · sem link"}
                   </p>
