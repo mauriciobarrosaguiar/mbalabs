@@ -57,7 +57,6 @@ export default async function ElshadaySermonsPage({
         <div>
           <p className="text-xs font-black uppercase tracking-[.16em] text-[#176445]">Acervo espiritual</p>
           <h1 className="mt-1 text-3xl font-black">Temas e pregações</h1>
-          <p className="mt-2 text-slate-600">{rows.length} mensagens encontradas.</p>
         </div>
         <div className="grid size-12 place-items-center rounded-2xl bg-[#123d2d] text-[#f1d79d]">
           <Mic2 size={25} />
@@ -67,7 +66,6 @@ export default async function ElshadaySermonsPage({
       <section className="grid gap-4 lg:hidden">
         <div className="flex items-end justify-between gap-3 px-1">
           <div>
-            <p className="text-sm font-semibold text-slate-500">Conteúdo</p>
             <h1 className="mt-0.5 text-[30px] font-black tracking-tight text-slate-950">Palavras</h1>
           </div>
           <Search className="text-slate-700" size={24} />
@@ -109,7 +107,7 @@ export default async function ElshadaySermonsPage({
               <Search size={18} className="text-[#176445]" />
               Buscar mensagens
             </span>
-            <ChevronRight size={18} className="text-slate-400" />
+            <ChevronRight size={18} className="text-slate-600" />
           </summary>
           <form className="grid gap-3 border-t border-slate-100 p-4" method="get">
             <input className="input" name="q" defaultValue={q} placeholder="Título, pregador ou conteúdo..." />
@@ -126,7 +124,6 @@ export default async function ElshadaySermonsPage({
         <div>
           <div className="mb-3 flex items-center justify-between px-1">
             <h2 className="text-xl font-black text-slate-950">Mais recentes</h2>
-            <span className="text-xs font-bold text-slate-500">{rows.length} mensagens</span>
           </div>
           <div className="grid grid-cols-2 gap-3">
             {rows.slice(1).map((sermon: any) => (
@@ -147,7 +144,7 @@ export default async function ElshadaySermonsPage({
                   </div>
                 )}
                 <p className="mt-4 line-clamp-3 font-black leading-snug text-slate-950">{sermon.titulo}</p>
-                <p className="mt-2 truncate text-xs font-semibold text-slate-500">{sermon.pregador}</p>
+                <p className="mt-2 truncate text-xs font-semibold text-slate-600">{sermon.pregador}</p>
                 {sermon.texto_base ? (
                   <p className="mt-2 truncate text-[11px] font-bold text-[#176445]">{sermon.texto_base}</p>
                 ) : null}
@@ -159,7 +156,7 @@ export default async function ElshadaySermonsPage({
 
       <form className="hidden gap-3 rounded-[24px] border border-emerald-950/10 bg-white p-4 md:grid-cols-[1fr_180px_auto] lg:grid" method="get">
         <label className="relative">
-          <Search className="absolute left-3 top-3.5 text-slate-400" size={17} />
+          <Search className="absolute left-3 top-3.5 text-slate-600" size={17} />
           <input
             className="input pl-10"
             name="q"
@@ -192,7 +189,7 @@ export default async function ElshadaySermonsPage({
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
               />
-              <span className="text-xs font-medium leading-5 text-slate-500">
+              <span className="text-xs font-medium leading-5 text-slate-600">
                 Opcional. JPG, PNG ou WebP de até 5 MB. Essa imagem poderá aparecer nos carrosséis do app.
               </span>
             </label>
@@ -212,12 +209,12 @@ export default async function ElshadaySermonsPage({
             <label className="grid min-w-0 gap-2 text-sm font-bold text-slate-800 sm:col-span-2 lg:col-span-3">
               Palavra / mensagem completa
               <textarea
-                className="min-h-72 min-w-0 rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 outline-none placeholder:text-slate-500 focus:border-emerald-700"
+                className="min-h-72 min-w-0 rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 outline-none placeholder:text-slate-600 focus:border-emerald-700"
                 name="esboco"
                 placeholder="Cole aqui a mensagem completa. Pode incluir texto-base, versículos, introdução, pontos e conclusão no mesmo texto."
                 required
               />
-              <span className="text-xs font-medium leading-5 text-slate-500">
+              <span className="text-xs font-medium leading-5 text-slate-600">
                 Você não precisa mais separar a mensagem em vários campos.
               </span>
             </label>
@@ -241,7 +238,7 @@ export default async function ElshadaySermonsPage({
       ) : null}
 
       {!rows.length ? (
-        <div className="rounded-[28px] border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
+        <div className="rounded-[28px] border border-dashed border-slate-300 bg-white p-10 text-center text-slate-600">
           {status === "arquivado" ? <Archive className="mx-auto mb-3" size={30} /> : <BookMarked className="mx-auto mb-3" size={30} />}
           Nenhuma pregação encontrada.
         </div>
@@ -316,7 +313,7 @@ function TextArea({ label, name }: { label: string; name: string }) {
   return (
     <label className="grid gap-2 text-sm font-bold text-slate-700">
       {label}
-      <textarea className="textarea-mobile min-h-28 min-w-0 rounded-2xl border border-slate-300 p-4 outline-none placeholder:text-slate-500 focus:border-emerald-700" name={name} />
+      <textarea className="textarea-mobile min-h-28 min-w-0 rounded-2xl border border-slate-300 p-4 outline-none placeholder:text-slate-600 focus:border-emerald-700" name={name} />
     </label>
   );
 }
