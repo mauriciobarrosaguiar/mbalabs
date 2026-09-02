@@ -15,8 +15,7 @@ import {
   ShieldCheck,
   UsersRound
 } from "lucide-react";
-import type { ElshadayRole } from "@/lib/elshaday";
-import { roleLabel } from "@/lib/elshaday";
+import { elshadayRoleLabel, type ElshadayRole } from "@/lib/elshaday-role";
 import { ElshadayMobileAppChrome } from "./ElshadayMobileAppChrome";
 
 export function ElshadayShell({
@@ -79,7 +78,7 @@ export function ElshadayShell({
 
           <div className="mt-auto rounded-2xl border border-white/10 bg-white/5 p-4">
             <p className="font-black">{usuarioNome}</p>
-            <p className="mt-1 text-sm text-emerald-100/70">{roleLabel(papel)}</p>
+            <p className="mt-1 text-sm text-emerald-100/70">{elshadayRoleLabel(papel)}</p>
             <Link className="mt-4 flex items-center gap-2 text-sm font-bold text-[#f1d79d]" href="/elshaday">
               <Church size={16} />
               Ver página pública

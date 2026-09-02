@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import type { ElshadayRole } from "@/lib/elshaday";
+import type { ElshadayRole } from "@/lib/elshaday-role";
 import { ElshadayPublicShell } from "./ElshadayPublicShell";
 import { ElshadayShell } from "./ElshadayShell";
 

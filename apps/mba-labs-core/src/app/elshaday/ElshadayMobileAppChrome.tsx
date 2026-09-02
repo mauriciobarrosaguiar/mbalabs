@@ -24,7 +24,7 @@ import {
   UsersRound,
   X
 } from "lucide-react";
-import type { ElshadayRole } from "@/lib/elshaday";
+import type { ElshadayRole } from "@/lib/elshaday-role";
 
 const ROLE_LABEL: Record<ElshadayRole, string> = {
   admin: "Administrador",
