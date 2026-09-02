@@ -98,7 +98,7 @@ export async function updateElshadayEvent(formData: FormData) {
   const eventId = text(formData, "evento_id");
   const returnTo = safeReturn(formData, `/elshaday/eventos/${eventId}`);
   const context = await requireElshadayContext(returnTo);
-  requireElshadayRole(context, ["admin", "pastor", "secretaria", "lider"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
   try {
     const current = await assertEvent(context, eventId);
@@ -234,7 +234,7 @@ export async function setElshadayEventStatus(formData: FormData) {
   const eventId = text(formData, "evento_id");
   const returnTo = safeReturn(formData, `/elshaday/eventos/${eventId}`);
   const context = await requireElshadayContext(returnTo);
-  requireElshadayRole(context, ["admin", "pastor", "secretaria", "lider"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
   try {
     await assertEvent(context, eventId);
@@ -267,7 +267,7 @@ export async function saveElshadayAttendance(formData: FormData) {
   const memberId = text(formData, "membro_id");
   const returnTo = safeReturn(formData, `/elshaday/eventos/${eventId}`);
   const context = await requireElshadayContext(returnTo);
-  requireElshadayRole(context, ["admin", "pastor", "secretaria", "lider"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
   try {
     await assertEvent(context, eventId);
@@ -302,7 +302,7 @@ export async function markAllElshadayAttendance(formData: FormData) {
   const eventId = text(formData, "evento_id");
   const returnTo = safeReturn(formData, `/elshaday/eventos/${eventId}`);
   const context = await requireElshadayContext(returnTo);
-  requireElshadayRole(context, ["admin", "pastor", "secretaria", "lider"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
   try {
     await assertEvent(context, eventId);
@@ -376,7 +376,7 @@ export async function updateElshadaySermon(formData: FormData) {
   const sermonId = text(formData, "pregacao_id");
   const returnTo = safeReturn(formData, `/elshaday/pregacoes/${sermonId}`);
   const context = await requireElshadayContext(returnTo);
-  requireElshadayRole(context, ["admin", "pastor", "secretaria", "lider"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
   try {
     const current = await assertSermon(context, sermonId);
@@ -418,7 +418,7 @@ export async function setElshadaySermonStatus(formData: FormData) {
   const sermonId = text(formData, "pregacao_id");
   const returnTo = safeReturn(formData, `/elshaday/pregacoes/${sermonId}`);
   const context = await requireElshadayContext(returnTo);
-  requireElshadayRole(context, ["admin", "pastor", "secretaria", "lider"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
   try {
     await assertSermon(context, sermonId);
@@ -696,7 +696,7 @@ export async function addElshadayMemberRelation(formData: FormData) {
   const memberId = text(formData, "membro_id");
   const returnTo = safeReturn(formData, `/elshaday/membros/${memberId}`);
   const context = await requireElshadayContext(returnTo);
-  requireElshadayRole(context, ["admin", "pastor", "secretaria"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
   try {
     const relativeId = text(formData, "parente_id");
@@ -729,7 +729,7 @@ export async function removeElshadayMemberRelation(formData: FormData) {
   const memberId = text(formData, "membro_id");
   const returnTo = safeReturn(formData, `/elshaday/membros/${memberId}`);
   const context = await requireElshadayContext(returnTo);
-  requireElshadayRole(context, ["admin", "pastor", "secretaria"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
   const id = text(formData, "relacao_id");
   const { error } = await context.admin
@@ -748,7 +748,7 @@ export async function uploadElshadayMemberPhoto(formData: FormData) {
   const memberId = text(formData, "membro_id");
   const returnTo = safeReturn(formData, `/elshaday/membros/${memberId}`);
   const context = await requireElshadayContext(returnTo);
-  requireElshadayRole(context, ["admin", "pastor", "secretaria"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
   try {
     const file = formData.get("foto");
@@ -795,7 +795,7 @@ export async function uploadElshadayMemberPhoto(formData: FormData) {
 
 export async function importElshadayMembers(formData: FormData) {
   const context = await requireElshadayContext("/elshaday/membros");
-  requireElshadayRole(context, ["admin", "pastor", "secretaria"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
   try {
     const file = formData.get("arquivo");
