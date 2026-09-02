@@ -95,6 +95,7 @@ export async function getElshadayPixStatus(igrejaId: string) {
     active: Boolean(config?.ativo),
     apiKeyConfigured: Boolean(apiKey),
     webhookTokenConfigured: Boolean(webhookToken),
+    addressKey,
     addressKeyConfigured: Boolean(addressKey),
     ready: Boolean(config?.ativo && apiKey && webhookToken && addressKey),
     webhookUrl: buildWebhookUrl(),
