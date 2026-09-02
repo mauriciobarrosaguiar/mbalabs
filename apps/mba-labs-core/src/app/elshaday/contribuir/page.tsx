@@ -112,7 +112,7 @@ export default async function ElshadayContributePage({
 
       <section className="grid gap-4 lg:hidden">
         <div className="px-1">
-          <p className="text-sm font-semibold text-slate-500">Generosidade</p>
+          <p className="text-sm font-semibold text-slate-600">Generosidade</p>
           <h1 className="mt-0.5 text-[30px] font-black tracking-tight text-slate-950">Contribua</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             Copie a chave PIX ou use o QR Code. Não é necessário ser membro.
@@ -192,7 +192,7 @@ export default async function ElshadayContributePage({
           </div>
         ) : pix.addressKey ? (
           <div className="mt-6 rounded-[22px] bg-white p-5">
-            <p className="text-xs font-black uppercase tracking-[.13em] text-slate-500">Chave PIX</p>
+            <p className="text-xs font-black uppercase tracking-[.13em] text-slate-600">Chave PIX</p>
             <p className="mt-2 break-all text-lg font-black text-slate-950">{pix.addressKey}</p>
             <div className="mt-4">
               <PixCopyButton value={pix.addressKey} />
@@ -317,7 +317,7 @@ export default async function ElshadayContributePage({
         <section className="overflow-hidden rounded-[28px] border border-emerald-950/10 bg-white">
           <div className="border-b border-slate-100 p-5">
             <h2 className="font-black">Meus PIX identificados</h2>
-            <p className="mt-1 text-sm text-slate-500">Últimas cobranças geradas pelo seu login.</p>
+            <p className="mt-1 text-sm text-slate-600">Últimas cobranças geradas pelo seu login.</p>
           </div>
           <div className="divide-y divide-slate-100">
             {recentCharges.map((charge: any) => (
@@ -328,7 +328,7 @@ export default async function ElshadayContributePage({
               >
                 <div>
                   <p className="font-black">{typeLabel(charge.tipo)}</p>
-                  <p className="mt-1 text-xs text-slate-500">{dateTimeBR(charge.created_at)}</p>
+                  <p className="mt-1 text-xs text-slate-600">{dateTimeBR(charge.created_at)}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-black">{moneyBR(charge.valor)}</p>
@@ -427,7 +427,7 @@ function ContributionTypeCard({
         {icon}
       </div>
       <p className="mt-4 text-lg font-black">{label}</p>
-      <p className={"mt-1 text-xs font-semibold " + (active ? "text-emerald-50/70" : "text-slate-500")}>
+      <p className={"mt-1 text-xs font-semibold " + (active ? "text-emerald-50/85" : "text-slate-600")}>
         Toque para selecionar
       </p>
     </a>
@@ -446,7 +446,7 @@ function IdentifiedChargeCard({ charge }: { charge: any }) {
     }`}>
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
         <div>
-          <p className="text-xs font-black uppercase tracking-[.14em] text-slate-500">
+          <p className="text-xs font-black uppercase tracking-[.14em] text-slate-600">
             PIX identificado
           </p>
           <h2 className="mt-1 text-2xl font-black">{typeLabel(charge.tipo)}</h2>
@@ -491,7 +491,7 @@ function IdentifiedChargeCard({ charge }: { charge: any }) {
             <PixCopyButton value={charge.qr_payload} />
           </div>
 
-          <p className="mt-4 text-center text-xs text-slate-500">
+          <p className="mt-4 text-center text-xs text-slate-600">
             Vencimento da cobrança: {charge.due_date ? dateBR(charge.due_date) : "—"}
           </p>
         </div>
