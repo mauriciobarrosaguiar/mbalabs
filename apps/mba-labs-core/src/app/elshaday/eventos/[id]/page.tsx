@@ -201,7 +201,34 @@ export default async function EventDetail({
                 Opcional. Ao aplicar à série, a nova capa também será aplicada aos eventos selecionados.
               </span>
             </label>
-            <Field label="Título" name="titulo" defaultValue={event.titulo} required />
+            <div className="grid gap-3 rounded-[22px] border border-emerald-200 bg-emerald-50/70 p-4 sm:col-span-2 lg:col-span-3">
+              <label className="flex items-start gap-3">
+                <input
+                  className="mt-0.5 size-5 shrink-0 accent-[#123d2d]"
+                  defaultChecked={Boolean(event.destacar_home)}
+                  name="destacar_home"
+                  type="checkbox"
+                />
+                <span>
+                  <span className="block font-black text-slate-900">Destacar no carrossel da Home</span>
+                  <span className="mt-1 block text-xs font-semibold leading-5 text-slate-600">
+                    A Agenda é a fonte deste destaque. Alterar título, horário, capa ou status atualiza automaticamente a Home.
+                  </span>
+                </span>
+              </label>
+              <label className="grid gap-2 text-sm font-bold text-slate-700 sm:max-w-[220px]">
+                Ordem na Home
+                <input
+                  className="input"
+                  defaultValue={event.ordem_home ?? 10}
+                  max={9999}
+                  min={0}
+                  name="ordem_home"
+                  type="number"
+                />
+              </label>
+            </div>
+                        <Field label="Título" name="titulo" defaultValue={event.titulo} required />
             <label className="grid gap-2 text-sm font-bold">
               Tipo
               <select className="input" name="tipo" defaultValue={event.tipo}>

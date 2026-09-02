@@ -29,6 +29,15 @@ function money(formData: FormData, key: string) {
   return Number(value.toFixed(2));
 }
 
+function homeOrder(formData: FormData) {
+  const raw = text(formData, "ordem_home") || "10";
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0 || value > 9999) {
+    throw new Error("A ordem do destaque deve ser um número entre 0 e 9999.");
+  }
+  return value;
+}
+
 function palmasDateTimeIso(value: string | null) {
   if (!value) return null;
   const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)
@@ -66,7 +75,7 @@ async function audit(context: any, action: string, details: Record<string, unkno
 async function assertEvent(context: any, id: string) {
   const { data, error } = await context.admin
     .from("igreja_eventos")
-    .select("id,igreja_id,status,inicio,fim,serie_id,recorrencia_tipo,recorrencia_ate,recorrencia_ordem,banner_url")
+    .select("id,igreja_id,status,inicio,fim,serie_id,recorrencia_tipo,recorrencia_ate,recorrencia_ordem,banner_url,destacar_home,ordem_home")
     .eq("id", id)
     .eq("igreja_id", context.igreja.id)
     .maybeSingle();
@@ -123,6 +132,8 @@ export async function updateElshadayEvent(formData: FormData) {
       tema: nullable(formData, "tema"),
       texto_biblico: nullable(formData, "texto_biblico"),
       publico: text(formData, "publico") || "todos",
+      destacar_home: text(formData, "destacar_home") === "on",
+      ordem_home: homeOrder(formData),
       updated_at: new Date().toISOString()
     };
     if (newBannerUrl) common.banner_url = newBannerUrl;
@@ -214,6 +225,7 @@ export async function updateElshadayEvent(formData: FormData) {
 
   revalidatePath("/elshaday");
   revalidatePath("/elshaday/eventos");
+  revalidatePath("/elshaday/configuracoes");
   revalidatePath(returnTo);
   withMessage(returnTo, "ok", "evento_atualizado");
 }
@@ -243,7 +255,9 @@ export async function setElshadayEventStatus(formData: FormData) {
     withMessage(returnTo, "erro", error instanceof Error ? error.message : "Falha ao alterar evento.");
   }
 
+  revalidatePath("/elshaday");
   revalidatePath("/elshaday/eventos");
+  revalidatePath("/elshaday/configuracoes");
   revalidatePath(returnTo);
   withMessage(returnTo, "ok", "status_evento");
 }

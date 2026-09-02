@@ -32,7 +32,7 @@ export default async function ElshadayDashboardPage() {
   const canSeeMembers = hasElshadayRole(context.papel, ["admin", "pastor", "secretaria", "lider"]);
   const canSeeFinance = hasElshadayRole(context.papel, ["admin", "tesouraria"]);
 
-  const [membersResult, eventsResult, sermonsResult, carouselResult, financeResult] = await Promise.all([
+  const [membersResult, eventsResult, sermonsResult, homeEventsResult, carouselResult, financeResult] = await Promise.all([
     !isMember && canSeeMembers
       ? context.admin
           .from("igreja_membros")
@@ -42,7 +42,7 @@ export default async function ElshadayDashboardPage() {
       : Promise.resolve({ count: null, data: null, error: null }),
     context.admin
       .from("igreja_eventos")
-      .select("id,titulo,tipo,inicio,fim,local,pregador,dirigente,tema,texto_biblico,publico,status,banner_url,serie_id,recorrencia_tipo")
+      .select("id,titulo,tipo,inicio,fim,local,pregador,dirigente,tema,texto_biblico,publico,status,banner_url,serie_id,recorrencia_tipo,destacar_home,ordem_home")
       .eq("igreja_id", context.igreja.id)
       .gte("inicio", now.toISOString())
       .neq("status", "cancelado")
@@ -55,6 +55,16 @@ export default async function ElshadayDashboardPage() {
       .eq("status", "ativo")
       .order("data_pregacao", { ascending: false })
       .limit(6),
+    context.admin
+      .from("igreja_eventos")
+      .select("id,titulo,tipo,inicio,local,status,banner_url,serie_id,recorrencia_tipo,destacar_home,ordem_home")
+      .eq("igreja_id", context.igreja.id)
+      .eq("destacar_home", true)
+      .eq("status", "agendado")
+      .gte("inicio", now.toISOString())
+      .order("ordem_home", { ascending: true })
+      .order("inicio", { ascending: true })
+      .limit(40),
     context.admin
       .from("igreja_carrossel")
       .select("id,titulo,subtitulo,imagem_url,link_url,ordem,ativo")
@@ -76,10 +86,12 @@ export default async function ElshadayDashboardPage() {
 
   if (eventsResult.error) throw new Error("Falha ao carregar a programação: " + eventsResult.error.message);
   if (sermonsResult.error) throw new Error("Falha ao carregar as pregações: " + sermonsResult.error.message);
+  if (homeEventsResult.error) throw new Error("Falha ao carregar os destaques da Agenda: " + homeEventsResult.error.message);
   if (carouselResult.error) throw new Error("Falha ao carregar o carrossel: " + carouselResult.error.message);
 
   const events = eventsResult.data ?? [];
   const sermons = sermonsResult.data ?? [];
+  const homeEvents = homeEventsResult.data ?? [];
   const configuredCarousel = carouselResult.data ?? [];
   const entries = financeResult.data ?? [];
   const monthTotal = entries.reduce((sum: number, row: any) => sum + Number(row.valor ?? 0), 0);
@@ -94,6 +106,7 @@ export default async function ElshadayDashboardPage() {
     <MobileAppHome
       events={events}
       sermons={sermons}
+      homeEvents={homeEvents}
       carouselItems={configuredCarousel}
       usuarioNome={context.current.usuario.nome}
       papel={context.papel}
@@ -232,6 +245,7 @@ export default async function ElshadayDashboardPage() {
 function MobileAppHome({
   events,
   sermons,
+  homeEvents,
   carouselItems,
   usuarioNome,
   papel,
@@ -240,6 +254,7 @@ function MobileAppHome({
 }: {
   events: any[];
   sermons: any[];
+  homeEvents: any[];
   carouselItems: any[];
   usuarioNome: string;
   papel: string;
@@ -248,13 +263,61 @@ function MobileAppHome({
 }) {
   const firstName = usuarioNome.trim().split(/\s+/)[0] || usuarioNome;
   const nextEvent = events[0];
-  const configuredMediaItems = carouselItems.map((item: any) => ({
-    id: "carrossel-" + item.id,
-    href: item.link_url || null,
-    title: item.titulo || null,
-    subtitle: item.subtitulo || null,
-    imageUrl: item.imagem_url
-  }));
+  const manualByTitle = new Map<string, any>(
+    carouselItems
+      .filter((item: any) => Boolean(item.imagem_url))
+      .map((item: any) => [
+        String(item.titulo ?? "").trim().toLocaleLowerCase("pt-BR"),
+        item
+      ] as [string, any])
+      .filter((entry: [string, any]) => Boolean(entry[0]))
+  );
+
+  const seenSeries = new Set<string>();
+  const syncedAgendaItems = homeEvents
+    .filter((event: any) => {
+      const key = event.serie_id ? "serie-" + event.serie_id : "evento-" + event.id;
+      if (seenSeries.has(key)) return false;
+      seenSeries.add(key);
+      return true;
+    })
+    .map((event: any) => {
+      const titleKey = String(event.titulo ?? "").trim().toLocaleLowerCase("pt-BR");
+      const manualFallback: any = manualByTitle.get(titleKey);
+      return {
+        id: "agenda-" + event.id,
+        href: "/elshaday/eventos/" + event.id,
+        title: event.titulo,
+        subtitle: dateTimeBR(event.inicio),
+        imageUrl: event.banner_url || manualFallback?.imagem_url || null,
+        order: Number(event.ordem_home ?? manualFallback?.ordem ?? 10)
+      };
+    })
+    .filter((item: any) => Boolean(item.imageUrl));
+
+  const syncedTitleKeys = new Set(
+    syncedAgendaItems
+      .map((item: any) => String(item.title ?? "").trim().toLocaleLowerCase("pt-BR"))
+      .filter(Boolean)
+  );
+
+  const configuredMediaItems = carouselItems
+    .filter((item: any) => {
+      const key = String(item.titulo ?? "").trim().toLocaleLowerCase("pt-BR");
+      return !key || !syncedTitleKeys.has(key);
+    })
+    .map((item: any) => ({
+      id: "carrossel-" + item.id,
+      href: item.link_url || null,
+      title: item.titulo || null,
+      subtitle: item.subtitulo || null,
+      imageUrl: item.imagem_url,
+      order: Number(item.ordem ?? 10)
+    }));
+
+  const synchronizedMediaItems = [...syncedAgendaItems, ...configuredMediaItems]
+    .sort((a, b) => a.order - b.order)
+    .slice(0, 10);
 
   const fallbackMediaItems = [
     ...events
@@ -277,7 +340,7 @@ function MobileAppHome({
       }))
   ].slice(0, 8);
 
-  const mediaItems = configuredMediaItems.length ? configuredMediaItems : fallbackMediaItems;
+  const mediaItems = synchronizedMediaItems.length ? synchronizedMediaItems : fallbackMediaItems;
 
   return (
     <div className="mx-auto grid max-w-2xl gap-5">
