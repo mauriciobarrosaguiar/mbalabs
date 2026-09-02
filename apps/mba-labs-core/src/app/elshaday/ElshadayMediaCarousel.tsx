@@ -6,8 +6,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export type ElshadayMediaCarouselItem = {
   id: string;
-  href: string;
-  title: string;
+  href?: string | null;
+  title?: string | null;
   subtitle?: string | null;
   imageUrl: string;
 };
@@ -40,6 +40,34 @@ export function ElshadayMediaCarousel({
     setIndex((current) => (current + delta + items.length) % items.length);
   }
 
+  const slide = (
+    <div className="relative block aspect-[16/9] w-full">
+      <img
+        alt={active.title || "Destaque da igreja"}
+        className="absolute inset-0 h-full w-full object-cover"
+        loading="eager"
+        src={active.imageUrl}
+      />
+      {active.title || active.subtitle ? (
+        <>
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/18 to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 p-5 text-white">
+            {active.subtitle ? (
+              <p className="text-[11px] font-black uppercase tracking-[.14em] text-white/70">
+                {active.subtitle}
+              </p>
+            ) : null}
+            {active.title ? (
+              <h2 className="mt-1 line-clamp-2 text-2xl font-black leading-tight tracking-tight">
+                {active.title}
+              </h2>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+
   return (
     <section
       aria-label="Destaques"
@@ -55,25 +83,13 @@ export function ElshadayMediaCarousel({
         touchStart.current = event.touches[0]?.clientX ?? null;
       }}
     >
-      <Link className="relative block aspect-[16/9] w-full" href={active.href}>
-        <img
-          alt={active.title}
-          className="absolute inset-0 h-full w-full object-cover"
-          loading="eager"
-          src={active.imageUrl}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/18 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-          {active.subtitle ? (
-            <p className="text-[11px] font-black uppercase tracking-[.14em] text-white/70">
-              {active.subtitle}
-            </p>
-          ) : null}
-          <h2 className="mt-1 line-clamp-2 text-2xl font-black leading-tight tracking-tight">
-            {active.title}
-          </h2>
-        </div>
-      </Link>
+      {active.href ? (
+        <Link className="block" href={active.href}>
+          {slide}
+        </Link>
+      ) : (
+        slide
+      )}
 
       {items.length > 1 ? (
         <>

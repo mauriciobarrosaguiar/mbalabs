@@ -32,7 +32,7 @@ export default async function ElshadayDashboardPage() {
   const canSeeMembers = hasElshadayRole(context.papel, ["admin", "pastor", "secretaria", "lider"]);
   const canSeeFinance = hasElshadayRole(context.papel, ["admin", "tesouraria"]);
 
-  const [membersResult, eventsResult, sermonsResult, financeResult] = await Promise.all([
+  const [membersResult, eventsResult, sermonsResult, carouselResult, financeResult] = await Promise.all([
     !isMember && canSeeMembers
       ? context.admin
           .from("igreja_membros")
@@ -55,6 +55,14 @@ export default async function ElshadayDashboardPage() {
       .eq("status", "ativo")
       .order("data_pregacao", { ascending: false })
       .limit(6),
+    context.admin
+      .from("igreja_carrossel")
+      .select("id,titulo,subtitulo,imagem_url,link_url,ordem,ativo")
+      .eq("igreja_id", context.igreja.id)
+      .eq("ativo", true)
+      .order("ordem", { ascending: true })
+      .order("created_at", { ascending: true })
+      .limit(10),
     !isMember && canSeeFinance
       ? context.admin
           .from("igreja_financeiro_entradas")
@@ -68,9 +76,11 @@ export default async function ElshadayDashboardPage() {
 
   if (eventsResult.error) throw new Error("Falha ao carregar a programação: " + eventsResult.error.message);
   if (sermonsResult.error) throw new Error("Falha ao carregar as pregações: " + sermonsResult.error.message);
+  if (carouselResult.error) throw new Error("Falha ao carregar o carrossel: " + carouselResult.error.message);
 
   const events = eventsResult.data ?? [];
   const sermons = sermonsResult.data ?? [];
+  const configuredCarousel = carouselResult.data ?? [];
   const entries = financeResult.data ?? [];
   const monthTotal = entries.reduce((sum: number, row: any) => sum + Number(row.valor ?? 0), 0);
   const titheTotal = entries
@@ -84,6 +94,7 @@ export default async function ElshadayDashboardPage() {
     <MobileAppHome
       events={events}
       sermons={sermons}
+      carouselItems={configuredCarousel}
       usuarioNome={context.current.usuario.nome}
       papel={context.papel}
       membersCount={membersResult.count ?? 0}
@@ -221,6 +232,7 @@ export default async function ElshadayDashboardPage() {
 function MobileAppHome({
   events,
   sermons,
+  carouselItems,
   usuarioNome,
   papel,
   membersCount,
@@ -228,6 +240,7 @@ function MobileAppHome({
 }: {
   events: any[];
   sermons: any[];
+  carouselItems: any[];
   usuarioNome: string;
   papel: string;
   membersCount: number;
@@ -235,7 +248,15 @@ function MobileAppHome({
 }) {
   const firstName = usuarioNome.trim().split(/\s+/)[0] || usuarioNome;
   const nextEvent = events[0];
-  const mediaItems = [
+  const configuredMediaItems = carouselItems.map((item: any) => ({
+    id: "carrossel-" + item.id,
+    href: item.link_url || null,
+    title: item.titulo || null,
+    subtitle: item.subtitulo || null,
+    imageUrl: item.imagem_url
+  }));
+
+  const fallbackMediaItems = [
     ...events
       .filter((event: any) => Boolean(event.banner_url))
       .map((event: any) => ({
@@ -255,6 +276,8 @@ function MobileAppHome({
         imageUrl: sermon.banner_url
       }))
   ].slice(0, 8);
+
+  const mediaItems = configuredMediaItems.length ? configuredMediaItems : fallbackMediaItems;
 
   return (
     <div className="mx-auto grid max-w-2xl gap-5">

@@ -11,6 +11,7 @@ import {
   LogOut,
   Mic2,
   QrCode,
+  Settings2,
   ShieldCheck,
   UsersRound
 } from "lucide-react";
@@ -31,6 +32,7 @@ export function ElshadayShell({
 }) {
   const canSeeMembers = ["admin", "pastor", "secretaria", "lider"].includes(papel);
   const canSeeFinance = papel === "admin" || papel === "tesouraria";
+  const canManageContent = ["admin", "pastor", "secretaria", "lider"].includes(papel);
   const canManageAccess = papel === "admin";
   const nav = [
     { href: "/elshaday", label: "Início", icon: Home },
@@ -43,6 +45,7 @@ export function ElshadayShell({
     { href: "/elshaday/eventos", label: "Cultos e eventos", icon: CalendarDays },
     { href: "/elshaday/pregacoes", label: "Pregações", icon: Mic2 },
     { href: "/elshaday/biblia", label: "Bíblia", icon: BookOpen },
+    ...(canManageContent ? [{ href: "/elshaday/configuracoes", label: "Configurações", icon: Settings2 }] : []),
     ...(canManageAccess ? [{ href: "/elshaday/acessos", label: "Acessos e perfis", icon: ShieldCheck }] : [])
   ];
 
