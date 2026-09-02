@@ -1,4 +1,5 @@
 import {
+  CalendarDays,
   ImagePlus,
   Images,
   Link2,
@@ -32,18 +33,42 @@ export default async function ElshadaySettingsPage({
   const context = await requireElshadayContext("/elshaday/configuracoes");
   requireElshadayRole(context, [...CONTENT_EDITOR_ROLES]);
 
-  const { data, error } = await context.admin
-    .from("igreja_carrossel")
-    .select("id,titulo,subtitulo,imagem_url,link_url,ordem,ativo,created_at,updated_at")
-    .eq("igreja_id", context.igreja.id)
-    .order("ordem", { ascending: true })
-    .order("created_at", { ascending: true });
+  const now = new Date().toISOString();
+  const [manualResult, agendaResult] = await Promise.all([
+    context.admin
+      .from("igreja_carrossel")
+      .select("id,titulo,subtitulo,imagem_url,link_url,ordem,ativo,created_at,updated_at")
+      .eq("igreja_id", context.igreja.id)
+      .order("ordem", { ascending: true })
+      .order("created_at", { ascending: true }),
+    context.admin
+      .from("igreja_eventos")
+      .select("id,titulo,tipo,inicio,local,banner_url,serie_id,recorrencia_tipo,destacar_home,ordem_home,status")
+      .eq("igreja_id", context.igreja.id)
+      .eq("destacar_home", true)
+      .eq("status", "agendado")
+      .gte("inicio", now)
+      .not("banner_url", "is", null)
+      .order("ordem_home", { ascending: true })
+      .order("inicio", { ascending: true })
+      .limit(80)
+  ]);
 
-  if (error) {
-    throw new Error("Falha ao carregar o carrossel: " + error.message);
+  if (manualResult.error) {
+    throw new Error("Falha ao carregar banners avulsos: " + manualResult.error.message);
+  }
+  if (agendaResult.error) {
+    throw new Error("Falha ao carregar destaques da Agenda: " + agendaResult.error.message);
   }
 
-  const items = data ?? [];
+  const items = manualResult.data ?? [];
+  const seenSeries = new Set<string>();
+  const agendaItems = (agendaResult.data ?? []).filter((event: any) => {
+    const key = event.serie_id ? "serie-" + event.serie_id : "evento-" + event.id;
+    if (seenSeries.has(key)) return false;
+    seenSeries.add(key);
+    return true;
+  });
   const ok = read(query.ok);
   const erro = read(query.erro);
 
@@ -56,7 +81,7 @@ export default async function ElshadaySettingsPage({
             Configurações
           </h1>
           <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-slate-600">
-            Controle as imagens que aparecem no carrossel da Home. Somente perfis autorizados podem alterar esta área.
+            A Agenda controla os destaques de cultos e eventos da Home. Aqui ficam também banners avulsos para avisos que não pertencem à Agenda.
           </p>
         </div>
         <div className="hidden size-12 place-items-center rounded-2xl bg-[#123d2d] text-[#f1d79d] sm:grid">
@@ -76,6 +101,63 @@ export default async function ElshadaySettingsPage({
         </div>
       ) : null}
 
+      <section className="rounded-[26px] border border-emerald-200 bg-emerald-50/70 p-4 shadow-sm sm:p-5">
+        <div className="flex items-start gap-3">
+          <div className="grid size-11 shrink-0 place-items-center rounded-[14px] bg-white text-[#123d2d] shadow-sm">
+            <CalendarDays size={22} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl font-black tracking-tight text-slate-950">Destaques sincronizados com a Agenda</h2>
+            <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
+              Estes itens não precisam ser cadastrados novamente. A próxima ocorrência de cada série é exibida e qualquer alteração feita na Agenda aparece automaticamente na Home.
+            </p>
+          </div>
+        </div>
+
+        {!agendaItems.length ? (
+          <div className="mt-4 rounded-[20px] border border-dashed border-emerald-300 bg-white/70 p-5 text-center">
+            <p className="font-black text-slate-900">Nenhum evento da Agenda está destacado na Home.</p>
+            <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+              Abra um culto ou evento e marque “Destacar no carrossel da Home”.
+            </p>
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-3">
+            {agendaItems.map((event: any, index: number) => (
+              <a
+                className="flex items-center gap-3 rounded-[20px] border border-emerald-200 bg-white p-3 shadow-sm"
+                href={"/elshaday/eventos/" + event.id}
+                key={event.id}
+              >
+                <img
+                  alt=""
+                  className="size-16 shrink-0 rounded-[16px] object-cover"
+                  src={event.banner_url}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-[#123d2d] px-2.5 py-1 text-[10px] font-black text-white">
+                      #{index + 1}
+                    </span>
+                    <span className="truncate text-xs font-black uppercase tracking-wide text-[#176445]">
+                      Agenda
+                    </span>
+                  </div>
+                  <p className="mt-1 truncate font-black text-slate-950">{event.titulo}</p>
+                  <p className="mt-1 truncate text-xs font-semibold text-slate-500">
+                    Ordem {event.ordem_home} · {new Intl.DateTimeFormat("pt-BR", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                      timeZone: "America/Araguaina"
+                    }).format(new Date(event.inicio))}
+                  </p>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+      </section>
+
       <section className="rounded-[26px] border border-emerald-950/10 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex items-center gap-3">
           <div className="grid size-11 shrink-0 place-items-center rounded-[14px] bg-emerald-50 text-[#123d2d]">
@@ -84,7 +166,7 @@ export default async function ElshadaySettingsPage({
           <div>
             <h2 className="text-xl font-black tracking-tight text-slate-950">Carrossel da Home</h2>
             <p className="mt-0.5 text-xs font-semibold text-slate-500">
-              {items.length} {items.length === 1 ? "imagem configurada" : "imagens configuradas"}
+              {agendaItems.length} da Agenda · {items.length} {items.length === 1 ? "banner avulso" : "banners avulsos"}
             </p>
           </div>
         </div>
@@ -93,7 +175,7 @@ export default async function ElshadaySettingsPage({
           <summary className="cursor-pointer list-none font-black text-slate-950">
             <span className="inline-flex items-center gap-2">
               <ImagePlus size={19} className="text-[#176445]" />
-              Adicionar imagem ao carrossel
+              Adicionar banner avulso
             </span>
           </summary>
 
@@ -151,7 +233,7 @@ export default async function ElshadaySettingsPage({
               className="min-h-12 rounded-2xl bg-[#123d2d] px-5 py-3 font-black text-white sm:col-span-2"
               type="submit"
             >
-              Adicionar ao carrossel
+              Adicionar banner avulso
             </button>
           </form>
         </details>
@@ -163,7 +245,7 @@ export default async function ElshadaySettingsPage({
             <Images className="mx-auto text-[#176445]" size={34} />
             <h2 className="mt-3 text-xl font-black text-slate-950">Carrossel ainda vazio</h2>
             <p className="mt-2 text-sm font-semibold leading-6 text-slate-500">
-              Adicione a primeira imagem acima. Enquanto não houver imagem configurada, a Home continua usando os banners de cultos e pregações como alternativa.
+              Use banners avulsos apenas para avisos que não pertencem à Agenda. Cultos e eventos devem ser destacados diretamente no cadastro da Agenda.
             </p>
           </div>
         ) : (
