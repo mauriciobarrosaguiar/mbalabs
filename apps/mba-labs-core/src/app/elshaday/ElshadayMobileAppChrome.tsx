@@ -176,7 +176,7 @@ export function ElshadayMobileAppChrome({
               <div className="mt-4 grid gap-2">
                 {moreItems.map(({ href, label, icon: Icon }) => (
                   <Link
-                    className="flex min-h-16 items-center gap-4 rounded-[20px] border border-slate-200/80 bg-white px-4 shadow-sm transition active:scale-[.99]"
+                    className="flex min-h-14 items-center gap-3 rounded-[18px] border border-slate-200/80 bg-white px-4 shadow-sm transition active:scale-[.99] sm:min-h-16 sm:gap-4 sm:rounded-[20px]"
                     href={href}
                     key={href}
                   >
@@ -191,22 +191,24 @@ export function ElshadayMobileAppChrome({
 
               <div className="mt-4 grid gap-2">
                 <Link
-                  className="flex min-h-14 items-center gap-3 rounded-[18px] border border-emerald-200 bg-emerald-50 px-4 font-bold text-[#123d2d]"
+                  className="flex min-h-12 items-center gap-3 rounded-[18px] border border-emerald-300 bg-emerald-50 px-4 font-black !text-[#123d2d]"
                   href="/elshaday"
+                  style={{ color: "#123d2d" }}
                 >
                   <Church size={19} />
                   Ver página pública
                 </Link>
                 <Link
-                  className="flex min-h-14 items-center gap-3 rounded-[18px] border border-slate-200 bg-white px-4 font-bold text-slate-700"
+                  className="flex min-h-12 items-center gap-3 rounded-[18px] border border-slate-300 bg-white px-4 font-black !text-slate-800"
                   href="/dashboard"
+                  style={{ color: "#1e293b" }}
                 >
                   <ArrowLeft size={19} />
                   MBA Labs
                 </Link>
                 <form action="/sair" method="post">
                   <button
-                    className="flex min-h-14 w-full items-center gap-3 rounded-[18px] border border-red-100 bg-red-50 px-4 text-left font-bold text-red-700"
+                    className="flex min-h-12 w-full items-center gap-3 rounded-[18px] border border-red-200 bg-red-50 px-4 text-left font-black !text-red-700"
                     type="submit"
                   >
                     <LogOut size={19} />
