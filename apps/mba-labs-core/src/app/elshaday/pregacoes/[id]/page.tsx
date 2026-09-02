@@ -152,7 +152,7 @@ export default async function SermonDetail({
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                 />
-                <span className="text-xs font-medium leading-5 text-slate-500">
+                <span className="text-xs font-medium leading-5 text-slate-600">
                   Opcional. Se escolher uma nova imagem, ela substitui a capa atual.
                 </span>
               </label>
@@ -162,12 +162,12 @@ export default async function SermonDetail({
               <label className="grid min-w-0 gap-2 text-sm font-bold text-slate-800 sm:col-span-2">
                 Palavra / mensagem completa
                 <textarea
-                  className="min-h-72 min-w-0 rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 placeholder:text-slate-500"
+                  className="min-h-72 min-w-0 rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 placeholder:text-slate-600"
                   name="esboco"
                   defaultValue={fullMessage}
                   required
                 />
-                <span className="text-xs font-medium leading-5 text-slate-500">
+                <span className="text-xs font-medium leading-5 text-slate-600">
                   Edite tudo em um único campo. Ao salvar, a mensagem fica consolidada.
                 </span>
               </label>
@@ -305,7 +305,7 @@ function TextArea({
     <label className="grid gap-2 text-sm font-bold">
       {label}
       <textarea
-        className="min-h-28 min-w-0 rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 placeholder:text-slate-500"
+        className="min-h-28 min-w-0 rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 placeholder:text-slate-600"
         name={name}
         defaultValue={defaultValue}
       />
