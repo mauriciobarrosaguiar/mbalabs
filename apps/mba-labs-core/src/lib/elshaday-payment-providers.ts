@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { getElshadayProviderSecrets } from "@/lib/elshaday-payment-secrets";
 
 export type ElshadayPixProvider =
   | "asaas"
@@ -130,12 +131,22 @@ export async function listElshadayPixProviderStatus(igrejaId: string) {
   const configByProvider = new Map<ElshadayPixProvider, ProviderConfigRow>(
     (data ?? []).map((row: ProviderConfigRow) => [row.provider, row])
   );
+  const secretPairs = await Promise.all(
+    ELSHADAY_PIX_PROVIDERS.map(async (definition) => [
+      definition.id,
+      await getElshadayProviderSecrets(igrejaId, definition.id)
+    ] as const)
+  );
+  const secretsByProvider = new Map(secretPairs);
 
   return ELSHADAY_PIX_PROVIDERS.map((definition) => {
     const config = configByProvider.get(definition.id) ?? null;
+    const storedSecrets = secretsByProvider.get(definition.id) ?? {};
     const requiredEnvironment = definition.environmentVariableNames.map((name) => ({
       name,
-      configured: Boolean(String(process.env[name] ?? "").trim())
+      configured: Boolean(
+        String(process.env[name] ?? secretForEnvironment(definition.id, name, storedSecrets) ?? "").trim()
+      )
     }));
     const optionalEnvironment = (definition.optionalEnvironmentVariableNames ?? []).map((name) => ({
       name,
@@ -299,6 +310,21 @@ export function getElshadayPixProviderDefinition(provider: string) {
 
 export function parseElshadayPixProvider(value: string): ElshadayPixProvider {
   return getElshadayPixProviderDefinition(value).id;
+}
+
+function secretForEnvironment(
+  provider: ElshadayPixProvider,
+  environmentName: string,
+  secrets: Record<string, string>
+) {
+  if (provider === "asaas") {
+    if (environmentName === "ELSHADAY_ASAAS_API_KEY") return secrets.apiKey;
+    if (environmentName === "ELSHADAY_ASAAS_WEBHOOK_TOKEN") return secrets.webhookToken;
+  }
+  if (provider === "pagbank" && environmentName === "ELSHADAY_PAGBANK_TOKEN") {
+    return secrets.token;
+  }
+  return "";
 }
 
 function buildProviderWebhookUrl(provider: ElshadayPixProvider) {
