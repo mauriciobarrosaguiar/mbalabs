@@ -45,6 +45,15 @@ function positiveMoney(formData: FormData, key: string) {
   return Number(value.toFixed(2));
 }
 
+function homeOrder(formData: FormData) {
+  const raw = text(formData, "ordem_home") || "10";
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 0 || value > 9999) {
+    throw new Error("A ordem do destaque deve ser um número entre 0 e 9999.");
+  }
+  return value;
+}
+
 function palmasDateTimeIso(value: string) {
   if (!value) throw new Error("Informe data e horário.");
   const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)
@@ -259,6 +268,8 @@ export async function createElshadayEvent(formData: FormData) {
 
   const recurrence = eventRecurrenceType(text(formData, "recorrencia_tipo"));
   const recurrenceUntil = recurrence === "nenhuma" ? null : nullable(formData, "recorrencia_ate");
+  const destacarHome = text(formData, "destacar_home") === "on";
+  const ordemHome = homeOrder(formData);
   const starts = buildRecurringLocalStarts(inicio, recurrence, recurrenceUntil);
   const firstStartIso = palmasDateTimeIso(inicio);
   const fimRaw = nullable(formData, "fim");
@@ -311,7 +322,9 @@ export async function createElshadayEvent(formData: FormData) {
     serie_id: seriesId,
     recorrencia_tipo: recurrence,
     recorrencia_ate: recurrenceUntil,
-    banner_url: bannerUrl
+    banner_url: bannerUrl,
+    destacar_home: destacarHome,
+    ordem_home: ordemHome
   };
 
   const rows = starts.map((localStart, index) => {
@@ -338,6 +351,7 @@ export async function createElshadayEvent(formData: FormData) {
 
   revalidatePath("/elshaday");
   revalidatePath("/elshaday/eventos");
+  revalidatePath("/elshaday/configuracoes");
 }
 
 export async function createElshadaySermon(formData: FormData) {
