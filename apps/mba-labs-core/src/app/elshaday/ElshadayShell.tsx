@@ -76,7 +76,7 @@ export function ElshadayShell({
           <div className="mt-auto rounded-2xl border border-white/10 bg-white/5 p-4">
             <p className="font-black">{usuarioNome}</p>
             <p className="mt-1 text-sm text-emerald-100/85">{elshadayRoleLabel(papel)}</p>
-            <Link className="mt-4 flex items-center gap-2 text-sm font-bold text-[#f1d79d]" href="/elshaday">
+            <Link className="mt-4 flex items-center gap-2 text-sm font-bold text-[#f1d79d]" href="/elshaday/publico">
               <Church size={16} />
               Ver página pública
             </Link>
