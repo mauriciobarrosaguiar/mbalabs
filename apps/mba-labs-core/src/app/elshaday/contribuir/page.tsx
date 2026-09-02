@@ -12,8 +12,9 @@ import {
 } from "lucide-react";
 import {
   dateBR,
-  moneyBR,
-  requireElshadayContext
+  getOptionalElshadayContext,
+  getPublicElshadayContext,
+  moneyBR
 } from "@/lib/elshaday";
 import { getElshadayPixStatus } from "@/lib/elshaday-payments";
 import { getElshadayIdentifiedPixStatus } from "@/lib/elshaday-payment-providers";
@@ -28,20 +29,28 @@ export default async function ElshadayContributePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const query = await searchParams;
-  const context = await requireElshadayContext("/elshaday/contribuir");
+  const context = await getOptionalElshadayContext();
+  const publicContext = await getPublicElshadayContext();
+  const igreja = context?.igreja ?? publicContext.igreja;
+  const admin = context?.admin ?? publicContext.admin;
+
   const [pix, identifiedPix] = await Promise.all([
-    getElshadayPixStatus(context.igreja.id),
-    getElshadayIdentifiedPixStatus(context.igreja.id)
+    getElshadayPixStatus(igreja.id),
+    context ? getElshadayIdentifiedPixStatus(igreja.id) : Promise.resolve(null)
   ]);
 
-  const { data: member, error: memberError } = await context.admin
-    .from("igreja_membros")
-    .select("id,nome,cpf,situacao")
-    .eq("igreja_id", context.igreja.id)
-    .eq("user_id", context.current.authUser.id)
-    .maybeSingle();
+  let member: any = null;
+  if (context) {
+    const { data, error: memberError } = await admin
+      .from("igreja_membros")
+      .select("id,nome,cpf,situacao")
+      .eq("igreja_id", igreja.id)
+      .eq("user_id", context.current.authUser.id)
+      .maybeSingle();
 
-  if (memberError) throw new Error(`Falha ao carregar vínculo do membro: ${memberError.message}`);
+    if (memberError) throw new Error(`Falha ao carregar vínculo do membro: ${memberError.message}`);
+    member = data ?? null;
+  }
 
   const chargeId = readParam(query.cobranca);
   const errorMessage = readParam(query.erro);
@@ -57,18 +66,18 @@ export default async function ElshadayContributePage({
   if (member?.id) {
     const [chargeResult, recentResult] = await Promise.all([
       chargeId
-        ? context.admin
+        ? admin
             .from("igreja_pix_cobrancas")
             .select("id,membro_id,tipo,descricao,valor,status,due_date,qr_payload,qr_image,qr_expiration_at,paid_at,created_at")
-            .eq("igreja_id", context.igreja.id)
+            .eq("igreja_id", igreja.id)
             .eq("membro_id", member.id)
             .eq("id", chargeId)
             .maybeSingle()
         : Promise.resolve({ data: null, error: null }),
-      context.admin
+      admin
         .from("igreja_pix_cobrancas")
         .select("id,tipo,valor,status,created_at,paid_at")
-        .eq("igreja_id", context.igreja.id)
+        .eq("igreja_id", igreja.id)
         .eq("membro_id", member.id)
         .order("created_at", { ascending: false })
         .limit(6)
@@ -97,7 +106,7 @@ export default async function ElshadayContributePage({
         <p className="mt-4 text-xs font-black uppercase tracking-[.16em] text-[#176445]">Contribuições</p>
         <h1 className="mt-1 text-3xl font-black">Contribuir via PIX</h1>
         <p className="mx-auto mt-3 max-w-2xl text-slate-600">
-          Gere um PIX identificado para que Dízimo, Oferta ou Campanha entre automaticamente na categoria correta.
+          Contribua por PIX mesmo sem login. Membros com acesso também podem gerar um PIX identificado.
         </p>
       </header>
 
@@ -106,7 +115,7 @@ export default async function ElshadayContributePage({
           <p className="text-sm font-semibold text-slate-500">Generosidade</p>
           <h1 className="mt-0.5 text-[30px] font-black tracking-tight text-slate-950">Contribua</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Escolha como deseja contribuir com a obra.
+            Copie a chave PIX ou use o QR Code. Não é necessário ser membro.
           </p>
         </div>
 
@@ -145,9 +154,63 @@ export default async function ElshadayContributePage({
         <Message kind="success">PIX identificado gerado. Faça o pagamento no aplicativo do seu banco.</Message>
       ) : null}
 
-      {currentCharge ? (
-        <IdentifiedChargeCard charge={currentCharge} />
-      ) : (
+      <section className="rounded-[30px] border border-emerald-200 bg-emerald-50 p-5 shadow-sm sm:p-7">
+        <div className="flex items-start gap-3">
+          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-[#123d2d] text-[#f4d992]">
+            <QrCode size={23} />
+          </div>
+          <div>
+            <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">PIX da igreja</p>
+            <h2 className="mt-1 text-2xl font-black text-emerald-950">Contribua sem precisar fazer login</h2>
+            <p className="mt-2 text-sm leading-6 text-emerald-950/70">
+              Abra o aplicativo do seu banco, copie o PIX abaixo ou leia o QR Code. A contribuição pode ser feita por qualquer pessoa.
+            </p>
+          </div>
+        </div>
+
+        {pix.staticQrImage ? (
+          <div className="mx-auto mt-6 max-w-[280px] rounded-[28px] bg-white p-4 shadow-sm">
+            <img
+              alt="QR Code PIX da Igreja Elshaday"
+              className="h-auto w-full"
+              src={imageSource(pix.staticQrImage)}
+            />
+          </div>
+        ) : null}
+
+        {pix.staticQrPayload ? (
+          <div className="mt-5">
+            <p className="text-center text-xs font-black uppercase tracking-[.13em] text-emerald-900/60">PIX Copia e Cola</p>
+            <textarea
+              className="mx-auto mt-3 block min-h-28 w-full max-w-2xl rounded-2xl border border-emerald-200 bg-white p-3 text-xs text-slate-900"
+              readOnly
+              value={pix.staticQrPayload}
+            />
+            <div className="mt-4 flex justify-center">
+              <PixCopyButton value={pix.staticQrPayload} />
+            </div>
+          </div>
+        ) : pix.addressKey ? (
+          <div className="mt-6 rounded-[22px] bg-white p-5">
+            <p className="text-xs font-black uppercase tracking-[.13em] text-slate-500">Chave PIX</p>
+            <p className="mt-2 break-all text-lg font-black text-slate-950">{pix.addressKey}</p>
+            <div className="mt-4">
+              <PixCopyButton value={pix.addressKey} />
+            </div>
+          </div>
+        ) : (
+          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center text-amber-950">
+            <CircleAlert className="mx-auto mb-2" size={25} />
+            <p className="font-black">PIX ainda não configurado</p>
+            <p className="mt-1 text-sm">A Tesouraria precisa cadastrar a chave PIX ou ativar uma integração.</p>
+          </div>
+        )}
+      </section>
+
+      {context ? (
+        currentCharge ? (
+          <IdentifiedChargeCard charge={currentCharge} />
+        ) : (
         <section id="contribuir" className="rounded-[28px] border border-emerald-950/10 bg-white p-5 shadow-sm sm:p-7">
           <div className="flex items-start gap-3">
             <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-emerald-100 text-emerald-800">
@@ -232,6 +295,22 @@ export default async function ElshadayContributePage({
             </p>
           </div>
         </section>
+        )
+      ) : (
+        <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-0.5 shrink-0 text-[#176445]" size={20} />
+            <div>
+              <h2 className="font-black">PIX identificado é opcional</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Você já pode contribuir usando a chave PIX acima. Se for membro e quiser que a contribuição seja vinculada automaticamente ao seu cadastro, entre no aplicativo.
+              </p>
+              <a className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-slate-900 px-5 text-sm font-black text-white" href="/login?next=%2Felshaday%2Fcontribuir">
+                Entrar como membro
+              </a>
+            </div>
+          </div>
+        </section>
       )}
 
       {member && recentCharges.length > 0 ? (
@@ -261,8 +340,9 @@ export default async function ElshadayContributePage({
         </section>
       ) : null}
 
+      {context ? (
       <details className="rounded-[28px] border border-slate-200 bg-slate-50 p-5">
-        <summary className="cursor-pointer list-none font-black">PIX geral da igreja</summary>
+        <summary className="cursor-pointer list-none font-black">Detalhes do PIX geral</summary>
         <p className="mt-2 text-sm leading-6 text-slate-600">
           Use esta opção quando não quiser vincular a contribuição ao seu cadastro ou selecionar uma categoria.
         </p>
@@ -296,6 +376,7 @@ export default async function ElshadayContributePage({
           </div>
         )}
       </details>
+      ) : null}
 
       <style>{`
         .input {
