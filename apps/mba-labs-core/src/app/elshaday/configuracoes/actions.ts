@@ -11,7 +11,7 @@ import {
   uploadElshadayContentImage
 } from "@/lib/elshaday-media";
 
-const CONTENT_EDITOR_ROLES = ["admin", "pastor"] as const;
+const CONTENT_EDITOR_ROLES = ["admin", "pastor", "tesouraria", "secretaria", "lider"] as const;
 
 function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
