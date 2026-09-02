@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { CalendarDays, Church, HandCoins, LogIn, ShieldCheck, UserRoundPlus } from "lucide-react";
+import { CalendarDays, Church, HandCoins, LogIn, LogOut, ShieldCheck, UserRoundPlus } from "lucide-react";
 
 export function ElshadayPublicShell({
   children,
@@ -48,12 +48,33 @@ export function ElshadayPublicShell({
               {hasInternalAccess ? <ShieldCheck size={16} /> : <LogIn size={16} />}
               {internalLabel}
             </Link>
+            {hasInternalAccess ? (
+              <form action="/sair" method="post">
+                <button className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 text-sm font-black !text-red-700" type="submit">
+                  <LogOut size={16} />
+                  Sair
+                </button>
+              </form>
+            ) : null}
           </nav>
 
-          <Link className="inline-flex items-center gap-2 rounded-xl bg-[#d4aa54] px-3 py-2 text-sm font-black text-[#123d2d] md:hidden" href={internalHref}>
-            {hasInternalAccess ? <ShieldCheck size={16} /> : <LogIn size={16} />}
-            {internalLabel}
-          </Link>
+          <div className="flex shrink-0 items-center gap-2 md:hidden">
+            <Link className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#d4aa54] px-3 py-2 text-sm font-black text-[#123d2d]" href={internalHref}>
+              {hasInternalAccess ? <ShieldCheck size={16} /> : <LogIn size={16} />}
+              {internalLabel}
+            </Link>
+            {hasInternalAccess ? (
+              <form action="/sair" method="post">
+                <button
+                  aria-label="Sair do sistema"
+                  className="grid size-11 place-items-center rounded-xl border border-red-200 bg-red-50 !text-red-700 shadow-sm"
+                  type="submit"
+                >
+                  <LogOut size={18} />
+                </button>
+              </form>
+            ) : null}
+          </div>
         </div>
       </header>
 
