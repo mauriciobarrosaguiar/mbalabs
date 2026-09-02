@@ -192,9 +192,9 @@ export async function PrivateElshadayDashboard() {
                 </div>
                 <ArrowRight className="text-slate-300 transition group-hover:text-[#176445]" size={18} />
               </div>
-              <p className="mt-5 text-sm font-bold text-slate-500">{label}</p>
+              <p className="mt-5 text-sm font-bold text-slate-600">{label}</p>
               <p className="mt-1 text-2xl font-black tracking-tight">{value}</p>
-              <p className="mt-2 text-xs leading-5 text-slate-500">{detail}</p>
+              <p className="mt-2 text-xs leading-5 text-slate-600">{detail}</p>
             </Link>
           ))}
         </section>
@@ -355,7 +355,6 @@ function MobileAppHome({
     <div className="mx-auto grid max-w-2xl gap-5">
       <section className="flex items-center justify-between gap-3 px-1 pt-1">
         <div>
-          <p className="text-sm font-semibold text-slate-500">{greeting()},</p>
           <h1 className="mt-0.5 text-[28px] font-black tracking-tight text-slate-950">{firstName}</h1>
         </div>
         <div className="grid size-12 place-items-center rounded-full bg-emerald-50 text-[#123d2d]">
@@ -380,14 +379,14 @@ function MobileAppHome({
               <CalendarHeart size={22} className="text-[#f4d992]" />
             </div>
             <div className="mt-auto">
-              <p className="text-xs font-black uppercase tracking-[.16em] text-emerald-100/70">
+              <p className="text-xs font-black uppercase tracking-[.16em] text-emerald-100/85">
                 {typeLabel(nextEvent.tipo)}
               </p>
               <h2 className="mt-2 max-w-[90%] text-[30px] font-black leading-[1.05] tracking-tight">
                 {nextEvent.titulo}
               </h2>
               <p className="mt-4 font-bold text-emerald-50">{dateTimeBR(nextEvent.inicio)}</p>
-              <p className="mt-1 text-sm text-emerald-50/70">
+              <p className="mt-1 text-sm text-emerald-50/85">
                 {[nextEvent.local, nextEvent.pregador].filter(Boolean).join(" · ") || "Detalhes da programação"}
               </p>
               <div className="mt-4 inline-flex items-center gap-2 text-sm font-black text-[#f4d992]">
@@ -403,7 +402,7 @@ function MobileAppHome({
         >
           <CalendarHeart className="mx-auto text-[#176445]" size={34} />
           <h2 className="mt-3 text-xl font-black">Agenda da igreja</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-500">Nenhuma programação futura cadastrada.</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Nenhuma programação futura cadastrada.</p>
         </Link>
       )}
 
@@ -411,7 +410,7 @@ function MobileAppHome({
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-black tracking-tight text-slate-950">Minha agenda</h2>
-            <p className="mt-0.5 text-xs font-semibold text-slate-500">Próximos encontros</p>
+            <p className="mt-0.5 text-xs font-semibold text-slate-600">Próximos encontros</p>
           </div>
           <Link className="text-sm font-black text-[#176445]" href="/elshaday/eventos">
             Ver todos
@@ -430,12 +429,12 @@ function MobileAppHome({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-black text-slate-900">{event.titulo}</p>
-                <p className="mt-1 truncate text-xs font-semibold text-slate-500">{dateTimeBR(event.inicio)}</p>
+                <p className="mt-1 truncate text-xs font-semibold text-slate-600">{dateTimeBR(event.inicio)}</p>
               </div>
-              <ChevronRight className="shrink-0 text-slate-400" size={19} />
+              <ChevronRight className="shrink-0 text-slate-600" size={19} />
             </Link>
           ))}
-          {!events.length ? <p className="py-3 text-center text-sm text-slate-500">Sem programações futuras.</p> : null}
+          {!events.length ? <p className="py-3 text-center text-sm text-slate-600">Sem programações futuras.</p> : null}
         </div>
       </section>
 
@@ -451,7 +450,7 @@ function MobileAppHome({
         </div>
 
         {!sermons.length ? (
-          <div className="mt-4 rounded-[20px] bg-[#f7f8f4] p-5 text-center text-sm text-slate-500">
+          <div className="mt-4 rounded-[20px] bg-[#f7f8f4] p-5 text-center text-sm text-slate-600">
             Nenhuma pregação publicada ainda.
           </div>
         ) : (
@@ -498,7 +497,7 @@ function MobileAppHome({
                 >
                   <Mic2 className="text-[#176445]" size={20} />
                   <p className="mt-3 line-clamp-2 font-black leading-snug text-slate-900">{sermon.titulo}</p>
-                  <p className="mt-2 truncate text-xs font-semibold text-slate-500">{sermon.pregador}</p>
+                  <p className="mt-2 truncate text-xs font-semibold text-slate-600">{sermon.pregador}</p>
                 </Link>
               ))}
             </div>
@@ -506,7 +505,7 @@ function MobileAppHome({
         )}
       </section>
 
-      <section className="grid grid-cols-2 gap-3">
+      <section className="grid min-w-0 grid-cols-2 gap-3">
         <QuickLink
           href="/elshaday/biblia"
           icon={<BookOpen size={22} />}
@@ -558,7 +557,7 @@ function QuickLink({
     >
       <div className="grid size-11 place-items-center rounded-[14px] bg-emerald-50 text-[#123d2d]">{icon}</div>
       <p className="mt-4 font-black text-slate-950">{label}</p>
-      <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">{detail}</p>
+      <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">{detail}</p>
     </Link>
   );
 }
@@ -595,7 +594,7 @@ function DashboardList({
 
 function Empty({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
+    <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-600">
       {text}
     </div>
   );
