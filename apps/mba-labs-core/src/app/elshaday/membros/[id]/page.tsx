@@ -205,7 +205,7 @@ export default async function ElshadayMemberDetailPage({
 
         {context.papel !== "lider" ? (
           <div className="mt-5 rounded-2xl bg-slate-50 p-4">
-            <p className="text-xs font-black uppercase tracking-wide text-slate-500">Observações</p>
+            <p className="text-xs font-black uppercase tracking-wide text-slate-600">Observações</p>
             <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{member.observacoes || "Nenhuma observação registrada."}</p>
           </div>
         ) : null}
@@ -219,7 +219,7 @@ export default async function ElshadayMemberDetailPage({
           </div>
 
           {relations.length === 0 ? (
-            <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+            <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
               Nenhum vínculo familiar registrado.
             </p>
           ) : (
@@ -228,7 +228,7 @@ export default async function ElshadayMemberDetailPage({
                 <div className="flex items-center justify-between gap-3 rounded-2xl bg-slate-50 p-4" key={relation.id}>
                   <div>
                     <p className="font-black">{memberNameById.get(String(relation.parente_id)) || "Membro"}</p>
-                    <p className="mt-1 text-xs text-slate-500">{relationLabel(relation.tipo)}</p>
+                    <p className="mt-1 text-xs text-slate-600">{relationLabel(relation.tipo)}</p>
                     {relation.observacoes ? (
                       <p className="mt-2 text-xs text-slate-600">{relation.observacoes}</p>
                     ) : null}
@@ -413,7 +413,7 @@ export default async function ElshadayMemberDetailPage({
           {currentAccess ? (
             <div className="mt-5 rounded-2xl border border-sky-200 bg-white p-4">
               <p className="font-black">{currentAccess.nome}</p>
-              <p className="mt-1 text-sm text-slate-500">{currentAccess.email}</p>
+              <p className="mt-1 text-sm text-slate-600">{currentAccess.email}</p>
               <p className="mt-2 text-xs font-black text-sky-800">
                 Perfil: {roleLabel(String(currentAccess.permission?.perfil_app || "membro") as ElshadayRole)}
               </p>
@@ -546,7 +546,7 @@ function Field({
 function Data({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl bg-slate-50 p-4">
-      <p className="text-xs font-black uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-xs font-black uppercase tracking-wide text-slate-600">{label}</p>
       <p className="mt-2 [overflow-wrap:anywhere] text-sm font-bold text-slate-800">{value}</p>
     </div>
   );
@@ -556,7 +556,7 @@ function Info({ icon, label, value }: { icon: ReactNode; label: string; value: s
   return (
     <article className="min-w-0 rounded-[24px] border border-emerald-950/10 bg-white p-5">
       <div className="text-[#176445]">{icon}</div>
-      <p className="mt-3 text-xs font-black uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="mt-3 text-xs font-black uppercase tracking-wide text-slate-600">{label}</p>
       <p className="mt-1 [overflow-wrap:anywhere] text-sm font-bold text-slate-900">{value}</p>
     </article>
   );
