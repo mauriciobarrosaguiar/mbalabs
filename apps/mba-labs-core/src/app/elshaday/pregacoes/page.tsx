@@ -18,7 +18,7 @@ export default async function ElshadaySermonsPage({
 }) {
   const query = await searchParams;
   const context = await requireElshadayContext("/elshaday/pregacoes");
-  const canManage = hasElshadayRole(context.papel, ["admin", "pastor", "secretaria", "lider"]);
+  const canManage = hasElshadayRole(context.papel, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
   const q = read(query.q);
   const status = read(query.status) || "ativo";
 
