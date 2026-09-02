@@ -108,9 +108,6 @@ export default async function ElshadayMembersPage({
               </div>
               <div>
                 <h2 className="font-black text-emerald-950">Link de autocadastro dos membros</h2>
-                <p className="mt-1 text-sm leading-6 text-emerald-900/75">
-                  Envie este link no WhatsApp ou coloque em um QR Code. O membro preenche a própria ficha sem precisar de login.
-                </p>
                 <p className="mt-2 break-all text-sm font-black text-[#176445]">/cadastro-membro</p>
               </div>
             </div>
@@ -219,7 +216,7 @@ export default async function ElshadayMembersPage({
       <section className="rounded-[28px] border border-emerald-950/10 bg-white p-5 shadow-sm">
         <form className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_190px_220px_auto]" method="get">
           <label className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
             <input
               className="input w-full pl-11"
               defaultValue={readParam(params.q)}
@@ -246,9 +243,8 @@ export default async function ElshadayMembersPage({
           </button>
         </form>
         {(q || situacao || ministerio) ? (
-          <div className="mt-3 flex items-center justify-between gap-3 text-sm">
-            <p className="text-slate-500">{filtered.length} resultado(s)</p>
-            <Link className="font-black text-[#176445]" href="/elshaday/membros">Limpar filtros</Link>
+          <div className="mt-3 flex justify-end">
+            <Link className="text-sm font-black text-[#176445]" href="/elshaday/membros">Limpar filtros</Link>
           </div>
         ) : null}
       </section>
@@ -257,18 +253,18 @@ export default async function ElshadayMembersPage({
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 p-5">
           <div>
             <h2 className="font-black">Membros cadastrados</h2>
-            <p className="mt-1 text-sm text-slate-500">{filtered.length} exibido(s) de {allMembers.length}</p>
+            <p className="mt-1 text-sm text-slate-600">{filtered.length} exibido(s) de {allMembers.length}</p>
           </div>
           <UserCheck size={21} className="text-[#176445]" />
         </div>
 
         {filtered.length === 0 ? (
-          <p className="p-8 text-center text-slate-500">Nenhum membro encontrado.</p>
+          <p className="p-8 text-center text-slate-600">Nenhum membro encontrado.</p>
         ) : (
           <>
             <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                   <tr>
                     <th className="px-5 py-4">Nome</th>
                     <th className="px-5 py-4">Contato</th>
@@ -284,7 +280,7 @@ export default async function ElshadayMembersPage({
                     <tr className="border-t border-slate-100" key={member.id}>
                       <td className="px-5 py-4">
                         <p className="font-black">{member.nome}</p>
-                        <p className="mt-1 text-xs text-slate-500">{member.cargo || "Membro"}</p>
+                        <p className="mt-1 text-xs text-slate-600">{member.cargo || "Membro"}</p>
                       </td>
                       <td className="px-5 py-4 text-slate-600">
                         {member.whatsapp || member.telefone || member.email || "-"}
@@ -319,7 +315,7 @@ export default async function ElshadayMembersPage({
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-black">{member.nome}</p>
-                      <p className="mt-1 text-sm text-slate-500">{member.cargo || member.ministerio || "Membro"}</p>
+                      <p className="mt-1 text-sm text-slate-600">{member.cargo || member.ministerio || "Membro"}</p>
                     </div>
                     <Status value={member.situacao} />
                   </div>
@@ -404,7 +400,7 @@ function Field({
 function Kpi({ label, value }: { label: string; value: number }) {
   return (
     <article className="rounded-[24px] border border-emerald-950/10 bg-white p-5">
-      <p className="text-sm font-bold text-slate-500">{label}</p>
+      <p className="text-sm font-bold text-slate-600">{label}</p>
       <p className="mt-2 text-3xl font-black">{value}</p>
     </article>
   );
@@ -413,7 +409,7 @@ function Kpi({ label, value }: { label: string; value: number }) {
 function AccessBadge({ linked }: { linked: boolean }) {
   return (
     <span className={`inline-flex rounded-full px-3 py-1 text-xs font-black ${
-      linked ? "bg-sky-100 text-sky-800" : "bg-slate-100 text-slate-500"
+      linked ? "bg-sky-100 text-sky-800" : "bg-slate-100 text-slate-600"
     }`}>
       {linked ? "Vinculado" : "Sem login"}
     </span>
