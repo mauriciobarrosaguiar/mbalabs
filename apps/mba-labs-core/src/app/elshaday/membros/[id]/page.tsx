@@ -42,9 +42,9 @@ export default async function ElshadayMemberDetailPage({
   const { id } = await params;
   const query = await searchParams;
   const context = await requireElshadayContext(`/elshaday/membros/${id}`);
-  requireElshadayRole(context, ["admin", "pastor", "secretaria", "lider"]);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
-  const canManage = hasElshadayRole(context.papel, ["admin", "pastor", "secretaria"]);
+  const canManage = hasElshadayRole(context.papel, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
   const canManageAccess = context.papel === "admin";
 
   const { data: member, error } = await context.admin
