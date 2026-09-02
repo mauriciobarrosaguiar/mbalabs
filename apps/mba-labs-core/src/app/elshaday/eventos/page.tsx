@@ -15,7 +15,7 @@ export default async function ElshadayEventsPage({
 }) {
   const query = await searchParams;
   const context = await requireElshadayContext("/elshaday/eventos");
-  const canManage = hasElshadayRole(context.papel, ["admin", "pastor", "secretaria", "lider"]);
+  const canManage = hasElshadayRole(context.papel, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
   const q = read(query.q);
   const status = read(query.status);
   const type = read(query.tipo);
