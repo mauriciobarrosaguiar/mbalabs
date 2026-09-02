@@ -40,7 +40,7 @@ export function ElshadayPublicShell({
               Contribuir
             </Link>
             <Link className="rounded-xl px-3 py-2 text-sm font-bold text-emerald-50/85 hover:bg-white/10" href="/cadastro-membro">
-              Cadastro
+              Seja membro
             </Link>
             <Link className="ml-2 inline-flex items-center gap-2 rounded-xl bg-[#d4aa54] px-4 py-2 text-sm font-black text-[#123d2d]" href={internalHref}>
               {hasInternalAccess ? <ShieldCheck size={16} /> : <LogIn size={16} />}
