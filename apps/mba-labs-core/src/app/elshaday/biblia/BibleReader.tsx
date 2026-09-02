@@ -7,6 +7,8 @@ import {
   BookOpenText,
   ChevronLeft,
   ChevronRight,
+  Check,
+  CircleCheckBig,
   Heart,
   LoaderCircle,
   MessageSquareText,
@@ -101,9 +103,11 @@ const NEW_TESTAMENT_START = BOOKS.findIndex((book) => book.id === "MAT");
 
 export function BibleReader({
   favoriteReferences,
+  initialReadChapters,
   userKey
 }: {
   favoriteReferences: string[];
+  initialReadChapters: Array<{ bookId: string; chapter: number }>;
   userKey: string;
 }) {
   const router = useRouter();
@@ -119,12 +123,22 @@ export function BibleReader({
   const [favoriteSet, setFavoriteSet] = useState<Set<string>>(
     () => new Set(favoriteReferences)
   );
+  const [readSet, setReadSet] = useState<Set<string>>(
+    () => new Set(initialReadChapters.map((item) => chapterKey(item.bookId, item.chapter)))
+  );
+  const [savingProgress, setSavingProgress] = useState(false);
   const queueKey = FAVORITE_QUEUE_PREFIX + userKey;
 
   const book = useMemo(
     () => BOOKS.find((item) => item.id === bookId) ?? null,
     [bookId]
   );
+  useEffect(() => {
+    setReadSet(
+      new Set(initialReadChapters.map((item) => chapterKey(item.bookId, item.chapter)))
+    );
+  }, [initialReadChapters]);
+
   useEffect(() => {
     const queued = readFavoriteQueue(queueKey);
     const next = new Set(favoriteReferences);
@@ -251,6 +265,65 @@ export function BibleReader({
     }
   }
 
+  function bookReadCount(id: string) {
+    let count = 0;
+    for (const key of readSet) {
+      if (key.startsWith(id + ":")) count += 1;
+    }
+    return count;
+  }
+
+  function bookProgress(item: Book) {
+    const read = bookReadCount(item.id);
+    return {
+      read,
+      percent: Math.round((read / item.chapters) * 100)
+    };
+  }
+
+  async function toggleChapterRead() {
+    if (!book || !chapter || savingProgress) return;
+
+    const key = chapterKey(book.id, chapter);
+    const nextRead = !readSet.has(key);
+
+    setReadSet((current) => {
+      const next = new Set(current);
+      if (nextRead) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+    setSavingProgress(true);
+
+    try {
+      const response = await fetch("/api/elshaday/biblia/progresso", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          livroId: book.id,
+          capitulo: chapter,
+          lido: nextRead
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("Falha ao salvar progresso.");
+      }
+
+      router.refresh();
+    } catch {
+      setReadSet((current) => {
+        const next = new Set(current);
+        if (nextRead) next.delete(key);
+        else next.add(key);
+        return next;
+      });
+      setError("Não foi possível salvar o progresso deste capítulo.");
+    } finally {
+      setSavingProgress(false);
+    }
+  }
+
   function chooseBook(id: string) {
     setBookId(id);
     setChapter(null);
@@ -341,24 +414,44 @@ export function BibleReader({
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {filteredBooks.map((item) => (
-            <button
-              className="group min-h-28 rounded-[22px] border border-emerald-950/10 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-emerald-700/30 hover:shadow-md"
-              key={item.id}
-              onClick={() => chooseBook(item.id)}
-              type="button"
-            >
-              <span className="text-xs font-black uppercase tracking-[.12em] text-[#b6872f]">
-                {testamentLabel(item.id)}
-              </span>
-              <p className="mt-2 text-lg font-black text-slate-900">{item.name}</p>
-              <p className="mt-1 text-xs text-slate-500">{item.chapters} capítulo{item.chapters === 1 ? "" : "s"}</p>
-              <div className="mt-3 flex items-center gap-1 text-xs font-black text-[#176445]">
-                Escolher
-                <ChevronRight className="transition group-hover:translate-x-1" size={14} />
-              </div>
-            </button>
-          ))}
+          {filteredBooks.map((item) => {
+            const progress = bookProgress(item);
+            return (
+              <button
+                className="group min-h-32 rounded-[22px] border border-emerald-950/10 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-emerald-700/30 hover:shadow-md"
+                key={item.id}
+                onClick={() => chooseBook(item.id)}
+                type="button"
+              >
+                <span className="text-xs font-black uppercase tracking-[.12em] text-[#b6872f]">
+                  {testamentLabel(item.id)}
+                </span>
+                <div className="mt-2 flex items-start justify-between gap-2">
+                  <p className="min-w-0 text-lg font-black text-slate-900">{item.name}</p>
+                  <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-black text-[#176445]">
+                    {progress.percent}%
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">
+                  {progress.read} de {item.chapters} capítulo{item.chapters === 1 ? "" : "s"}
+                </p>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-[#176445] transition-all"
+                    style={{ width: progress.percent + "%" }}
+                  />
+                </div>
+                <div className="mt-3 flex items-center gap-1 text-xs font-black text-[#176445]">
+                  {progress.percent === 100 ? "Concluído" : "Continuar"}
+                  {progress.percent === 100 ? (
+                    <Check size={14} />
+                  ) : (
+                    <ChevronRight className="transition group-hover:translate-x-1" size={14} />
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {!filteredBooks.length ? (
@@ -385,20 +478,47 @@ export function BibleReader({
           <p className="text-xs font-black uppercase tracking-[.16em] text-[#f1d79d]">
             {testamentLabel(book.id)}
           </p>
-          <h2 className="mt-2 text-3xl font-black">{book.name}</h2>
+          <div className="mt-2 flex items-end justify-between gap-3">
+            <h2 className="text-3xl font-black">{book.name}</h2>
+            <span className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-black text-white">
+              {bookProgress(book).percent}%
+            </span>
+          </div>
+          <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/15">
+            <div
+              className="h-full rounded-full bg-[#d4aa54]"
+              style={{ width: bookProgress(book).percent + "%" }}
+            />
+          </div>
+          <p className="mt-2 text-xs font-bold text-emerald-50/85">
+            {bookProgress(book).read} de {book.chapters} capítulos lidos
+          </p>
         </section>
 
         <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
-          {Array.from({ length: book.chapters }, (_, index) => index + 1).map((number) => (
-            <button
-              className="aspect-square rounded-2xl border border-emerald-950/10 bg-white text-sm font-black transition hover:bg-[#123d2d] hover:text-white"
-              key={number}
-              onClick={() => chooseChapter(number)}
-              type="button"
-            >
-              {number}
-            </button>
-          ))}
+          {Array.from({ length: book.chapters }, (_, index) => index + 1).map((number) => {
+            const read = readSet.has(chapterKey(book.id, number));
+            return (
+              <button
+                className={
+                  "relative aspect-square rounded-2xl border text-sm font-black transition " +
+                  (read
+                    ? "border-emerald-700 bg-emerald-50 text-emerald-900"
+                    : "border-emerald-950/10 bg-white text-slate-900 hover:bg-[#123d2d] hover:text-white")
+                }
+                key={number}
+                onClick={() => chooseChapter(number)}
+                type="button"
+              >
+                {number}
+                {read ? (
+                  <span className="absolute right-1.5 top-1.5 text-[#176445]">
+                    <Check size={13} strokeWidth={3} />
+                  </span>
+                ) : null}
+              </button>
+            );
+          })}
         </div>
       </div>
     );
@@ -475,8 +595,8 @@ export function BibleReader({
           <h2 className="font-serif text-3xl font-bold text-slate-900 sm:text-4xl">
             {book.name} {chapter}
           </h2>
-          <p className="mt-2 text-xs font-semibold text-slate-400">
-            Capítulo {chapter} de {book.chapters}
+          <p className="mt-2 text-xs font-semibold text-slate-600">
+            Capítulo {chapter} de {book.chapters} · {bookProgress(book).percent}% do livro concluído
           </p>
         </header>
 
@@ -620,6 +740,52 @@ export function BibleReader({
         )}
       </article>
 
+      <section className={
+        "rounded-[24px] border p-4 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-4 " +
+        (readSet.has(chapterKey(book.id, chapter))
+          ? "border-emerald-200 bg-emerald-50"
+          : "border-emerald-950/10 bg-white")
+      }>
+        <div className="flex items-center gap-3">
+          <div className={
+            "grid size-11 shrink-0 place-items-center rounded-2xl " +
+            (readSet.has(chapterKey(book.id, chapter))
+              ? "bg-[#176445] text-white"
+              : "bg-emerald-50 text-[#176445]")
+          }>
+            <CircleCheckBig size={22} />
+          </div>
+          <div>
+            <p className="font-black text-slate-950">
+              {readSet.has(chapterKey(book.id, chapter))
+                ? "Capítulo marcado como lido"
+                : "Terminou este capítulo?"}
+            </p>
+            <p className="mt-1 text-xs font-semibold text-slate-600">
+              {bookProgress(book).read} de {book.chapters} capítulos · {bookProgress(book).percent}%
+            </p>
+          </div>
+        </div>
+        <button
+          className={
+            "mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-black sm:mt-0 sm:w-auto " +
+            (readSet.has(chapterKey(book.id, chapter))
+              ? "border border-emerald-300 bg-white text-[#176445]"
+              : "bg-[#123d2d] text-white")
+          }
+          disabled={savingProgress}
+          onClick={() => void toggleChapterRead()}
+          type="button"
+        >
+          <Check size={17} />
+          {savingProgress
+            ? "Salvando..."
+            : readSet.has(chapterKey(book.id, chapter))
+              ? "Desmarcar como lido"
+              : "Marcar capítulo como lido"}
+        </button>
+      </section>
+
       <div className="grid grid-cols-2 gap-3">
         <button
           className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white font-black disabled:opacity-40"
@@ -649,6 +815,10 @@ function StudyBlock({ title, text }: { title: string; text: string }) {
       <p className="mt-2 text-sm leading-7 text-slate-700">{text}</p>
     </div>
   );
+}
+
+function chapterKey(bookId: string, chapter: number) {
+  return bookId + ":" + chapter;
 }
 
 function testamentLabel(bookId: string) {
