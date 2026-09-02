@@ -66,9 +66,6 @@ export default async function ElshadayEventsPage({
         <div>
           <p className="text-xs font-black uppercase tracking-[.16em] text-[#176445]">Agenda</p>
           <h1 className="mt-1 text-3xl font-black">Cultos e eventos</h1>
-          <p className="mt-2 text-slate-600">
-            {upcoming.length} programações futuras · {history.length} no histórico.
-          </p>
         </div>
         <div className="grid size-12 place-items-center rounded-2xl bg-[#123d2d] text-[#f1d79d]">
           <CalendarDays size={25} />
@@ -78,7 +75,6 @@ export default async function ElshadayEventsPage({
       <section className="grid gap-4 lg:hidden">
         <div className="flex items-end justify-between gap-3 px-1">
           <div>
-            <p className="text-sm font-semibold text-slate-500">Programação</p>
             <h1 className="mt-0.5 text-[30px] font-black tracking-tight text-slate-950">Agenda</h1>
           </div>
           {canManage ? (
@@ -108,7 +104,7 @@ export default async function ElshadayEventsPage({
                           <CalendarDays size={22} className="text-[#f4d992]" />
                         </div>
                         <div className="mt-auto">
-                          <p className="text-xs font-black uppercase tracking-[.14em] text-emerald-100/70">
+                          <p className="text-xs font-black uppercase tracking-[.14em] text-emerald-100/85">
                             {upcoming[0].tipo}
                           </p>
                           <h2 className="mt-2 text-2xl font-black leading-tight">{upcoming[0].titulo}</h2>
@@ -123,7 +119,7 @@ export default async function ElshadayEventsPage({
                       </div>
                     </Link>
                   ) : (
-                    <div className="rounded-[26px] border border-dashed border-emerald-950/15 bg-white p-7 text-center text-slate-500">
+                    <div className="rounded-[26px] border border-dashed border-emerald-950/15 bg-white p-7 text-center text-slate-600">
                       <CalendarDays className="mx-auto text-[#176445]" size={30} />
                       <p className="mt-3 font-black text-slate-900">Nenhuma programação futura</p>
                     </div>
@@ -135,11 +131,11 @@ export default async function ElshadayEventsPage({
               <Filter size={18} className="text-[#176445]" />
               Filtrar agenda
             </span>
-            <ChevronRight size={18} className="text-slate-400" />
+            <ChevronRight size={18} className="text-slate-600" />
           </summary>
           <form className="grid gap-3 border-t border-slate-100 p-4" method="get">
             <label className="relative">
-              <Search className="absolute left-3 top-3.5 text-slate-400" size={17} />
+              <Search className="absolute left-3 top-3.5 text-slate-600" size={17} />
               <input
                 className="input pl-10"
                 name="q"
@@ -199,10 +195,10 @@ export default async function ElshadayEventsPage({
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-black text-slate-950">{event.titulo}</p>
-                  <p className="mt-1 truncate text-xs font-semibold text-slate-500">{dateTimeBR(event.inicio)}</p>
-                  {event.local ? <p className="mt-1 truncate text-xs text-slate-500">{event.local}</p> : null}
+                  <p className="mt-1 truncate text-xs font-semibold text-slate-600">{dateTimeBR(event.inicio)}</p>
+                  {event.local ? <p className="mt-1 truncate text-xs text-slate-600">{event.local}</p> : null}
                 </div>
-                <ChevronRight className="shrink-0 text-slate-400" size={20} />
+                <ChevronRight className="shrink-0 text-slate-600" size={20} />
               </Link>
             ))}
           </div>
@@ -214,7 +210,7 @@ export default async function ElshadayEventsPage({
         method="get"
       >
         <label className="relative">
-          <Search className="absolute left-3 top-3.5 text-slate-400" size={17} />
+          <Search className="absolute left-3 top-3.5 text-slate-600" size={17} />
           <input
             className="input pl-10"
             name="q"
@@ -265,7 +261,7 @@ export default async function ElshadayEventsPage({
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
               />
-              <span className="text-xs font-medium leading-5 text-slate-500">
+              <span className="text-xs font-medium leading-5 text-slate-600">
                 Opcional. JPG, PNG ou WebP de até 5 MB. Em uma recorrência, a mesma capa será usada na série.
               </span>
             </label>
@@ -342,7 +338,7 @@ export default async function ElshadayEventsPage({
             <label className="grid gap-2 text-sm font-bold text-slate-700 sm:col-span-2 lg:col-span-3">
               Descrição / programação
               <textarea
-                className="min-h-24 rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 outline-none placeholder:text-slate-500 focus:border-emerald-700"
+                className="min-h-24 rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 outline-none placeholder:text-slate-600 focus:border-emerald-700"
                 name="descricao"
               />
             </label>
@@ -379,7 +375,7 @@ function EventSection({ title, rows }: { title: string; rows: any[] }) {
         </span>
       </div>
       {!rows.length ? (
-        <div className="rounded-[26px] border border-dashed border-slate-300 bg-white p-8 text-center text-slate-500">
+        <div className="rounded-[26px] border border-dashed border-slate-300 bg-white p-8 text-center text-slate-600">
           Nenhuma programação nesta seção.
         </div>
       ) : (
