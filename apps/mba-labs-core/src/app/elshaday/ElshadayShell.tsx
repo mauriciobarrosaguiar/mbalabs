@@ -56,11 +56,8 @@ export function ElshadayShell({
             <div className="grid size-12 place-items-center rounded-2xl bg-[#d4aa54] text-[#123d2d]">
               <Church size={27} strokeWidth={2.4} />
             </div>
-            <p className="mt-4 text-xs font-black uppercase tracking-[.18em] text-emerald-100/70">
-              MBA Labs
-            </p>
-            <h1 className="mt-1 text-2xl font-black">Elshaday Gestão</h1>
-            <p className="mt-2 text-sm leading-6 text-emerald-50/75">{igrejaNome}</p>
+            <h1 className="mt-4 text-2xl font-black">Elshaday Gestão</h1>
+            <p className="mt-2 text-sm leading-6 text-emerald-50/85">{igrejaNome}</p>
           </div>
 
           <nav className="mt-6 grid gap-2">
@@ -78,7 +75,7 @@ export function ElshadayShell({
 
           <div className="mt-auto rounded-2xl border border-white/10 bg-white/5 p-4">
             <p className="font-black">{usuarioNome}</p>
-            <p className="mt-1 text-sm text-emerald-100/70">{elshadayRoleLabel(papel)}</p>
+            <p className="mt-1 text-sm text-emerald-100/85">{elshadayRoleLabel(papel)}</p>
             <Link className="mt-4 flex items-center gap-2 text-sm font-bold text-[#f1d79d]" href="/elshaday">
               <Church size={16} />
               Ver página pública
@@ -103,7 +100,7 @@ export function ElshadayShell({
             papel={papel}
           />
 
-          <main className="min-w-0 max-w-full overflow-x-hidden px-4 pb-28 pt-4 sm:px-6 sm:pt-6 lg:p-8">{children}</main>
+          <main className="min-w-0 max-w-full overflow-x-hidden px-3 pb-28 pt-4 sm:px-6 sm:pt-6 lg:p-8">{children}</main>
         </div>
       </div>
       <style>{`
@@ -127,6 +124,20 @@ export function ElshadayShell({
         .elshaday-app select option {
           color: #0f172a;
           background: #ffffff;
+        }
+        .elshaday-app h1,
+        .elshaday-app h2,
+        .elshaday-app h3,
+        .elshaday-app p,
+        .elshaday-app span,
+        .elshaday-app a,
+        .elshaday-app button {
+          overflow-wrap: anywhere;
+        }
+        .elshaday-app img,
+        .elshaday-app video {
+          max-width: 100%;
+          height: auto;
         }
         @media (max-width: 1023px) {
           .elshaday-app input:not([type="file"]),
