@@ -382,7 +382,7 @@ export function BibleReader({
       <div className="grid gap-6">
         <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
           <label className="relative">
-            <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
+            <Search className="absolute left-4 top-3.5 text-slate-600" size={18} />
             <input
               className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white pl-11 pr-4 outline-none focus:border-emerald-600"
               onChange={(event) => setSearch(event.target.value)}
@@ -413,49 +413,57 @@ export function BibleReader({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {filteredBooks.map((item) => {
-            const progress = bookProgress(item);
-            return (
-              <button
-                className="group min-h-32 rounded-[22px] border border-emerald-950/10 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-emerald-700/30 hover:shadow-md"
-                key={item.id}
-                onClick={() => chooseBook(item.id)}
-                type="button"
-              >
-                <span className="text-xs font-black uppercase tracking-[.12em] text-[#b6872f]">
-                  {testamentLabel(item.id)}
-                </span>
-                <div className="mt-2 flex items-start justify-between gap-2">
-                  <p className="min-w-0 text-lg font-black text-slate-900">{item.name}</p>
-                  <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-black text-[#176445]">
-                    {progress.percent}%
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-slate-600">
-                  {progress.read} de {item.chapters} capítulo{item.chapters === 1 ? "" : "s"}
-                </p>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full bg-[#176445] transition-all"
-                    style={{ width: progress.percent + "%" }}
-                  />
-                </div>
-                <div className="mt-3 flex items-center gap-1 text-xs font-black text-[#176445]">
-                  {progress.percent === 100 ? "Concluído" : "Continuar"}
-                  {progress.percent === 100 ? (
-                    <Check size={14} />
-                  ) : (
-                    <ChevronRight className="transition group-hover:translate-x-1" size={14} />
-                  )}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <section className="overflow-hidden rounded-[24px] border border-emerald-950/10 bg-white">
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 sm:px-5">
+            <h2 className="font-black text-slate-950">Selecionar livro</h2>
+            <span className="text-xs font-bold text-slate-600">Progresso</span>
+          </div>
+
+          <div className="divide-y divide-slate-100">
+            {filteredBooks.map((item) => {
+              const progress = bookProgress(item);
+              const complete = progress.percent === 100;
+
+              return (
+                <button
+                  className="group flex w-full min-w-0 items-center gap-3 px-4 py-3.5 text-left transition hover:bg-emerald-50/50 sm:px-5"
+                  key={item.id}
+                  onClick={() => chooseBook(item.id)}
+                  type="button"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className={"truncate text-base font-black sm:text-lg " + (complete ? "text-[#176445]" : "text-slate-950")}>
+                      {item.name}
+                    </p>
+                    <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className={"h-full rounded-full transition-all " + (complete ? "bg-[#176445]" : "bg-[#d4aa54]")}
+                        style={{ width: progress.percent + "%" }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-2">
+                    <div className="text-right">
+                      <p className={"text-sm font-black " + (complete ? "text-[#176445]" : "text-slate-700")}>
+                        {progress.read}/{item.chapters}
+                      </p>
+                      <p className="text-xs font-bold text-slate-600">{progress.percent}%</p>
+                    </div>
+                    {complete ? (
+                      <CircleCheckBig className="text-[#176445]" size={20} />
+                    ) : (
+                      <ChevronRight className="text-slate-600 transition group-hover:translate-x-0.5" size={19} />
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
 
         {!filteredBooks.length ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-500">
+          <div className="rounded-2xl border border-dashed border-slate-300 p-8 text-center text-slate-600">
             Nenhum livro encontrado com essa busca.
           </div>
         ) : null}
@@ -474,14 +482,14 @@ export function BibleReader({
           <ArrowLeft size={16} /> Escolher outro livro
         </button>
 
-        <section className="rounded-[30px] bg-[#123d2d] p-6 text-white sm:p-8">
+        <section className="rounded-[26px] bg-[#123d2d] p-5 text-white sm:p-7">
           <p className="text-xs font-black uppercase tracking-[.16em] text-[#f1d79d]">
             {testamentLabel(book.id)}
           </p>
           <div className="mt-2 flex items-end justify-between gap-3">
             <h2 className="text-3xl font-black">{book.name}</h2>
-            <span className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-black text-white">
-              {bookProgress(book).percent}%
+            <span className="rounded-full bg-[#d4aa54] px-3 py-1.5 text-sm font-black text-[#123d2d]">
+              {bookProgress(book).percent}% concluído
             </span>
           </div>
           <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/15">
@@ -495,7 +503,7 @@ export function BibleReader({
           </p>
         </section>
 
-        <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
+        <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12">
           {Array.from({ length: book.chapters }, (_, index) => index + 1).map((number) => {
             const read = readSet.has(chapterKey(book.id, number));
             return (
@@ -567,7 +575,7 @@ export function BibleReader({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="mr-1 text-xs font-bold text-slate-400">Letra</span>
+          <span className="mr-1 text-xs font-bold text-slate-600">Letra</span>
           <button
             aria-label="Diminuir letra"
             className="grid size-9 place-items-center rounded-xl border border-slate-200 bg-white disabled:opacity-40"
@@ -601,7 +609,7 @@ export function BibleReader({
         </header>
 
         {loading ? (
-          <div className="grid min-h-72 place-items-center text-slate-500">
+          <div className="grid min-h-72 place-items-center text-slate-600">
             <div className="text-center">
               <LoaderCircle className="mx-auto animate-spin text-[#176445]" size={32} />
               <p className="mt-3 text-sm">Carregando capítulo...</p>
@@ -612,7 +620,7 @@ export function BibleReader({
             {error}
           </div>
         ) : verses.length === 0 ? (
-          <p className="py-16 text-center text-slate-500">Capítulo sem conteúdo retornado.</p>
+          <p className="py-16 text-center text-slate-600">Capítulo sem conteúdo retornado.</p>
         ) : (
           <>
             <div className="mx-auto max-w-4xl px-4 py-7 sm:px-10 sm:py-10">
@@ -671,7 +679,7 @@ export function BibleReader({
                         </h3>
                       </div>
                     </div>
-                    <ChevronRight className="shrink-0 text-slate-400 transition group-open:rotate-90" size={20} />
+                    <ChevronRight className="shrink-0 text-slate-600 transition group-open:rotate-90" size={20} />
                   </div>
                 </summary>
 
@@ -688,7 +696,7 @@ export function BibleReader({
                               <span className="rounded-full bg-[#123d2d] px-3 py-1 text-[11px] font-black uppercase tracking-[.12em] text-[#f1d79d]">
                                 {note.source}
                               </span>
-                              <span className="text-xs font-bold text-slate-400">
+                              <span className="text-xs font-bold text-slate-600">
                                 Nota fornecida pelo usuário
                               </span>
                             </div>
@@ -740,50 +748,59 @@ export function BibleReader({
         )}
       </article>
 
-      <section className={
-        "rounded-[24px] border p-4 shadow-sm sm:flex sm:items-center sm:justify-between sm:gap-4 " +
-        (readSet.has(chapterKey(book.id, chapter))
-          ? "border-emerald-200 bg-emerald-50"
-          : "border-emerald-950/10 bg-white")
-      }>
-        <div className="flex items-center gap-3">
-          <div className={
-            "grid size-11 shrink-0 place-items-center rounded-2xl " +
-            (readSet.has(chapterKey(book.id, chapter))
-              ? "bg-[#176445] text-white"
-              : "bg-emerald-50 text-[#176445]")
-          }>
-            <CircleCheckBig size={22} />
-          </div>
-          <div>
-            <p className="font-black text-slate-950">
-              {readSet.has(chapterKey(book.id, chapter))
-                ? "Capítulo marcado como lido"
-                : "Terminou este capítulo?"}
-            </p>
-            <p className="mt-1 text-xs font-semibold text-slate-600">
-              {bookProgress(book).read} de {book.chapters} capítulos · {bookProgress(book).percent}%
+      <section className="rounded-[24px] border border-emerald-950/10 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-base font-black text-slate-950">Marcar capítulo como lido</p>
+            <p className="mt-1 text-sm font-bold text-slate-600">
+              {bookProgress(book).read}/{book.chapters} capítulos · {bookProgress(book).percent}%
             </p>
           </div>
+
+          <button
+            aria-pressed={readSet.has(chapterKey(book.id, chapter))}
+            aria-label={readSet.has(chapterKey(book.id, chapter)) ? "Desmarcar capítulo como lido" : "Marcar capítulo como lido"}
+            className={
+              "relative h-9 w-16 shrink-0 rounded-full transition " +
+              (readSet.has(chapterKey(book.id, chapter))
+                ? "bg-[#176445]"
+                : "bg-slate-300")
+            }
+            disabled={savingProgress}
+            onClick={() => void toggleChapterRead()}
+            type="button"
+          >
+            <span
+              className={
+                "absolute top-1 grid size-7 place-items-center rounded-full bg-white shadow transition-all " +
+                (readSet.has(chapterKey(book.id, chapter)) ? "left-8" : "left-1")
+              }
+            >
+              {readSet.has(chapterKey(book.id, chapter)) ? (
+                <Check className="text-[#176445]" size={15} strokeWidth={3} />
+              ) : null}
+            </span>
+          </button>
         </div>
-        <button
-          className={
-            "mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-black sm:mt-0 sm:w-auto " +
-            (readSet.has(chapterKey(book.id, chapter))
-              ? "border border-emerald-300 bg-white text-[#176445]"
-              : "bg-[#123d2d] text-white")
-          }
-          disabled={savingProgress}
-          onClick={() => void toggleChapterRead()}
-          type="button"
-        >
-          <Check size={17} />
-          {savingProgress
-            ? "Salvando..."
-            : readSet.has(chapterKey(book.id, chapter))
-              ? "Desmarcar como lido"
-              : "Marcar capítulo como lido"}
-        </button>
+
+        <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-[#176445] transition-all"
+            style={{ width: bookProgress(book).percent + "%" }}
+          />
+        </div>
+
+        {bookProgress(book).percent === 100 ? (
+          <div className="mt-5 rounded-[20px] bg-emerald-50 p-5 text-center">
+            <p className="text-lg font-black text-[#176445]">
+              Você concluiu o livro de {book.name}
+            </p>
+            <div className="mt-3 flex items-center justify-center gap-3 text-[#176445]">
+              <CircleCheckBig size={34} />
+              <span className="text-4xl font-black">100%</span>
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <div className="grid grid-cols-2 gap-3">
