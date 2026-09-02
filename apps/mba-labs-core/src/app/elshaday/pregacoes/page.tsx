@@ -33,7 +33,7 @@ export default async function ElshadaySermonsPage({
   if (q) {
     const term = q.replace(/[%,]/g, " ").trim();
     request = request.or(
-      "titulo.ilike.%" + term + "%,tema.ilike.%" + term + "%,pregador.ilike.%" + term + "%,texto_base.ilike.%" + term + "%"
+      "titulo.ilike.%" + term + "%,tema.ilike.%" + term + "%,pregador.ilike.%" + term + "%,texto_base.ilike.%" + term + "%,esboco.ilike.%" + term + "%"
     );
   }
 
@@ -112,7 +112,7 @@ export default async function ElshadaySermonsPage({
             <ChevronRight size={18} className="text-slate-400" />
           </summary>
           <form className="grid gap-3 border-t border-slate-100 p-4" method="get">
-            <input className="input" name="q" defaultValue={q} placeholder="Título, tema, pregador..." />
+            <input className="input" name="q" defaultValue={q} placeholder="Título, pregador ou conteúdo..." />
             <select className="input" name="status" defaultValue={status}>
               <option value="ativo">Ativas</option>
               <option value="arquivado">Arquivadas</option>
@@ -164,7 +164,7 @@ export default async function ElshadaySermonsPage({
             className="input pl-10"
             name="q"
             defaultValue={q}
-            placeholder="Buscar título, tema, pregador ou texto base"
+            placeholder="Buscar título, pregador ou conteúdo da palavra"
           />
         </label>
         <select className="input" name="status" defaultValue={status}>
@@ -196,8 +196,12 @@ export default async function ElshadaySermonsPage({
                 Opcional. JPG, PNG ou WebP de até 5 MB. Essa imagem poderá aparecer nos carrosséis do app.
               </span>
             </label>
-            <Field label="Título da mensagem" name="titulo" required />
-            <Field label="Tema" name="tema" />
+            <Field
+              label="Título / tema da mensagem"
+              name="titulo"
+              required
+              placeholder="Ex.: Cristo no centro de tudo"
+            />
             <Field label="Pregador" name="pregador" required />
             <Field
               label="Data da pregação"
@@ -205,20 +209,28 @@ export default async function ElshadaySermonsPage({
               type="date"
               defaultValue={new Date().toISOString().slice(0, 10)}
             />
-            <Field label="Texto base" name="texto_base" placeholder="Ex.: João 3:16" />
-            <Field
-              label="Versículos relacionados"
-              name="versiculos"
-              placeholder="Salmos 23:1, Romanos 8:28"
-            />
-            <TextArea label="Introdução" name="introducao" />
-            <TextArea label="Esboço / resumo" name="esboco" />
-            <TextArea label="Pontos da mensagem (um por linha)" name="pontos" />
-            <TextArea label="Conclusão" name="conclusao" />
-            <TextArea label="Observações" name="observacoes" />
-            <Field label="Link do vídeo" name="video_url" type="url" placeholder="https://..." />
-            <Field label="Link do áudio" name="audio_url" type="url" placeholder="https://..." />
-            <Field label="Link de arquivo" name="arquivo_url" type="url" placeholder="https://..." />
+            <label className="grid min-w-0 gap-2 text-sm font-bold text-slate-800 sm:col-span-2 lg:col-span-3">
+              Palavra / mensagem completa
+              <textarea
+                className="min-h-72 min-w-0 rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 outline-none placeholder:text-slate-500 focus:border-emerald-700"
+                name="esboco"
+                placeholder="Cole aqui a mensagem completa. Pode incluir texto-base, versículos, introdução, pontos e conclusão no mesmo texto."
+                required
+              />
+              <span className="text-xs font-medium leading-5 text-slate-500">
+                Você não precisa mais separar a mensagem em vários campos.
+              </span>
+            </label>
+            <details className="rounded-2xl border border-slate-200 bg-slate-50 sm:col-span-2 lg:col-span-3">
+              <summary className="cursor-pointer list-none px-4 py-3 text-sm font-black text-slate-700">
+                Links e anexos (opcional)
+              </summary>
+              <div className="grid gap-4 border-t border-slate-200 p-4 sm:grid-cols-2 lg:grid-cols-3">
+                <Field label="Link do vídeo" name="video_url" type="url" placeholder="https://..." />
+                <Field label="Link do áudio" name="audio_url" type="url" placeholder="https://..." />
+                <Field label="Link de arquivo" name="arquivo_url" type="url" placeholder="https://..." />
+              </div>
+            </details>
             <div className="sm:col-span-2 lg:col-span-3">
               <ElshadaySubmitButton className="min-h-12 rounded-2xl bg-[#123d2d] px-6 font-black text-white" pendingLabel="Salvando pregação...">
                 Salvar pregação
