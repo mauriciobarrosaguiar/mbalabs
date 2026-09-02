@@ -108,7 +108,7 @@ export default async function ElshadayPixProvidersPage({
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-1 text-sm text-slate-500">{authLabel(provider.authMode)}</p>
+                  <p className="mt-1 text-sm text-slate-600">{authLabel(provider.authMode)}</p>
                 </div>
               </div>
               <ProviderBadge adapterStatus={provider.adapterStatus} ready={provider.ready} />
@@ -271,7 +271,7 @@ function Capability({ label, ok }: { label: string; ok: boolean }) {
       className={
         ok
           ? "flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-800"
-          : "flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500"
+          : "flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600"
       }
     >
       {ok ? <CheckCircle2 size={15} /> : <CircleAlert size={15} />}
@@ -302,9 +302,9 @@ function Kpi({
 }) {
   return (
     <article className="rounded-[24px] border border-emerald-950/10 bg-white p-5">
-      <p className="text-sm font-bold text-slate-500">{label}</p>
+      <p className="text-sm font-bold text-slate-600">{label}</p>
       <p className="mt-2 text-2xl font-black">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-xs text-slate-600">{hint}</p> : null}
     </article>
   );
 }
