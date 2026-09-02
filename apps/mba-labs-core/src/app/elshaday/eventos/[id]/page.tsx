@@ -153,7 +153,7 @@ export default async function EventDetail({
         {canManage ? (
           <article className="rounded-[28px] border border-emerald-950/10 bg-white p-5">
             <h2 className="font-black">Status da programação</h2>
-            <p className="mt-2 text-sm text-slate-500">
+            <p className="mt-2 text-sm text-slate-600">
               Use cancelado em vez de excluir, preservando o histórico.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -197,7 +197,7 @@ export default async function EventDetail({
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
               />
-              <span className="text-xs font-medium leading-5 text-slate-500">
+              <span className="text-xs font-medium leading-5 text-slate-600">
                 Opcional. Ao aplicar à série, a nova capa também será aplicada aos eventos selecionados.
               </span>
             </label>
@@ -281,7 +281,7 @@ export default async function EventDetail({
               <textarea
                 name="descricao"
                 defaultValue={event.descricao ?? ""}
-                className="min-h-24 rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 placeholder:text-slate-500"
+                className="min-h-24 rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 placeholder:text-slate-600"
               />
             </label>
 
@@ -317,7 +317,7 @@ export default async function EventDetail({
           <div className="flex flex-col justify-between gap-3 border-b border-slate-100 p-5 sm:flex-row sm:items-center">
             <div>
               <h2 className="font-black">Lista de presença</h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-slate-600">
                 {presentCount} presentes de {members.length} membros/visitantes ativos.
               </p>
             </div>
@@ -331,7 +331,7 @@ export default async function EventDetail({
           </div>
 
           {!members.length ? (
-            <p className="p-8 text-center text-slate-500">Nenhum membro ativo cadastrado.</p>
+            <p className="p-8 text-center text-slate-600">Nenhum membro ativo cadastrado.</p>
           ) : (
             <div className="divide-y divide-slate-100">
               {members.map((member: any) => {
@@ -340,7 +340,7 @@ export default async function EventDetail({
                   <div className="flex items-center justify-between gap-4 p-4" key={member.id}>
                     <div>
                       <p className="font-black">{member.nome}</p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-slate-600">
                         {member.situacao}
                         {member.ministerio ? " · " + member.ministerio : ""}
                       </p>
@@ -407,7 +407,7 @@ function Kpi({
 function Info({ label, value }: { label: string; value: unknown }) {
   return (
     <div>
-      <dt className="text-xs font-black uppercase tracking-wide text-slate-400">{label}</dt>
+      <dt className="text-xs font-black uppercase tracking-wide text-slate-600">{label}</dt>
       <dd className="mt-1 whitespace-pre-wrap text-slate-700">{String(value ?? "") || "—"}</dd>
     </div>
   );
