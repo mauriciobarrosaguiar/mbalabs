@@ -94,7 +94,7 @@ export default async function ElshadaySermonsPage({
                               {rows[0].tema || "Palavra"}
                             </p>
                             <h2 className="mt-2 text-[28px] font-black leading-[1.08] tracking-tight">{rows[0].titulo}</h2>
-                            <p className="mt-3 text-sm font-semibold text-white/70">{rows[0].pregador}</p>
+                            <p className="mt-3 text-sm font-semibold text-white/85">{rows[0].pregador}</p>
                           </div>
                         </div>
                       </div>
