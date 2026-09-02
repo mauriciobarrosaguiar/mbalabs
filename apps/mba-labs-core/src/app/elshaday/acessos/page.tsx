@@ -223,7 +223,7 @@ export default async function ElshadayAccessPage({
         </div>
 
         {rows.length === 0 ? (
-          <div className="rounded-[28px] border border-dashed border-slate-300 bg-white p-10 text-center text-slate-500">
+          <div className="rounded-[28px] border border-dashed border-slate-300 bg-white p-10 text-center text-slate-600">
             <UserRoundCog className="mx-auto mb-3" size={30} />
             Nenhum acesso da igreja foi cadastrado ainda.
           </div>
@@ -243,7 +243,7 @@ export default async function ElshadayAccessPage({
                           <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-black text-sky-800">Você</span>
                         ) : null}
                       </div>
-                      <p className="mt-1 break-all text-sm text-slate-500">{row.email}</p>
+                      <p className="mt-1 break-all text-sm text-slate-600">{row.email}</p>
                       <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
                         <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-800">{roleLabel(row.papel)}</span>
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
@@ -273,7 +273,7 @@ export default async function ElshadayAccessPage({
                   <div className="mt-5 grid gap-4 border-t border-slate-100 pt-5 lg:grid-cols-3">
                     <form action={updateElshadayAccessRole} className="grid gap-2">
                       <input type="hidden" name="usuario_id" value={row.id} />
-                      <label className="text-xs font-black uppercase tracking-wide text-slate-500">Perfil</label>
+                      <label className="text-xs font-black uppercase tracking-wide text-slate-600">Perfil</label>
                       <div className="flex gap-2">
                         <select className="input min-w-0 flex-1" name="papel" defaultValue={row.papel} disabled={isSelf}>
                           {ROLE_OPTIONS.map((role) => (
@@ -288,7 +288,7 @@ export default async function ElshadayAccessPage({
 
                     <form action={linkElshadayAccessMember} className="grid gap-2">
                       <input type="hidden" name="usuario_id" value={row.id} />
-                      <label className="text-xs font-black uppercase tracking-wide text-slate-500">Vínculo com membro</label>
+                      <label className="text-xs font-black uppercase tracking-wide text-slate-600">Vínculo com membro</label>
                       <div className="flex gap-2">
                         <select className="input min-w-0 flex-1" name="membro_id" defaultValue={row.member?.id ?? ""}>
                           <option value="">Sem vínculo</option>
@@ -367,9 +367,9 @@ function Field({
 function Kpi({ label, value, detail }: { label: string; value: number; detail: string }) {
   return (
     <article className="rounded-[24px] border border-emerald-950/10 bg-white p-5">
-      <p className="text-sm font-bold text-slate-500">{label}</p>
+      <p className="text-sm font-bold text-slate-600">{label}</p>
       <p className="mt-2 text-3xl font-black">{value}</p>
-      <p className="mt-1 text-xs text-slate-500">{detail}</p>
+      <p className="mt-1 text-xs text-slate-600">{detail}</p>
     </article>
   );
 }
