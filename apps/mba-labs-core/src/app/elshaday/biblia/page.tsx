@@ -18,7 +18,7 @@ export default async function ElshadayBiblePage({
   const context = await requireElshadayContext("/elshaday/biblia");
   const q = read(query.q).toLowerCase();
 
-  const [favoritesResult, notesResult] = await Promise.all([
+  const [favoritesResult, notesResult, progressResult] = await Promise.all([
     context.admin
       .from("igreja_biblia_favoritos")
       .select("id,referencia,texto,traducao,created_at")
@@ -31,11 +31,18 @@ export default async function ElshadayBiblePage({
       .select("id,referencia,anotacao,created_at,updated_at")
       .eq("igreja_id", context.igreja.id)
       .eq("user_id", context.current.authUser.id)
-      .order("updated_at", { ascending: false })
+      .order("updated_at", { ascending: false }),
+    context.admin
+      .from("igreja_biblia_capitulos_lidos")
+      .select("livro_id,capitulo,lido_em")
+      .eq("igreja_id", context.igreja.id)
+      .eq("user_id", context.current.authUser.id)
+      .order("lido_em", { ascending: false })
   ]);
 
   if (favoritesResult.error) throw new Error("Falha ao carregar favoritos: " + favoritesResult.error.message);
   if (notesResult.error) throw new Error("Falha ao carregar anotações: " + notesResult.error.message);
+  if (progressResult.error) throw new Error("Falha ao carregar progresso da leitura: " + progressResult.error.message);
 
   const favorites = (favoritesResult.data ?? []).filter((item: any) =>
     !q ||
@@ -72,6 +79,10 @@ export default async function ElshadayBiblePage({
       <section className="rounded-[30px] border border-emerald-950/10 bg-white p-4 shadow-sm sm:p-6">
         <BibleReader
           favoriteReferences={favoriteReferences}
+          initialReadChapters={(progressResult.data ?? []).map((row: any) => ({
+            bookId: String(row.livro_id),
+            chapter: Number(row.capitulo)
+          }))}
           userKey={context.current.authUser.id}
         />
       </section>
