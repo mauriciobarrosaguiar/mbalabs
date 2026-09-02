@@ -29,7 +29,7 @@ export async function PrivateElshadayDashboard() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10);
   const isMember = context.papel === "membro";
-  const canSeeMembers = hasElshadayRole(context.papel, ["admin", "pastor", "secretaria", "lider"]);
+  const canSeeMembers = context.papel !== "membro";
   const canSeeFinance = hasElshadayRole(context.papel, ["admin", "tesouraria"]);
 
   const [membersResult, eventsResult, sermonsResult, homeEventsResult, carouselResult, financeResult] = await Promise.all([
