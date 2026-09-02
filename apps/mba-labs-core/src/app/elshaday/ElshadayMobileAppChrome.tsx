@@ -240,6 +240,16 @@ export function ElshadayMobileAppChrome({
             </p>
             <p className="mt-0.5 truncate text-xs font-semibold text-slate-600">{igrejaNome}</p>
           </Link>
+          <form action="/sair" method="post">
+            <button
+              aria-label="Sair do sistema"
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-[14px] border border-red-200 bg-red-50 px-3 font-black !text-red-700 shadow-sm"
+              type="submit"
+            >
+              <LogOut size={18} />
+              <span className="hidden sm:inline">Sair</span>
+            </button>
+          </form>
         </div>
       </header>
 
