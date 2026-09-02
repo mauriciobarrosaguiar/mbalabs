@@ -46,6 +46,7 @@ export default async function SermonDetail({
   const ok = read(query.ok);
   const errorMessage = read(query.erro);
   const points = Array.isArray(sermon.pontos) ? sermon.pontos : [];
+  const fullMessage = buildFullMessage(sermon, points);
 
   return (
     <div className="mx-auto grid min-w-0 max-w-5xl gap-6">
@@ -104,7 +105,7 @@ export default async function SermonDetail({
 
       <section className="grid gap-4">
         <Content title="Introdução" value={sermon.introducao} />
-        <Content title="Esboço / resumo" value={sermon.esboco} />
+        <Content title="Palavra / mensagem" value={sermon.esboco} />
         {points.length ? (
           <article className="rounded-[28px] border border-emerald-950/10 bg-white p-6">
             <h2 className="text-xl font-black">Pontos da mensagem</h2>
@@ -155,28 +156,31 @@ export default async function SermonDetail({
                   Opcional. Se escolher uma nova imagem, ela substitui a capa atual.
                 </span>
               </label>
-              <Field label="Título" name="titulo" defaultValue={sermon.titulo} required />
-              <Field label="Tema" name="tema" defaultValue={sermon.tema ?? ""} />
+              <Field label="Título / tema da mensagem" name="titulo" defaultValue={sermon.titulo} required />
               <Field label="Pregador" name="pregador" defaultValue={sermon.pregador} required />
               <Field label="Data" name="data_pregacao" type="date" defaultValue={sermon.data_pregacao} />
-              <Field label="Texto base" name="texto_base" defaultValue={sermon.texto_base ?? ""} />
-              <Field
-                label="Versículos relacionados"
-                name="versiculos"
-                defaultValue={Array.isArray(sermon.versiculos) ? sermon.versiculos.join(", ") : ""}
-              />
-              <TextArea label="Introdução" name="introducao" defaultValue={sermon.introducao ?? ""} />
-              <TextArea label="Esboço / resumo" name="esboco" defaultValue={sermon.esboco ?? ""} />
-              <TextArea
-                label="Pontos (um por linha)"
-                name="pontos"
-                defaultValue={points.map((point: any) => String(point.texto ?? point)).join("\n")}
-              />
-              <TextArea label="Conclusão" name="conclusao" defaultValue={sermon.conclusao ?? ""} />
-              <TextArea label="Observações" name="observacoes" defaultValue={sermon.observacoes ?? ""} />
-              <Field label="Vídeo" name="video_url" type="url" defaultValue={sermon.video_url ?? ""} />
-              <Field label="Áudio" name="audio_url" type="url" defaultValue={sermon.audio_url ?? ""} />
-              <Field label="Arquivo" name="arquivo_url" type="url" defaultValue={sermon.arquivo_url ?? ""} />
+              <label className="grid min-w-0 gap-2 text-sm font-bold text-slate-800 sm:col-span-2">
+                Palavra / mensagem completa
+                <textarea
+                  className="min-h-72 min-w-0 rounded-2xl border border-slate-300 bg-white p-4 text-slate-900 placeholder:text-slate-500"
+                  name="esboco"
+                  defaultValue={fullMessage}
+                  required
+                />
+                <span className="text-xs font-medium leading-5 text-slate-500">
+                  Edite tudo em um único campo. Ao salvar, a mensagem fica consolidada.
+                </span>
+              </label>
+              <details className="rounded-2xl border border-slate-200 bg-slate-50 sm:col-span-2">
+                <summary className="cursor-pointer list-none px-4 py-3 text-sm font-black text-slate-700">
+                  Links e anexos (opcional)
+                </summary>
+                <div className="grid gap-4 border-t border-slate-200 p-4 sm:grid-cols-2">
+                  <Field label="Vídeo" name="video_url" type="url" defaultValue={sermon.video_url ?? ""} />
+                  <Field label="Áudio" name="audio_url" type="url" defaultValue={sermon.audio_url ?? ""} />
+                  <Field label="Arquivo" name="arquivo_url" type="url" defaultValue={sermon.arquivo_url ?? ""} />
+                </div>
+              </details>
               <div className="sm:col-span-2">
                 <button className="min-h-12 rounded-2xl bg-slate-900 px-6 font-black text-white">
                   Salvar alterações
@@ -208,6 +212,39 @@ export default async function SermonDetail({
       </style>
     </div>
   );
+}
+
+function buildFullMessage(sermon: any, points: any[]) {
+  const hasLegacySections =
+    Boolean(sermon.tema) ||
+    Boolean(sermon.texto_base) ||
+    (Array.isArray(sermon.versiculos) && sermon.versiculos.length > 0) ||
+    Boolean(sermon.introducao) ||
+    points.length > 0 ||
+    Boolean(sermon.conclusao) ||
+    Boolean(sermon.observacoes);
+
+  if (!hasLegacySections) return String(sermon.esboco ?? "");
+
+  const sections: string[] = [];
+  if (sermon.tema && String(sermon.tema).trim() !== String(sermon.titulo).trim()) {
+    sections.push("Tema: " + sermon.tema);
+  }
+  if (sermon.texto_base) sections.push("Texto base: " + sermon.texto_base);
+  if (Array.isArray(sermon.versiculos) && sermon.versiculos.length) {
+    sections.push("Versículos relacionados: " + sermon.versiculos.join(", "));
+  }
+  if (sermon.introducao) sections.push("Introdução\n" + sermon.introducao);
+  if (sermon.esboco) sections.push(String(sermon.esboco));
+  if (points.length) {
+    sections.push(
+      "Pontos da mensagem\n" +
+        points.map((point: any, index: number) => `${index + 1}. ${String(point.texto ?? point)}`).join("\n")
+    );
+  }
+  if (sermon.conclusao) sections.push("Conclusão\n" + sermon.conclusao);
+  if (sermon.observacoes) sections.push("Observações\n" + sermon.observacoes);
+  return sections.filter(Boolean).join("\n\n");
 }
 
 function Content({ title, value }: { title: string; value: unknown }) {
