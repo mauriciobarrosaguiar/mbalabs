@@ -3,6 +3,7 @@ import "server-only";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { getElshadayPrimaryPixProvider } from "@/lib/elshaday-payment-providers";
 import { createElshadayPagBankIdentifiedPixCharge } from "@/lib/elshaday-pagbank";
+import { getElshadayProviderSecrets } from "@/lib/elshaday-payment-secrets";
 
 type ElshadayPixEnvironment = "sandbox" | "production";
 
@@ -84,8 +85,9 @@ export async function getElshadayPixStatus(igrejaId: string) {
   const environment = normalizeEnvironment(
     process.env.ELSHADAY_ASAAS_ENVIRONMENT ?? config?.ambiente ?? "sandbox"
   );
-  const apiKey = String(process.env.ELSHADAY_ASAAS_API_KEY ?? "").trim();
-  const webhookToken = String(process.env.ELSHADAY_ASAAS_WEBHOOK_TOKEN ?? "").trim();
+  const storedSecrets = await getElshadayProviderSecrets(igrejaId, "asaas");
+  const apiKey = String(process.env.ELSHADAY_ASAAS_API_KEY ?? storedSecrets.apiKey ?? "").trim();
+  const webhookToken = String(process.env.ELSHADAY_ASAAS_WEBHOOK_TOKEN ?? storedSecrets.webhookToken ?? "").trim();
   const addressKey = String(process.env.ELSHADAY_PIX_ADDRESS_KEY ?? config?.pix_address_key ?? "").trim();
 
   return {
@@ -467,7 +469,19 @@ export async function processElshadayAsaasWebhook(
   payload: AsaasWebhookPayload,
   receivedToken?: string | null
 ) {
-  const expectedToken = String(process.env.ELSHADAY_ASAAS_WEBHOOK_TOKEN ?? "").trim();
+  const tokenAdmin = getSupabaseAdmin() as any;
+  const { data: tokenChurch } = await tokenAdmin
+    .from("igreja_igrejas")
+    .select("id")
+    .eq("slug", "assembleia-de-deus-elshaday-palmas")
+    .eq("ativa", true)
+    .maybeSingle();
+  const tokenSecrets = tokenChurch?.id
+    ? await getElshadayProviderSecrets(String(tokenChurch.id), "asaas")
+    : {};
+  const expectedToken = String(
+    process.env.ELSHADAY_ASAAS_WEBHOOK_TOKEN ?? tokenSecrets.webhookToken ?? ""
+  ).trim();
   if (!expectedToken) {
     throw new Error("Webhook PIX do Elshaday ainda não possui token configurado.");
   }
@@ -919,7 +933,10 @@ function normalizeTimestamp(value: unknown) {
 
 async function requireOperationalSettings(igrejaId: string) {
   const status = await getElshadayPixStatus(igrejaId);
-  const apiKey = String(process.env.ELSHADAY_ASAAS_API_KEY ?? "").trim();
+  const storedSecrets = await getElshadayProviderSecrets(igrejaId, "asaas");
+  const apiKey = String(
+    process.env.ELSHADAY_ASAAS_API_KEY ?? storedSecrets.apiKey ?? ""
+  ).trim();
 
   const admin = getSupabaseAdmin() as any;
   const { data: config, error } = await admin
