@@ -68,7 +68,7 @@ export default async function ElshadaySettingsPage({
         String(item.titulo ?? "").trim().toLocaleLowerCase("pt-BR"),
         item
       ] as [string, any])
-      .filter(([key]) => Boolean(key))
+      .filter((entry: [string, any]) => Boolean(entry[0]))
   );
   const seenSeries = new Set<string>();
   const agendaItems = (agendaResult.data ?? [])
