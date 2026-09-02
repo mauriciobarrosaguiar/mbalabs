@@ -213,7 +213,7 @@ function read(value: string | string[] | undefined) {
 function Data({ label, value }: { label: string; value: string }) {
   return (
     <article className="rounded-2xl bg-white p-4 shadow-sm">
-      <p className="text-xs font-black uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="text-xs font-black uppercase tracking-wide text-slate-600">{label}</p>
       <p className="mt-2 break-words text-sm font-bold text-slate-800">{value}</p>
     </article>
   );
