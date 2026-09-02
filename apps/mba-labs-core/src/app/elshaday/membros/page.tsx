@@ -3,6 +3,7 @@ import { ExternalLink, FileSpreadsheet, Link2, Search, Upload, UserCheck, UserPl
 import { createElshadayMember } from "../actions";
 import { importElshadayMembers } from "../completion-actions";
 import { ElshadaySubmitButton } from "../ElshadaySubmitButton";
+import { ShareMemberRegistration } from "./ShareMemberRegistration";
 import {
   dateBR,
   hasElshadayRole,
@@ -113,14 +114,17 @@ export default async function ElshadayMembersPage({
                 <p className="mt-2 break-all text-sm font-black text-[#176445]">/cadastro-membro</p>
               </div>
             </div>
-            <a
-              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#123d2d] px-5 text-sm font-black text-white"
-              href="/cadastro-membro"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Abrir cadastro <ExternalLink size={16} />
-            </a>
+            <div className="flex flex-col gap-2 sm:items-end">
+              <ShareMemberRegistration />
+              <a
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-black text-[#176445]"
+                href="/cadastro-membro"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Abrir cadastro <ExternalLink size={16} />
+              </a>
+            </div>
           </div>
         </section>
       ) : null}
