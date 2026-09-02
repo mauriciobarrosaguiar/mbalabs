@@ -135,15 +135,15 @@ export default async function FinanceReportsPage({
 
       <section className="rounded-[28px] border border-emerald-950/10 bg-white p-5">
         <form className="grid gap-3 md:grid-cols-2 xl:grid-cols-7" method="get">
-          <label className="grid gap-2 text-xs font-black uppercase tracking-wide text-slate-500">
+          <label className="grid gap-2 text-xs font-black uppercase tracking-wide text-slate-600">
             Início
             <input className="input" name="inicio" type="date" defaultValue={start} />
           </label>
-          <label className="grid gap-2 text-xs font-black uppercase tracking-wide text-slate-500">
+          <label className="grid gap-2 text-xs font-black uppercase tracking-wide text-slate-600">
             Fim
             <input className="input" name="fim" type="date" defaultValue={end} />
           </label>
-          <label className="grid gap-2 text-xs font-black uppercase tracking-wide text-slate-500">
+          <label className="grid gap-2 text-xs font-black uppercase tracking-wide text-slate-600">
             Tipo
             <select className="input" name="tipo" defaultValue={type}>
               <option value="">Todos</option>
@@ -154,7 +154,7 @@ export default async function FinanceReportsPage({
               <option value="outro">Outro</option>
             </select>
           </label>
-          <label className="grid gap-2 text-xs font-black uppercase tracking-wide text-slate-500">
+          <label className="grid gap-2 text-xs font-black uppercase tracking-wide text-slate-600">
             Forma
             <select className="input" name="forma" defaultValue={payment}>
               <option value="">Todas</option>
@@ -165,7 +165,7 @@ export default async function FinanceReportsPage({
               <option value="outro">Outro</option>
             </select>
           </label>
-          <label className="grid gap-2 text-xs font-black uppercase tracking-wide text-slate-500">
+          <label className="grid gap-2 text-xs font-black uppercase tracking-wide text-slate-600">
             Status
             <select className="input" name="status" defaultValue={status}>
               <option value="">Todos</option>
@@ -174,7 +174,7 @@ export default async function FinanceReportsPage({
               <option value="estornado">Estornado</option>
             </select>
           </label>
-          <label className="grid gap-2 text-xs font-black uppercase tracking-wide text-slate-500">
+          <label className="grid gap-2 text-xs font-black uppercase tracking-wide text-slate-600">
             Membro
             <select className="input" name="membro_id" defaultValue={memberId}>
               <option value="">Todos</option>
@@ -263,15 +263,15 @@ export default async function FinanceReportsPage({
       <section className="overflow-hidden rounded-[28px] border border-emerald-950/10 bg-white">
         <div className="border-b border-slate-100 p-5">
           <h2 className="font-black">Lançamentos do período</h2>
-          <p className="mt-1 text-sm text-slate-500">{rows.length} registro(s) encontrados.</p>
+          <p className="mt-1 text-sm text-slate-600">{rows.length} registro(s) encontrados.</p>
         </div>
 
         {!rows.length ? (
-          <p className="p-8 text-center text-slate-500">Nenhum lançamento encontrado.</p>
+          <p className="p-8 text-center text-slate-600">Nenhum lançamento encontrado.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-5 py-4">Data</th>
                   <th className="px-5 py-4">Tipo</th>
@@ -338,7 +338,7 @@ function sum(rows: any[]) {
 function Kpi({ label, value }: { label: string; value: string }) {
   return (
     <article className="rounded-[24px] border border-emerald-950/10 bg-white p-5">
-      <p className="text-sm font-bold text-slate-500">{label}</p>
+      <p className="text-sm font-bold text-slate-600">{label}</p>
       <p className="mt-2 text-2xl font-black">{value}</p>
     </article>
   );
