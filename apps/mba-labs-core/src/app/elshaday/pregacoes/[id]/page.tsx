@@ -32,7 +32,7 @@ export default async function SermonDetail({
   const { id } = await params;
   const query = await searchParams;
   const context = await requireElshadayContext("/elshaday/pregacoes/" + id);
-  const canManage = hasElshadayRole(context.papel, ["admin", "pastor", "secretaria", "lider"]);
+  const canManage = hasElshadayRole(context.papel, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
 
   const { data: sermon, error } = await context.admin
     .from("igreja_pregacoes")
