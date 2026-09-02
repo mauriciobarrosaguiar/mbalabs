@@ -3,7 +3,7 @@ import { CalendarDays, ChevronRight, Church, HandCoins, HeartHandshake, MapPin, 
 import { dateTimeBR, getPublicElshadayContext } from "@/lib/elshaday";
 import { ElshadayMediaCarousel } from "./ElshadayMediaCarousel";
 
-export async function PublicElshadayHome() {
+export async function PublicElshadayHome({ showMembership = true }: { showMembership?: boolean }) {
   const { admin, igreja } = await getPublicElshadayContext();
   const now = new Date().toISOString();
 
@@ -69,24 +69,34 @@ export async function PublicElshadayHome() {
 
   return (
     <div className="grid min-w-0 gap-5 overflow-x-hidden pb-20 md:gap-6 md:pb-0">
-      <section className="min-w-0 overflow-hidden rounded-[28px] bg-[#123d2d] p-5 text-white shadow-[0_18px_45px_rgba(18,61,45,.18)] sm:rounded-[32px] sm:p-9">
-        <div className="max-w-3xl">
-          <div className="grid size-14 place-items-center rounded-[18px] bg-[#d4aa54] text-[#123d2d]">
-            <Church size={28} />
+      <section className="min-w-0 overflow-hidden rounded-[24px] bg-[#123d2d] px-5 py-5 text-white shadow-[0_14px_34px_rgba(18,61,45,.16)] sm:rounded-[28px] sm:px-7 sm:py-6">
+        <div className="flex min-w-0 items-center gap-4">
+          <div className="grid size-11 shrink-0 place-items-center rounded-[14px] bg-[#d4aa54] text-[#123d2d] sm:size-12">
+            <Church size={23} />
           </div>
-          <p className="mt-5 text-xs font-black uppercase tracking-[.18em] text-[#f1d79d]">Seja bem-vindo</p>
-          <h1 className="mt-2 text-[clamp(1.85rem,8vw,3rem)] font-black leading-[1.04] tracking-tight">{igreja.nome}</h1>
-          <div className="mt-6 grid gap-3 sm:flex sm:flex-wrap">
-            <a className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl sm:w-auto bg-[#d4aa54] px-5 font-black text-[#123d2d]" href="#agenda">
-              <CalendarDays size={19} /> Ver agenda
-            </a>
-            <Link className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl sm:w-auto border border-white/15 bg-white/10 px-5 font-black text-white" href="/elshaday/contribuir">
-              <HandCoins size={19} /> Contribuir via PIX
-            </Link>
-            <Link className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl sm:w-auto border border-white/15 bg-white/5 px-5 font-black text-white" href="/cadastro-membro">
-              <UserRoundPlus size={19} /> Seja membro
-            </Link>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-black uppercase tracking-[.16em] text-[#f4dc9c]">Seja bem-vindo</p>
+            <h1 className="mt-1 text-[clamp(1.45rem,6vw,2.25rem)] font-black leading-tight tracking-tight text-white">
+              Elshaday Palmas
+            </h1>
           </div>
+        </div>
+
+        <div className={"mt-5 grid gap-2 " + (showMembership ? "sm:grid-cols-2" : "")}>
+          <a
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#d4aa54] px-5 text-sm font-black text-[#123d2d]"
+            href="#agenda"
+          >
+            <CalendarDays size={18} /> Ver agenda
+          </a>
+          {showMembership ? (
+            <Link
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-white/25 bg-white/10 px-5 text-sm font-black text-white"
+              href="/cadastro-membro"
+            >
+              <UserRoundPlus size={18} /> Seja membro
+            </Link>
+          ) : null}
         </div>
       </section>
 
@@ -109,9 +119,9 @@ export async function PublicElshadayHome() {
                   <CalendarDays size={20} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-col justify-between gap-1 sm:flex-row sm:items-start">
-                    <h3 className="font-black text-slate-950">{event.titulo}</h3>
-                    <span className="shrink-0 text-xs font-black text-[#176445]">{dateTimeBR(event.inicio)}</span>
+                  <div className="grid gap-1">
+                    <h3 className="text-base font-black leading-tight text-slate-950 sm:text-lg">{event.titulo}</h3>
+                    <span className="text-sm font-black text-[#176445]">{dateTimeBR(event.inicio)}</span>
                   </div>
                   {event.tema ? <p className="mt-2 text-sm font-bold text-slate-700">{event.tema}</p> : null}
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-slate-600">
@@ -130,26 +140,28 @@ export async function PublicElshadayHome() {
         </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2">
-        <Link className="group rounded-[28px] bg-[#123d2d] p-6 text-white shadow-sm" href="/elshaday/contribuir">
-          <div className="grid size-12 place-items-center rounded-2xl bg-white/10 text-[#f4d992]">
-            <HeartHandshake size={23} />
+      <section className={"grid gap-4 " + (showMembership ? "sm:grid-cols-2" : "")}>
+        <Link className="group min-w-0 rounded-[24px] bg-[#123d2d] p-5 text-white shadow-sm sm:p-6" href="/elshaday/contribuir">
+          <div className="grid size-11 place-items-center rounded-2xl bg-white/10 text-[#f4d992]">
+            <HeartHandshake size={22} />
           </div>
-          <h2 className="mt-5 text-2xl font-black">Deseja contribuir?</h2>
-          <span className="mt-5 inline-flex items-center gap-2 text-sm font-black text-[#f4d992]">
-            Abrir contribuição <ChevronRight size={17} />
+          <h2 className="mt-4 text-xl font-black text-white sm:text-2xl">Contribua</h2>
+          <span className="mt-3 inline-flex items-center gap-2 text-sm font-black text-[#f4d992]">
+            Abrir PIX <ChevronRight size={17} />
           </span>
         </Link>
 
-        <Link className="group rounded-[28px] border border-emerald-950/10 bg-white p-6 shadow-sm" href="/cadastro-membro">
-          <div className="grid size-12 place-items-center rounded-2xl bg-emerald-50 text-[#176445]">
-            <UserRoundPlus size={23} />
-          </div>
-          <h2 className="mt-5 text-2xl font-black text-slate-950">Seja membro</h2>
-          <span className="mt-4 inline-flex items-center gap-2 text-sm font-black text-[#176445]">
-            Fazer meu cadastro <ChevronRight size={17} />
-          </span>
-        </Link>
+        {showMembership ? (
+          <Link className="group min-w-0 rounded-[24px] border border-emerald-950/10 bg-white p-5 shadow-sm sm:p-6" href="/cadastro-membro">
+            <div className="grid size-11 place-items-center rounded-2xl bg-emerald-50 text-[#176445]">
+              <UserRoundPlus size={22} />
+            </div>
+            <h2 className="mt-4 text-xl font-black text-slate-950 sm:text-2xl">Seja membro</h2>
+            <span className="mt-3 inline-flex items-center gap-2 text-sm font-black text-[#176445]">
+              Fazer cadastro <ChevronRight size={17} />
+            </span>
+          </Link>
+        ) : null}
       </section>
 
       {sermons.length ? (
