@@ -120,13 +120,6 @@ export default async function ElshadayFinancePage({
       {ok ? <Message kind="success">{successMessage(ok)}</Message> : null}
       {errorMessage ? <Message kind="error">{errorMessage}</Message> : null}
 
-      <section className="flex gap-3 rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-        <LockKeyhole className="mt-0.5 shrink-0" size={19} />
-        <p>
-          Os valores individuais ficam disponíveis somente para <strong>Administrador</strong> e <strong>Tesouraria</strong>.
-          O restante dos membros não enxerga quem contribuiu nem quanto contribuiu.
-        </p>
-      </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi label="Entradas no mês" value={moneyBR(total)} />
@@ -141,9 +134,6 @@ export default async function ElshadayFinancePage({
             <div>
               <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">Integração</p>
               <h2 className="mt-1 text-xl font-black">PIX automático · Asaas</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Você pode usar somente uma chave PIX para recebimento simples ou cadastrar a API Asaas para confirmação automática.
-              </p>
             </div>
             <IntegrationStatus ready={pixStatus.ready} />
           </div>
@@ -174,10 +164,6 @@ export default async function ElshadayFinancePage({
               />
             </label>
 
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-950 sm:col-span-2">
-              <strong>Opção simples:</strong> se você quiser apenas receber contribuições por PIX, basta informar a chave acima e salvar.
-              Ela aparecerá na página pública para qualquer pessoa copiar, mesmo sem login e sem API.
-            </div>
 
             <label className="grid gap-2 text-sm font-bold text-slate-700">
               API Key Asaas
@@ -201,10 +187,10 @@ export default async function ElshadayFinancePage({
               />
             </label>
 
-            <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950 sm:col-span-2">
-              <strong>Opção automática:</strong> preencha a API Key e o token do webhook para ativar a confirmação automática.
-              As credenciais são armazenadas criptografadas e nunca são exibidas novamente.
-              Para outros bancos e gateways, use <Link className="font-black underline" href="/elshaday/financeiro/provedores">Provedores PIX</Link>.
+            <div className="sm:col-span-2">
+              <Link className="text-sm font-black text-[#176445] underline underline-offset-4" href="/elshaday/financeiro/provedores">
+                Outros provedores PIX
+              </Link>
             </div>
 
             <label className="flex min-h-12 items-center gap-3 rounded-2xl bg-slate-50 px-4 text-sm font-bold sm:col-span-2">
@@ -231,9 +217,6 @@ export default async function ElshadayFinancePage({
             <code className="mt-2 block break-all rounded-xl bg-white p-3 text-xs text-slate-600">
               {pixStatus.webhookUrl}
             </code>
-            <p className="mt-2 text-xs leading-5 text-slate-500">
-              Eventos principais: PAYMENT_RECEIVED, PAYMENT_CONFIRMED e PAYMENT_REFUNDED.
-            </p>
           </div>
         </article>
 
@@ -244,7 +227,6 @@ export default async function ElshadayFinancePage({
             </div>
             <div>
               <h2 className="font-black text-sky-950">QR Code da igreja</h2>
-              <p className="text-sm text-sky-900/70">Um QR reutilizável para receber qualquer valor.</p>
             </div>
           </div>
 
@@ -259,7 +241,7 @@ export default async function ElshadayFinancePage({
                   />
                 </div>
               ) : null}
-              <p className="mt-4 text-xs font-black uppercase tracking-wide text-sky-900/60">PIX Copia e Cola</p>
+              <p className="mt-4 text-xs font-black uppercase tracking-wide text-sky-900/80">PIX Copia e Cola</p>
               <textarea
                 className="mt-2 min-h-28 w-full rounded-2xl border border-sky-200 bg-white p-3 text-xs"
                 readOnly
@@ -354,14 +336,13 @@ export default async function ElshadayFinancePage({
       <section className="overflow-hidden rounded-[28px] border border-emerald-950/10 bg-white">
         <div className="border-b border-slate-100 p-5">
           <h2 className="font-black">Últimas entradas</h2>
-          <p className="mt-1 text-sm text-slate-500">Manual e automático, com origem identificada.</p>
         </div>
         {entries.length === 0 ? (
-          <p className="p-8 text-center text-slate-500">Nenhuma entrada registrada.</p>
+          <p className="p-8 text-center text-slate-600">Nenhuma entrada registrada.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-5 py-4">Data</th>
                   <th className="px-5 py-4">Tipo</th>
@@ -463,7 +444,7 @@ function sum(entries: any[]) {
 function Kpi({ label, value }: { label: string; value: string }) {
   return (
     <article className="rounded-[24px] border border-emerald-950/10 bg-white p-5">
-      <p className="text-sm font-bold text-slate-500">{label}</p>
+      <p className="text-sm font-bold text-slate-600">{label}</p>
       <p className="mt-2 text-2xl font-black">{value}</p>
     </article>
   );
