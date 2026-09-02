@@ -454,21 +454,33 @@ function MobileAppHome({
         ) : (
           <>
             <Link
-              className="mt-4 block overflow-hidden rounded-[22px] bg-[#321f18] text-white"
+              className="mt-4 block overflow-hidden rounded-[22px] bg-[#321f18] !text-white"
               href={"/elshaday/pregacoes/" + sermons[0].id}
             >
-              <div className="relative min-h-[165px] overflow-hidden p-5">
-                <div className="absolute -right-7 -top-7 size-36 rounded-full bg-[#d4aa54]/30 blur-2xl" />
-                <div className="relative flex h-full min-h-[125px] flex-col justify-between">
-                  <div className="grid size-10 place-items-center rounded-full bg-white/12">
-                    <Play size={18} fill="currentColor" />
+              <div className="relative min-h-[260px] overflow-hidden">
+                {sermons[0].banner_url ? (
+                  <img
+                    alt={sermons[0].titulo}
+                    className="absolute inset-0 h-full w-full object-cover"
+                    src={sermons[0].banner_url}
+                  />
+                ) : null}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/60 to-black/25" />
+                <div className="absolute -right-7 -top-7 size-36 rounded-full bg-[#d4aa54]/25 blur-2xl" />
+                <div className="relative flex min-h-[260px] flex-col p-5">
+                  <div className="grid size-10 place-items-center rounded-full bg-black/25 !text-white ring-1 ring-white/15 backdrop-blur-sm">
+                    <Play className="!text-white" size={18} fill="currentColor" />
                   </div>
-                  <div>
-                    <p className="text-[11px] font-black uppercase tracking-[.15em] text-[#f4d992]">
+                  <div className="mt-auto">
+                    <p className="text-[11px] font-black uppercase tracking-[.15em] !text-[#f4d992]">
                       Palavra em destaque
                     </p>
-                    <h3 className="mt-2 text-2xl font-black leading-tight">{sermons[0].titulo}</h3>
-                    <p className="mt-2 text-sm text-white/70">{sermons[0].pregador}</p>
+                    <h3 className="mt-2 line-clamp-4 text-2xl font-black leading-tight !text-white [text-shadow:0_2px_10px_rgba(0,0,0,.45)]">
+                      {sermons[0].titulo}
+                    </h3>
+                    <p className="mt-3 text-sm font-semibold !text-white/85 [text-shadow:0_1px_6px_rgba(0,0,0,.4)]">
+                      {sermons[0].pregador}
+                    </p>
                   </div>
                 </div>
               </div>
