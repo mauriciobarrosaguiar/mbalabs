@@ -17,6 +17,7 @@ import {
   parseElshadayPixProvider,
   saveElshadayPixProviderConfig
 } from "@/lib/elshaday-payment-providers";
+import { saveElshadayProviderSecrets } from "@/lib/elshaday-payment-secrets";
 import {
   removeElshadayContentImage,
   uploadElshadayContentImage
@@ -1131,6 +1132,8 @@ export async function saveElshadayPixSettings(formData: FormData) {
     const environment = text(formData, "ambiente") === "production" ? "production" : "sandbox";
     const addressKey = text(formData, "pix_address_key");
     const active = text(formData, "ativo") === "on";
+    const apiKey = text(formData, "asaas_api_key");
+    const webhookToken = text(formData, "asaas_webhook_token");
 
     if (active && !addressKey && !process.env.ELSHADAY_PIX_ADDRESS_KEY) {
       throw new Error("Informe a chave PIX da igreja para ativar a integração.");
@@ -1144,10 +1147,24 @@ export async function saveElshadayPixSettings(formData: FormData) {
       updatedBy: context.current.authUser.id
     });
 
+    if (apiKey || webhookToken) {
+      await saveElshadayProviderSecrets({
+        igrejaId: context.igreja.id,
+        provider: "asaas",
+        patch: {
+          apiKey,
+          webhookToken
+        },
+        updatedBy: context.current.authUser.id
+      });
+    }
+
     await auditChurchAccess(context, "elshaday configuração pix atualizada", {
       environment,
       active,
-      address_key_configured: Boolean(addressKey || process.env.ELSHADAY_PIX_ADDRESS_KEY)
+      address_key_configured: Boolean(addressKey || process.env.ELSHADAY_PIX_ADDRESS_KEY),
+      api_key_updated: Boolean(apiKey),
+      webhook_token_updated: Boolean(webhookToken)
     });
   } catch (error) {
     redirectWithMessage(
