@@ -7,7 +7,7 @@ const MAX_BYTES = 5 * 1024 * 1024;
 export async function uploadElshadayContentImage(
   admin: any,
   igrejaId: string,
-  folder: "eventos" | "pregacoes",
+  folder: "eventos" | "pregacoes" | "carrossel",
   fileValue: FormDataEntryValue | null
 ) {
   if (!(fileValue instanceof File) || fileValue.size === 0) return null;
