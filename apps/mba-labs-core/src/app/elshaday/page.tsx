@@ -15,16 +15,18 @@ import {
 } from "lucide-react";
 import {
   dateTimeBR,
+  getOptionalElshadayContext,
   hasElshadayRole,
-  moneyBR,
-  requireElshadayContext
+  moneyBR
 } from "@/lib/elshaday";
 import { ElshadayMediaCarousel } from "./ElshadayMediaCarousel";
+import { PublicElshadayHome } from "./PublicElshadayHome";
 
 export const dynamic = "force-dynamic";
 
 export default async function ElshadayDashboardPage() {
-  const context = await requireElshadayContext("/elshaday");
+  const context = await getOptionalElshadayContext();
+  if (!context) return <PublicElshadayHome />;
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10);
