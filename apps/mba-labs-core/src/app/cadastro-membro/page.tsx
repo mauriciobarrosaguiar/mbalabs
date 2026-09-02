@@ -32,8 +32,8 @@ export default async function PublicMemberRegistrationPage({
   const erro = read(query.erro);
 
   return (
-    <main className="min-h-screen bg-[#f4f6f1] px-4 py-6 text-slate-950 sm:py-10">
-      <div className="mx-auto grid max-w-2xl gap-5">
+    <main className="min-h-screen overflow-x-hidden bg-[#f4f6f1] px-3 py-5 text-slate-950 sm:px-4 sm:py-10">
+      <div className="mx-auto grid min-w-0 max-w-2xl gap-5">
         <header className="rounded-[30px] bg-[#123d2d] p-6 text-white shadow-[0_18px_45px_rgba(18,61,45,.18)] sm:p-8">
           <div className="flex items-center gap-4">
             <div className="grid size-14 shrink-0 place-items-center rounded-[18px] bg-[#f1d79d] text-[#123d2d]">
@@ -45,9 +45,6 @@ export default async function PublicMemberRegistrationPage({
             </div>
           </div>
           <p className="mt-5 text-sm font-semibold leading-6 text-emerald-50/85">{churchName}</p>
-          <p className="mt-2 text-sm leading-6 text-emerald-50/70">
-            Preencha seus dados abaixo. Não é necessário ter login no aplicativo.
-          </p>
         </header>
 
         {ok ? (
@@ -75,7 +72,6 @@ export default async function PublicMemberRegistrationPage({
             </div>
             <div>
               <h2 className="text-xl font-black">Seus dados</h2>
-              <p className="mt-0.5 text-xs font-semibold text-slate-500">Campos com * são obrigatórios.</p>
             </div>
           </div>
 
@@ -117,7 +113,7 @@ export default async function PublicMemberRegistrationPage({
             <label className="grid gap-2 text-sm font-bold text-slate-700 sm:col-span-2">
               Observação
               <textarea
-                className="min-h-24 w-full rounded-2xl border border-slate-300 bg-white p-4 text-slate-950 outline-none placeholder:text-slate-400 focus:border-[#176445] focus:ring-1 focus:ring-[#176445]"
+                className="min-h-24 w-full rounded-2xl border border-slate-300 bg-white p-4 text-slate-950 outline-none placeholder:text-slate-600 focus:border-[#176445] focus:ring-1 focus:ring-[#176445]"
                 name="observacoes"
                 placeholder="Alguma informação que queira deixar para a secretaria."
               />
@@ -180,7 +176,7 @@ function Field({
     <label className={"grid min-w-0 gap-2 text-sm font-bold text-slate-700" + (wide ? " sm:col-span-2" : "")}>
       {label}
       <input
-        className="min-h-12 w-full min-w-0 rounded-2xl border border-slate-300 bg-white px-4 text-slate-950 outline-none placeholder:text-slate-400 focus:border-[#176445] focus:ring-1 focus:ring-[#176445]"
+        className="min-h-12 w-full min-w-0 rounded-2xl border border-slate-300 bg-white px-4 text-slate-950 outline-none placeholder:text-slate-600 focus:border-[#176445] focus:ring-1 focus:ring-[#176445]"
         name={name}
         type={type}
         required={required}
