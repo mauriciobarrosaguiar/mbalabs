@@ -39,9 +39,11 @@ export function ElshadayPublicShell({
             <Link className="rounded-xl px-3 py-2 text-sm font-bold text-emerald-50/85 hover:bg-white/10" href="/elshaday/contribuir">
               Contribuir
             </Link>
-            <Link className="rounded-xl px-3 py-2 text-sm font-bold text-emerald-50/85 hover:bg-white/10" href="/cadastro-membro">
-              Seja membro
-            </Link>
+            {!hasInternalAccess ? (
+              <Link className="rounded-xl px-3 py-2 text-sm font-bold text-emerald-50/90 hover:bg-white/10" href="/cadastro-membro">
+                Seja membro
+              </Link>
+            ) : null}
             <Link className="ml-2 inline-flex items-center gap-2 rounded-xl bg-[#d4aa54] px-4 py-2 text-sm font-black text-[#123d2d]" href={internalHref}>
               {hasInternalAccess ? <ShieldCheck size={16} /> : <LogIn size={16} />}
               {internalLabel}
@@ -60,7 +62,7 @@ export function ElshadayPublicShell({
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-emerald-950/10 bg-white/95 px-2 py-2 shadow-[0_-8px_30px_rgba(15,23,42,.08)] backdrop-blur md:hidden">
-        <div className="mx-auto grid max-w-lg grid-cols-4">
+        <div className={"mx-auto grid max-w-lg " + (hasInternalAccess ? "grid-cols-3" : "grid-cols-4")}>
           <Link className="grid place-items-center gap-1 py-1 text-[11px] font-black text-[#123d2d]" href="/elshaday">
             <Church size={20} /> Início
           </Link>
@@ -70,9 +72,11 @@ export function ElshadayPublicShell({
           <Link className="grid place-items-center gap-1 py-1 text-[11px] font-black text-[#123d2d]" href="/elshaday/contribuir">
             <HandCoins size={20} /> Contribuir
           </Link>
-          <Link className="grid place-items-center gap-1 py-1 text-[11px] font-black text-[#123d2d]" href="/cadastro-membro">
-            <UserRoundPlus size={20} /> Membro
-          </Link>
+          {!hasInternalAccess ? (
+            <Link className="grid place-items-center gap-1 py-1 text-[11px] font-black text-[#123d2d]" href="/cadastro-membro">
+              <UserRoundPlus size={20} /> Membro
+            </Link>
+          ) : null}
         </div>
       </nav>
 
