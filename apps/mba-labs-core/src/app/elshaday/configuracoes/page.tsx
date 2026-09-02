@@ -48,7 +48,6 @@ export default async function ElshadaySettingsPage({
       .eq("destacar_home", true)
       .eq("status", "agendado")
       .gte("inicio", now)
-      .not("banner_url", "is", null)
       .order("ordem_home", { ascending: true })
       .order("inicio", { ascending: true })
       .limit(80)
@@ -62,13 +61,33 @@ export default async function ElshadaySettingsPage({
   }
 
   const items = manualResult.data ?? [];
+  const manualByTitle = new Map(
+    items
+      .filter((item: any) => Boolean(item.imagem_url))
+      .map((item: any) => [
+        String(item.titulo ?? "").trim().toLocaleLowerCase("pt-BR"),
+        item
+      ])
+      .filter(([key]: any[]) => Boolean(key))
+  );
   const seenSeries = new Set<string>();
-  const agendaItems = (agendaResult.data ?? []).filter((event: any) => {
-    const key = event.serie_id ? "serie-" + event.serie_id : "evento-" + event.id;
-    if (seenSeries.has(key)) return false;
-    seenSeries.add(key);
-    return true;
-  });
+  const agendaItems = (agendaResult.data ?? [])
+    .filter((event: any) => {
+      const key = event.serie_id ? "serie-" + event.serie_id : "evento-" + event.id;
+      if (seenSeries.has(key)) return false;
+      seenSeries.add(key);
+      return true;
+    })
+    .map((event: any) => {
+      const titleKey = String(event.titulo ?? "").trim().toLocaleLowerCase("pt-BR");
+      const fallback: any = manualByTitle.get(titleKey);
+      return {
+        ...event,
+        display_banner_url: event.banner_url || fallback?.imagem_url || null,
+        ordem_home: Number(event.ordem_home ?? fallback?.ordem ?? 10)
+      };
+    })
+    .filter((event: any) => Boolean(event.display_banner_url));
   const ok = read(query.ok);
   const erro = read(query.erro);
 
@@ -132,7 +151,7 @@ export default async function ElshadaySettingsPage({
                 <img
                   alt=""
                   className="size-16 shrink-0 rounded-[16px] object-cover"
-                  src={event.banner_url}
+                  src={event.display_banner_url}
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
