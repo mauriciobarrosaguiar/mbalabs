@@ -7,7 +7,7 @@ import { ElshadayPublicShell } from "./ElshadayPublicShell";
 import { ElshadayShell } from "./ElshadayShell";
 
 const PUBLIC_PATHS = new Set([
-  "/elshaday",
+  "/elshaday/publico",
   "/elshaday/contribuir"
 ]);
 
@@ -27,7 +27,9 @@ export function ElshadayAdaptiveShell({
   hasInternalAccess: boolean;
 }) {
   const pathname = usePathname();
-  const isPublicPath = PUBLIC_PATHS.has(pathname);
+  const isPublicPath =
+    PUBLIC_PATHS.has(pathname) ||
+    (pathname === "/elshaday" && !hasInternalAccess);
 
   if (isPublicPath || !hasInternalAccess || !usuarioNome || !papel) {
     return (
