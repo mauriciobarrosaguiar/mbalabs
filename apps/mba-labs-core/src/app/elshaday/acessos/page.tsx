@@ -13,6 +13,7 @@ import {
   setElshadayAccessStatus,
   updateElshadayAccessRole
 } from "../actions";
+import { ElshadaySubmitButton } from "../ElshadaySubmitButton";
 import {
   requireElshadayContext,
   requireElshadayRole,
@@ -203,9 +204,9 @@ export default async function ElshadayAccessPage({
           </div>
 
           <div className="sm:col-span-2 lg:col-span-3">
-            <button className="min-h-12 rounded-2xl bg-[#123d2d] px-6 font-black text-white" type="submit">
+            <ElshadaySubmitButton className="min-h-12 rounded-2xl bg-[#123d2d] px-6 font-black text-white" pendingLabel="Criando acesso...">
               Criar acesso e enviar convite
-            </button>
+            </ElshadaySubmitButton>
           </div>
         </form>
       </details>

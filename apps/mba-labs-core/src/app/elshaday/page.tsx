@@ -62,12 +62,12 @@ export default async function ElshadayDashboardPage() {
       .eq("destacar_home", true)
       .eq("status", "agendado")
       .gte("inicio", now.toISOString())
-      .order("ordem_home", { ascending: true })
       .order("inicio", { ascending: true })
+      .order("ordem_home", { ascending: true })
       .limit(40),
     context.admin
       .from("igreja_carrossel")
-      .select("id,titulo,subtitulo,imagem_url,link_url,ordem,ativo")
+      .select("id,titulo,subtitulo,imagem_url,link_url,ordem,ativo,evento_id")
       .eq("igreja_id", context.igreja.id)
       .eq("ativo", true)
       .order("ordem", { ascending: true })
@@ -263,6 +263,11 @@ function MobileAppHome({
 }) {
   const firstName = usuarioNome.trim().split(/\s+/)[0] || usuarioNome;
   const nextEvent = events[0];
+  const manualByEventId = new Map<string, any>(
+    carouselItems
+      .filter((item: any) => Boolean(item.evento_id && item.imagem_url))
+      .map((item: any) => [String(item.evento_id), item] as [string, any])
+  );
   const manualByTitle = new Map<string, any>(
     carouselItems
       .filter((item: any) => Boolean(item.imagem_url))
@@ -283,7 +288,7 @@ function MobileAppHome({
     })
     .map((event: any) => {
       const titleKey = String(event.titulo ?? "").trim().toLocaleLowerCase("pt-BR");
-      const manualFallback: any = manualByTitle.get(titleKey);
+      const manualFallback: any = manualByEventId.get(String(event.id)) ?? manualByTitle.get(titleKey);
       return {
         id: "agenda-" + event.id,
         href: "/elshaday/eventos/" + event.id,
@@ -303,6 +308,7 @@ function MobileAppHome({
 
   const configuredMediaItems = carouselItems
     .filter((item: any) => {
+      if (item.evento_id) return false;
       const key = String(item.titulo ?? "").trim().toLocaleLowerCase("pt-BR");
       return !key || !syncedTitleKeys.has(key);
     })

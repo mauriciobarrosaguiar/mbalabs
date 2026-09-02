@@ -15,6 +15,7 @@ import {
   deleteElshadayCarouselItem,
   updateElshadayCarouselItem
 } from "./actions";
+import { ElshadaySubmitButton } from "../ElshadaySubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -248,12 +249,12 @@ export default async function ElshadaySettingsPage({
               </span>
             </label>
 
-            <button
+            <ElshadaySubmitButton
               className="min-h-12 rounded-2xl bg-[#123d2d] px-5 py-3 font-black text-white sm:col-span-2"
-              type="submit"
+              pendingLabel="Adicionando banner..."
             >
               Adicionar banner avulso
-            </button>
+            </ElshadaySubmitButton>
           </form>
         </details>
       </section>
@@ -389,12 +390,12 @@ export default async function ElshadaySettingsPage({
                       <span className="font-black text-slate-800">Exibir na Home</span>
                     </label>
 
-                    <button
+                    <ElshadaySubmitButton
                       className="min-h-12 rounded-2xl bg-[#123d2d] px-5 py-3 font-black text-white sm:col-span-2"
-                      type="submit"
+                      pendingLabel="Salvando alterações..."
                     >
                       Salvar alterações
-                    </button>
+                    </ElshadaySubmitButton>
                   </form>
 
                   <form action={deleteElshadayCarouselItem} className="mt-3">

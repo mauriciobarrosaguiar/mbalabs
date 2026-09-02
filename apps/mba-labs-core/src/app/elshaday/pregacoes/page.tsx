@@ -7,6 +7,7 @@ import {
   requireElshadayContext
 } from "@/lib/elshaday";
 import { ElshadayMediaCarousel } from "../ElshadayMediaCarousel";
+import { ElshadaySubmitButton } from "../ElshadaySubmitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -219,9 +220,9 @@ export default async function ElshadaySermonsPage({
             <Field label="Link do áudio" name="audio_url" type="url" placeholder="https://..." />
             <Field label="Link de arquivo" name="arquivo_url" type="url" placeholder="https://..." />
             <div className="sm:col-span-2 lg:col-span-3">
-              <button className="min-h-12 rounded-2xl bg-[#123d2d] px-6 font-black text-white">
+              <ElshadaySubmitButton className="min-h-12 rounded-2xl bg-[#123d2d] px-6 font-black text-white" pendingLabel="Salvando pregação...">
                 Salvar pregação
-              </button>
+              </ElshadaySubmitButton>
             </div>
           </form>
         </details>

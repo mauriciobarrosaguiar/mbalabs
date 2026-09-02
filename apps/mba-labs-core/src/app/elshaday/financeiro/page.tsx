@@ -16,6 +16,7 @@ import {
   saveElshadayPixSettings,
   syncElshadayPixReceipts
 } from "../actions";
+import { ElshadaySubmitButton } from "../ElshadaySubmitButton";
 import {
   dateBR,
   moneyBR,
@@ -184,9 +185,9 @@ export default async function ElshadayFinancePage({
             </label>
 
             <div className="sm:col-span-2">
-              <button className="min-h-11 rounded-xl bg-slate-900 px-5 text-sm font-black text-white" type="submit">
+              <ElshadaySubmitButton className="min-h-11 rounded-xl bg-slate-900 px-5 text-sm font-black text-white" pendingLabel="Salvando configuração...">
                 Salvar configuração
-              </button>
+              </ElshadaySubmitButton>
             </div>
           </form>
 
@@ -310,9 +311,9 @@ export default async function ElshadayFinancePage({
             <textarea className="min-h-24 rounded-2xl border border-slate-200 p-4 outline-none focus:border-emerald-600" name="observacoes" />
           </label>
           <div className="sm:col-span-2 lg:col-span-3">
-            <button className="min-h-12 rounded-2xl bg-[#123d2d] px-6 font-black text-white" type="submit">
+            <ElshadaySubmitButton className="min-h-12 rounded-2xl bg-[#123d2d] px-6 font-black text-white" pendingLabel="Registrando entrada...">
               Registrar entrada
-            </button>
+            </ElshadaySubmitButton>
           </div>
         </form>
       </details>

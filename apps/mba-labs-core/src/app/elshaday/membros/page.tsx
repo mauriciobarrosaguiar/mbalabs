@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FileSpreadsheet, Search, Upload, UserCheck, UserPlus, UsersRound } from "lucide-react";
 import { createElshadayMember } from "../actions";
 import { importElshadayMembers } from "../completion-actions";
+import { ElshadaySubmitButton } from "../ElshadaySubmitButton";
 import {
   dateBR,
   hasElshadayRole,
@@ -121,9 +122,9 @@ export default async function ElshadayMembersPage({
               Registros já existentes por e-mail ou CPF são ignorados.
             </div>
             <div className="flex flex-wrap gap-2">
-              <button className="inline-flex min-h-11 w-fit items-center gap-2 rounded-xl bg-sky-900 px-5 font-black text-white">
+              <ElshadaySubmitButton className="inline-flex min-h-11 w-fit items-center gap-2 rounded-xl bg-sky-900 px-5 font-black text-white" pendingLabel="Importando...">
                 <Upload size={17} /> Importar arquivo
-              </button>
+              </ElshadaySubmitButton>
               <a
                 className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-sky-200 bg-white px-5 font-black text-sky-900"
                 href="/api/elshaday/membros/modelo-importacao"
@@ -176,9 +177,9 @@ export default async function ElshadayMembersPage({
               <textarea className="textarea" name="observacoes" />
             </label>
             <div className="sm:col-span-2 lg:col-span-3">
-              <button className="min-h-12 rounded-2xl bg-[#123d2d] px-6 font-black text-white" type="submit">
+              <ElshadaySubmitButton className="min-h-12 rounded-2xl bg-[#123d2d] px-6 font-black text-white" pendingLabel="Salvando membro...">
                 Salvar e abrir ficha
-              </button>
+              </ElshadaySubmitButton>
             </div>
           </form>
         </details>
