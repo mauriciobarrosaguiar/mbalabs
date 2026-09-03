@@ -122,6 +122,61 @@ export function normalizeManualPixInput(input: string) {
   };
 }
 
+export function normalizePixCopyPaste(value: string) {
+  return String(value ?? "").replace(/\s+/g, "").trim();
+}
+
+export function isPixCopyPaste(value: string) {
+  const normalized = normalizePixCopyPaste(value);
+  if (normalized.length < 80) return false;
+
+  const upper = normalized.toUpperCase();
+  return (
+    normalized.startsWith("000201") &&
+    (upper.includes("BR.GOV.BCB.PIX") || upper.includes("BR.GOV.BCB.PIX"))
+  );
+}
+
+function parseEmvFields(value: string) {
+  const fields = new Map<string, string>();
+  let offset = 0;
+
+  while (offset + 4 <= value.length) {
+    const id = value.slice(offset, offset + 2);
+    const lengthText = value.slice(offset + 2, offset + 4);
+    const length = Number(lengthText);
+
+    if (!/^\d{2}$/.test(id) || !Number.isInteger(length) || length < 0) break;
+
+    const start = offset + 4;
+    const end = start + length;
+    if (end > value.length) break;
+
+    fields.set(id, value.slice(start, end));
+    offset = end;
+  }
+
+  return fields;
+}
+
+export function extractPixKeyFromPayload(value: string) {
+  const normalized = normalizePixCopyPaste(value);
+  const top = parseEmvFields(normalized);
+
+  for (const id of ["26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51"]) {
+    const account = top.get(id);
+    if (!account) continue;
+
+    const nested = parseEmvFields(account);
+    if (String(nested.get("00") ?? "").toUpperCase() !== "BR.GOV.BCB.PIX") continue;
+
+    const key = String(nested.get("01") ?? "").trim();
+    if (key) return key;
+  }
+
+  return null;
+}
+
 export function buildStaticPixPayload(input: {
   key: string;
   merchantName: string;
