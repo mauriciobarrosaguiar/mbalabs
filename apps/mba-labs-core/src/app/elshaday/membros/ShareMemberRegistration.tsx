@@ -1,14 +1,11 @@
 "use client";
 
 import { Check, Copy, Share2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 export function ShareMemberRegistration({ registrationPath }: { registrationPath: string }) {
   const [copied, setCopied] = useState(false);
-  const fullUrl = useMemo(() => {
-    if (typeof window === "undefined") return registrationPath;
-    return window.location.origin + registrationPath;
-  }, [registrationPath]);
+  const fullUrl = "https://www.mbalabs.com.br" + registrationPath;
 
   async function shareLink() {
     const data = {
