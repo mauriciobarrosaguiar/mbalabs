@@ -1,30 +1,25 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { getOptionalElshadayContext, getPublicElshadayContext } from "@/lib/elshaday";
-import { ElshadayAdaptiveShell } from "./ElshadayAdaptiveShell";
+import { requireElshadayContext } from "@/lib/elshaday";
+import { ElshadayShell } from "./ElshadayShell";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Elshaday | Igreja Assembleia de Deus",
-  description: "Agenda, contribuições, palavras e acesso ao aplicativo da Igreja Elshaday."
+  description: "Área interna da Igreja Elshaday para membros e equipes autorizadas."
 };
 
 export default async function ElshadayLayout({ children }: { children: ReactNode }) {
-  const [context, publicContext] = await Promise.all([
-    getOptionalElshadayContext(),
-    getPublicElshadayContext()
-  ]);
+  const context = await requireElshadayContext("/elshaday");
 
   return (
-    <ElshadayAdaptiveShell
-      igrejaNome={publicContext.igreja.nome}
-      igrejaNomeCurto={publicContext.igreja.nome_curto}
-      usuarioNome={context?.current.usuario.nome ?? null}
-      papel={context?.papel ?? null}
-      hasInternalAccess={Boolean(context)}
+    <ElshadayShell
+      igrejaNome={context.igreja.nome}
+      usuarioNome={context.current.usuario.nome}
+      papel={context.papel}
     >
       {children}
-    </ElshadayAdaptiveShell>
+    </ElshadayShell>
   );
 }
