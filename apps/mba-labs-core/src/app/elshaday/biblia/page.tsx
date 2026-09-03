@@ -118,9 +118,17 @@ export default async function ElshadayBiblePage({
             <div>
               <h2 className="font-black">Meu material salvo</h2>
             </div>
-            <form className="relative" method="get">
-              <Search className="absolute left-3 top-3.5 text-slate-600" size={16} />
-              <input className="input pl-9" name="q" defaultValue={read(query.q)} placeholder="Buscar..." />
+            <form className="relative w-full sm:w-auto" method="get">
+              <Search
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+                size={18}
+              />
+              <input
+                className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white pl-12 pr-4 text-slate-950 outline-none placeholder:text-slate-500 focus:border-emerald-600 sm:w-64"
+                name="q"
+                defaultValue={read(query.q)}
+                placeholder="Buscar..."
+              />
             </form>
           </div>
 
