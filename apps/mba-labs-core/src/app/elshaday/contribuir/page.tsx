@@ -168,6 +168,16 @@ export default async function ElshadayContributePage({
           </div>
         </div>
 
+        {pix.addressKey ? (
+          <div className="mt-6 rounded-[22px] bg-white p-5 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-[.13em] text-slate-600">Chave PIX</p>
+            <p className="mt-2 break-all text-lg font-black text-slate-950">{pix.addressKey}</p>
+            <div className="mt-4">
+              <PixCopyButton value={pix.addressKey} />
+            </div>
+          </div>
+        ) : null}
+
         {pix.staticQrImage ? (
           <div className="mx-auto mt-6 max-w-[280px] rounded-[28px] bg-white p-4 shadow-sm">
             <img
@@ -190,21 +200,13 @@ export default async function ElshadayContributePage({
               <PixCopyButton value={pix.staticQrPayload} />
             </div>
           </div>
-        ) : pix.addressKey ? (
-          <div className="mt-6 rounded-[22px] bg-white p-5">
-            <p className="text-xs font-black uppercase tracking-[.13em] text-slate-600">Chave PIX</p>
-            <p className="mt-2 break-all text-lg font-black text-slate-950">{pix.addressKey}</p>
-            <div className="mt-4">
-              <PixCopyButton value={pix.addressKey} />
-            </div>
-          </div>
-        ) : (
+        ) : !pix.addressKey ? (
           <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center text-amber-950">
             <CircleAlert className="mx-auto mb-2" size={25} />
             <p className="font-black">PIX ainda não configurado</p>
-            <p className="mt-1 text-sm">A Tesouraria precisa cadastrar a chave PIX ou ativar uma integração.</p>
+            <p className="mt-1 text-sm">A Tesouraria precisa cadastrar a chave PIX.</p>
           </div>
-        )}
+        ) : null}
       </section>
 
       {context ? (
