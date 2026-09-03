@@ -1131,21 +1131,21 @@ export async function saveElshadayManualPix(formData: FormData) {
   requireElshadayRole(context, ["admin", "tesouraria"]);
 
   try {
-    const pixInput = text(formData, "pix_address_key");
+    const pixInput = text(formData, "pix_input");
     if (!pixInput) {
       throw new Error("Informe a chave PIX ou o PIX Copia e Cola.");
     }
 
-    const result = await saveElshadayManualPixInput({
+    const result = await saveElshadayManualPixConfiguration({
       igrejaId: context.igreja.id,
-      value: pixInput,
+      pixInput,
       updatedBy: context.current.authUser.id
     });
 
     await auditChurchAccess(context, "elshaday pix simples configurado", {
       mode: result.mode,
       input_type: result.inputType,
-      address_key_configured: true
+      address_key_extracted: Boolean(result.addressKey)
     });
   } catch (error) {
     redirectWithMessage(
