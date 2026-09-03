@@ -124,9 +124,6 @@ export default async function ElshadaySettingsPage({
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="text-xl font-black tracking-tight text-slate-950">Destaques sincronizados com a Agenda</h2>
-            <p className="mt-1 text-sm font-semibold leading-6 text-slate-600">
-              Estes itens não precisam ser cadastrados novamente. A próxima ocorrência de cada série é exibida e qualquer alteração feita na Agenda aparece automaticamente na Home.
-            </p>
           </div>
         </div>
 
