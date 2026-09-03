@@ -3,10 +3,7 @@ import "server-only";
 // qrcode não possui tipos no projeto; o require mantém a dependência apenas no servidor.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require("qrcode") as {
-  toDataURL: (
-    text: string,
-    options?: Record<string, unknown>
-  ) => Promise<string>;
+  toDataURL: (text: string, options?: Record<string, unknown>) => Promise<string>;
 };
 
 function emvField(id: string, value: string) {
@@ -41,6 +38,88 @@ function crc16Ccitt(payload: string) {
   }
 
   return crc.toString(16).toUpperCase().padStart(4, "0");
+}
+
+function parseTlv(value: string) {
+  const fields: Array<{ id: string; value: string }> = [];
+  let offset = 0;
+
+  while (offset < value.length) {
+    if (offset + 4 > value.length) throw new Error("PIX Copia e Cola inválido.");
+
+    const id = value.slice(offset, offset + 2);
+    const lengthText = value.slice(offset + 2, offset + 4);
+    if (!/^\d{2}$/.test(lengthText)) throw new Error("PIX Copia e Cola inválido.");
+
+    const length = Number(lengthText);
+    const content = value.slice(offset + 4, offset + 4 + length);
+    if (content.length !== length) throw new Error("PIX Copia e Cola inválido.");
+
+    fields.push({ id, value: content });
+    offset += 4 + length;
+  }
+
+  return fields;
+}
+
+function extractPixKeyFromPayload(payload: string) {
+  for (const field of parseTlv(payload)) {
+    const numericId = Number(field.id);
+    if (!Number.isInteger(numericId) || numericId < 26 || numericId > 51) continue;
+
+    try {
+      const nested = parseTlv(field.value);
+      const gui = nested.find((item) => item.id === "00")?.value?.toUpperCase();
+      if (gui !== "BR.GOV.BCB.PIX") continue;
+
+      const key = nested.find((item) => item.id === "01")?.value?.trim();
+      if (key) return key;
+    } catch {
+      // Não é um bloco PIX.
+    }
+  }
+
+  return "";
+}
+
+export function normalizeManualPixInput(input: string) {
+  const raw = input.trim();
+  if (!raw) throw new Error("Informe a chave PIX ou o PIX Copia e Cola.");
+
+  const isCopyPaste =
+    raw.startsWith("000201") &&
+    raw.toUpperCase().includes("BR.GOV.BCB.PIX");
+
+  if (!isCopyPaste) {
+    if (Buffer.byteLength(raw, "utf8") > 77) {
+      throw new Error("A chave PIX informada é maior que o limite permitido.");
+    }
+
+    return {
+      key: raw,
+      payload: null as string | null,
+      inputType: "key" as const
+    };
+  }
+
+  const match = raw.match(/6304([0-9A-F]{4})$/i);
+  if (!match) throw new Error("PIX Copia e Cola inválido.");
+
+  const expected = crc16Ccitt(raw.slice(0, -4));
+  if (expected !== match[1].toUpperCase()) {
+    throw new Error("PIX Copia e Cola inválido.");
+  }
+
+  const key = extractPixKeyFromPayload(raw);
+  if (!key) {
+    throw new Error("Não foi possível localizar a chave PIX dentro do código Copia e Cola.");
+  }
+
+  return {
+    key,
+    payload: raw,
+    inputType: "copy_paste" as const
+  };
 }
 
 export function buildStaticPixPayload(input: {
