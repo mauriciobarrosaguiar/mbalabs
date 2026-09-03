@@ -13,6 +13,7 @@ import {
 import {
   createElshadayFinanceEntry,
   generateElshadayStaticPix,
+  saveElshadayManualPix,
   saveElshadayPixSettings,
   syncElshadayPixReceipts
 } from "../actions";
@@ -128,12 +129,63 @@ export default async function ElshadayFinancePage({
         <Kpi label="PIX automático" value={moneyBR(pixAutomatico)} />
       </section>
 
+      <section className="rounded-[28px] border border-emerald-200 bg-emerald-50 p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">PIX simples · sem API</p>
+            <h2 className="mt-1 text-xl font-black text-emerald-950">Chave PIX para membros e visitantes</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-950/75">
+              Cadastre somente a chave PIX. O app gera automaticamente o PIX Copia e Cola e o QR Code.
+            </p>
+          </div>
+          <span className={
+            "w-fit rounded-full px-3 py-1 text-xs font-black " +
+            (pixStatus.addressKeyConfigured && pixStatus.staticQrPayload
+              ? "bg-emerald-700 text-white"
+              : "bg-white text-emerald-800")
+          }>
+            {pixStatus.addressKeyConfigured && pixStatus.staticQrPayload ? "Disponível" : "Configurar"}
+          </span>
+        </div>
+
+        <form action={saveElshadayManualPix} className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+          <label className="grid gap-2 text-sm font-bold text-emerald-950">
+            Chave PIX da igreja
+            <input
+              className="input"
+              name="pix_address_key"
+              defaultValue={config?.pix_address_key ?? pixStatus.addressKey ?? ""}
+              placeholder="E-mail, telefone, CPF/CNPJ ou chave aleatória"
+              required
+            />
+          </label>
+          <ElshadaySubmitButton
+            className="min-h-12 rounded-2xl bg-[#123d2d] px-5 text-sm font-black text-white"
+            pendingLabel="Gerando QR Code..."
+          >
+            Salvar PIX e gerar QR Code
+          </ElshadaySubmitButton>
+        </form>
+
+        {pixStatus.addressKeyConfigured ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+            <span className="font-black text-emerald-950">PIX atual:</span>
+            <code className="max-w-full break-all rounded-xl bg-white px-3 py-2 font-bold text-slate-800">
+              {pixStatus.addressKey}
+            </code>
+            <Link className="font-black text-[#176445] underline underline-offset-4" href="/elshaday/contribuir">
+              Ver como aparece para o membro
+            </Link>
+          </div>
+        ) : null}
+      </section>
+
       <section className="grid gap-4 xl:grid-cols-[1.15fr_.85fr]">
         <article className="rounded-[28px] border border-emerald-950/10 bg-white p-5 shadow-sm">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
             <div>
-              <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">Integração</p>
-              <h2 className="mt-1 text-xl font-black">PIX automático · Asaas</h2>
+              <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">Opcional</p>
+              <h2 className="mt-1 text-xl font-black">Automação por API · Asaas</h2>
             </div>
             <IntegrationStatus ready={pixStatus.ready} />
           </div>
@@ -226,7 +278,10 @@ export default async function ElshadayFinancePage({
               <QrCode size={22} />
             </div>
             <div>
-              <h2 className="font-black text-sky-950">QR Code da igreja</h2>
+              <h2 className="font-black text-sky-950">QR Code do PIX</h2>
+              <p className="mt-1 text-xs font-bold text-sky-900/75">
+                {pixStatus.staticQrMode === "manual" ? "Gerado pelo app, sem API" : pixStatus.staticQrMode === "api" ? "Gerado pelo provedor" : "Aguardando configuração"}
+              </p>
             </div>
           </div>
 
@@ -251,17 +306,19 @@ export default async function ElshadayFinancePage({
                 <Link className="rounded-xl bg-sky-900 px-4 py-3 text-sm font-black text-white" href="/elshaday/contribuir">
                   Abrir tela para contribuição
                 </Link>
-                <form action={syncElshadayPixReceipts}>
-                  <button className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-sky-200 bg-white px-4 text-sm font-black text-sky-900" type="submit">
-                    <RefreshCw size={16} /> Sincronizar recebidos
-                  </button>
-                </form>
+                {pixStatus.ready ? (
+                  <form action={syncElshadayPixReceipts}>
+                    <button className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-sky-200 bg-white px-4 text-sm font-black text-sky-900" type="submit">
+                      <RefreshCw size={16} /> Sincronizar recebidos
+                    </button>
+                  </form>
+                ) : null}
               </div>
             </div>
           ) : (
             <div className="mt-5 rounded-2xl bg-white p-4">
               <p className="text-sm leading-6 text-slate-600">
-                Depois de configurar a conta Asaas da igreja e a chave PIX, gere aqui o QR Code oficial.
+                Cadastre a chave PIX acima ou gere novamente o QR Code usando a chave salva.
               </p>
               <form action={generateElshadayStaticPix} className="mt-4">
                 <button className="rounded-xl bg-sky-900 px-4 py-3 text-sm font-black text-white" type="submit">
@@ -423,6 +480,7 @@ function readParam(value: string | string[] | undefined) {
 }
 
 function successMessage(code: string) {
+  if (code === "pix_manual") return "PIX salvo e QR Code gerado. Já está disponível na tela de contribuição.";
   if (code === "pix_config") return "Configuração PIX salva.";
   if (code === "pix_qr") return "QR Code PIX da igreja gerado com sucesso.";
   if (code.startsWith("pix_sync:")) {
