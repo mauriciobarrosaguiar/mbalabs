@@ -46,6 +46,7 @@ export default async function ElshadayMemberDetailPage({
 
   const canManage = hasElshadayRole(context.papel, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
   const canManageAccess = context.papel === "admin";
+  const canCreateMemberAccess = hasElshadayRole(context.papel, ["admin", "pastor", "secretaria", "lider"]);
 
   const { data: member, error } = await context.admin
     .from("igreja_membros")
@@ -396,7 +397,7 @@ export default async function ElshadayMemberDetailPage({
         </section>
       ) : null}
 
-      {canManageAccess ? (
+      {canCreateMemberAccess ? (
         <section className="rounded-[28px] border border-sky-200 bg-sky-50 p-5">
           <div className="flex items-start gap-3">
             <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-sky-900 text-white">
@@ -405,7 +406,9 @@ export default async function ElshadayMemberDetailPage({
             <div>
               <h2 className="font-black text-sky-950">Login e acesso do membro</h2>
               <p className="mt-1 text-sm leading-6 text-sky-900/75">
-                Vincule esta ficha a um acesso já criado ou envie um convite diretamente daqui.
+                {canManageAccess
+                  ? "Vincule esta ficha a um acesso já criado ou envie um convite diretamente daqui."
+                  : "Crie o login deste membro e envie o convite para ele definir a senha."}
               </p>
             </div>
           </div>
@@ -419,30 +422,32 @@ export default async function ElshadayMemberDetailPage({
               </p>
             </div>
           ) : member.user_id ? (
-            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-              Existe um vínculo de autenticação, mas o acesso ativo do Elshaday não foi localizado. Você pode escolher outro acesso abaixo.
+            <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-900">
+              Este membro já possui um login vinculado.
             </div>
           ) : null}
 
-          <form action={linkElshadayMemberAccess} className="mt-5 grid gap-3 md:grid-cols-[1fr_auto]">
-            <input type="hidden" name="membro_id" value={member.id} />
-            <input type="hidden" name="return_to" value={`/elshaday/membros/${member.id}`} />
-            <select
-              className="input"
-              name="usuario_id"
-              defaultValue={currentAccess?.id ?? ""}
-            >
-              <option value="">Sem vínculo com login</option>
-              {accessUsers.map((user: any) => (
-                <option key={user.id} value={user.id}>
-                  {user.nome} · {user.email} · {roleLabel(String(user.permission?.perfil_app || "membro") as ElshadayRole)}
-                </option>
-              ))}
-            </select>
-            <button className="rounded-2xl bg-sky-900 px-5 font-black text-white" type="submit">
-              Atualizar vínculo
-            </button>
-          </form>
+          {canManageAccess ? (
+            <form action={linkElshadayMemberAccess} className="mt-5 grid gap-3 md:grid-cols-[1fr_auto]">
+              <input type="hidden" name="membro_id" value={member.id} />
+              <input type="hidden" name="return_to" value={`/elshaday/membros/${member.id}`} />
+              <select
+                className="input"
+                name="usuario_id"
+                defaultValue={currentAccess?.id ?? ""}
+              >
+                <option value="">Sem vínculo com login</option>
+                {accessUsers.map((user: any) => (
+                  <option key={user.id} value={user.id}>
+                    {user.nome} · {user.email} · {roleLabel(String(user.permission?.perfil_app || "membro") as ElshadayRole)}
+                  </option>
+                ))}
+              </select>
+              <button className="rounded-2xl bg-sky-900 px-5 font-black text-white" type="submit">
+                Atualizar vínculo
+              </button>
+            </form>
+          ) : null}
 
           {!member.user_id ? (
             member.email ? (
@@ -454,9 +459,18 @@ export default async function ElshadayMemberDetailPage({
                   <input type="hidden" name="telefone" value={member.telefone || member.whatsapp || ""} />
                   <input type="hidden" name="membro_id" value={member.id} />
                   <input type="hidden" name="return_to" value={`/elshaday/membros/${member.id}`} />
-                  <select className="input" name="papel" defaultValue="membro">
-                    {ROLES.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
-                  </select>
+                  {canManageAccess ? (
+                    <select className="input" name="papel" defaultValue="membro">
+                      {ROLES.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
+                    </select>
+                  ) : (
+                    <>
+                      <input type="hidden" name="papel" value="membro" />
+                      <div className="flex min-h-12 items-center rounded-2xl border border-sky-200 bg-sky-50 px-4 text-sm font-black text-sky-950">
+                        Perfil: Membro
+                      </div>
+                    </>
+                  )}
                   <button className="rounded-2xl bg-[#123d2d] px-5 font-black text-white" type="submit">
                     Criar e enviar convite
                   </button>
