@@ -527,7 +527,7 @@ async function auditChurchAccess(context: any, acao: string, detalhes: Record<st
 
 export async function createElshadayAccess(formData: FormData) {
   const context = await requireElshadayContext("/elshaday/acessos");
-  requireElshadayRole(context, ["admin"]);
+  requireElshadayRole(context, ["admin", "pastor", "secretaria", "lider"]);
   const returnTo = safeElshadayReturn(formData, "/elshaday/acessos");
 
   try {
@@ -536,8 +536,17 @@ export async function createElshadayAccess(formData: FormData) {
     const nome = text(formData, "nome");
     const email = text(formData, "email").toLowerCase();
     const telefone = nullable(formData, "telefone");
-    const papel = accessRole(text(formData, "papel"));
+    const requestedRole = accessRole(text(formData, "papel"));
     const membroId = nullable(formData, "membro_id");
+    const isAdmin = context.papel === "admin";
+    const papel = isAdmin ? requestedRole : "membro";
+
+    if (!isAdmin && !membroId) {
+      throw new Error("Pastor, secretaria e líder só podem criar acesso vinculado a uma ficha de membro.");
+    }
+    if (!isAdmin && requestedRole !== "membro") {
+      throw new Error("Pastor, secretaria e líder só podem criar login com perfil de Membro.");
+    }
 
     if (nome.length < 2) throw new Error("Informe o nome completo.");
     if (!email.includes("@")) throw new Error("Informe um e-mail válido.");
