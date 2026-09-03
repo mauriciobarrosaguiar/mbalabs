@@ -191,14 +191,6 @@ export function ElshadayMobileAppChrome({
 
               <div className="mt-4 grid gap-2">
                 <Link
-                  className="flex min-h-12 items-center gap-3 rounded-[18px] border border-emerald-300 bg-emerald-50 px-4 font-black !text-[#123d2d]"
-                  href="/elshaday/publico"
-                  style={{ color: "#123d2d" }}
-                >
-                  <Church size={19} />
-                  Ver página pública
-                </Link>
-                <Link
                   className="flex min-h-12 items-center gap-3 rounded-[18px] border border-slate-300 bg-white px-4 font-black !text-slate-800"
                   href="/dashboard"
                   style={{ color: "#1e293b" }}
