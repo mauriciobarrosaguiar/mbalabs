@@ -135,7 +135,7 @@ export default async function ElshadayFinancePage({
             <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">PIX simples · sem API</p>
             <h2 className="mt-1 text-xl font-black text-emerald-950">Chave PIX para membros e visitantes</h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-950/75">
-              Cadastre somente a chave PIX. O app gera automaticamente o PIX Copia e Cola e o QR Code.
+              Cole a chave PIX ou o PIX Copia e Cola. O app gera o QR Code automaticamente.
             </p>
           </div>
           <span className={
@@ -150,12 +150,12 @@ export default async function ElshadayFinancePage({
 
         <form action={saveElshadayManualPix} className="mt-5 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
           <label className="grid gap-2 text-sm font-bold text-emerald-950">
-            Chave PIX da igreja
+            Chave PIX ou PIX Copia e Cola
             <input
               className="input"
               name="pix_address_key"
               defaultValue={config?.pix_address_key ?? pixStatus.addressKey ?? ""}
-              placeholder="E-mail, telefone, CPF/CNPJ ou chave aleatória"
+              placeholder="Cole a chave PIX ou o código PIX Copia e Cola"
               required
             />
           </label>
