@@ -4,6 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { getElshadayPrimaryPixProvider } from "@/lib/elshaday-payment-providers";
 import { createElshadayPagBankIdentifiedPixCharge } from "@/lib/elshaday-pagbank";
 import { getElshadayProviderSecrets } from "@/lib/elshaday-payment-secrets";
+import { buildStaticPixPayload, createStaticPixQrDataUrl } from "@/lib/elshaday-static-pix";
 
 type ElshadayPixEnvironment = "sandbox" | "production";
 
@@ -103,7 +104,13 @@ export async function getElshadayPixStatus(igrejaId: string) {
     webhookUrl: buildWebhookUrl(),
     staticQrId: config?.static_qr_id ?? null,
     staticQrPayload: config?.static_qr_payload ?? null,
-    staticQrImage: config?.static_qr_image ?? null
+    staticQrImage: config?.static_qr_image ?? null,
+    staticQrMode:
+      String(config?.static_qr_provider_payload?.mode ?? "") === "manual"
+        ? "manual"
+        : config?.static_qr_id
+          ? "api"
+          : null
   };
 }
 
@@ -156,30 +163,84 @@ export async function saveElshadayPixConfiguration(input: {
 }
 
 export async function createElshadayStaticPixQrCode(igrejaId: string, updatedBy: string) {
-  const settings = await requireOperationalSettings(igrejaId);
   const admin = getSupabaseAdmin() as any;
+  const status = await getElshadayPixStatus(igrejaId);
 
-  const response = await asaasRequest<Record<string, unknown>>(settings, "/pix/qrCodes/static", {
-    method: "POST",
-    body: {
-      addressKey: settings.addressKey,
-      description: "Contribuições - Assembleia de Deus Elshaday Palmas",
-      format: "ALL",
-      allowsMultiplePayments: true,
-      externalReference: `elshaday_static:${igrejaId}`
-    }
-  });
-
-  const qrId = stringValue(response.id);
-  const qrPayload = stringValue(response.payload);
-  const qrImage =
-    stringValue(response.encodedImage) ||
-    stringValue(response.image) ||
-    stringValue(response.qrCode);
-
-  if (!qrId || !qrPayload) {
-    throw new Error("O Asaas não retornou o ID e o código PIX esperados.");
+  if (!status.addressKey) {
+    throw new Error("Cadastre a chave PIX da igreja antes de gerar o QR Code.");
   }
+
+  // Quando a API estiver totalmente configurada, usamos o QR oficial do provedor.
+  if (status.ready) {
+    const settings = await requireOperationalSettings(igrejaId);
+
+    const response = await asaasRequest<Record<string, unknown>>(settings, "/pix/qrCodes/static", {
+      method: "POST",
+      body: {
+        addressKey: settings.addressKey,
+        description: "Contribuições - Assembleia de Deus Elshaday Palmas",
+        format: "ALL",
+        allowsMultiplePayments: true,
+        externalReference: `elshaday_static:${igrejaId}`
+      }
+    });
+
+    const qrId = stringValue(response.id);
+    const qrPayload = stringValue(response.payload);
+    const qrImage =
+      stringValue(response.encodedImage) ||
+      stringValue(response.image) ||
+      stringValue(response.qrCode);
+
+    if (!qrId || !qrPayload) {
+      throw new Error("O Asaas não retornou o ID e o código PIX esperados.");
+    }
+
+    const { error } = await admin
+      .from("igreja_pix_configuracoes")
+      .upsert(
+        {
+          igreja_id: igrejaId,
+          provider: "asaas",
+          ambiente: settings.environment,
+          ativo: true,
+          pix_address_key: settings.addressKey,
+          static_qr_id: qrId,
+          static_qr_payload: qrPayload,
+          static_qr_image: qrImage || null,
+          static_qr_provider_payload: response,
+          updated_by: updatedBy,
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: "igreja_id,provider" }
+      );
+
+    if (error) throw new Error(error.message);
+
+    return {
+      id: qrId,
+      payload: qrPayload,
+      image: qrImage || null,
+      mode: "api" as const
+    };
+  }
+
+  // Fallback sem API: gera BR Code PIX estático e QR Code dentro do próprio app.
+  const { data: igreja, error: igrejaError } = await admin
+    .from("igreja_igrejas")
+    .select("nome,nome_curto,cidade")
+    .eq("id", igrejaId)
+    .maybeSingle();
+
+  if (igrejaError) throw new Error(igrejaError.message);
+
+  const qrPayload = buildStaticPixPayload({
+    key: status.addressKey,
+    merchantName: String(igreja?.nome_curto ?? igreja?.nome ?? "ELSHADAY"),
+    merchantCity: String(igreja?.cidade ?? "PALMAS")
+  });
+  const qrImage = await createStaticPixQrDataUrl(qrPayload);
+  const qrId = "manual:" + crypto.createHash("sha256").update(qrPayload).digest("hex").slice(0, 24);
 
   const { error } = await admin
     .from("igreja_pix_configuracoes")
@@ -187,13 +248,17 @@ export async function createElshadayStaticPixQrCode(igrejaId: string, updatedBy:
       {
         igreja_id: igrejaId,
         provider: "asaas",
-        ambiente: settings.environment,
-        ativo: true,
-        pix_address_key: settings.addressKey,
+        ambiente: status.environment,
+        ativo: status.active,
+        pix_address_key: status.addressKey,
         static_qr_id: qrId,
         static_qr_payload: qrPayload,
-        static_qr_image: qrImage || null,
-        static_qr_provider_payload: response,
+        static_qr_image: qrImage,
+        static_qr_provider_payload: {
+          mode: "manual",
+          generated_locally: true,
+          generated_at: new Date().toISOString()
+        },
         updated_by: updatedBy,
         updated_at: new Date().toISOString()
       },
@@ -205,7 +270,8 @@ export async function createElshadayStaticPixQrCode(igrejaId: string, updatedBy:
   return {
     id: qrId,
     payload: qrPayload,
-    image: qrImage || null
+    image: qrImage,
+    mode: "manual" as const
   };
 }
 
