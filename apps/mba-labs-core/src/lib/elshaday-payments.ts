@@ -240,7 +240,7 @@ export async function createElshadayStaticPixQrCode(igrejaId: string, updatedBy:
     merchantCity: String(igreja?.cidade ?? "PALMAS")
   });
   const qrImage = await createStaticPixQrDataUrl(qrPayload);
-  const qrId = "manual:" + crypto.createHash("sha256").update(qrPayload).digest("hex").slice(0, 24);
+  const qrId = "manual:" + crypto.randomUUID();
 
   const { error } = await admin
     .from("igreja_pix_configuracoes")
