@@ -219,10 +219,6 @@ export default async function ElshadayContributePage({
             <div>
               <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">PIX identificado</p>
               <h2 className="mt-1 text-xl font-black">Escolha o tipo e informe o valor</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Depois do pagamento, a confirmação entra no financeiro já ligada ao seu cadastro e à categoria escolhida.
-                {identifiedPix?.name ? <> Provedor atual: <strong>{identifiedPix.name}</strong>.</> : null}
-              </p>
             </div>
           </div>
 
@@ -288,12 +284,6 @@ export default async function ElshadayContributePage({
             </form>
           )}
 
-          <div className="mt-5 flex items-start gap-2 rounded-2xl bg-slate-50 p-4 text-xs leading-5 text-slate-600">
-            <ShieldCheck className="mt-0.5 shrink-0 text-emerald-700" size={17} />
-            <p>
-              O membro não enxerga o financeiro da igreja. Esta tela mostra apenas as próprias cobranças PIX identificadas.
-            </p>
-          </div>
         </section>
         )
       ) : null}
