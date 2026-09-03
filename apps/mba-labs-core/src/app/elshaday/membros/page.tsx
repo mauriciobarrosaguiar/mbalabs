@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { FileSpreadsheet, Search, Upload, UserCheck, UserPlus, UsersRound } from "lucide-react";
+import { Link2, FileSpreadsheet, Search, Upload, UserCheck, UserPlus, UsersRound } from "lucide-react";
 import { createElshadayMember } from "../actions";
 import { importElshadayMembers } from "../completion-actions";
 import { ElshadaySubmitButton } from "../ElshadaySubmitButton";
+import { ShareMemberRegistration } from "./ShareMemberRegistration";
+import { createElshadayMemberRegistrationToken } from "@/lib/elshaday-member-registration";
 import {
   dateBR,
   hasElshadayRole,
@@ -21,6 +23,10 @@ export default async function ElshadayMembersPage({
   const context = await requireElshadayContext("/elshaday/membros");
   requireElshadayRole(context, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
   const canManage = hasElshadayRole(context.papel, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
+  const canShareRegistration = hasElshadayRole(context.papel, ["admin", "pastor", "tesouraria", "secretaria"]);
+  const registrationPath = canShareRegistration
+    ? "/cadastro-membro?convite=" + createElshadayMemberRegistrationToken(context.igreja.id)
+    : "";
 
   const { data: members, error } = await context.admin
     .from("igreja_membros")
@@ -97,6 +103,25 @@ export default async function ElshadayMembersPage({
         <Kpi label="Visitantes" value={visitorCount} />
         <Kpi label="Com acesso digital" value={linkedCount} />
       </section>
+
+      {canShareRegistration ? (
+        <section className="rounded-[26px] border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] md:items-center">
+            <div className="flex items-start gap-3">
+              <div className="grid size-11 shrink-0 place-items-center rounded-[14px] bg-white text-[#176445] shadow-sm">
+                <Link2 size={20} />
+              </div>
+              <div>
+                <h2 className="font-black text-emerald-950">Link para cadastro de membros</h2>
+                <p className="mt-1 text-sm text-emerald-900/80">
+                  Envie este link para o membro preencher a própria ficha.
+                </p>
+              </div>
+            </div>
+            <ShareMemberRegistration registrationPath={registrationPath} />
+          </div>
+        </section>
+      ) : null}
 
       {canManage ? (
         <details className="rounded-[28px] border border-sky-200 bg-sky-50 p-5 shadow-sm">
