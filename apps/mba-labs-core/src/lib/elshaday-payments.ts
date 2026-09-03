@@ -89,7 +89,30 @@ export async function getElshadayPixStatus(igrejaId: string) {
   const storedSecrets = await getElshadayProviderSecrets(igrejaId, "asaas");
   const apiKey = String(process.env.ELSHADAY_ASAAS_API_KEY ?? storedSecrets.apiKey ?? "").trim();
   const webhookToken = String(process.env.ELSHADAY_ASAAS_WEBHOOK_TOKEN ?? storedSecrets.webhookToken ?? "").trim();
-  const addressKey = String(process.env.ELSHADAY_PIX_ADDRESS_KEY ?? config?.pix_address_key ?? "").trim();
+
+  // Compatibilidade: versões anteriores podiam salvar o PIX Copia e Cola inteiro
+  // no campo da chave. Reconhecemos isso automaticamente para não exigir recadastro.
+  const storedAddress = String(config?.pix_address_key ?? "").trim();
+  const legacyPayload = isPixCopyPaste(storedAddress)
+    ? normalizePixCopyPaste(storedAddress)
+    : null;
+  const storedKey = legacyPayload
+    ? String(extractPixKeyFromPayload(legacyPayload) ?? "").trim()
+    : storedAddress;
+  const addressKey = String(process.env.ELSHADAY_PIX_ADDRESS_KEY ?? storedKey).trim();
+
+  const staticQrPayload = String(config?.static_qr_payload ?? legacyPayload ?? "").trim() || null;
+  let staticQrImage = String(config?.static_qr_image ?? "").trim() || null;
+
+  // Se já existe um Copia e Cola salvo, mas a imagem ainda não foi gravada,
+  // gera o QR Code localmente na leitura para aparecer imediatamente no app.
+  if (!staticQrImage && staticQrPayload) {
+    try {
+      staticQrImage = await createStaticPixQrDataUrl(staticQrPayload);
+    } catch {
+      staticQrImage = null;
+    }
+  }
 
   return {
     provider: "asaas" as const,
@@ -103,14 +126,16 @@ export async function getElshadayPixStatus(igrejaId: string) {
     ready: Boolean(config?.ativo && apiKey && webhookToken && addressKey),
     webhookUrl: buildWebhookUrl(),
     staticQrId: config?.static_qr_id ?? null,
-    staticQrPayload: config?.static_qr_payload ?? null,
-    staticQrImage: config?.static_qr_image ?? null,
+    staticQrPayload,
+    staticQrImage,
     staticQrMode:
-      String(config?.static_qr_provider_payload?.mode ?? "") === "manual"
+      String(config?.static_qr_provider_payload?.mode ?? "") === "manual" || legacyPayload
         ? "manual"
         : config?.static_qr_id
           ? "api"
-          : null
+          : staticQrPayload
+            ? "manual"
+            : null
   };
 }
 
