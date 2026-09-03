@@ -12,9 +12,8 @@ import {
 } from "lucide-react";
 import {
   dateBR,
-  getOptionalElshadayContext,
-  getPublicElshadayContext,
-  moneyBR
+  moneyBR,
+  requireElshadayContext
 } from "@/lib/elshaday";
 import { getElshadayPixStatus } from "@/lib/elshaday-payments";
 import { getElshadayIdentifiedPixStatus } from "@/lib/elshaday-payment-providers";
@@ -29,14 +28,13 @@ export default async function ElshadayContributePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const query = await searchParams;
-  const context = await getOptionalElshadayContext();
-  const publicContext = await getPublicElshadayContext();
-  const igreja = context?.igreja ?? publicContext.igreja;
-  const admin = context?.admin ?? publicContext.admin;
+  const context = await requireElshadayContext("/elshaday/contribuir");
+  const igreja = context.igreja;
+  const admin = context.admin;
 
   const [pix, identifiedPix] = await Promise.all([
     getElshadayPixStatus(igreja.id),
-    context ? getElshadayIdentifiedPixStatus(igreja.id) : Promise.resolve(null)
+    getElshadayIdentifiedPixStatus(igreja.id)
   ]);
 
   let member: any = null;
@@ -106,7 +104,7 @@ export default async function ElshadayContributePage({
         <p className="mt-4 text-xs font-black uppercase tracking-[.16em] text-[#176445]">Contribuições</p>
         <h1 className="mt-1 text-3xl font-black">Contribuir via PIX</h1>
         <p className="mx-auto mt-3 max-w-2xl text-slate-600">
-          Contribua por PIX mesmo sem login. Membros com acesso também podem gerar um PIX identificado.
+          Área exclusiva para membros e equipes da igreja com acesso ao aplicativo.
         </p>
       </header>
 
@@ -115,7 +113,7 @@ export default async function ElshadayContributePage({
           <p className="text-sm font-semibold text-slate-600">Generosidade</p>
           <h1 className="mt-0.5 text-[30px] font-black tracking-tight text-slate-950">Contribua</h1>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Copie a chave PIX ou use o QR Code. Não é necessário ser membro.
+            Copie a chave PIX ou use o QR Code dentro da sua área autenticada.
           </p>
         </div>
 
@@ -161,9 +159,9 @@ export default async function ElshadayContributePage({
           </div>
           <div>
             <p className="text-xs font-black uppercase tracking-[.14em] text-[#176445]">PIX da igreja</p>
-            <h2 className="mt-1 text-2xl font-black text-emerald-950">Contribua sem precisar fazer login</h2>
+            <h2 className="mt-1 text-2xl font-black text-emerald-950">Contribua pelo aplicativo</h2>
             <p className="mt-2 text-sm leading-6 text-emerald-950/70">
-              Abra o aplicativo do seu banco, copie o PIX abaixo ou leia o QR Code. A contribuição pode ser feita por qualquer pessoa.
+              Esta área é restrita a usuários cadastrados. Abra o aplicativo do seu banco, copie o PIX abaixo ou leia o QR Code.
             </p>
           </div>
         </div>
@@ -298,22 +296,7 @@ export default async function ElshadayContributePage({
           </div>
         </section>
         )
-      ) : (
-        <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-          <div className="flex items-start gap-3">
-            <ShieldCheck className="mt-0.5 shrink-0 text-[#176445]" size={20} />
-            <div>
-              <h2 className="font-black">PIX identificado é opcional</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Você já pode contribuir usando a chave PIX acima. Se for membro e quiser que a contribuição seja vinculada automaticamente ao seu cadastro, entre no aplicativo.
-              </p>
-              <a className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-slate-900 px-5 text-sm font-black text-white" href="/login?next=%2Felshaday%2Fcontribuir">
-                Entrar como membro
-              </a>
-            </div>
-          </div>
-        </section>
-      )}
+      ) : null}
 
       {member && recentCharges.length > 0 ? (
         <section className="overflow-hidden rounded-[28px] border border-emerald-950/10 bg-white">
