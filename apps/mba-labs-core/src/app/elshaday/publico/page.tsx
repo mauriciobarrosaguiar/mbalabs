@@ -1,9 +1,7 @@
-import { getOptionalElshadayContext } from "@/lib/elshaday";
-import { PublicElshadayHome } from "../PublicElshadayHome";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-export default async function ElshadayPublicPreviewPage() {
-  const context = await getOptionalElshadayContext();
-  return <PublicElshadayHome showMembership={!context} />;
+export default function ElshadayPublicPreviewPage() {
+  redirect("/elshaday/gestao");
 }
