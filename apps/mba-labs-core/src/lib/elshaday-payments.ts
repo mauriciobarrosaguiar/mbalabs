@@ -224,6 +224,77 @@ export async function saveElshadayManualPixInput(input: {
   };
 }
 
+export async function saveElshadayManualPixConfiguration(input: {
+  igrejaId: string;
+  pixInput: string;
+  updatedBy: string;
+}) {
+  const admin = getSupabaseAdmin() as any;
+  const raw = String(input.pixInput ?? "").trim();
+
+  if (!raw) {
+    throw new Error("Informe a chave PIX ou o PIX Copia e Cola.");
+  }
+
+  const current = await getElshadayPixStatus(input.igrejaId);
+  const isPayload = isPixCopyPaste(raw);
+
+  const { data: igreja, error: igrejaError } = await admin
+    .from("igreja_igrejas")
+    .select("nome,nome_curto,cidade")
+    .eq("id", input.igrejaId)
+    .maybeSingle();
+
+  if (igrejaError) throw new Error(igrejaError.message);
+
+  const payload = isPayload
+    ? normalizePixCopyPaste(raw)
+    : buildStaticPixPayload({
+        key: raw,
+        merchantName: String(igreja?.nome_curto ?? igreja?.nome ?? "ELSHADAY"),
+        merchantCity: String(igreja?.cidade ?? "PALMAS")
+      });
+
+  const extractedKey = isPayload ? extractPixKeyFromPayload(payload) : raw;
+  const qrImage = await createStaticPixQrDataUrl(payload);
+  const qrId = "manual:" + crypto.randomUUID();
+
+  const { error } = await admin
+    .from("igreja_pix_configuracoes")
+    .upsert(
+      {
+        igreja_id: input.igrejaId,
+        provider: "asaas",
+        ambiente: current.environment,
+        ativo: current.active,
+        pix_address_key: extractedKey || null,
+        static_qr_id: qrId,
+        static_qr_payload: payload,
+        static_qr_image: qrImage,
+        static_qr_provider_payload: {
+          mode: "manual",
+          source: isPayload ? "copy_paste" : "key",
+          generated_locally: true,
+          generated_at: new Date().toISOString()
+        },
+        updated_by: input.updatedBy,
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: "igreja_id,provider" }
+    );
+
+  if (error) throw new Error(error.message);
+
+  return {
+    id: qrId,
+    payload,
+    image: qrImage,
+    addressKey: extractedKey || null,
+    inputType: isPayload ? "copy_paste" as const : "key" as const,
+    mode: "manual" as const
+  };
+}
+
 export async function createElshadayStaticPixQrCode(igrejaId: string, updatedBy: string) {
   const admin = getSupabaseAdmin() as any;
   const status = await getElshadayPixStatus(igrejaId);
