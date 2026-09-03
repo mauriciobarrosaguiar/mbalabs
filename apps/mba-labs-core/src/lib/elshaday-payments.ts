@@ -4,7 +4,7 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { getElshadayPrimaryPixProvider } from "@/lib/elshaday-payment-providers";
 import { createElshadayPagBankIdentifiedPixCharge } from "@/lib/elshaday-pagbank";
 import { getElshadayProviderSecrets } from "@/lib/elshaday-payment-secrets";
-import { buildStaticPixPayload, createStaticPixQrDataUrl } from "@/lib/elshaday-static-pix";
+import { buildStaticPixPayload, createStaticPixQrDataUrl, normalizeManualPixInput } from "@/lib/elshaday-static-pix";
 
 type ElshadayPixEnvironment = "sandbox" | "production";
 
@@ -162,6 +162,68 @@ export async function saveElshadayPixConfiguration(input: {
   if (error) throw new Error(error.message);
 }
 
+export async function saveElshadayManualPixInput(input: {
+  igrejaId: string;
+  value: string;
+  updatedBy: string;
+}) {
+  const admin = getSupabaseAdmin() as any;
+  const normalized = normalizeManualPixInput(input.value);
+
+  const { data: igreja, error: igrejaError } = await admin
+    .from("igreja_igrejas")
+    .select("nome,nome_curto,cidade")
+    .eq("id", input.igrejaId)
+    .maybeSingle();
+
+  if (igrejaError) throw new Error(igrejaError.message);
+
+  const payload =
+    normalized.payload ??
+    buildStaticPixPayload({
+      key: normalized.key,
+      merchantName: String(igreja?.nome_curto ?? igreja?.nome ?? "ELSHADAY"),
+      merchantCity: String(igreja?.cidade ?? "PALMAS")
+    });
+
+  const image = await createStaticPixQrDataUrl(payload);
+  const current = await getElshadayPixStatus(input.igrejaId);
+
+  const { error } = await admin
+    .from("igreja_pix_configuracoes")
+    .upsert(
+      {
+        igreja_id: input.igrejaId,
+        provider: "asaas",
+        ambiente: current.environment,
+        ativo: current.active,
+        pix_address_key: normalized.key,
+        static_qr_id: "manual:" + crypto.randomUUID(),
+        static_qr_payload: payload,
+        static_qr_image: image,
+        static_qr_provider_payload: {
+          mode: "manual",
+          input_type: normalized.inputType,
+          generated_locally: true,
+          generated_at: new Date().toISOString()
+        },
+        updated_by: input.updatedBy,
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: "igreja_id,provider" }
+    );
+
+  if (error) throw new Error(error.message);
+
+  return {
+    key: normalized.key,
+    payload,
+    image,
+    mode: "manual" as const,
+    inputType: normalized.inputType
+  };
+}
+
 export async function createElshadayStaticPixQrCode(igrejaId: string, updatedBy: string) {
   const admin = getSupabaseAdmin() as any;
   const status = await getElshadayPixStatus(igrejaId);
@@ -234,11 +296,14 @@ export async function createElshadayStaticPixQrCode(igrejaId: string, updatedBy:
 
   if (igrejaError) throw new Error(igrejaError.message);
 
-  const qrPayload = buildStaticPixPayload({
-    key: status.addressKey,
-    merchantName: String(igreja?.nome_curto ?? igreja?.nome ?? "ELSHADAY"),
-    merchantCity: String(igreja?.cidade ?? "PALMAS")
-  });
+  const normalized = normalizeManualPixInput(status.addressKey);
+  const qrPayload =
+    normalized.payload ??
+    buildStaticPixPayload({
+      key: normalized.key,
+      merchantName: String(igreja?.nome_curto ?? igreja?.nome ?? "ELSHADAY"),
+      merchantCity: String(igreja?.cidade ?? "PALMAS")
+    });
   const qrImage = await createStaticPixQrDataUrl(qrPayload);
   const qrId = "manual:" + crypto.randomUUID();
 
@@ -250,7 +315,7 @@ export async function createElshadayStaticPixQrCode(igrejaId: string, updatedBy:
         provider: "asaas",
         ambiente: status.environment,
         ativo: status.active,
-        pix_address_key: status.addressKey,
+        pix_address_key: normalized.key,
         static_qr_id: qrId,
         static_qr_payload: qrPayload,
         static_qr_image: qrImage,
