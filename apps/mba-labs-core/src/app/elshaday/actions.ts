@@ -11,6 +11,7 @@ import {
   createElshadayIdentifiedPixCharge,
   createElshadayStaticPixQrCode,
   getElshadayPixStatus,
+  saveElshadayManualPixConfiguration,
   saveElshadayManualPixInput,
   saveElshadayPixConfiguration,
   syncElshadayStaticPixReceipts
