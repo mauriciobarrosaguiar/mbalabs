@@ -10,6 +10,7 @@ import {
 import {
   createElshadayIdentifiedPixCharge,
   createElshadayStaticPixQrCode,
+  getElshadayPixStatus,
   saveElshadayPixConfiguration,
   syncElshadayStaticPixReceipts
 } from "@/lib/elshaday-payments";
@@ -1124,6 +1125,48 @@ export async function createElshadayIdentifiedPix(formData: FormData) {
   }
 }
 
+export async function saveElshadayManualPix(formData: FormData) {
+  const context = await requireElshadayContext("/elshaday/financeiro");
+  requireElshadayRole(context, ["admin", "tesouraria"]);
+
+  try {
+    const addressKey = text(formData, "pix_address_key");
+    if (!addressKey) {
+      throw new Error("Informe a chave PIX da igreja.");
+    }
+
+    const current = await getElshadayPixStatus(context.igreja.id);
+
+    await saveElshadayPixConfiguration({
+      igrejaId: context.igreja.id,
+      environment: current.environment,
+      active: current.active,
+      addressKey,
+      updatedBy: context.current.authUser.id
+    });
+
+    const result = await createElshadayStaticPixQrCode(
+      context.igreja.id,
+      context.current.authUser.id
+    );
+
+    await auditChurchAccess(context, "elshaday pix simples configurado", {
+      mode: result.mode,
+      address_key_configured: true
+    });
+  } catch (error) {
+    redirectWithMessage(
+      "/elshaday/financeiro",
+      "erro",
+      error instanceof Error ? error.message : "Não foi possível configurar o PIX."
+    );
+  }
+
+  revalidatePath("/elshaday/financeiro");
+  revalidatePath("/elshaday/contribuir");
+  redirectWithMessage("/elshaday/financeiro", "ok", "pix_manual");
+}
+
 export async function saveElshadayPixSettings(formData: FormData) {
   const context = await requireElshadayContext("/elshaday/financeiro");
   requireElshadayRole(context, ["admin", "tesouraria"]);
@@ -1157,6 +1200,13 @@ export async function saveElshadayPixSettings(formData: FormData) {
         },
         updatedBy: context.current.authUser.id
       });
+    }
+
+    if (addressKey || process.env.ELSHADAY_PIX_ADDRESS_KEY) {
+      await createElshadayStaticPixQrCode(
+        context.igreja.id,
+        context.current.authUser.id
+      );
     }
 
     await auditChurchAccess(context, "elshaday configuração pix atualizada", {
