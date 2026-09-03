@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { ExternalLink, FileSpreadsheet, Link2, Search, Upload, UserCheck, UserPlus, UsersRound } from "lucide-react";
+import { FileSpreadsheet, Search, Upload, UserCheck, UserPlus, UsersRound } from "lucide-react";
 import { createElshadayMember } from "../actions";
 import { importElshadayMembers } from "../completion-actions";
 import { ElshadaySubmitButton } from "../ElshadaySubmitButton";
-import { ShareMemberRegistration } from "./ShareMemberRegistration";
 import {
   dateBR,
   hasElshadayRole,
@@ -98,33 +97,6 @@ export default async function ElshadayMembersPage({
         <Kpi label="Visitantes" value={visitorCount} />
         <Kpi label="Com acesso digital" value={linkedCount} />
       </section>
-
-      {canManage ? (
-        <section className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-5">
-          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-            <div className="flex items-start gap-3">
-              <div className="grid size-11 shrink-0 place-items-center rounded-[14px] bg-white text-[#176445] shadow-sm">
-                <Link2 size={20} />
-              </div>
-              <div>
-                <h2 className="font-black text-emerald-950">Link de autocadastro dos membros</h2>
-                <p className="mt-2 break-all text-sm font-black text-[#176445]">/cadastro-membro</p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-2 sm:items-end">
-              <ShareMemberRegistration />
-              <a
-                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl px-4 text-sm font-black text-[#176445]"
-                href="/cadastro-membro"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Abrir cadastro <ExternalLink size={16} />
-              </a>
-            </div>
-          </div>
-        </section>
-      ) : null}
 
       {canManage ? (
         <details className="rounded-[28px] border border-sky-200 bg-sky-50 p-5 shadow-sm">
