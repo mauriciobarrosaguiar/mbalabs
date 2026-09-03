@@ -62,7 +62,7 @@ function parseTlv(value: string) {
   return fields;
 }
 
-function extractPixKeyFromPayload(payload: string) {
+function extractPixKeyFromPayloadLegacy(payload: string) {
   for (const field of parseTlv(payload)) {
     const numericId = Number(field.id);
     if (!Number.isInteger(numericId) || numericId < 26 || numericId > 51) continue;
@@ -110,7 +110,7 @@ export function normalizeManualPixInput(input: string) {
     throw new Error("PIX Copia e Cola inválido.");
   }
 
-  const key = extractPixKeyFromPayload(raw);
+  const key = extractPixKeyFromPayloadLegacy(raw);
   if (!key) {
     throw new Error("Não foi possível localizar a chave PIX dentro do código Copia e Cola.");
   }
