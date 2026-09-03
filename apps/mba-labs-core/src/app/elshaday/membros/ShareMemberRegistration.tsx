@@ -1,17 +1,20 @@
 "use client";
 
 import { Check, Copy, Share2 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-export function ShareMemberRegistration() {
+export function ShareMemberRegistration({ registrationPath }: { registrationPath: string }) {
   const [copied, setCopied] = useState(false);
+  const fullUrl = useMemo(() => {
+    if (typeof window === "undefined") return registrationPath;
+    return window.location.origin + registrationPath;
+  }, [registrationPath]);
 
   async function shareLink() {
-    const url = window.location.origin + "/cadastro-membro";
     const data = {
       title: "Cadastro de membro - Elshaday",
       text: "Faça seu cadastro de membro da Igreja Assembleia de Deus Elshaday - Palmas:",
-      url
+      url: fullUrl
     };
 
     try {
@@ -20,37 +23,41 @@ export function ShareMemberRegistration() {
         return;
       }
     } catch {
-      // Se o compartilhamento nativo for cancelado ou falhar, mantém a opção de copiar.
+      // Se o compartilhamento nativo for cancelado, mantém a opção de copiar.
     }
 
     await copyLink();
   }
 
   async function copyLink() {
-    const url = window.location.origin + "/cadastro-membro";
-    await navigator.clipboard.writeText(url);
+    await navigator.clipboard.writeText(fullUrl);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2200);
   }
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row">
-      <button
-        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#123d2d] px-5 text-sm font-black text-white"
-        onClick={shareLink}
-        type="button"
-      >
-        <Share2 size={16} />
-        Compartilhar link
-      </button>
-      <button
-        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-5 text-sm font-black text-[#176445]"
-        onClick={copyLink}
-        type="button"
-      >
-        {copied ? <Check size={16} /> : <Copy size={16} />}
-        {copied ? "Link copiado" : "Copiar link"}
-      </button>
+    <div className="grid gap-3">
+      <div className="break-all rounded-2xl border border-emerald-200 bg-white p-3 text-xs font-bold text-emerald-950">
+        {fullUrl}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#123d2d] px-4 text-sm font-black text-white"
+          onClick={shareLink}
+          type="button"
+        >
+          <Share2 size={16} />
+          Compartilhar
+        </button>
+        <button
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 text-sm font-black text-[#176445]"
+          onClick={copyLink}
+          type="button"
+        >
+          {copied ? <Check size={16} /> : <Copy size={16} />}
+          {copied ? "Copiado" : "Copiar link"}
+        </button>
+      </div>
     </div>
   );
 }
