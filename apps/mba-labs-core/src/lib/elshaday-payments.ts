@@ -4,7 +4,14 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { getElshadayPrimaryPixProvider } from "@/lib/elshaday-payment-providers";
 import { createElshadayPagBankIdentifiedPixCharge } from "@/lib/elshaday-pagbank";
 import { getElshadayProviderSecrets } from "@/lib/elshaday-payment-secrets";
-import { buildStaticPixPayload, createStaticPixQrDataUrl, normalizeManualPixInput } from "@/lib/elshaday-static-pix";
+import {
+  buildStaticPixPayload,
+  createStaticPixQrDataUrl,
+  extractPixKeyFromPayload,
+  isPixCopyPaste,
+  normalizeManualPixInput,
+  normalizePixCopyPaste
+} from "@/lib/elshaday-static-pix";
 
 type ElshadayPixEnvironment = "sandbox" | "production";
 
