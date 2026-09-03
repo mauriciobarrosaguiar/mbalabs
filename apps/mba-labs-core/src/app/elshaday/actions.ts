@@ -11,6 +11,7 @@ import {
   createElshadayIdentifiedPixCharge,
   createElshadayStaticPixQrCode,
   getElshadayPixStatus,
+  saveElshadayManualPixInput,
   saveElshadayPixConfiguration,
   syncElshadayStaticPixReceipts
 } from "@/lib/elshaday-payments";
@@ -1130,28 +1131,20 @@ export async function saveElshadayManualPix(formData: FormData) {
   requireElshadayRole(context, ["admin", "tesouraria"]);
 
   try {
-    const addressKey = text(formData, "pix_address_key");
-    if (!addressKey) {
-      throw new Error("Informe a chave PIX da igreja.");
+    const pixInput = text(formData, "pix_address_key");
+    if (!pixInput) {
+      throw new Error("Informe a chave PIX ou o PIX Copia e Cola.");
     }
 
-    const current = await getElshadayPixStatus(context.igreja.id);
-
-    await saveElshadayPixConfiguration({
+    const result = await saveElshadayManualPixInput({
       igrejaId: context.igreja.id,
-      environment: current.environment,
-      active: current.active,
-      addressKey,
+      value: pixInput,
       updatedBy: context.current.authUser.id
     });
 
-    const result = await createElshadayStaticPixQrCode(
-      context.igreja.id,
-      context.current.authUser.id
-    );
-
     await auditChurchAccess(context, "elshaday pix simples configurado", {
       mode: result.mode,
+      input_type: result.inputType,
       address_key_configured: true
     });
   } catch (error) {
