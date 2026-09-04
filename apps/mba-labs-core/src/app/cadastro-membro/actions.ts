@@ -121,7 +121,7 @@ export async function registerPublicElshadayMember(formData: FormData) {
     data_conversao: optionalDate(formData, "data_conversao"),
     data_batismo: optionalDate(formData, "data_batismo"),
     data_entrada: optionalDate(formData, "data_entrada"),
-    cargo: optional(formData, "cargo"),
+    cargo: "Membro",
     ministerio: optional(formData, "ministerio"),
     situacao: "ativo",
     observacoes
