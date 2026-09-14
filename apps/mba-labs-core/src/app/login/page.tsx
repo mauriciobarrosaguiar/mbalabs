@@ -6,7 +6,9 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { InstallAppCard } from "@/components/InstallAppCard";
 import { PwaRegister } from "@/components/PwaRegister";
 import { getLoginDestination, getSessionProfile } from "@/lib/core-data";
+import { getPublicElshadayContext } from "@/lib/elshaday";
 import { getElshadayLoginIdentity } from "@/lib/elshaday-login";
+import { createElshadayMemberRegistrationToken } from "@/lib/elshaday-member-registration";
 import { safeNextPath } from "@/lib/form-utils";
 import { ElshadayAuthView } from "./ElshadayLoginView";
 
@@ -49,6 +51,16 @@ export default async function LoginPage({
 
   if (isElshadayLogin) {
     const identity = await getElshadayLoginIdentity();
+    let registrationHref: string | null = null;
+
+    try {
+      const { igreja } = await getPublicElshadayContext();
+      const token = createElshadayMemberRegistrationToken(igreja.id);
+      registrationHref = `/cadastro-membro?convite=${encodeURIComponent(token)}`;
+    } catch {
+      registrationHref = null;
+    }
+
     return (
       <ElshadayAuthView
         churchName={identity.churchName}
@@ -66,6 +78,21 @@ export default async function LoginPage({
           recoveryHref="/recuperar-senha?app=elshaday"
           variant="elshaday"
         />
+
+        {registrationHref ? (
+          <div className="mt-5 border-t border-slate-200 pt-5 text-center">
+            <p className="text-sm font-semibold text-slate-600">Ainda não tem cadastro?</p>
+            <Link
+              className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-2xl border-2 border-[#123d2d] bg-white px-5 text-sm font-black text-[#123d2d] transition active:scale-[.99]"
+              href={registrationHref}
+            >
+              Cadastre-se
+            </Link>
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              Preencha seus dados para solicitar seu cadastro como membro da igreja.
+            </p>
+          </div>
+        ) : null}
       </ElshadayAuthView>
     );
   }
