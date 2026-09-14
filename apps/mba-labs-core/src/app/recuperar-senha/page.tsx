@@ -1,10 +1,49 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { RecoverPasswordForm } from "@/components/AuthForms";
 import { BrandLogo } from "@/components/BrandLogo";
+import { getElshadayLoginIdentity } from "@/lib/elshaday-login";
+import { ElshadayAuthView } from "../login/ElshadayLoginView";
 
 export const dynamic = "force-dynamic";
 
-export default function RecoverPasswordPage() {
+export async function generateMetadata({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const appParam = Array.isArray(params.app) ? params.app[0] : params.app;
+  return appParam === "elshaday"
+    ? { title: "Recuperar senha | Assembleia de Deus Elshaday" }
+    : { title: "Recuperar senha | MBA Labs" };
+}
+
+export default async function RecoverPasswordPage({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const appParam = Array.isArray(params.app) ? params.app[0] : params.app;
+
+  if (appParam === "elshaday") {
+    const identity = await getElshadayLoginIdentity();
+    return (
+      <ElshadayAuthView
+        churchName={identity.churchName}
+        location={identity.location}
+        subtitle="Receba um link seguro no seu e-mail"
+        title="Recuperar senha"
+      >
+        <RecoverPasswordForm variant="elshaday" />
+        <Link className="mt-5 block text-center text-sm font-bold text-[#176445]" href="/login?app=elshaday">
+          Voltar para o login
+        </Link>
+      </ElshadayAuthView>
+    );
+  }
+
   return (
     <main className="page-shell grid min-h-screen content-center py-6 sm:py-10">
       <div className="mx-auto grid w-full max-w-md gap-4 sm:gap-6">

@@ -17,8 +17,12 @@ const SYSTEM_ROUTE_PREFIXES = [
   "/elshaday"
 ];
 
-function isMbaPlatformRoute(pathname: string) {
+function isMbaPlatformRoute(pathname: string, search = "") {
   if (pathname === "/") return false;
+  const isElshadayAuthRoute =
+    ["/login", "/recuperar-senha", "/alterar-senha"].includes(pathname) &&
+    new URLSearchParams(search).get("app") === "elshaday";
+  if (isElshadayAuthRoute) return false;
 
   return !SYSTEM_ROUTE_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
@@ -28,7 +32,7 @@ function isMbaPlatformRoute(pathname: string) {
 function applyRouteTheme(pathname: string) {
   const root = document.documentElement;
 
-  if (isMbaPlatformRoute(pathname)) {
+  if (isMbaPlatformRoute(pathname, window.location.search)) {
     root.dataset.mbaPlatform = "true";
     root.dataset.mbaTheme = "dark";
     root.style.colorScheme = "dark";

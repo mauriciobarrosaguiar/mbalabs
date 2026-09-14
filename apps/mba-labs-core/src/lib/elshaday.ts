@@ -107,6 +107,11 @@ export async function getOptionalElshadayContext(): Promise<ElshadayContext | nu
 }
 
 export async function requireElshadayContext(nextPath = "/elshaday"): Promise<ElshadayContext> {
+  const session = await getSessionProfile();
+  if (!session.user) {
+    redirect(`/login?app=elshaday&next=${encodeURIComponent(nextPath)}`);
+  }
+
   const current = await requireAppAccess("elshaday", nextPath);
   const admin = createSupabaseAdminClient() as any;
 

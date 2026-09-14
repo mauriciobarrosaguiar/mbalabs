@@ -1,10 +1,46 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { UpdatePasswordForm } from "@/components/AuthForms";
 import { BrandLogo } from "@/components/BrandLogo";
+import { getElshadayLoginIdentity } from "@/lib/elshaday-login";
+import { ElshadayAuthView } from "../login/ElshadayLoginView";
 
 export const dynamic = "force-dynamic";
 
-export default function UpdatePasswordPage() {
+export async function generateMetadata({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const appParam = Array.isArray(params.app) ? params.app[0] : params.app;
+  return appParam === "elshaday"
+    ? { title: "Redefinir senha | Assembleia de Deus Elshaday" }
+    : { title: "Redefinir senha | MBA Labs" };
+}
+
+export default async function UpdatePasswordPage({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const appParam = Array.isArray(params.app) ? params.app[0] : params.app;
+
+  if (appParam === "elshaday") {
+    const identity = await getElshadayLoginIdentity();
+    return (
+      <ElshadayAuthView
+        churchName={identity.churchName}
+        location={identity.location}
+        subtitle="Crie uma nova senha para sua conta"
+        title="Redefinir senha"
+      >
+        <UpdatePasswordForm variant="elshaday" />
+      </ElshadayAuthView>
+    );
+  }
+
   return (
     <main className="page-shell grid min-h-screen content-center py-6 sm:py-10">
       <div className="mx-auto grid w-full max-w-md gap-4 sm:gap-6">

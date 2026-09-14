@@ -21,11 +21,13 @@ import { ElshadayMobileAppChrome } from "./ElshadayMobileAppChrome";
 export function ElshadayShell({
   children,
   igrejaNome,
+  isAdminMaster,
   usuarioNome,
   papel
 }: {
   children: ReactNode;
   igrejaNome: string;
+  isAdminMaster: boolean;
   usuarioNome: string;
   papel: ElshadayRole;
 }) {
@@ -76,11 +78,13 @@ export function ElshadayShell({
           <div className="mt-auto rounded-2xl border border-white/10 bg-white/5 p-4">
             <p className="font-black">{usuarioNome}</p>
             <p className="mt-1 text-sm text-emerald-100/85">{elshadayRoleLabel(papel)}</p>
-            <Link className="mt-4 flex items-center gap-2 text-sm font-bold text-[#f1d79d]" href="/dashboard">
-              <ArrowLeft size={16} />
-              Voltar ao MBA Labs
-            </Link>
-            <form action="/sair" className="mt-3" method="post">
+            {isAdminMaster ? (
+              <Link className="mt-4 flex items-center gap-2 text-sm font-bold text-[#f1d79d]" href="/dashboard">
+                <ArrowLeft size={16} />
+                Voltar ao MBA Labs
+              </Link>
+            ) : null}
+            <form action="/sair?app=elshaday" className="mt-3" method="post">
               <button className="flex w-full items-center gap-2 text-sm font-bold text-white" type="submit">
                 <LogOut size={16} />
                 Sair do sistema
@@ -92,6 +96,7 @@ export function ElshadayShell({
         <div className="min-w-0 max-w-full overflow-x-hidden">
           <ElshadayMobileAppChrome
             igrejaNome={igrejaNome}
+            isAdminMaster={isAdminMaster}
             usuarioNome={usuarioNome}
             papel={papel}
           />
