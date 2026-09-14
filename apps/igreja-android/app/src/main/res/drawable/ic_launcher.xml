@@ -1,4 +1,26 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="#6F4B2A" android:pathData="M0,0h108v108h-108z"/>
-    <path android:fillColor="#FFFFFF" android:pathData="M49,18h10v22h19v10h-19v40h-10v-40h-19z"/>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Fundo azul-marinho da identidade Elshaday -->
+    <path
+        android:fillColor="#062B66"
+        android:pathData="M0,0h108v108h-108z" />
+
+    <!-- Chama principal -->
+    <path
+        android:fillColor="#F3CF67"
+        android:pathData="M53,9C52,20 47,26 42,32C37,38 34,43 35,50C36,55 39,59 44,62C42,55 45,49 50,44C56,38 60,32 60,24C59,18 57,13 53,9Z" />
+
+    <!-- Segunda chama -->
+    <path
+        android:fillColor="#DDAF3F"
+        android:pathData="M62,23C63,30 60,35 56,39C52,43 50,48 51,53C52,57 54,60 57,62C56,56 59,52 62,49C66,45 68,41 68,36C68,31 66,27 62,23Z" />
+
+    <!-- Cruz / letra E -->
+    <path
+        android:fillColor="#F3CF67"
+        android:pathData="M49,40h10v43H49zM27,47h54v10H27zM54,62h25v9H54zM54,76h28v9H54z" />
 </vector>
