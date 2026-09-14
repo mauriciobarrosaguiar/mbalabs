@@ -163,6 +163,102 @@ export async function changeElshadayMemberRole(formData: FormData) {
   go(returnTo, "ok", "cargo");
 }
 
+export async function approveElshadayRequestedRole(formData: FormData) {
+  const memberId = value(formData, "membro_id");
+  const returnTo = "/elshaday/membros/" + memberId;
+  const context = await requireElshadayContext(returnTo);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria"]);
+
+  try {
+    const { data: member, error: memberError } = await context.admin
+      .from("igreja_membros")
+      .select("cargo_solicitado_id,cargo_solicitado_observacao")
+      .eq("id", memberId)
+      .eq("igreja_id", context.igreja.id)
+      .maybeSingle();
+
+    if (memberError || !member?.cargo_solicitado_id) {
+      throw new Error("Este membro não possui cargo aguardando aprovação.");
+    }
+
+    const { error: roleError } = await context.admin.rpc("elshaday_set_member_cargo", {
+      p_igreja_id: context.igreja.id,
+      p_membro_id: memberId,
+      p_cargo_id: member.cargo_solicitado_id,
+      p_data_inicio: date(formData, "data_inicio"),
+      p_observacao: optional(formData, "observacao") || member.cargo_solicitado_observacao || "Cargo solicitado no cadastro e aprovado pela liderança.",
+      p_usuario_responsavel: context.current.authUser.id
+    });
+    if (roleError) throw roleError;
+
+    const { error: clearError } = await context.admin
+      .from("igreja_membros")
+      .update({
+        cargo_solicitado_id: null,
+        cargo_solicitado_em: null,
+        cargo_solicitado_observacao: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", memberId)
+      .eq("igreja_id", context.igreja.id);
+    if (clearError) throw clearError;
+  } catch (error) {
+    go(returnTo, "erro", message(error, "Não foi possível aprovar o cargo."));
+  }
+
+  refreshMember(memberId);
+  go(returnTo, "ok", "cargo-aprovado");
+}
+
+export async function rejectElshadayRequestedRole(formData: FormData) {
+  const memberId = value(formData, "membro_id");
+  const returnTo = "/elshaday/membros/" + memberId;
+  const context = await requireElshadayContext(returnTo);
+  requireElshadayRole(context, ["admin", "pastor", "tesouraria"]);
+
+  try {
+    const { data: member, error: memberError } = await context.admin
+      .from("igreja_membros")
+      .select("cargo_solicitado_id")
+      .eq("id", memberId)
+      .eq("igreja_id", context.igreja.id)
+      .maybeSingle();
+
+    if (memberError || !member?.cargo_solicitado_id) {
+      throw new Error("Este membro não possui cargo aguardando aprovação.");
+    }
+
+    const { error } = await context.admin
+      .from("igreja_membros")
+      .update({
+        cargo_solicitado_id: null,
+        cargo_solicitado_em: null,
+        cargo_solicitado_observacao: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", memberId)
+      .eq("igreja_id", context.igreja.id);
+    if (error) throw error;
+
+    await context.admin.from("core_logs").insert({
+      empresa_id: context.igreja.empresa_id,
+      usuario_id: context.current.usuario.id,
+      app_slug: "elshaday",
+      acao: "elshaday solicitação de cargo recusada",
+      detalhes: {
+        membro_id: memberId,
+        cargo_solicitado_id: member.cargo_solicitado_id,
+        observacao: optional(formData, "observacao")
+      }
+    });
+  } catch (error) {
+    go(returnTo, "erro", message(error, "Não foi possível recusar a solicitação."));
+  }
+
+  refreshMember(memberId);
+  go(returnTo, "ok", "cargo-recusado");
+}
+
 export async function createElshadayMinistry(formData: FormData) {
   const context = await requireElshadayContext("/elshaday/configuracoes/ministerios");
   requireElshadayRole(context, ["admin", "pastor", "secretaria"]);
