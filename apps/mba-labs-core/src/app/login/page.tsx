@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/AuthForms";
@@ -10,6 +11,25 @@ import { safeNextPath } from "@/lib/form-utils";
 import { ElshadayAuthView } from "./ElshadayLoginView";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const appParam = Array.isArray(params.app) ? params.app[0] : params.app;
+  const nextPath = safeNextPath(params.next);
+  const isElshadayLogin =
+    appParam === "elshaday" || nextPath === "/elshaday" || nextPath.startsWith("/elshaday/");
+
+  return isElshadayLogin
+    ? {
+        title: "Entrar | Assembleia de Deus Elshaday",
+        description: "Acesso à área de membros da Assembleia de Deus Elshaday."
+      }
+    : { title: "Entrar | MBA Labs" };
+}
 
 export default async function LoginPage({
   searchParams

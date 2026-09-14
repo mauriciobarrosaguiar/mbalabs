@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { UpdatePasswordForm } from "@/components/AuthForms";
 import { BrandLogo } from "@/components/BrandLogo";
@@ -5,6 +6,18 @@ import { getElshadayLoginIdentity } from "@/lib/elshaday-login";
 import { ElshadayAuthView } from "../login/ElshadayLoginView";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  searchParams
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const appParam = Array.isArray(params.app) ? params.app[0] : params.app;
+  return appParam === "elshaday"
+    ? { title: "Redefinir senha | Assembleia de Deus Elshaday" }
+    : { title: "Redefinir senha | MBA Labs" };
+}
 
 export default async function UpdatePasswordPage({
   searchParams
