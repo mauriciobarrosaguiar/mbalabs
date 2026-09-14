@@ -46,6 +46,7 @@ export function ElshadayAdaptiveShell({
   return (
     <ElshadayShell
       igrejaNome={igrejaNome}
+      isAdminMaster={false}
       usuarioNome={usuarioNome}
       papel={papel}
     >

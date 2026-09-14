@@ -16,6 +16,7 @@ export default async function ElshadayLayout({ children }: { children: ReactNode
   return (
     <ElshadayShell
       igrejaNome={context.igreja.nome}
+      isAdminMaster={context.current.isAdminMaster}
       usuarioNome={context.current.usuario.nome}
       papel={context.papel}
     >
