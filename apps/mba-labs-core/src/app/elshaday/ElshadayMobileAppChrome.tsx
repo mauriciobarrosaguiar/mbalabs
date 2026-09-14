@@ -20,8 +20,8 @@ import {
   ShieldCheck,
   UserRound,
   UsersRound,
-  X,
-  Youtube
+  Video as Youtube,
+  X
 } from "lucide-react";
 import type { ElshadayRole } from "@/lib/elshaday-role";
 
