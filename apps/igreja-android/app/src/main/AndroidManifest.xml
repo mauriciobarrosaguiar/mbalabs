@@ -7,8 +7,8 @@
         android:usesCleartextTraffic="false"
         android:theme="@style/AppTheme"
         android:label="Elshaday"
-        android:icon="@drawable/elshaday_logo"
-        android:roundIcon="@drawable/elshaday_logo">
+        android:icon="@drawable/ic_launcher"
+        android:roundIcon="@drawable/ic_launcher">
         <activity
             android:name=".MainActivity"
             android:exported="true"
