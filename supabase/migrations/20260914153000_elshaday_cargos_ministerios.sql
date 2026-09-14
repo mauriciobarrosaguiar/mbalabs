@@ -433,3 +433,76 @@ revoke all on function public.elshaday_sync_member_ministries(uuid, uuid, uuid[]
   from public, anon, authenticated;
 grant execute on function public.elshaday_sync_member_ministries(uuid, uuid, uuid[], uuid)
   to service_role;
+
+
+create or replace function public.elshaday_sync_ministry_members(
+  p_igreja_id uuid,
+  p_ministerio_id uuid,
+  p_membro_ids uuid[],
+  p_usuario_responsavel uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_affected uuid[];
+begin
+  if not exists (
+    select 1 from public.igreja_ministerios
+    where id = p_ministerio_id and igreja_id = p_igreja_id
+  ) then
+    raise exception 'Ministério não pertence a esta igreja.';
+  end if;
+
+  if exists (
+    select 1
+    from unnest(coalesce(p_membro_ids, '{}'::uuid[])) wanted(id)
+    left join public.igreja_membros m
+      on m.id = wanted.id and m.igreja_id = p_igreja_id
+    where m.id is null
+  ) then
+    raise exception 'Há membro inválido na seleção.';
+  end if;
+
+  select array_agg(distinct id)
+    into v_affected
+  from (
+    select membro_id as id
+    from public.igreja_membro_ministerios
+    where igreja_id = p_igreja_id and ministerio_id = p_ministerio_id
+    union
+    select unnest(coalesce(p_membro_ids, '{}'::uuid[]))
+  ) affected;
+
+  delete from public.igreja_membro_ministerios
+   where igreja_id = p_igreja_id
+     and ministerio_id = p_ministerio_id
+     and not (membro_id = any(coalesce(p_membro_ids, '{}'::uuid[])));
+
+  insert into public.igreja_membro_ministerios (
+    igreja_id, membro_id, ministerio_id, adicionado_por
+  )
+  select p_igreja_id, wanted.id, p_ministerio_id, p_usuario_responsavel
+  from unnest(coalesce(p_membro_ids, '{}'::uuid[])) wanted(id)
+  on conflict do nothing;
+
+  update public.igreja_membros m
+     set ministerio = (
+       select string_agg(mi.nome, ', ' order by mi.nome)
+       from public.igreja_membro_ministerios mm
+       join public.igreja_ministerios mi
+         on mi.id = mm.ministerio_id and mi.igreja_id = mm.igreja_id
+       where mm.igreja_id = p_igreja_id and mm.membro_id = m.id
+     ),
+     updated_at = now()
+   where m.igreja_id = p_igreja_id
+     and m.id = any(coalesce(v_affected, '{}'::uuid[]));
+end;
+$$;
+
+revoke all on function public.elshaday_sync_ministry_members(uuid, uuid, uuid[], uuid)
+  from public, anon, authenticated;
+grant execute on function public.elshaday_sync_ministry_members(uuid, uuid, uuid[], uuid)
+  to service_role;
