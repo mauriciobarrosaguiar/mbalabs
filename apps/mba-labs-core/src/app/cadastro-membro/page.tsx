@@ -47,13 +47,13 @@ export default async function PublicMemberRegistrationPage({
   const erro = read(query.erro);
 
   return (
-    <main className="min-h-dvh min-w-0 overflow-x-hidden bg-[radial-gradient(circle_at_top,#e8f0e8_0,#f7f8f4_42%,#eef2ed_100%)] px-3 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] text-slate-950 sm:px-5 sm:py-8">
+    <main className="min-h-dvh min-w-0 overflow-x-hidden bg-[#f3f6f1] px-3 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] text-slate-950 [color-scheme:light] sm:px-5 sm:py-8">
       <div className="mx-auto grid min-w-0 max-w-2xl gap-4">
         <header className="rounded-[26px] border border-[#123d2d]/10 bg-white/95 p-4 shadow-[0_12px_35px_rgba(18,61,45,.09)] backdrop-blur sm:p-5">
           <div className="flex items-center gap-3">
             <Link
               aria-label="Voltar para o login"
-              className="grid size-11 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-[#f7f8f4] text-[#123d2d] transition active:scale-95"
+              className="grid size-11 shrink-0 place-items-center rounded-2xl border border-[#123d2d]/15 bg-[#f3f6f1] text-[#123d2d] transition active:scale-95"
               href="/login?app=elshaday"
             >
               <ArrowLeft size={20} />
