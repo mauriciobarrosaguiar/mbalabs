@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -227,13 +226,12 @@ export function ElshadayMobileAppChrome({
             className="size-12 shrink-0 overflow-hidden rounded-[16px] shadow-sm ring-1 ring-[#d7b458]/25"
             href="/elshaday/gestao"
           >
-            <Image
+            <img
               alt="Elshaday"
               className="size-12 object-cover"
-              height={48}
-              priority
-              src="/elshaday/logo.png"
-              width={48}
+              height="48"
+              src="/elshaday/logo.svg"
+              width="48"
             />
           </Link>
           <Link className="min-w-0 flex-1" href="/elshaday/gestao">
