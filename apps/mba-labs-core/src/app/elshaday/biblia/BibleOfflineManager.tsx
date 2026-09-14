@@ -86,7 +86,7 @@ export function BibleOfflineManager() {
     }
     if (!navigator.onLine) {
       setOnline(false);
-      setState(cachedCount > 0 ? "paused" : "idle");
+      setState("paused");
       return;
     }
 
@@ -151,7 +151,7 @@ export function BibleOfflineManager() {
     } finally {
       runningRef.current = false;
     }
-  }, [cachedCount, postToWorker, readCacheCount, waitForController]);
+  }, [postToWorker, readCacheCount, waitForController]);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("caches" in window)) {
