@@ -76,6 +76,7 @@ export function LoginForm({
             id="elshaday-email"
             inputMode="email"
             spellCheck={false}
+            style={{ fontSize: "16px" }}
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
@@ -97,6 +98,7 @@ export function LoginForm({
               autoComplete="current-password"
               className={`${ELSHADAY_INPUT_CLASS} pr-[3.25rem]`}
               id="elshaday-password"
+              style={{ fontSize: "16px" }}
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
