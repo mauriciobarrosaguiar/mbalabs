@@ -50,8 +50,8 @@ export function ElshadayShell({
   ];
 
   return (
-    <div className="elshaday-app min-h-screen overflow-x-hidden bg-[#f3f6f1] text-slate-900">
-      <div className="mx-auto grid min-h-screen w-full min-w-0 max-w-[1600px] lg:grid-cols-[285px_minmax(0,1fr)]">
+    <div className="elshaday-app min-h-[100dvh] w-full max-w-[100vw] overflow-x-clip bg-[#f3f6f1] text-slate-900">
+      <div className="mx-auto grid min-h-[100dvh] w-full min-w-0 max-w-[1600px] lg:grid-cols-[285px_minmax(0,1fr)]">
         <aside className="hidden border-r border-emerald-950/10 bg-[#123d2d] p-5 text-white lg:flex lg:flex-col">
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
             <img
@@ -96,18 +96,40 @@ export function ElshadayShell({
           </div>
         </aside>
 
-        <div className="min-w-0 max-w-full overflow-x-hidden">
+        <div className="min-w-0 w-full max-w-full overflow-x-clip">
           <ElshadayMobileAppChrome
             igrejaNome={igrejaNome}
-            isAdminMaster={isAdminMaster}
             usuarioNome={usuarioNome}
             papel={papel}
           />
 
-          <main className="min-w-0 max-w-full overflow-x-hidden px-3 pb-28 pt-4 sm:px-6 sm:pt-6 lg:p-8">{children}</main>
+          <main className="w-full min-w-0 max-w-full overflow-x-clip px-3 pb-[calc(6.75rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pt-6 lg:p-8">
+            {children}
+          </main>
         </div>
       </div>
       <style>{`
+        .elshaday-app,
+        .elshaday-app *,
+        .elshaday-app *::before,
+        .elshaday-app *::after {
+          box-sizing: border-box;
+        }
+        .elshaday-app {
+          width: 100%;
+          max-width: 100vw;
+          overflow-x: clip;
+        }
+        .elshaday-app main,
+        .elshaday-app section,
+        .elshaday-app article,
+        .elshaday-app form,
+        .elshaday-app fieldset,
+        .elshaday-app nav,
+        .elshaday-app header {
+          min-width: 0;
+          max-width: 100%;
+        }
         .elshaday-app input,
         .elshaday-app select,
         .elshaday-app textarea {
@@ -139,11 +161,24 @@ export function ElshadayShell({
           overflow-wrap: anywhere;
         }
         .elshaday-app img,
-        .elshaday-app video {
+        .elshaday-app video,
+        .elshaday-app canvas,
+        .elshaday-app svg {
           max-width: 100%;
+        }
+        .elshaday-app img,
+        .elshaday-app video {
           height: auto;
         }
+        .elshaday-app table {
+          max-width: 100%;
+        }
         @media (max-width: 1023px) {
+          html,
+          body {
+            max-width: 100vw;
+            overflow-x: clip;
+          }
           .elshaday-app input:not([type="file"]),
           .elshaday-app select,
           .elshaday-app textarea {

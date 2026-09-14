@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  ArrowLeft,
   BookOpen,
   CalendarDays,
   ChevronRight,
@@ -35,12 +34,10 @@ const ROLE_LABEL: Record<ElshadayRole, string> = {
 
 export function ElshadayMobileAppChrome({
   igrejaNome,
-  isAdminMaster,
   usuarioNome,
   papel
 }: {
   igrejaNome: string;
-  isAdminMaster: boolean;
   usuarioNome: string;
   papel: ElshadayRole;
 }) {
@@ -59,15 +56,18 @@ export function ElshadayMobileAppChrome({
     if (!open) return;
 
     const oldOverflow = document.body.style.overflow;
+    const oldOverscroll = document.body.style.overscrollBehavior;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
 
     document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
     window.addEventListener("keydown", onKeyDown);
 
     return () => {
       document.body.style.overflow = oldOverflow;
+      document.body.style.overscrollBehavior = oldOverscroll;
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [open]);
@@ -121,7 +121,7 @@ export function ElshadayMobileAppChrome({
     ? createPortal(
         <div
           className={
-            "fixed inset-0 z-[10000] lg:hidden " +
+            "fixed inset-0 z-[10000] max-w-[100vw] overflow-hidden lg:hidden " +
             (open ? "pointer-events-auto" : "pointer-events-none")
           }
           aria-hidden={!open}
@@ -139,16 +139,14 @@ export function ElshadayMobileAppChrome({
           <section
             aria-label="Menu mais"
             className={
-              "absolute inset-x-0 bottom-0 flex max-h-[88dvh] flex-col rounded-t-[30px] bg-[#f7f8f4] shadow-[0_-20px_50px_rgba(15,23,42,.22)] transition-transform duration-300 ease-out " +
+              "absolute inset-x-0 bottom-0 flex max-h-[calc(100dvh-12px)] w-full max-w-full flex-col overflow-hidden rounded-t-[30px] bg-[#f7f8f4] shadow-[0_-20px_50px_rgba(15,23,42,.22)] transition-transform duration-300 ease-out " +
               (open ? "translate-y-0" : "translate-y-full")
             }
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="mx-auto mt-2.5 h-1.5 w-12 rounded-full bg-slate-300" />
-            <div className="flex items-center justify-between px-5 pb-4 pt-4">
-              <div>
-                <p className="text-xl font-black tracking-tight text-slate-950">Menu mais</p>
-              </div>
+            <div className="mx-auto mt-2.5 h-1.5 w-12 shrink-0 rounded-full bg-slate-300" />
+            <div className="flex shrink-0 items-center justify-between px-5 pb-4 pt-4">
+              <p className="text-xl font-black tracking-tight text-slate-950">Menu mais</p>
               <button
                 aria-label="Fechar menu"
                 className="grid size-10 place-items-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm"
@@ -159,9 +157,9 @@ export function ElshadayMobileAppChrome({
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-5">
+            <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
               <div className="rounded-[24px] border border-emerald-950/10 bg-white p-4 shadow-sm">
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 items-center gap-3">
                   <div className="grid size-14 shrink-0 place-items-center rounded-full bg-[#123d2d] text-base font-black text-[#f3d58e]">
                     {initials || <UserRound size={22} />}
                   </div>
@@ -176,30 +174,20 @@ export function ElshadayMobileAppChrome({
               <div className="mt-4 grid gap-2">
                 {moreItems.map(({ href, label, icon: Icon }) => (
                   <Link
-                    className="flex min-h-14 items-center gap-3 rounded-[18px] border border-slate-200/80 bg-white px-4 shadow-sm transition active:scale-[.99] sm:min-h-16 sm:gap-4 sm:rounded-[20px]"
+                    className="flex min-h-14 min-w-0 items-center gap-3 rounded-[18px] border border-slate-200/80 bg-white px-4 shadow-sm transition active:scale-[.99] sm:min-h-16 sm:gap-4 sm:rounded-[20px]"
                     href={href}
                     key={href}
                   >
                     <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-50 text-[#123d2d]">
                       <Icon size={21} />
                     </div>
-                    <span className="flex-1 font-black text-slate-900">{label}</span>
-                    <ChevronRight className="text-slate-600" size={20} />
+                    <span className="min-w-0 flex-1 font-black text-slate-900">{label}</span>
+                    <ChevronRight className="shrink-0 text-slate-600" size={20} />
                   </Link>
                 ))}
               </div>
 
-              <div className="mt-4 grid gap-2">
-                {isAdminMaster ? (
-                  <Link
-                    className="flex min-h-12 items-center gap-3 rounded-[18px] border border-slate-300 bg-white px-4 font-black !text-slate-800"
-                    href="/dashboard"
-                    style={{ color: "#1e293b" }}
-                  >
-                    <ArrowLeft size={19} />
-                    MBA Labs
-                  </Link>
-                ) : null}
+              <div className="mt-4">
                 <form action="/sair?app=elshaday" method="post">
                   <button
                     className="flex min-h-12 w-full items-center gap-3 rounded-[18px] border border-red-200 bg-red-50 px-4 text-left font-black !text-red-700"
@@ -219,8 +207,8 @@ export function ElshadayMobileAppChrome({
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-emerald-950/10 bg-[#f7f8f4]/95 px-4 py-3 backdrop-blur-lg lg:hidden">
-        <div className="mx-auto flex max-w-2xl items-center gap-3">
+      <header className="sticky top-0 z-40 w-full max-w-full border-b border-emerald-950/10 bg-[#f7f8f4]/95 px-3 py-3 backdrop-blur-lg sm:px-4 lg:hidden">
+        <div className="mx-auto flex w-full max-w-2xl min-w-0 items-center gap-3">
           <Link
             aria-label="Ir para a Home"
             className="size-12 shrink-0 overflow-hidden rounded-[16px] shadow-sm ring-1 ring-[#d7b458]/25"
@@ -234,20 +222,20 @@ export function ElshadayMobileAppChrome({
               width="48"
             />
           </Link>
-          <Link className="min-w-0 flex-1" href="/elshaday/gestao">
+          <Link className="min-w-0 flex-1 overflow-hidden" href="/elshaday/gestao">
             <p className="truncate text-[20px] font-black leading-tight tracking-tight text-slate-950">
               Elshaday
             </p>
             <p className="mt-0.5 truncate text-xs font-semibold text-slate-600">{igrejaNome}</p>
           </Link>
-          <form action="/sair?app=elshaday" method="post">
+          <form action="/sair?app=elshaday" className="shrink-0" method="post">
             <button
               aria-label="Sair do sistema"
-              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-[14px] border border-red-200 bg-red-50 px-3 font-black !text-red-700 shadow-sm"
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-[14px] border border-red-200 bg-red-50 font-black !text-red-700 shadow-sm sm:w-auto sm:px-3"
               type="submit"
             >
               <LogOut size={18} />
-              <span className="hidden sm:inline">Sair</span>
+              <span className="ml-2 hidden sm:inline">Sair</span>
             </button>
           </form>
         </div>
@@ -255,9 +243,9 @@ export function ElshadayMobileAppChrome({
 
       <nav
         aria-label="Navegação principal"
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200/80 bg-white/95 px-2 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-8px_28px_rgba(15,23,42,.10)] backdrop-blur-xl lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 w-full max-w-[100vw] overflow-hidden border-t border-slate-200/80 bg-white/95 px-1 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-8px_28px_rgba(15,23,42,.10)] backdrop-blur-xl sm:px-2 lg:hidden"
       >
-        <div className="mx-auto grid max-w-2xl grid-cols-5">
+        <div className="mx-auto grid w-full max-w-2xl grid-cols-5">
           {mainNav.map(({ href, label, icon: Icon, exact, action }) => {
             const active = action
               ? open
@@ -269,7 +257,7 @@ export function ElshadayMobileAppChrome({
               return (
                 <button
                   aria-label="Abrir menu mais"
-                  className="flex min-h-[62px] flex-col items-center justify-center gap-1"
+                  className="flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 px-0.5"
                   key={label}
                   onClick={() => setOpen(true)}
                   type="button"
@@ -279,7 +267,7 @@ export function ElshadayMobileAppChrome({
                     size={23}
                     strokeWidth={active ? 2.6 : 2}
                   />
-                  <span className={"text-[11px] font-bold " + (active ? "text-[#123d2d]" : "text-slate-600")}>
+                  <span className={"max-w-full truncate text-[11px] font-bold " + (active ? "text-[#123d2d]" : "text-slate-600")}>
                     {label}
                   </span>
                 </button>
@@ -288,7 +276,7 @@ export function ElshadayMobileAppChrome({
 
             return (
               <Link
-                className="flex min-h-[62px] flex-col items-center justify-center gap-1"
+                className="flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 px-0.5"
                 href={href}
                 key={href}
               >
@@ -298,7 +286,7 @@ export function ElshadayMobileAppChrome({
                   size={23}
                   strokeWidth={active ? 2.6 : 2}
                 />
-                <span className={"text-[11px] font-bold " + (active ? "text-[#123d2d]" : "text-slate-600")}>
+                <span className={"max-w-full truncate text-[11px] font-bold " + (active ? "text-[#123d2d]" : "text-slate-600")}>
                   {label}
                 </span>
               </Link>
