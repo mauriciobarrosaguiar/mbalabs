@@ -14,7 +14,8 @@ const SYSTEM_ROUTE_PREFIXES = [
   "/lexgestor",
   "/portal-associativo",
   "/mba-escola",
-  "/elshaday"
+  "/elshaday",
+  "/cadastro-membro"
 ];
 
 function isMbaPlatformRoute(pathname: string, search = "") {
