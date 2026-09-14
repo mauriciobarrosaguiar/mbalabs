@@ -205,9 +205,10 @@ export default async function ElshadayGalleryPage({
                   {album.coverUrl ? (
                     <img
                       alt={album.titulo}
-                      className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                      className="w-full object-cover transition duration-300 group-hover:scale-[1.02]"
                       loading="lazy"
                       src={album.coverUrl}
+                      style={{ height: "100%" }}
                     />
                   ) : (
                     <div className="grid h-full place-items-center text-[#176445]">
