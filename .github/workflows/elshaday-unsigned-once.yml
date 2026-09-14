@@ -39,12 +39,19 @@ jobs:
       - name: Build unsigned release APK
         run: gradle :app:assembleRelease --stacktrace
 
-      - name: List release outputs
-        run: ls -lh app/build/outputs/apk/release/
+      - name: Prepare signing tool for local secure signing
+        run: |
+          mkdir -p signing-tool
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" signing-tool/apksigner.jar
 
-      - name: Upload unsigned APK
+      - name: List release outputs
+        run: ls -lh app/build/outputs/apk/release/ signing-tool/
+
+      - name: Upload unsigned APK and apksigner
         uses: actions/upload-artifact@v4
         with:
-          name: elshaday-unsigned-1.0.2
-          path: apps/igreja-android/app/build/outputs/apk/release/*.apk
+          name: elshaday-unsigned-1.0.2-with-signer
+          path: |
+            apps/igreja-android/app/build/outputs/apk/release/*.apk
+            apps/igreja-android/signing-tool/apksigner.jar
           if-no-files-found: error
