@@ -17,6 +17,7 @@ import {
   Video as Youtube
 } from "lucide-react";
 import { elshadayRoleLabel, type ElshadayRole } from "@/lib/elshaday-role";
+import { ElshadayHomeVideoCard } from "./ElshadayHomeVideoCard";
 import { ElshadayMobileAppChrome } from "./ElshadayMobileAppChrome";
 
 export function ElshadayShell({
@@ -109,6 +110,7 @@ export function ElshadayShell({
 
           <main className="w-full min-w-0 max-w-full overflow-x-clip px-3 pb-24 pt-4 sm:px-6 sm:pt-6 lg:p-8">
             {children}
+            <ElshadayHomeVideoCard />
           </main>
         </div>
       </div>
