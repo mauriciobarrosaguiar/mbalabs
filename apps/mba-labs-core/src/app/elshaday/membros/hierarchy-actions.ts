@@ -256,3 +256,23 @@ export async function syncElshadayMemberMinistries(formData: FormData) {
   refreshMember(memberId);
   go(returnTo, "ok", "ministerios");
 }
+
+
+export async function syncElshadayMinistryMembers(formData: FormData) {
+  const context = await requireElshadayContext("/elshaday/configuracoes/ministerios");
+  requireElshadayRole(context, ["admin", "pastor", "secretaria"]);
+  const ministryId = value(formData, "ministerio_id");
+  const memberIds = formData.getAll("membro_ids").map(String).filter(Boolean);
+
+  const { error } = await context.admin.rpc("elshaday_sync_ministry_members", {
+    p_igreja_id: context.igreja.id,
+    p_ministerio_id: ministryId,
+    p_membro_ids: memberIds,
+    p_usuario_responsavel: context.current.authUser.id
+  });
+
+  if (error) go("/elshaday/configuracoes/ministerios", "erro", "Não foi possível atualizar os participantes.");
+  refreshMember();
+  revalidatePath("/elshaday/configuracoes/ministerios");
+  go("/elshaday/configuracoes/ministerios", "ok", "Participantes atualizados.");
+}
