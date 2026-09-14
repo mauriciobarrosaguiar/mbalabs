@@ -21,6 +21,7 @@ import {
   saveElshadayPixProviderConfig
 } from "@/lib/elshaday-payment-providers";
 import { saveElshadayProviderSecrets } from "@/lib/elshaday-payment-secrets";
+import { createElshadayMemberRegistrationToken } from "@/lib/elshaday-member-registration";
 import {
   removeElshadayContentImage,
   uploadElshadayContentImage
@@ -554,173 +555,75 @@ export async function createElshadayAccess(formData: FormData) {
 
     const nome = text(formData, "nome");
     const email = text(formData, "email").toLowerCase();
-    const telefone = nullable(formData, "telefone");
-    const requestedRole = accessRole(text(formData, "papel"));
     const membroId = nullable(formData, "membro_id");
-    const isAdmin = context.papel === "admin";
-    const papel = isAdmin ? requestedRole : "membro";
-
-    if (!isAdmin && !membroId) {
-      throw new Error("Pastor, secretaria e líder só podem criar acesso vinculado a uma ficha de membro.");
-    }
-    if (!isAdmin && requestedRole !== "membro") {
-      throw new Error("Pastor, secretaria e líder só podem criar login com perfil de Membro.");
-    }
 
     if (nome.length < 2) throw new Error("Informe o nome completo.");
     if (!email.includes("@")) throw new Error("Informe um e-mail válido.");
 
-    const appId = await getElshadayAppId(context.admin);
-
-    const { data: coreRows, error: coreRowsError } = await context.admin
-      .from("core_usuarios")
-      .select("id,auth_user_id,empresa_id,nome,email,status")
-      .ilike("email", email);
-
-    if (coreRowsError) throw coreRowsError;
-
-    let coreUser = (coreRows ?? []).find(
-      (row: any) => String(row.empresa_id) === String(context.igreja.empresa_id)
-    ) ?? null;
-
-    let authUser = coreUser?.auth_user_id
-      ? await context.admin.auth.admin.getUserById(coreUser.auth_user_id).then((result: any) => {
-          if (result.error) throw result.error;
-          return result.data?.user ?? null;
-        })
-      : await findAuthUserByEmail(context.admin, email);
-
-    if (authUser) {
-      const { data: ownerRows, error: ownerError } = await context.admin
-        .from("core_usuarios")
-        .select("id,empresa_id")
-        .eq("auth_user_id", authUser.id);
-
-      if (ownerError) throw ownerError;
-      const otherOwner = (ownerRows ?? []).find(
-        (row: any) => String(row.empresa_id) !== String(context.igreja.empresa_id)
-      );
-      if (otherOwner) {
-        throw new Error("Este e-mail já está vinculado a outra organização do MBA Labs.");
-      }
-    }
-
-    if (!authUser) {
-      const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://www.mbalabs.com.br").replace(/\/$/, "");
-      const { data: invite, error: inviteError } = await context.admin.auth.admin.inviteUserByEmail(email, {
-        redirectTo: `${siteUrl}/alterar-senha`,
-        data: {
-          nome,
-          origem: "elshaday",
-          igreja_id: context.igreja.id
-        }
-      });
-      if (inviteError) throw inviteError;
-      authUser = invite?.user ?? null;
-      if (!authUser?.id) throw new Error("O convite foi enviado, mas o usuário não foi criado corretamente.");
-    }
-
-    if (!coreUser) {
-      const { data: inserted, error: insertError } = await context.admin
-        .from("core_usuarios")
-        .insert({
-          auth_user_id: authUser.id,
-          empresa_id: context.igreja.empresa_id,
-          nome,
-          email,
-          telefone,
-          tipo: "usuario",
-          tipo_global: "usuario",
-          status: "ativo"
-        })
-        .select("id,auth_user_id,empresa_id,nome,email,status")
-        .single();
-
-      if (insertError) throw insertError;
-      coreUser = inserted;
-    } else {
-      const { data: updated, error: updateError } = await context.admin
-        .from("core_usuarios")
-        .update({
-          auth_user_id: authUser.id,
-          nome,
-          telefone,
-          status: "ativo",
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", coreUser.id)
-        .eq("empresa_id", context.igreja.empresa_id)
-        .select("id,auth_user_id,empresa_id,nome,email,status")
-        .single();
-
-      if (updateError) throw updateError;
-      coreUser = updated;
-    }
-
-    const { error: permissionError } = await context.admin
-      .from("core_usuario_app_permissoes")
-      .upsert({
-        usuario_id: coreUser.id,
-        empresa_id: context.igreja.empresa_id,
-        app_id: appId,
-        perfil_app: papel,
-        status: "ativo",
-        updated_at: new Date().toISOString()
-      }, { onConflict: "usuario_id,app_id" });
-    if (permissionError) throw permissionError;
-
-    const { error: profileError } = await context.admin
-      .from("igreja_perfis")
-      .upsert({
-        igreja_id: context.igreja.id,
-        user_id: authUser.id,
-        papel,
-        ativo: true,
-        updated_at: new Date().toISOString()
-      }, { onConflict: "igreja_id,user_id" });
-    if (profileError) throw profileError;
-
+    let member: any = null;
     if (membroId) {
-      const { data: member, error: memberError } = await context.admin
+      const { data, error } = await context.admin
         .from("igreja_membros")
-        .select("id,user_id")
+        .select("id,nome,email,user_id")
         .eq("id", membroId)
         .eq("igreja_id", context.igreja.id)
         .maybeSingle();
-      if (memberError || !member) throw new Error("Membro selecionado não pertence a esta igreja.");
-      if (member.user_id && String(member.user_id) !== String(authUser.id)) {
-        throw new Error("Este membro já está vinculado a outro login.");
-      }
 
-      const { data: conflictingMember, error: conflictError } = await context.admin
-        .from("igreja_membros")
-        .select("id,nome")
-        .eq("igreja_id", context.igreja.id)
-        .eq("user_id", authUser.id)
-        .neq("id", membroId)
-        .maybeSingle();
-
-      if (conflictError) throw conflictError;
-      if (conflictingMember) {
-        throw new Error(`Este login já está vinculado ao membro ${conflictingMember.nome}.`);
-      }
-
-      const { error: linkError } = await context.admin
-        .from("igreja_membros")
-        .update({ user_id: authUser.id, updated_at: new Date().toISOString() })
-        .eq("id", membroId)
-        .eq("igreja_id", context.igreja.id);
-      if (linkError) throw linkError;
+      if (error || !data) throw new Error("Membro selecionado não pertence a esta igreja.");
+      if (data.user_id) throw new Error("Este membro já possui um login vinculado.");
+      member = data;
     }
 
-    await auditChurchAccess(context, "elshaday acesso criado/atualizado", {
-      usuario_id: coreUser.id,
+    const [authUser, coreRowsResult] = await Promise.all([
+      findAuthUserByEmail(context.admin, email),
+      context.admin
+        .from("core_usuarios")
+        .select("id,empresa_id,auth_user_id")
+        .ilike("email", email)
+    ]);
+
+    if (coreRowsResult.error) throw coreRowsResult.error;
+    if (authUser || (coreRowsResult.data ?? []).length > 0) {
+      throw new Error("Este e-mail já possui uma conta ou um convite. Use recuperação de senha ou procure a administração.");
+    }
+
+    const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://mbalabs.com.br").replace(/\/$/, "");
+    const registrationToken = createElshadayMemberRegistrationToken(context.igreja.id);
+    const registrationUrl =
+      siteUrl +
+      "/cadastro-membro?convite=" +
+      encodeURIComponent(registrationToken) +
+      "&origem=convite";
+
+    const { data: invite, error: inviteError } = await context.admin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: registrationUrl,
+      data: {
+        nome,
+        origem: "elshaday-convite-cadastro",
+        igreja_id: context.igreja.id,
+        membro_id: member?.id ?? null,
+        igreja_nome: context.igreja.nome
+      }
+    });
+
+    if (inviteError) throw inviteError;
+    if (!invite?.user?.id) {
+      throw new Error("O convite foi enviado, mas não foi possível confirmar sua criação.");
+    }
+
+    await auditChurchAccess(context, "elshaday convite de cadastro enviado", {
       email,
-      papel,
-      membro_id: membroId
+      nome,
+      membro_id: member?.id ?? null,
+      auth_user_id: invite.user.id,
+      destino: "/cadastro-membro"
     });
   } catch (error) {
-    accessRedirect("erro", error instanceof Error ? error.message : "Não foi possível criar o acesso.", returnTo);
+    accessRedirect(
+      "erro",
+      error instanceof Error ? error.message : "Não foi possível enviar o convite.",
+      returnTo
+    );
   }
 
   revalidatePath("/elshaday/acessos");
