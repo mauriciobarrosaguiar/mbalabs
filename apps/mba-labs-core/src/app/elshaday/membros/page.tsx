@@ -28,30 +28,74 @@ export default async function ElshadayMembersPage({
     ? "/cadastro-membro?convite=" + createElshadayMemberRegistrationToken(context.igreja.id)
     : "";
 
-  const { data: members, error } = await context.admin
-    .from("igreja_membros")
-    .select("id,user_id,nome,data_nascimento,telefone,whatsapp,email,cargo,ministerio,situacao,data_entrada")
-    .eq("igreja_id", context.igreja.id)
-    .order("nome", { ascending: true });
+  const [membersResult, rolesResult, ministriesResult, linksResult] = await Promise.all([
+    context.admin
+      .from("igreja_membros")
+      .select("id,user_id,nome,data_nascimento,sexo,telefone,whatsapp,email,cargo,cargo_id,ministerio,situacao,data_entrada")
+      .eq("igreja_id", context.igreja.id)
+      .order("nome", { ascending: true }),
+    context.admin
+      .from("igreja_cargos")
+      .select("id,nome,ordem,ativo")
+      .eq("igreja_id", context.igreja.id)
+      .order("ordem")
+      .order("nome"),
+    context.admin
+      .from("igreja_ministerios")
+      .select("id,nome,ativo")
+      .eq("igreja_id", context.igreja.id)
+      .order("nome"),
+    context.admin
+      .from("igreja_membro_ministerios")
+      .select("membro_id,ministerio_id")
+      .eq("igreja_id", context.igreja.id)
+  ]);
 
-  if (error) throw new Error(`Falha ao carregar membros: ${error.message}`);
+  const firstError = membersResult.error ?? rolesResult.error ?? ministriesResult.error ?? linksResult.error;
+  if (firstError) throw new Error(`Falha ao carregar membros: ${firstError.message}`);
 
-  const allMembers = members ?? [];
+  const roles = rolesResult.data ?? [];
+  const ministries = ministriesResult.data ?? [];
+  const roleById = new Map<string, string>(
+    roles.map((role: any): [string, string] => [String(role.id), String(role.nome)])
+  );
+  const ministryById = new Map<string, string>(
+    ministries.map((ministry: any): [string, string] => [String(ministry.id), String(ministry.nome)])
+  );
+  const ministryIdsByMember = new Map<string, Set<string>>();
+  for (const link of linksResult.data ?? []) {
+    const memberId = String(link.membro_id);
+    if (!ministryIdsByMember.has(memberId)) ministryIdsByMember.set(memberId, new Set());
+    ministryIdsByMember.get(memberId)?.add(String(link.ministerio_id));
+  }
+
+  const allMembers = (membersResult.data ?? []).map((member: any) => {
+    const ministryIds = ministryIdsByMember.get(String(member.id)) ?? new Set<string>();
+    const ministryNames = Array.from(ministryIds).map((id) => ministryById.get(id)).filter(Boolean) as string[];
+    return {
+      ...member,
+      cargo_nome: roleById.get(String(member.cargo_id ?? "")) || member.cargo_nome || member.cargo || "Membro",
+      ministerio_ids: ministryIds,
+      ministerios: ministryNames.length ? ministryNames : String(member.ministerio ?? "").split(/[,;/]/).map((name) => name.trim()).filter(Boolean)
+    };
+  });
+
   const q = readParam(params.q).toLocaleLowerCase("pt-BR");
   const situacao = readParam(params.situacao);
-  const ministerio = readParam(params.ministerio);
-
-  const ministries: string[] = Array.from(
-    new Set<string>(
-      allMembers
-        .map((member: any) => String(member.ministerio ?? "").trim())
-        .filter(Boolean)
-    )
-  ).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const cargoId = readParam(params.cargo_id);
+  const ministerioId = readParam(params.ministerio_id);
+  const acesso = readParam(params.acesso);
+  const sexo = readParam(params.sexo);
+  const faixaEtaria = readParam(params.faixa_etaria);
 
   const filtered = allMembers.filter((member: any) => {
     if (situacao && String(member.situacao) !== situacao) return false;
-    if (ministerio && String(member.ministerio ?? "") !== ministerio) return false;
+    if (cargoId && String(member.cargo_id ?? "") !== cargoId) return false;
+    if (ministerioId && !member.ministerio_ids.has(ministerioId)) return false;
+    if (acesso === "com" && !member.user_id) return false;
+    if (acesso === "sem" && member.user_id) return false;
+    if (sexo && String(member.sexo ?? "") !== sexo) return false;
+    if (faixaEtaria && !matchesAgeRange(member.data_nascimento, faixaEtaria)) return false;
     if (!q) return true;
 
     const haystack = [
@@ -59,8 +103,8 @@ export default async function ElshadayMembersPage({
       member.email,
       member.telefone,
       member.whatsapp,
-      member.cargo,
-      member.ministerio
+      member.cargo_nome,
+      ...member.ministerios
     ]
       .map((value) => String(value ?? "").toLocaleLowerCase("pt-BR"))
       .join(" ");
@@ -181,8 +225,6 @@ export default async function ElshadayMembersPage({
             <Field label="Data de entrada" name="data_entrada" type="date" />
             <Field label="Data de conversão" name="data_conversao" type="date" />
             <Field label="Data de batismo" name="data_batismo" type="date" />
-            <Field label="Cargo/Função" name="cargo" />
-            <Field label="Ministério" name="ministerio" />
             <Field label="Endereço" name="endereco" />
             <Field label="Bairro" name="bairro" />
             <Field label="Cidade" name="cidade" defaultValue="Palmas" />
@@ -211,39 +253,59 @@ export default async function ElshadayMembersPage({
       ) : null}
 
       <section className="rounded-[28px] border border-emerald-950/10 bg-white p-5 shadow-sm">
-        <form className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_190px_220px_auto]" method="get">
-          <label className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-            <input
-              className="input w-full pl-11"
-              defaultValue={readParam(params.q)}
-              name="q"
-              placeholder="Buscar nome, telefone, e-mail, cargo..."
-            />
-          </label>
-          <select className="input w-full min-w-0" defaultValue={situacao} name="situacao">
-            <option value="">Todas as situações</option>
-            <option value="ativo">Ativos</option>
-            <option value="afastado">Afastados</option>
-            <option value="visitante">Visitantes</option>
-            <option value="transferido">Transferidos</option>
-            <option value="inativo">Inativos</option>
-          </select>
-          <select className="input w-full min-w-0" defaultValue={ministerio} name="ministerio">
-            <option value="">Todos os ministérios</option>
-            {ministries.map((value) => (
-              <option key={value} value={value}>{value}</option>
-            ))}
-          </select>
-          <button className="rounded-2xl bg-slate-900 px-5 font-black text-white" type="submit">
-            Filtrar
-          </button>
-        </form>
-        {(q || situacao || ministerio) ? (
-          <div className="mt-3 flex justify-end">
-            <Link className="text-sm font-black text-[#176445]" href="/elshaday/membros">Limpar filtros</Link>
-          </div>
-        ) : null}
+        <details open={Boolean(q || situacao || cargoId || ministerioId || acesso || sexo || faixaEtaria)} className="group">
+          <summary className="cursor-pointer list-none font-black text-slate-900">
+            <span className="inline-flex items-center gap-2"><Search size={18} className="text-[#176445]" /> Busca e filtros</span>
+          </summary>
+          <form className="mt-4 grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4" method="get">
+            <label className="relative sm:col-span-2 lg:col-span-4">
+              <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
+              <input className="input w-full pl-11" defaultValue={readParam(params.q)} name="q" placeholder="Nome, telefone, e-mail, cargo ou ministério" />
+            </label>
+            <select className="input" defaultValue={cargoId} name="cargo_id">
+              <option value="">Todos os cargos</option>
+              {roles.map((role: any) => <option key={role.id} value={role.id}>{role.nome}</option>)}
+            </select>
+            <select className="input" defaultValue={ministerioId} name="ministerio_id">
+              <option value="">Todos os ministérios</option>
+              {ministries.map((ministry: any) => <option key={ministry.id} value={ministry.id}>{ministry.nome}</option>)}
+            </select>
+            <select className="input" defaultValue={situacao} name="situacao">
+              <option value="">Todas as situações</option>
+              <option value="ativo">Ativos</option>
+              <option value="afastado">Afastados</option>
+              <option value="visitante">Visitantes</option>
+              <option value="transferido">Transferidos</option>
+              <option value="inativo">Inativos</option>
+            </select>
+            <select className="input" defaultValue={acesso} name="acesso">
+              <option value="">Com ou sem acesso</option>
+              <option value="com">Com acesso ao app</option>
+              <option value="sem">Sem acesso ao app</option>
+            </select>
+            <select className="input" defaultValue={sexo} name="sexo">
+              <option value="">Todos os sexos</option>
+              <option value="feminino">Feminino</option>
+              <option value="masculino">Masculino</option>
+              <option value="outro">Outro</option>
+            </select>
+            <select className="input" defaultValue={faixaEtaria} name="faixa_etaria">
+              <option value="">Todas as faixas etárias</option>
+              <option value="crianca">Crianças (0–11)</option>
+              <option value="adolescente">Adolescentes (12–17)</option>
+              <option value="adulto">Adultos (18–59)</option>
+              <option value="idoso">Idosos (60+)</option>
+            </select>
+            <button className="min-h-12 rounded-2xl bg-slate-900 px-5 font-black text-white sm:col-span-2" type="submit">
+              Aplicar filtros
+            </button>
+          </form>
+          {(q || situacao || cargoId || ministerioId || acesso || sexo || faixaEtaria) ? (
+            <div className="mt-3 flex justify-end">
+              <Link className="text-sm font-black text-[#176445]" href="/elshaday/membros">Limpar filtros</Link>
+            </div>
+          ) : null}
+        </details>
       </section>
 
       <section className="overflow-hidden rounded-[28px] border border-emerald-950/10 bg-white">
@@ -277,12 +339,12 @@ export default async function ElshadayMembersPage({
                     <tr className="border-t border-slate-100" key={member.id}>
                       <td className="px-5 py-4">
                         <p className="font-black">{member.nome}</p>
-                        <p className="mt-1 text-xs text-slate-600">{member.cargo || "Membro"}</p>
+                        <p className="mt-1 text-xs text-slate-600">{member.cargo_nome || member.cargo || "Membro"}</p>
                       </td>
                       <td className="px-5 py-4 text-slate-600">
                         {member.whatsapp || member.telefone || member.email || "-"}
                       </td>
-                      <td className="px-5 py-4 text-slate-600">{member.ministerio || "-"}</td>
+                      <td className="px-5 py-4 text-slate-600">{member.ministerios.join(", ") || member.ministerio || "-"}</td>
                       <td className="px-5 py-4 text-slate-600">{dateBR(member.data_entrada)}</td>
                       <td className="px-5 py-4">
                         <AccessBadge linked={Boolean(member.user_id)} />
@@ -312,7 +374,7 @@ export default async function ElshadayMembersPage({
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-black">{member.nome}</p>
-                      <p className="mt-1 text-sm text-slate-600">{member.cargo || member.ministerio || "Membro"}</p>
+                      <p className="mt-1 text-sm text-slate-600">{member.cargo_nome || member.ministerios[0] || "Membro"}</p>
                     </div>
                     <Status value={member.situacao} />
                   </div>
@@ -350,6 +412,23 @@ export default async function ElshadayMembersPage({
       `}</style>
     </div>
   );
+}
+
+function matchesAgeRange(birthDate: string | null, range: string) {
+  if (!birthDate) return false;
+  const birth = new Date(birthDate + "T12:00:00Z");
+  if (Number.isNaN(birth.getTime())) return false;
+  const today = new Date();
+  let age = today.getUTCFullYear() - birth.getUTCFullYear();
+  const beforeBirthday =
+    today.getUTCMonth() < birth.getUTCMonth() ||
+    (today.getUTCMonth() === birth.getUTCMonth() && today.getUTCDate() < birth.getUTCDate());
+  if (beforeBirthday) age -= 1;
+  if (range === "crianca") return age >= 0 && age <= 11;
+  if (range === "adolescente") return age >= 12 && age <= 17;
+  if (range === "adulto") return age >= 18 && age <= 59;
+  if (range === "idoso") return age >= 60;
+  return true;
 }
 
 function readParam(value: string | string[] | undefined) {
