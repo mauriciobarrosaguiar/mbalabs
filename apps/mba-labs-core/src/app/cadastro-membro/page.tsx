@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CheckCircle2, Church, UserRoundPlus } from "lucide-react";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
@@ -32,7 +33,7 @@ export default async function PublicMemberRegistrationPage({
     .maybeSingle();
 
   if (error || !church?.id || !convite || !validateElshadayMemberRegistrationToken(church.id, convite)) {
-    redirect("/login");
+    redirect("/login?app=elshaday");
   }
 
   const ok = read(query.ok);
@@ -48,7 +49,7 @@ export default async function PublicMemberRegistrationPage({
             </div>
             <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-[.15em] text-[#f1d79d]">Elshaday Palmas</p>
-              <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">Cadastro de membro</h1>
+              <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">Crie seu acesso</h1>
             </div>
           </div>
           <p className="mt-4 text-sm font-semibold leading-6 text-emerald-50/90">
@@ -60,9 +61,15 @@ export default async function PublicMemberRegistrationPage({
           <section className="rounded-[22px] border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
             <div className="flex items-start gap-3">
               <CheckCircle2 className="mt-0.5 shrink-0" size={22} />
-              <div>
-                <h2 className="font-black">Cadastro concluído</h2>
+              <div className="min-w-0">
+                <h2 className="font-black">Cadastro enviado</h2>
                 <p className="mt-1 text-sm leading-6">{ok}</p>
+                <Link
+                  className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#123d2d] px-5 text-sm font-black text-white"
+                  href="/login?app=elshaday&next=%2Felshaday"
+                >
+                  Voltar para o login
+                </Link>
               </div>
             </div>
           </section>
@@ -81,9 +88,15 @@ export default async function PublicMemberRegistrationPage({
                 <UserRoundPlus size={22} />
               </div>
               <div>
-                <h2 className="text-xl font-black">Seus dados</h2>
-                <p className="mt-0.5 text-xs font-semibold text-slate-500">Preencha para entrar no cadastro de membros.</p>
+                <h2 className="text-xl font-black">Seus dados e acesso</h2>
+                <p className="mt-0.5 text-xs font-semibold text-slate-500">
+                  Preencha seus dados, crie sua senha e envie para aprovação da igreja.
+                </p>
               </div>
+            </div>
+
+            <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950">
+              Após concluir, sua conta ficará aguardando aprovação. Quando a igreja liberar, você poderá entrar normalmente com o e-mail e a senha criados aqui.
             </div>
 
             <form action={registerPublicElshadayMember} className="mt-6 grid min-w-0 gap-4 sm:grid-cols-2">
@@ -98,9 +111,11 @@ export default async function PublicMemberRegistrationPage({
               <Field label="Nome completo *" name="nome" autoComplete="name" required wide />
               <Field label="Data de nascimento" name="data_nascimento" type="date" />
               <Field label="CPF" name="cpf" inputMode="numeric" autoComplete="off" placeholder="Opcional" />
-              <Field label="WhatsApp" name="whatsapp" inputMode="tel" autoComplete="tel" placeholder="(63) 99999-9999" />
+              <Field label="WhatsApp *" name="whatsapp" inputMode="tel" autoComplete="tel" placeholder="(63) 99999-9999" />
               <Field label="Telefone" name="telefone" inputMode="tel" autoComplete="tel" />
-              <Field label="E-mail" name="email" type="email" autoComplete="email" wide />
+              <Field label="E-mail para entrar *" name="email" type="email" autoComplete="email" required wide />
+              <Field label="Crie uma senha *" name="senha" type="password" autoComplete="new-password" required placeholder="Mínimo de 8 caracteres" />
+              <Field label="Confirme a senha *" name="confirmar_senha" type="password" autoComplete="new-password" required />
 
               <Field label="Data de entrada na igreja" name="data_entrada" type="date" />
               <Field label="Data de conversão" name="data_conversao" type="date" />
@@ -123,15 +138,15 @@ export default async function PublicMemberRegistrationPage({
 
               <label className="flex items-start gap-3 rounded-2xl bg-[#f7f8f4] p-4 text-sm leading-6 text-slate-700 sm:col-span-2">
                 <input className="mt-1 size-5 shrink-0 accent-[#176445]" name="consentimento" type="checkbox" required />
-                <span>Autorizo o uso destes dados pela igreja para meu cadastro e comunicação.</span>
+                <span>Autorizo o uso destes dados pela igreja para meu cadastro, acesso ao aplicativo e comunicação.</span>
               </label>
 
               <div className="sm:col-span-2">
                 <ElshadaySubmitButton
                   className="inline-flex min-h-14 w-full items-center justify-center rounded-2xl bg-[#123d2d] px-6 text-base font-black text-white"
-                  pendingLabel="Enviando cadastro..."
+                  pendingLabel="Criando sua conta..."
                 >
-                  Enviar meu cadastro
+                  Criar minha conta
                 </ElshadaySubmitButton>
               </div>
             </form>
