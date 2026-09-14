@@ -295,3 +295,141 @@ revoke all on
   public.igreja_membro_ministerios,
   public.igreja_cargo_auditoria
 from anon;
+
+
+-- Alteração de cargo atômica: atualiza ficha, encerra histórico anterior e audita sem tocar no perfil de acesso.
+create or replace function public.elshaday_set_member_cargo(
+  p_igreja_id uuid,
+  p_membro_id uuid,
+  p_cargo_id uuid,
+  p_data_inicio date,
+  p_observacao text,
+  p_usuario_responsavel uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_cargo_anterior_id uuid;
+  v_novo_cargo_nome text;
+  v_data_inicio date := coalesce(p_data_inicio, current_date);
+begin
+  select m.cargo_id
+    into v_cargo_anterior_id
+  from public.igreja_membros m
+  where m.id = p_membro_id and m.igreja_id = p_igreja_id
+  for update;
+
+  if not found then
+    raise exception 'Membro não pertence a esta igreja.';
+  end if;
+
+  select c.nome
+    into v_novo_cargo_nome
+  from public.igreja_cargos c
+  where c.id = p_cargo_id and c.igreja_id = p_igreja_id and c.ativo = true;
+
+  if not found then
+    raise exception 'Cargo inválido ou inativo.';
+  end if;
+
+  update public.igreja_membro_cargos_historico
+     set data_fim = greatest(v_data_inicio - 1, data_inicio)
+   where igreja_id = p_igreja_id
+     and membro_id = p_membro_id
+     and data_fim is null;
+
+  insert into public.igreja_membro_cargos_historico (
+    igreja_id, membro_id, cargo_id, data_inicio, observacao, alterado_por
+  ) values (
+    p_igreja_id, p_membro_id, p_cargo_id, v_data_inicio,
+    nullif(btrim(coalesce(p_observacao, '')), ''), p_usuario_responsavel
+  );
+
+  update public.igreja_membros
+     set cargo_id = p_cargo_id,
+         cargo = v_novo_cargo_nome,
+         data_nomeacao = v_data_inicio,
+         updated_at = now()
+   where id = p_membro_id and igreja_id = p_igreja_id;
+
+  insert into public.igreja_cargo_auditoria (
+    igreja_id, membro_id, cargo_anterior_id, novo_cargo_id,
+    usuario_responsavel, observacao
+  ) values (
+    p_igreja_id, p_membro_id, v_cargo_anterior_id, p_cargo_id,
+    p_usuario_responsavel, nullif(btrim(coalesce(p_observacao, '')), '')
+  );
+end;
+$$;
+
+revoke all on function public.elshaday_set_member_cargo(uuid, uuid, uuid, date, text, uuid)
+  from public, anon, authenticated;
+grant execute on function public.elshaday_set_member_cargo(uuid, uuid, uuid, date, text, uuid)
+  to service_role;
+
+create or replace function public.elshaday_sync_member_ministries(
+  p_igreja_id uuid,
+  p_membro_id uuid,
+  p_ministerio_ids uuid[],
+  p_usuario_responsavel uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_legacy_text text;
+begin
+  if not exists (
+    select 1 from public.igreja_membros
+    where id = p_membro_id and igreja_id = p_igreja_id
+  ) then
+    raise exception 'Membro não pertence a esta igreja.';
+  end if;
+
+  if exists (
+    select 1
+    from unnest(coalesce(p_ministerio_ids, '{}'::uuid[])) wanted(id)
+    left join public.igreja_ministerios mi
+      on mi.id = wanted.id
+     and mi.igreja_id = p_igreja_id
+     and mi.ativo = true
+    where mi.id is null
+  ) then
+    raise exception 'Há ministério inválido ou inativo.';
+  end if;
+
+  delete from public.igreja_membro_ministerios
+   where igreja_id = p_igreja_id
+     and membro_id = p_membro_id
+     and not (ministerio_id = any(coalesce(p_ministerio_ids, '{}'::uuid[])));
+
+  insert into public.igreja_membro_ministerios (
+    igreja_id, membro_id, ministerio_id, adicionado_por
+  )
+  select p_igreja_id, p_membro_id, wanted.id, p_usuario_responsavel
+  from unnest(coalesce(p_ministerio_ids, '{}'::uuid[])) wanted(id)
+  on conflict do nothing;
+
+  select string_agg(mi.nome, ', ' order by mi.nome)
+    into v_legacy_text
+  from public.igreja_membro_ministerios mm
+  join public.igreja_ministerios mi
+    on mi.id = mm.ministerio_id and mi.igreja_id = mm.igreja_id
+  where mm.igreja_id = p_igreja_id and mm.membro_id = p_membro_id;
+
+  update public.igreja_membros
+     set ministerio = v_legacy_text,
+         updated_at = now()
+   where id = p_membro_id and igreja_id = p_igreja_id;
+end;
+$$;
+
+revoke all on function public.elshaday_sync_member_ministries(uuid, uuid, uuid[], uuid)
+  from public, anon, authenticated;
+grant execute on function public.elshaday_sync_member_ministries(uuid, uuid, uuid[], uuid)
+  to service_role;
