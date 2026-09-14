@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Elshaday</title>
+  <desc id="desc">Símbolo dourado com cruz, chama e letra E sobre fundo azul-marinho.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#031329"/>
+      <stop offset="0.55" stop-color="#063a7a"/>
+      <stop offset="1" stop-color="#092554"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff0a8"/>
+      <stop offset="0.32" stop-color="#f6d66d"/>
+      <stop offset="0.62" stop-color="#d7aa3d"/>
+      <stop offset="1" stop-color="#fff0a8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000" flood-opacity="0.28"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="150" fill="url(#bg)"/>
+
+  <g fill="url(#gold)" filter="url(#shadow)">
+    <!-- chama principal -->
+    <path d="M507 96c-9 79-52 116-88 151-42 40-75 84-75 146 0 50 20 89 61 121-8-54 8-99 49-138 45-42 88-91 87-161 0-38-11-78-34-119z"/>
+    <!-- segunda chama -->
+    <path d="M571 207c1 50-22 87-52 120-31 34-57 69-57 116 0 34 12 63 36 88-1-46 19-77 48-106 30-30 54-63 54-108 0-38-10-74-29-110z"/>
+
+    <!-- haste vertical -->
+    <rect x="457" y="334" width="86" height="365" rx="18"/>
+    <!-- braço da cruz -->
+    <path d="M310 417h404c28 0 50 22 50 50v0c0 27-22 49-50 49H310c-28 0-50-22-50-49v0c0-28 22-50 50-50z"/>
+    <!-- braço central do E -->
+    <path d="M500 545h206c24 0 44 20 44 44s-20 44-44 44H500z"/>
+    <!-- base do E -->
+    <path d="M500 657h193c43 0 78 35 78 78v8H500z"/>
+  </g>
+
+  <text x="512" y="892" text-anchor="middle" fill="url(#gold)" font-family="Arial, Helvetica, sans-serif" font-size="104" font-weight="700" letter-spacing="13">ELSHADAY</text>
+</svg>
