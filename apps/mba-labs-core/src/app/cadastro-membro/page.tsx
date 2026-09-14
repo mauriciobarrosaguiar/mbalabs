@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { CheckCircle2, Church, UserRoundPlus } from "lucide-react";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
-import { ElshadaySubmitButton } from "../elshaday/ElshadaySubmitButton";
 import { validateElshadayMemberRegistrationToken } from "@/lib/elshaday-member-registration";
-import { registerPublicElshadayMember } from "./actions";
+import { MemberRegistrationForm } from "./MemberRegistrationForm";
 
 export const dynamic = "force-dynamic";
 
@@ -36,36 +36,49 @@ export default async function PublicMemberRegistrationPage({
     redirect("/login?app=elshaday");
   }
 
+  const { data: ministries } = await admin
+    .from("igreja_ministerios")
+    .select("id,nome")
+    .eq("igreja_id", church.id)
+    .eq("ativo", true)
+    .order("nome");
+
   const ok = read(query.ok);
   const erro = read(query.erro);
 
   return (
-    <main className="min-h-screen bg-[#f4f6f1] px-4 py-5 text-slate-950 sm:py-8">
-      <div className="mx-auto grid max-w-2xl gap-5">
-        <header className="rounded-[28px] bg-[#123d2d] p-5 text-white shadow-[0_16px_40px_rgba(18,61,45,.16)] sm:p-7">
-          <div className="flex items-center gap-4">
-            <div className="grid size-13 shrink-0 place-items-center rounded-[17px] bg-[#f1d79d] text-[#123d2d]">
-              <Church size={26} />
+    <main className="min-h-dvh min-w-0 overflow-x-hidden bg-[radial-gradient(circle_at_top,#e8f0e8_0,#f7f8f4_42%,#eef2ed_100%)] px-3 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] text-slate-950 sm:px-5 sm:py-8">
+      <div className="mx-auto grid min-w-0 max-w-2xl gap-4">
+        <header className="rounded-[26px] border border-[#123d2d]/10 bg-white/95 p-4 shadow-[0_12px_35px_rgba(18,61,45,.09)] backdrop-blur sm:p-5">
+          <div className="flex items-center gap-3">
+            <Link
+              aria-label="Voltar para o login"
+              className="grid size-11 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-[#f7f8f4] text-[#123d2d] transition active:scale-95"
+              href="/login?app=elshaday"
+            >
+              <ArrowLeft size={20} />
+            </Link>
+            <div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl bg-[#123d2d] p-1.5 shadow-sm">
+              <Image alt="Logo oficial Elshaday" height={48} priority src="/elshaday/logo.svg" width={48} />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-[.15em] text-[#f1d79d]">Elshaday Palmas</p>
-              <h1 className="mt-1 text-2xl font-black leading-tight sm:text-3xl">Crie seu acesso</h1>
+              <p className="text-xl font-black leading-tight text-[#123d2d]">Elshaday</p>
+              <p className="mt-0.5 text-xs font-bold leading-4 text-slate-600">
+                Assembleia de Deus Elshaday – Palmas
+              </p>
             </div>
           </div>
-          <p className="mt-4 text-sm font-semibold leading-6 text-emerald-50/90">
-            {church.nome || church.nome_curto}
-          </p>
         </header>
 
         {ok ? (
-          <section className="rounded-[22px] border border-emerald-200 bg-emerald-50 p-5 text-emerald-950">
+          <section className="rounded-[24px] border border-emerald-200 bg-emerald-50 p-5 text-emerald-950 shadow-sm">
             <div className="flex items-start gap-3">
               <CheckCircle2 className="mt-0.5 shrink-0" size={22} />
               <div className="min-w-0">
-                <h2 className="font-black">Cadastro enviado</h2>
-                <p className="mt-1 text-sm leading-6">{ok}</p>
+                <h1 className="text-lg font-black">Cadastro enviado</h1>
+                <p className="mt-1 text-sm font-semibold leading-6">{ok}</p>
                 <Link
-                  className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-[#123d2d] px-5 text-sm font-black text-white"
+                  className="mt-4 inline-flex min-h-12 w-full items-center justify-center rounded-2xl bg-[#123d2d] px-5 text-sm font-black text-white sm:w-auto"
                   href="/login?app=elshaday&next=%2Felshaday"
                 >
                   Voltar para o login
@@ -76,125 +89,19 @@ export default async function PublicMemberRegistrationPage({
         ) : null}
 
         {erro ? (
-          <section className="rounded-[22px] border border-red-200 bg-red-50 p-5 text-sm font-bold leading-6 text-red-900">
+          <section aria-live="polite" className="rounded-[22px] border border-red-200 bg-red-50 p-4 text-sm font-bold leading-6 text-red-900">
             {erro}
           </section>
         ) : null}
 
         {!ok ? (
-          <section className="rounded-[28px] border border-emerald-950/10 bg-white p-5 shadow-sm sm:p-7">
-            <div className="flex items-center gap-3">
-              <div className="grid size-11 place-items-center rounded-[14px] bg-emerald-50 text-[#176445]">
-                <UserRoundPlus size={22} />
-              </div>
-              <div>
-                <h2 className="text-xl font-black">Seus dados e acesso</h2>
-                <p className="mt-0.5 text-xs font-semibold text-slate-500">
-                  Preencha seus dados, crie sua senha e envie para aprovação da igreja.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 rounded-2xl bg-amber-50 p-4 text-sm font-semibold leading-6 text-amber-950">
-              Após concluir, sua conta ficará aguardando aprovação. Quando a igreja liberar, você poderá entrar normalmente com o e-mail e a senha criados aqui.
-            </div>
-
-            <form action={registerPublicElshadayMember} className="mt-6 grid min-w-0 gap-4 sm:grid-cols-2">
-              <input type="hidden" name="convite" value={convite} />
-              <div className="sr-only" aria-hidden="true">
-                <label>
-                  Website
-                  <input name="website" tabIndex={-1} autoComplete="off" />
-                </label>
-              </div>
-
-              <Field label="Nome completo *" name="nome" autoComplete="name" required wide />
-              <Field label="Data de nascimento" name="data_nascimento" type="date" />
-              <Field label="CPF" name="cpf" inputMode="numeric" autoComplete="off" placeholder="Opcional" />
-              <Field label="WhatsApp *" name="whatsapp" inputMode="tel" autoComplete="tel" placeholder="(63) 99999-9999" />
-              <Field label="Telefone" name="telefone" inputMode="tel" autoComplete="tel" />
-              <Field label="E-mail para entrar *" name="email" type="email" autoComplete="email" required wide />
-              <Field label="Crie uma senha *" name="senha" type="password" autoComplete="new-password" required placeholder="Mínimo de 8 caracteres" />
-              <Field label="Confirme a senha *" name="confirmar_senha" type="password" autoComplete="new-password" required />
-
-              <Field label="Data de entrada na igreja" name="data_entrada" type="date" />
-              <Field label="Data de conversão" name="data_conversao" type="date" />
-              <Field label="Data de batismo" name="data_batismo" type="date" />
-              <Field label="Cargo / função" name="cargo" placeholder="Se houver" />
-              <Field label="Ministério" name="ministerio" placeholder="Se houver" wide />
-
-              <Field label="Endereço" name="endereco" autoComplete="street-address" wide />
-              <Field label="Bairro" name="bairro" />
-              <Field label="Cidade" name="cidade" defaultValue="Palmas" />
-              <Field label="UF" name="estado" defaultValue="TO" maxLength={2} />
-
-              <label className="grid gap-2 text-sm font-bold text-slate-700 sm:col-span-2">
-                Observação
-                <textarea
-                  className="min-h-24 w-full rounded-2xl border border-slate-300 bg-white p-4 text-slate-950 outline-none placeholder:text-slate-400 focus:border-[#176445]"
-                  name="observacoes"
-                />
-              </label>
-
-              <label className="flex items-start gap-3 rounded-2xl bg-[#f7f8f4] p-4 text-sm leading-6 text-slate-700 sm:col-span-2">
-                <input className="mt-1 size-5 shrink-0 accent-[#176445]" name="consentimento" type="checkbox" required />
-                <span>Autorizo o uso destes dados pela igreja para meu cadastro, acesso ao aplicativo e comunicação.</span>
-              </label>
-
-              <div className="sm:col-span-2">
-                <ElshadaySubmitButton
-                  className="inline-flex min-h-14 w-full items-center justify-center rounded-2xl bg-[#123d2d] px-6 text-base font-black text-white"
-                  pendingLabel="Criando sua conta..."
-                >
-                  Criar minha conta
-                </ElshadaySubmitButton>
-              </div>
-            </form>
-          </section>
+          <MemberRegistrationForm
+            convite={convite}
+            ministryOptions={(ministries ?? []).map((item: any) => ({ id: String(item.id), nome: String(item.nome) }))}
+          />
         ) : null}
       </div>
     </main>
-  );
-}
-
-function Field({
-  label,
-  name,
-  type = "text",
-  required = false,
-  placeholder,
-  defaultValue,
-  wide = false,
-  maxLength,
-  inputMode,
-  autoComplete
-}: {
-  label: string;
-  name: string;
-  type?: string;
-  required?: boolean;
-  placeholder?: string;
-  defaultValue?: string;
-  wide?: boolean;
-  maxLength?: number;
-  inputMode?: "none" | "text" | "tel" | "url" | "email" | "numeric" | "decimal" | "search";
-  autoComplete?: string;
-}) {
-  return (
-    <label className={"grid min-w-0 gap-2 text-sm font-bold text-slate-700" + (wide ? " sm:col-span-2" : "")}>
-      {label}
-      <input
-        className="min-h-12 w-full min-w-0 rounded-2xl border border-slate-300 bg-white px-4 text-slate-950 outline-none placeholder:text-slate-400 focus:border-[#176445]"
-        name={name}
-        type={type}
-        required={required}
-        placeholder={placeholder}
-        defaultValue={defaultValue}
-        maxLength={maxLength}
-        inputMode={inputMode}
-        autoComplete={autoComplete}
-      />
-    </label>
   );
 }
 
