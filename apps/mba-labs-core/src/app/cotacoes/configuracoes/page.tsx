@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessageCircle, ShieldCheck, Users } from "lucide-react";
+import { Building2, MessageCircle, ShieldCheck, Users } from "lucide-react";
 import { AppShell } from "@/modules/cotacoes/components/layout/app-shell";
 import { Button } from "@/modules/cotacoes/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/modules/cotacoes/components/ui/card";
@@ -26,7 +26,7 @@ export default async function CotacoesConfiguracoesPage() {
           <h2 className="text-2xl font-semibold text-slate-950">Configurações da empresa</h2>
           <p className="mt-2 text-sm text-muted-foreground">Preferências, integrações e permissões operacionais do MBA Cotações.</p>
         </div>
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader><CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" />Perfil e tenant</CardTitle></CardHeader>
             <CardContent className="space-y-3 text-sm text-muted-foreground">
@@ -40,6 +40,13 @@ export default async function CotacoesConfiguracoesPage() {
               <p>RLS por tenant habilitado nas migrations.</p>
               <p>Links públicos têm token, validade e escopo por fornecedor.</p>
               <p>Credenciais ficam protegidas no servidor.</p>
+            </CardContent>
+          </Card>
+          <Card className="border-sky-200 bg-sky-50/50">
+            <CardHeader><CardTitle className="flex items-center gap-2 text-sky-950"><Building2 className="h-5 w-5" />Distribuidoras</CardTitle></CardHeader>
+            <CardContent className="space-y-3 text-sm text-sky-950">
+              <p>Central para homologar consulta automática de preço/estoque e, futuramente, transmitir pedidos vencedores.</p>
+              <Button asChild><Link href="/cotacoes/configuracoes/distribuidoras">Abrir integrações</Link></Button>
             </CardContent>
           </Card>
           <Card className="border-teal-200 bg-teal-50/50">
