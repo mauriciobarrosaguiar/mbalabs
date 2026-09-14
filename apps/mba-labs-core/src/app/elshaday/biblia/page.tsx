@@ -1,6 +1,7 @@
 import { Heart, NotebookPen, Search, Trash2 } from "lucide-react";
 import { requireElshadayContext } from "@/lib/elshaday";
 import { BibleReader } from "./BibleReader";
+import { BibleOfflineManager } from "./BibleOfflineManager";
 import {
   removeBibleFavorite,
   removeBibleNote,
@@ -62,7 +63,7 @@ export default async function ElshadayBiblePage({
       <header className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs font-black uppercase tracking-[.16em] text-[#176445]">Leitura e estudo</p>
-          <h1 className="mt-1 text-3xl font-black">Bíblia Online</h1>
+          <h1 className="mt-1 text-3xl font-black">Bíblia</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <span className="flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-black shadow-sm">
@@ -75,6 +76,8 @@ export default async function ElshadayBiblePage({
           </span>
         </div>
       </header>
+
+      <BibleOfflineManager />
 
       <section className="rounded-[30px] border border-emerald-950/10 bg-white p-4 shadow-sm sm:p-6">
         <BibleReader
@@ -213,7 +216,7 @@ export default async function ElshadayBiblePage({
       </section>
 
       <p className="text-center text-xs leading-5 text-slate-600">
-        Texto bíblico consultado via bible-api.com. Favoritos e anotações ficam vinculados exclusivamente ao seu login.
+        Texto bíblico consultado via bible-api.com. A leitura preparada para uso offline fica salva somente neste aparelho. Favoritos e progresso pendentes sincronizam quando a internet voltar.
       </p>
 
       <style>
