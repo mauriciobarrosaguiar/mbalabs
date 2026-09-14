@@ -246,6 +246,25 @@ export async function registerPublicElshadayMember(formData: FormData) {
 
     if (memberError || !createdMember?.id) throw memberError ?? new Error("CREATE_MEMBER_FAILED");
 
+    const { data: defaultRole } = await admin
+      .from("igreja_cargos")
+      .select("id")
+      .eq("igreja_id", church.id)
+      .eq("ativo", true)
+      .ilike("nome", "Membro")
+      .maybeSingle();
+
+    if (defaultRole?.id) {
+      await admin.rpc("elshaday_set_member_cargo", {
+        p_igreja_id: church.id,
+        p_membro_id: createdMember.id,
+        p_cargo_id: defaultRole.id,
+        p_data_inicio: optionalDate(formData, "data_entrada") || new Date().toISOString().slice(0, 10),
+        p_observacao: "Cargo inicial definido no autocadastro.",
+        p_usuario_responsavel: authUserId
+      });
+    }
+
     // A ficha continua compatível com o campo textual legado; a relação nova é complementar.
     if (ministryName) {
       const { data: ministry } = await admin
