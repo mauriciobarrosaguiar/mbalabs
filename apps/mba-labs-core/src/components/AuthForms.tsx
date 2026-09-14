@@ -7,7 +7,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { createSupabaseClient } from "@mba-labs/shared/supabase/client";
 
 const ELSHADAY_INPUT_CLASS =
-  "min-h-[52px] w-full min-w-0 rounded-[14px] border border-slate-300 bg-white px-4 text-base text-slate-950 outline-none transition placeholder:text-slate-500 focus:border-[#b58a35] focus:ring-4 focus:ring-[#d4aa54]/20";
+  "min-h-[52px] w-full min-w-0 rounded-[14px] border border-slate-300 bg-white px-4 text-[16px] text-slate-950 outline-none transition placeholder:text-slate-500 focus:border-[#b58a35] focus:ring-4 focus:ring-[#d4aa54]/20";
 const ELSHADAY_BUTTON_CLASS =
   "min-h-[54px] w-full rounded-[15px] border border-[#d4aa54] bg-[#123d2d] px-5 text-base font-black text-white shadow-[0_10px_24px_rgba(18,61,45,.2)] transition active:scale-[.99] disabled:cursor-wait disabled:opacity-70";
 
@@ -76,6 +76,7 @@ export function LoginForm({
             id="elshaday-email"
             inputMode="email"
             spellCheck={false}
+            style={{ fontSize: "16px" }}
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
@@ -97,6 +98,7 @@ export function LoginForm({
               autoComplete="current-password"
               className={`${ELSHADAY_INPUT_CLASS} pr-[3.25rem]`}
               id="elshaday-password"
+              style={{ fontSize: "16px" }}
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
