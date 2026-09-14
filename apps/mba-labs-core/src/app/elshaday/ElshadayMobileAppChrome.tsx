@@ -12,6 +12,7 @@ import {
   HandHeart,
   HandCoins,
   Home,
+  Images,
   LogOut,
   Menu,
   Mic2,
@@ -88,6 +89,7 @@ export function ElshadayMobileAppChrome({
   );
 
   const moreItems = [
+    { href: "/elshaday/galeria", label: "Galeria", icon: Images },
     { href: "/elshaday/biblia", label: "Bíblia", icon: BookOpen },
     ...(canSeeMembers
       ? [{ href: "/elshaday/membros", label: "Membros", icon: UsersRound }]
