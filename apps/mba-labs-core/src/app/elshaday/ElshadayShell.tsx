@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
   BookOpen,
   CalendarDays,
-  Church,
   FileBarChart,
   HandCoins,
   Home,
@@ -55,9 +55,14 @@ export function ElshadayShell({
       <div className="mx-auto grid min-h-screen w-full min-w-0 max-w-[1600px] lg:grid-cols-[285px_minmax(0,1fr)]">
         <aside className="hidden border-r border-emerald-950/10 bg-[#123d2d] p-5 text-white lg:flex lg:flex-col">
           <div className="rounded-[28px] border border-white/10 bg-white/5 p-5">
-            <div className="grid size-12 place-items-center rounded-2xl bg-[#d4aa54] text-[#123d2d]">
-              <Church size={27} strokeWidth={2.4} />
-            </div>
+            <Image
+              alt="Elshaday"
+              className="size-20 rounded-[22px] object-cover shadow-[0_12px_28px_rgba(0,0,0,.22)] ring-1 ring-[#f1d79d]/25"
+              height={80}
+              priority
+              src="/elshaday/logo.png"
+              width={80}
+            />
             <h1 className="mt-4 text-2xl font-black">Elshaday Gestão</h1>
             <p className="mt-2 text-sm leading-6 text-emerald-50/85">{igrejaNome}</p>
           </div>
