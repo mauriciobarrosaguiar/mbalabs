@@ -1,0 +1,130 @@
+name: Elshaday Android Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/igreja-android/**'
+      - '.github/workflows/elshaday-android-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release-apk:
+    runs-on: ubuntu-latest
+    env:
+      SIGNING_BUNDLE: ${{ secrets.ELSHADAY_SIGNING_BUNDLE }}
+
+    defaults:
+      run:
+        working-directory: apps/igreja-android
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Signing key not configured yet
+        if: env.SIGNING_BUNDLE == ''
+        run: |
+          echo "ELSHADAY_SIGNING_BUNDLE ainda não foi cadastrado em Repository secrets."
+          echo "O código está pronto, mas nenhum APK release será publicado sem a chave privada estável."
+
+      - name: Java 17
+        if: env.SIGNING_BUNDLE != ''
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK
+        if: env.SIGNING_BUNDLE != ''
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android API 36
+        if: env.SIGNING_BUNDLE != ''
+        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;35.0.0"
+
+      - name: Gradle 8.13
+        if: env.SIGNING_BUNDLE != ''
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Restore stable signing key
+        if: env.SIGNING_BUNDLE != ''
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          from pathlib import Path
+
+          payload = json.loads(base64.b64decode(os.environ["SIGNING_BUNDLE"]).decode("utf-8"))
+          keystore_path = Path(os.environ["RUNNER_TEMP"]) / "elshaday-release.jks"
+          keystore_path.write_bytes(base64.b64decode(payload["keystoreBase64"]))
+
+          store_password = payload["storePassword"]
+          key_alias = payload["keyAlias"]
+          key_password = payload["keyPassword"]
+
+          print(f"::add-mask::{store_password}")
+          print(f"::add-mask::{key_password}")
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env_file:
+              env_file.write(f"ELSHADAY_KEYSTORE_FILE={keystore_path}\n")
+              env_file.write(f"ELSHADAY_STORE_PASSWORD={store_password}\n")
+              env_file.write(f"ELSHADAY_KEY_ALIAS={key_alias}\n")
+              env_file.write(f"ELSHADAY_KEY_PASSWORD={key_password}\n")
+          PY
+
+      - name: Build signed release APK
+        if: env.SIGNING_BUNDLE != ''
+        run: gradle :app:assembleRelease --stacktrace
+
+      - name: Verify APK signature
+        if: env.SIGNING_BUNDLE != ''
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk
+
+      - name: Prepare release file
+        if: env.SIGNING_BUNDLE != ''
+        shell: bash
+        run: |
+          VERSION_NAME=$(sed -n 's/^val appVersionName = "\([^"]*\)"/\1/p' app/build.gradle.kts)
+          if [ -z "$VERSION_NAME" ]; then
+            echo "Não foi possível identificar versionName."
+            exit 1
+          fi
+          APK_NAME="Elshaday-v${VERSION_NAME}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$APK_NAME"
+          sha256sum "$APK_NAME" > "${APK_NAME}.sha256"
+          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "APK_NAME=$APK_NAME" >> "$GITHUB_ENV"
+          echo "RELEASE_TAG=elshaday-v$VERSION_NAME" >> "$GITHUB_ENV"
+
+      - name: Upload signed APK artifact
+        if: env.SIGNING_BUNDLE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: elshaday-signed-release
+          path: |
+            apps/igreja-android/${{ env.APK_NAME }}
+            apps/igreja-android/${{ env.APK_NAME }}.sha256
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: env.SIGNING_BUNDLE != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" "$APK_NAME" "${APK_NAME}.sha256" --clobber
+          else
+            gh release create "$RELEASE_TAG" "$APK_NAME" "${APK_NAME}.sha256" \
+              --title "Elshaday $VERSION_NAME" \
+              --notes "APK oficial assinado do aplicativo Elshaday. Atualizações futuras usam a mesma assinatura."
+          fi
