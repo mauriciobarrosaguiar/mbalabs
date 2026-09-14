@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { ArrowLeft, Camera, KeyRound, Mail, MapPin, PencilLine, Phone, ShieldCheck, Trash2, UserRoundCheck, UsersRound } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Camera, History, KeyRound, Mail, MapPin, PencilLine, Phone, ShieldCheck, Trash2, UserRoundCheck, UsersRound } from "lucide-react";
 import {
   createElshadayAccess,
   linkElshadayMemberAccess,
@@ -13,7 +13,12 @@ import {
   uploadElshadayMemberPhoto
 } from "../../completion-actions";
 import {
+  changeElshadayMemberRole,
+  syncElshadayMemberMinistries
+} from "../hierarchy-actions";
+import {
   dateBR,
+  dateTimeBR,
   hasElshadayRole,
   requireElshadayContext,
   requireElshadayRole,
@@ -47,6 +52,8 @@ export default async function ElshadayMemberDetailPage({
   const canManage = hasElshadayRole(context.papel, ["admin", "pastor", "tesouraria", "secretaria", "lider"]);
   const canManageAccess = context.papel === "admin";
   const canCreateMemberAccess = hasElshadayRole(context.papel, ["admin", "pastor", "secretaria", "lider"]);
+  const canChangeRole = hasElshadayRole(context.papel, ["admin", "pastor", "tesouraria"]);
+  const canChangeMinistries = hasElshadayRole(context.papel, ["admin", "pastor", "tesouraria", "secretaria"]);
 
   const { data: member, error } = await context.admin
     .from("igreja_membros")
@@ -65,7 +72,14 @@ export default async function ElshadayMemberDetailPage({
     );
   }
 
-  const [relationsResult, allMembersResult] = await Promise.all([
+  const [
+    relationsResult,
+    allMembersResult,
+    rolesResult,
+    ministriesResult,
+    memberMinistriesResult,
+    historyResult
+  ] = await Promise.all([
     context.admin
       .from("igreja_membro_relacoes")
       .select("id,parente_id,tipo,observacoes,created_at")
@@ -77,17 +91,64 @@ export default async function ElshadayMemberDetailPage({
       .select("id,nome,situacao")
       .eq("igreja_id", context.igreja.id)
       .neq("id", id)
-      .order("nome")
+      .order("nome"),
+    context.admin
+      .from("igreja_cargos")
+      .select("id,nome,ordem,ativo")
+      .eq("igreja_id", context.igreja.id)
+      .order("ordem")
+      .order("nome"),
+    context.admin
+      .from("igreja_ministerios")
+      .select("id,nome,ativo")
+      .eq("igreja_id", context.igreja.id)
+      .order("nome"),
+    context.admin
+      .from("igreja_membro_ministerios")
+      .select("ministerio_id")
+      .eq("igreja_id", context.igreja.id)
+      .eq("membro_id", id),
+    context.admin
+      .from("igreja_membro_cargos_historico")
+      .select("id,cargo_id,data_inicio,data_fim,observacao,alterado_por,alterado_em")
+      .eq("igreja_id", context.igreja.id)
+      .eq("membro_id", id)
+      .order("data_inicio", { ascending: false })
   ]);
 
-  if (relationsResult.error) throw new Error("Falha ao carregar família: " + relationsResult.error.message);
-  if (allMembersResult.error) throw new Error("Falha ao carregar membros relacionados: " + allMembersResult.error.message);
+  const firstDetailError =
+    relationsResult.error ?? allMembersResult.error ?? rolesResult.error ??
+    ministriesResult.error ?? memberMinistriesResult.error ?? historyResult.error;
+  if (firstDetailError) throw new Error("Falha ao carregar ficha completa: " + firstDetailError.message);
 
   const allMembers = allMembersResult.data ?? [];
   const memberNameById = new Map<string, string>(
     allMembers.map((item: any): [string, string] => [String(item.id), String(item.nome)])
   );
   const relations = relationsResult.data ?? [];
+  const roles = rolesResult.data ?? [];
+  const ministries = ministriesResult.data ?? [];
+  const roleNameById = new Map<string, string>(
+    roles.map((item: any): [string, string] => [String(item.id), String(item.nome)])
+  );
+  const ministryNameById = new Map<string, string>(
+    ministries.map((item: any): [string, string] => [String(item.id), String(item.nome)])
+  );
+  const selectedMinistryIds = new Set<string>(
+    (memberMinistriesResult.data ?? []).map((item: any) => String(item.ministerio_id))
+  );
+  const selectedMinistryNames = Array.from(selectedMinistryIds)
+    .map((ministryId) => ministryNameById.get(ministryId))
+    .filter(Boolean) as string[];
+  const currentRoleName = roleNameById.get(String(member.cargo_id ?? "")) || member.cargo || "Membro";
+  const history = historyResult.data ?? [];
+  const actorIds = Array.from(new Set(history.map((item: any) => String(item.alterado_por ?? "")).filter(Boolean)));
+  const { data: actors } = actorIds.length
+    ? await context.admin.from("core_usuarios").select("auth_user_id,nome").in("auth_user_id", actorIds)
+    : { data: [] };
+  const actorNameById = new Map<string, string>(
+    (actors ?? []).map((item: any): [string, string] => [String(item.auth_user_id), String(item.nome)])
+  );
 
   let signedPhotoUrl: string | null = null;
   if (member.foto_url) {
@@ -159,13 +220,13 @@ export default async function ElshadayMemberDetailPage({
           <div className="mt-2 flex flex-wrap gap-2">
             <Status value={member.situacao} />
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
-              {member.cargo || "Membro"}
+              {currentRoleName}
             </span>
-            {member.ministerio ? (
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-800">
-                {member.ministerio}
+            {selectedMinistryNames.map((ministry) => (
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-800" key={ministry}>
+                {ministry}
               </span>
-            ) : null}
+            ))}
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -198,7 +259,11 @@ export default async function ElshadayMemberDetailPage({
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Data label="Nascimento" value={dateBR(member.data_nascimento)} />
           <Data label="CPF" value={member.cpf || "-"} />
-          <Data label="Data de entrada" value={dateBR(member.data_entrada)} />
+          <Data label="Membro desde" value={dateBR(member.data_entrada)} />
+          <Data label="Cargo" value={currentRoleName} />
+          <Data label="Data da nomeação" value={dateBR(member.data_nomeacao)} />
+          <Data label="Ministérios" value={selectedMinistryNames.join(" · ") || member.ministerio || "-"} />
+          <Data label="Estado civil" value={member.estado_civil || "-"} />
           <Data label="Conversão" value={dateBR(member.data_conversao)} />
           <Data label="Batismo" value={dateBR(member.data_batismo)} />
           <Data label="Endereço" value={[member.endereco, member.bairro, member.cidade, member.estado].filter(Boolean).join(" · ") || "-"} />
@@ -210,6 +275,103 @@ export default async function ElshadayMemberDetailPage({
             <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{member.observacoes || "Nenhuma observação registrada."}</p>
           </div>
         ) : null}
+      </section>
+
+      <section className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <article className="rounded-[28px] border border-emerald-200 bg-white p-5">
+          <div className="flex items-center gap-2">
+            <BadgeCheck className="text-[#176445]" size={20} />
+            <h2 className="font-black">Cargo eclesiástico</h2>
+          </div>
+          <div className="mt-4 rounded-2xl bg-emerald-50 p-4">
+            <p className="text-xs font-black uppercase tracking-wide text-emerald-800">Cargo atual</p>
+            <p className="mt-1 text-xl font-black text-emerald-950">{currentRoleName}</p>
+            <p className="mt-1 text-sm font-semibold text-emerald-900/75">
+              Nomeação: {dateBR(member.data_nomeacao)}
+            </p>
+          </div>
+
+          {canChangeRole ? (
+            <details className="mt-4 rounded-2xl border border-slate-200 p-4">
+              <summary className="cursor-pointer list-none text-sm font-black text-[#176445]">Alterar cargo</summary>
+              <form action={changeElshadayMemberRole} className="mt-4 grid min-w-0 gap-3">
+                <input name="membro_id" type="hidden" value={member.id} />
+                <select className="input" name="cargo_id" defaultValue={member.cargo_id ?? ""} required>
+                  <option value="">Selecione o novo cargo</option>
+                  {roles.filter((role: any) => role.ativo || role.id === member.cargo_id).map((role: any) => (
+                    <option key={role.id} value={role.id}>{role.nome}</option>
+                  ))}
+                </select>
+                <label className="grid gap-2 text-sm font-bold text-slate-700">
+                  Data de início/nomeação
+                  <input className="input" defaultValue={member.data_nomeacao || new Date().toISOString().slice(0, 10)} name="data_inicio" type="date" required />
+                </label>
+                <input className="input" name="observacao" placeholder="Observação opcional" />
+                <button className="min-h-11 rounded-xl bg-[#123d2d] px-5 text-sm font-black text-white" type="submit">
+                  Confirmar alteração
+                </button>
+              </form>
+            </details>
+          ) : null}
+        </article>
+
+        <article className="rounded-[28px] border border-sky-200 bg-white p-5">
+          <div className="flex items-center gap-2">
+            <UsersRound className="text-sky-800" size={20} />
+            <h2 className="font-black">Ministérios</h2>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {selectedMinistryNames.length ? selectedMinistryNames.map((name) => (
+              <span className="rounded-full bg-sky-100 px-3 py-1.5 text-xs font-black text-sky-900" key={name}>{name}</span>
+            )) : <p className="text-sm text-slate-600">Nenhum ministério vinculado.</p>}
+          </div>
+
+          {canChangeMinistries ? (
+            <details className="mt-4 rounded-2xl border border-slate-200 p-4">
+              <summary className="cursor-pointer list-none text-sm font-black text-sky-900">Alterar ministérios</summary>
+              <form action={syncElshadayMemberMinistries} className="mt-4 grid gap-2">
+                <input name="membro_id" type="hidden" value={member.id} />
+                {ministries.filter((ministry: any) => ministry.ativo || selectedMinistryIds.has(String(ministry.id))).map((ministry: any) => (
+                  <label className="flex min-h-11 items-center gap-3 rounded-xl bg-slate-50 px-3 text-sm font-bold" key={ministry.id}>
+                    <input className="size-5 accent-[#176445]" defaultChecked={selectedMinistryIds.has(String(ministry.id))} name="ministerio_ids" type="checkbox" value={ministry.id} />
+                    {ministry.nome}
+                  </label>
+                ))}
+                <button className="mt-2 min-h-11 rounded-xl bg-sky-900 px-5 text-sm font-black text-white" type="submit">
+                  Salvar ministérios
+                </button>
+              </form>
+            </details>
+          ) : null}
+        </article>
+      </section>
+
+      <section className="rounded-[28px] border border-emerald-950/10 bg-white p-5">
+        <div className="flex items-center gap-2">
+          <History className="text-[#176445]" size={20} />
+          <h2 className="font-black">Histórico de cargos</h2>
+        </div>
+        {history.length ? (
+          <div className="mt-4 grid gap-3">
+            {history.map((item: any) => (
+              <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4" key={item.id}>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="font-black text-slate-950">{roleNameById.get(String(item.cargo_id)) || "Cargo"}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-600">
+                      {dateBR(item.data_inicio)} → {item.data_fim ? dateBR(item.data_fim) : "atual"}
+                    </p>
+                  </div>
+                  <span className="text-xs font-bold text-slate-500">{dateTimeBR(item.alterado_em)}</span>
+                </div>
+                {item.observacao ? <p className="mt-2 text-sm text-slate-700">{item.observacao}</p> : null}
+                <p className="mt-2 text-xs font-semibold text-slate-500">
+                  Alterado por {actorNameById.get(String(item.alterado_por)) || "sistema"}
+                </p>
+              </article>
+            ))}
+          </div>
+        ) : <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Nenhum histórico registrado.</p>}
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -344,12 +506,30 @@ export default async function ElshadayMemberDetailPage({
             <Field label="Data de entrada" name="data_entrada" type="date" defaultValue={member.data_entrada || ""} />
             <Field label="Data de conversão" name="data_conversao" type="date" defaultValue={member.data_conversao || ""} />
             <Field label="Data de batismo" name="data_batismo" type="date" defaultValue={member.data_batismo || ""} />
-            <Field label="Cargo/Função" name="cargo" defaultValue={member.cargo || ""} />
-            <Field label="Ministério" name="ministerio" defaultValue={member.ministerio || ""} />
             <Field label="Endereço" name="endereco" defaultValue={member.endereco || ""} />
             <Field label="Bairro" name="bairro" defaultValue={member.bairro || ""} />
             <Field label="Cidade" name="cidade" defaultValue={member.cidade || ""} />
             <Field label="UF" name="estado" defaultValue={member.estado || ""} maxLength={2} />
+            <label className="grid gap-2 text-sm font-bold text-slate-700">
+              Estado civil
+              <select className="input" name="estado_civil" defaultValue={member.estado_civil || ""}>
+                <option value="">Não informado</option>
+                <option value="solteiro">Solteiro(a)</option>
+                <option value="casado">Casado(a)</option>
+                <option value="uniao_estavel">União estável</option>
+                <option value="divorciado">Divorciado(a)</option>
+                <option value="viuvo">Viúvo(a)</option>
+              </select>
+            </label>
+            <label className="grid gap-2 text-sm font-bold text-slate-700">
+              Sexo
+              <select className="input" name="sexo" defaultValue={member.sexo || ""}>
+                <option value="">Não informado</option>
+                <option value="feminino">Feminino</option>
+                <option value="masculino">Masculino</option>
+                <option value="outro">Outro</option>
+              </select>
+            </label>
             <label className="grid gap-2 text-sm font-bold text-slate-700">
               Situação
               <select className="input" name="situacao" defaultValue={member.situacao}>
@@ -529,7 +709,9 @@ function successMessage(code: string) {
     convite: "Acesso criado e convite enviado para o e-mail do membro.",
     familia: "Vínculo familiar salvo.",
     familia_removida: "Vínculo familiar removido.",
-    foto: "Foto do membro atualizada."
+    foto: "Foto do membro atualizada.",
+    cargo: "Cargo alterado e histórico registrado.",
+    ministerios: "Ministérios atualizados."
   };
   return map[code] ?? "Alteração concluída.";
 }
