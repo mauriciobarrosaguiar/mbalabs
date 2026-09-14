@@ -1,4 +1,4 @@
-import { Church } from "lucide-react";
+import Image from "next/image";
 import type { ReactNode } from "react";
 
 export function ElshadayAuthView({
@@ -18,9 +18,14 @@ export function ElshadayAuthView({
     <main className="min-h-[100dvh] overflow-x-hidden bg-[#f3f6f1] text-slate-900 [color-scheme:light]">
       <div className="mx-auto flex min-h-[100dvh] w-full max-w-[480px] flex-col justify-start px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:justify-center sm:px-6 sm:py-8">
         <header className="flex flex-col items-center px-2 pb-5 pt-1 text-center sm:pb-6">
-          <div className="grid size-16 place-items-center rounded-[22px] bg-[#123d2d] text-[#f3d58e] shadow-[0_12px_30px_rgba(18,61,45,.22)]">
-            <Church aria-hidden="true" size={34} strokeWidth={2.2} />
-          </div>
+          <Image
+            alt="Elshaday"
+            className="size-28 rounded-[28px] object-cover shadow-[0_14px_36px_rgba(6,28,67,.24)] ring-1 ring-[#d7b458]/25"
+            height={112}
+            priority
+            src="/elshaday/logo.png"
+            width={112}
+          />
           <h1 className="mt-4 text-[1.65rem] font-black leading-tight tracking-[-0.025em] text-[#123d2d] sm:text-3xl">
             {churchName}
           </h1>
