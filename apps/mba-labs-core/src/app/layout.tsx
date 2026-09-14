@@ -27,7 +27,8 @@ const routeThemeScript = `
     "/lexgestor",
     "/portal-associativo",
     "/mba-escola",
-    "/elshaday"
+    "/elshaday",
+    "/cadastro-membro"
   ];
   var pathname = window.location.pathname;
   var isElshadayLogin = ["/login", "/recuperar-senha", "/alterar-senha"].indexOf(pathname) !== -1 && new URLSearchParams(window.location.search).get("app") === "elshaday";
