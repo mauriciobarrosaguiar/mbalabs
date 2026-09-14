@@ -7,6 +7,7 @@ import {
   FileBarChart,
   HandCoins,
   Home,
+  Images,
   LogOut,
   Mic2,
   QrCode,
@@ -44,6 +45,7 @@ export function ElshadayShell({
     { href: "/elshaday/contribuir", label: "Contribuir via PIX", icon: QrCode },
     { href: "/elshaday/eventos", label: "Cultos e eventos", icon: CalendarDays },
     { href: "/elshaday/pregacoes", label: "Pregações", icon: Mic2 },
+    { href: "/elshaday/galeria", label: "Galeria", icon: Images },
     { href: "/elshaday/biblia", label: "Bíblia", icon: BookOpen },
     ...(canManageContent ? [{ href: "/elshaday/configuracoes", label: "Configurações", icon: Settings2 }] : []),
     ...(canManageAccess ? [{ href: "/elshaday/acessos", label: "Acessos e perfis", icon: ShieldCheck }] : [])
