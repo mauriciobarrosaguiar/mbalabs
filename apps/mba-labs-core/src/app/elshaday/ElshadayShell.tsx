@@ -13,7 +13,8 @@ import {
   QrCode,
   Settings2,
   ShieldCheck,
-  UsersRound
+  UsersRound,
+  Youtube
 } from "lucide-react";
 import { elshadayRoleLabel, type ElshadayRole } from "@/lib/elshaday-role";
 import { ElshadayMobileAppChrome } from "./ElshadayMobileAppChrome";
@@ -45,6 +46,7 @@ export function ElshadayShell({
     { href: "/elshaday/contribuir", label: "Contribuir via PIX", icon: QrCode },
     { href: "/elshaday/eventos", label: "Cultos e eventos", icon: CalendarDays },
     { href: "/elshaday/pregacoes", label: "Pregações", icon: Mic2 },
+    { href: "/elshaday/videos", label: "Vídeos", icon: Youtube },
     { href: "/elshaday/galeria", label: "Galeria", icon: Images },
     { href: "/elshaday/biblia", label: "Bíblia", icon: BookOpen },
     ...(canManageContent ? [{ href: "/elshaday/configuracoes", label: "Configurações", icon: Settings2 }] : []),
@@ -105,7 +107,7 @@ export function ElshadayShell({
             papel={papel}
           />
 
-          <main className="w-full min-w-0 max-w-full overflow-x-clip px-3 pb-[calc(6.75rem+env(safe-area-inset-bottom))] pt-4 sm:px-6 sm:pt-6 lg:p-8">
+          <main className="w-full min-w-0 max-w-full overflow-x-clip px-3 pb-24 pt-4 sm:px-6 sm:pt-6 lg:p-8">
             {children}
           </main>
         </div>
@@ -164,6 +166,7 @@ export function ElshadayShell({
         }
         .elshaday-app img,
         .elshaday-app video,
+        .elshaday-app iframe,
         .elshaday-app canvas,
         .elshaday-app svg {
           max-width: 100%;
