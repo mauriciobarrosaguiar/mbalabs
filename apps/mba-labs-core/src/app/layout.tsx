@@ -30,9 +30,10 @@ const routeThemeScript = `
     "/elshaday"
   ];
   var pathname = window.location.pathname;
+  var isElshadayLogin = ["/login", "/recuperar-senha", "/alterar-senha"].indexOf(pathname) !== -1 && new URLSearchParams(window.location.search).get("app") === "elshaday";
   var isSystemRoute = systemPrefixes.some(function (prefix) {
     return pathname === prefix || pathname.indexOf(prefix + "/") === 0;
-  });
+  }) || isElshadayLogin;
   var isPlatformRoute = pathname !== "/" && !isSystemRoute;
   var root = document.documentElement;
 

@@ -17,7 +17,6 @@ import {
   LogOut,
   Menu,
   Mic2,
-  QrCode,
   Settings2,
   ShieldCheck,
   UserRound,
@@ -37,10 +36,12 @@ const ROLE_LABEL: Record<ElshadayRole, string> = {
 
 export function ElshadayMobileAppChrome({
   igrejaNome,
+  isAdminMaster,
   usuarioNome,
   papel
 }: {
   igrejaNome: string;
+  isAdminMaster: boolean;
   usuarioNome: string;
   papel: ElshadayRole;
 }) {
@@ -190,15 +191,17 @@ export function ElshadayMobileAppChrome({
               </div>
 
               <div className="mt-4 grid gap-2">
-                <Link
-                  className="flex min-h-12 items-center gap-3 rounded-[18px] border border-slate-300 bg-white px-4 font-black !text-slate-800"
-                  href="/dashboard"
-                  style={{ color: "#1e293b" }}
-                >
-                  <ArrowLeft size={19} />
-                  MBA Labs
-                </Link>
-                <form action="/sair" method="post">
+                {isAdminMaster ? (
+                  <Link
+                    className="flex min-h-12 items-center gap-3 rounded-[18px] border border-slate-300 bg-white px-4 font-black !text-slate-800"
+                    href="/dashboard"
+                    style={{ color: "#1e293b" }}
+                  >
+                    <ArrowLeft size={19} />
+                    MBA Labs
+                  </Link>
+                ) : null}
+                <form action="/sair?app=elshaday" method="post">
                   <button
                     className="flex min-h-12 w-full items-center gap-3 rounded-[18px] border border-red-200 bg-red-50 px-4 text-left font-black !text-red-700"
                     type="submit"
@@ -232,7 +235,7 @@ export function ElshadayMobileAppChrome({
             </p>
             <p className="mt-0.5 truncate text-xs font-semibold text-slate-600">{igrejaNome}</p>
           </Link>
-          <form action="/sair" method="post">
+          <form action="/sair?app=elshaday" method="post">
             <button
               aria-label="Sair do sistema"
               className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-[14px] border border-red-200 bg-red-50 px-3 font-black !text-red-700 shadow-sm"

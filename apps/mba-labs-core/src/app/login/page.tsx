@@ -5,7 +5,9 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { InstallAppCard } from "@/components/InstallAppCard";
 import { PwaRegister } from "@/components/PwaRegister";
 import { getLoginDestination, getSessionProfile } from "@/lib/core-data";
+import { getElshadayLoginIdentity } from "@/lib/elshaday-login";
 import { safeNextPath } from "@/lib/form-utils";
+import { ElshadayAuthView } from "./ElshadayLoginView";
 
 export const dynamic = "force-dynamic";
 
@@ -16,10 +18,36 @@ export default async function LoginPage({
 }) {
   const params = await searchParams;
   const nextPath = safeNextPath(params.next);
+  const appParam = Array.isArray(params.app) ? params.app[0] : params.app;
+  const isElshadayLogin =
+    appParam === "elshaday" || nextPath === "/elshaday" || nextPath.startsWith("/elshaday/");
   const { user } = await getSessionProfile();
 
   if (user) {
-    redirect(await getLoginDestination(nextPath));
+    redirect(await getLoginDestination(isElshadayLogin ? "/elshaday" : nextPath));
+  }
+
+  if (isElshadayLogin) {
+    const identity = await getElshadayLoginIdentity();
+    return (
+      <ElshadayAuthView
+        churchName={identity.churchName}
+        location={identity.location}
+        subtitle="Acesse sua área de membro"
+        title="Bem-vindo"
+      >
+        {params.senha === "alterada" ? (
+          <div className="mb-4 rounded-[14px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+            Senha atualizada com sucesso. Entre novamente com a nova senha.
+          </div>
+        ) : null}
+        <LoginForm
+          nextPath="/elshaday"
+          recoveryHref="/recuperar-senha?app=elshaday"
+          variant="elshaday"
+        />
+      </ElshadayAuthView>
+    );
   }
 
   return (
