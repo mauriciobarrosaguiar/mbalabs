@@ -24,6 +24,10 @@ android {
     namespace = "br.com.mbalabs.igreja"
     compileSdk = 36
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "br.com.mbalabs.igreja"
         minSdk = 26
