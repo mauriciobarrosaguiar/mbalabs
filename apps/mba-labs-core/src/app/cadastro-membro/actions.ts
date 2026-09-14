@@ -165,11 +165,11 @@ export async function registerPublicElshadayMember(formData: FormData) {
     });
 
     if (authResult.error || !authResult.data?.user?.id) {
-      const message = String(authResult.error?.message ?? "").toLowerCase();
-      if (message.includes("already") || message.includes("registered") || message.includes("exists")) {
-        go(convite, "erro", "Já existe uma conta com este e-mail. Use a tela de login ou recupere sua senha.");
+      const rawMessage = String(authResult.error?.message ?? "").toLowerCase();
+      if (rawMessage.includes("already") || rawMessage.includes("registered") || rawMessage.includes("exists")) {
+        throw new Error("ACCOUNT_EXISTS");
       }
-      throw authResult.error ?? new Error("Não foi possível criar sua conta.");
+      throw authResult.error ?? new Error("CREATE_ACCOUNT_FAILED");
     }
 
     authUserId = authResult.data.user.id;
@@ -189,7 +189,7 @@ export async function registerPublicElshadayMember(formData: FormData) {
       .select("id")
       .single();
 
-    if (coreError || !coreUser?.id) throw coreError ?? new Error("Falha ao preparar o acesso.");
+    if (coreError || !coreUser?.id) throw coreError ?? new Error("PREPARE_ACCESS_FAILED");
     coreUserId = coreUser.id;
 
     const { error: permissionError } = await admin
@@ -252,8 +252,12 @@ export async function registerPublicElshadayMember(formData: FormData) {
       coreUserId
     });
 
-    const message = error instanceof Error ? error.message : "Não foi possível concluir o cadastro.";
-    go(convite, "erro", message.includes("email") ? "Não foi possível criar a conta com este e-mail. Verifique se já existe um acesso." : "Não foi possível concluir o cadastro. Tente novamente ou procure a secretaria.");
+    const message = error instanceof Error ? error.message : "";
+    if (message === "ACCOUNT_EXISTS") {
+      go(convite, "erro", "Já existe uma conta com este e-mail. Use a tela de login ou recupere sua senha.");
+    }
+
+    go(convite, "erro", "Não foi possível concluir o cadastro. Tente novamente ou procure a secretaria.");
   }
 
   revalidatePath("/elshaday/membros");
