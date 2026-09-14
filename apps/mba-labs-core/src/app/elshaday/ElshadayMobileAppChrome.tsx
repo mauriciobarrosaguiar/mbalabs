@@ -20,7 +20,8 @@ import {
   ShieldCheck,
   UserRound,
   UsersRound,
-  X
+  X,
+  Youtube
 } from "lucide-react";
 import type { ElshadayRole } from "@/lib/elshaday-role";
 
@@ -90,6 +91,7 @@ export function ElshadayMobileAppChrome({
 
   const moreItems = [
     { href: "/elshaday/galeria", label: "Galeria", icon: Images },
+    { href: "/elshaday/videos", label: "Vídeos", icon: Youtube },
     { href: "/elshaday/biblia", label: "Bíblia", icon: BookOpen },
     ...(canSeeMembers
       ? [{ href: "/elshaday/membros", label: "Membros", icon: UsersRound }]
@@ -159,7 +161,10 @@ export function ElshadayMobileAppChrome({
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+            <div
+              className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-4"
+              style={{ paddingBottom: "max(1rem, min(env(safe-area-inset-bottom), 1.25rem))" }}
+            >
               <div className="rounded-[24px] border border-emerald-950/10 bg-white p-4 shadow-sm">
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="grid size-14 shrink-0 place-items-center rounded-full bg-[#123d2d] text-base font-black text-[#f3d58e]">
@@ -245,7 +250,8 @@ export function ElshadayMobileAppChrome({
 
       <nav
         aria-label="Navegação principal"
-        className="fixed inset-x-0 bottom-0 z-50 w-full max-w-[100vw] overflow-hidden border-t border-slate-200/80 bg-white/95 px-1 pb-[max(.45rem,env(safe-area-inset-bottom))] pt-1.5 shadow-[0_-8px_28px_rgba(15,23,42,.10)] backdrop-blur-xl sm:px-2 lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 w-full max-w-[100vw] overflow-hidden border-t border-slate-200/80 bg-white/95 px-1 pt-1 shadow-[0_-8px_28px_rgba(15,23,42,.10)] backdrop-blur-xl sm:px-2 lg:hidden"
+        style={{ paddingBottom: "max(0.25rem, min(env(safe-area-inset-bottom), 0.75rem))" }}
       >
         <div className="mx-auto grid w-full max-w-2xl grid-cols-5">
           {mainNav.map(({ href, label, icon: Icon, exact, action }) => {
@@ -259,17 +265,17 @@ export function ElshadayMobileAppChrome({
               return (
                 <button
                   aria-label="Abrir menu mais"
-                  className="flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 px-0.5"
+                  className="flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 px-0.5"
                   key={label}
                   onClick={() => setOpen(true)}
                   type="button"
                 >
                   <Icon
                     className={active ? "text-[#123d2d]" : "text-slate-600"}
-                    size={23}
+                    size={22}
                     strokeWidth={active ? 2.6 : 2}
                   />
-                  <span className={"max-w-full truncate text-[11px] font-bold " + (active ? "text-[#123d2d]" : "text-slate-600")}>
+                  <span className={"max-w-full truncate text-[10.5px] font-bold leading-tight " + (active ? "text-[#123d2d]" : "text-slate-600")}>
                     {label}
                   </span>
                 </button>
@@ -278,17 +284,17 @@ export function ElshadayMobileAppChrome({
 
             return (
               <Link
-                className="flex min-h-[62px] min-w-0 flex-col items-center justify-center gap-1 px-0.5"
+                className="flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-0.5 px-0.5"
                 href={href}
                 key={href}
               >
                 <Icon
                   className={active ? "text-[#123d2d]" : "text-slate-600"}
                   fill={active && label === "Home" ? "currentColor" : "none"}
-                  size={23}
+                  size={22}
                   strokeWidth={active ? 2.6 : 2}
                 />
-                <span className={"max-w-full truncate text-[11px] font-bold " + (active ? "text-[#123d2d]" : "text-slate-600")}>
+                <span className={"max-w-full truncate text-[10.5px] font-bold leading-tight " + (active ? "text-[#123d2d]" : "text-slate-600")}>
                   {label}
                 </span>
               </Link>
