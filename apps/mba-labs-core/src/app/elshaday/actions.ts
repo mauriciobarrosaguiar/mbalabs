@@ -199,13 +199,32 @@ export async function createElshadayMember(formData: FormData) {
     data_conversao: nullableDate(formData, "data_conversao"),
     data_batismo: nullableDate(formData, "data_batismo"),
     data_entrada: nullableDate(formData, "data_entrada"),
-    cargo: nullable(formData, "cargo"),
-    ministerio: nullable(formData, "ministerio"),
+    cargo: "Membro",
+    ministerio: null,
     situacao: memberStatus(text(formData, "situacao") || "ativo"),
     observacoes: nullable(formData, "observacoes")
   }).select("id").single();
 
   if (error) throw new Error(`Falha ao cadastrar membro: ${error.message}`);
+
+  const { data: defaultRole } = await context.admin
+    .from("igreja_cargos")
+    .select("id")
+    .eq("igreja_id", context.igreja.id)
+    .eq("ativo", true)
+    .ilike("nome", "Membro")
+    .maybeSingle();
+
+  if (defaultRole?.id) {
+    await context.admin.rpc("elshaday_set_member_cargo", {
+      p_igreja_id: context.igreja.id,
+      p_membro_id: data.id,
+      p_cargo_id: defaultRole.id,
+      p_data_inicio: nullableDate(formData, "data_entrada") || new Date().toISOString().slice(0, 10),
+      p_observacao: "Cargo inicial do cadastro.",
+      p_usuario_responsavel: context.current.authUser.id
+    });
+  }
 
   await auditChurchAccess(context, "elshaday membro cadastrado", {
     membro_id: data.id,
@@ -912,11 +931,11 @@ export async function updateElshadayMember(formData: FormData) {
         bairro: nullable(formData, "bairro"),
         cidade: nullable(formData, "cidade"),
         estado: estado ? estado.toUpperCase().slice(0, 2) : null,
+        sexo: nullable(formData, "sexo"),
+        estado_civil: nullable(formData, "estado_civil"),
         data_conversao: nullableDate(formData, "data_conversao"),
         data_batismo: nullableDate(formData, "data_batismo"),
         data_entrada: nullableDate(formData, "data_entrada"),
-        cargo: nullable(formData, "cargo"),
-        ministerio: nullable(formData, "ministerio"),
         situacao: memberStatus(text(formData, "situacao") || "ativo"),
         observacoes: nullable(formData, "observacoes"),
         updated_at: new Date().toISOString()

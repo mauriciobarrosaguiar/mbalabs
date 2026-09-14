@@ -1,12 +1,15 @@
 import {
   CalendarDays,
+  Church,
   ImagePlus,
   Images,
   Link2,
   Settings2,
-  Trash2
+  Trash2,
+  UsersRound
 } from "lucide-react";
 import {
+  hasElshadayRole,
   requireElshadayContext,
   requireElshadayRole
 } from "@/lib/elshaday";
@@ -116,6 +119,29 @@ export default async function ElshadaySettingsPage({
           {erro}
         </div>
       ) : null}
+
+      <section className="grid gap-3 sm:grid-cols-2">
+        <a className="flex min-h-24 items-center gap-4 rounded-[24px] border border-emerald-950/10 bg-white p-4 shadow-sm transition active:scale-[.99]" href="/elshaday/configuracoes/cargos">
+          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-50 text-[#176445]">
+            <Church size={22} />
+          </div>
+          <div>
+            <h2 className="font-black text-slate-950">Cargos e hierarquia</h2>
+            <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">Cargos, ordem e composição da igreja.</p>
+          </div>
+        </a>
+        {hasElshadayRole(context.papel, ["admin", "pastor", "secretaria"]) ? (
+          <a className="flex min-h-24 items-center gap-4 rounded-[24px] border border-emerald-950/10 bg-white p-4 shadow-sm transition active:scale-[.99]" href="/elshaday/configuracoes/ministerios">
+            <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-sky-50 text-sky-800">
+              <UsersRound size={22} />
+            </div>
+            <div>
+              <h2 className="font-black text-slate-950">Ministérios</h2>
+              <p className="mt-1 text-xs font-semibold leading-5 text-slate-600">Departamentos e seus participantes.</p>
+            </div>
+          </a>
+        ) : null}
+      </section>
 
       <section className="rounded-[26px] border border-emerald-200 bg-emerald-50/70 p-4 shadow-sm sm:p-5">
         <div className="flex items-start gap-3">

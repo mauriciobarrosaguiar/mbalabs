@@ -221,7 +221,8 @@ export async function registerPublicElshadayMember(formData: FormData) {
       .filter(Boolean)
       .join("\n");
 
-    const { error: memberError } = await admin.from("igreja_membros").insert({
+    const ministryName = optional(formData, "ministerio");
+    const { data: createdMember, error: memberError } = await admin.from("igreja_membros").insert({
       igreja_id: church.id,
       user_id: authUserId,
       nome,
@@ -238,12 +239,51 @@ export async function registerPublicElshadayMember(formData: FormData) {
       data_batismo: optionalDate(formData, "data_batismo"),
       data_entrada: optionalDate(formData, "data_entrada"),
       cargo: "Membro",
-      ministerio: optional(formData, "ministerio"),
+      ministerio: ministryName,
       situacao: "ativo",
       observacoes
-    });
+    }).select("id").single();
 
-    if (memberError) throw memberError;
+    if (memberError || !createdMember?.id) throw memberError ?? new Error("CREATE_MEMBER_FAILED");
+
+    const { data: defaultRole } = await admin
+      .from("igreja_cargos")
+      .select("id")
+      .eq("igreja_id", church.id)
+      .eq("ativo", true)
+      .ilike("nome", "Membro")
+      .maybeSingle();
+
+    if (defaultRole?.id) {
+      await admin.rpc("elshaday_set_member_cargo", {
+        p_igreja_id: church.id,
+        p_membro_id: createdMember.id,
+        p_cargo_id: defaultRole.id,
+        p_data_inicio: optionalDate(formData, "data_entrada") || new Date().toISOString().slice(0, 10),
+        p_observacao: "Cargo inicial definido no autocadastro.",
+        p_usuario_responsavel: authUserId
+      });
+    }
+
+    // A ficha continua compatível com o campo textual legado; a relação nova é complementar.
+    if (ministryName) {
+      const { data: ministry } = await admin
+        .from("igreja_ministerios")
+        .select("id")
+        .eq("igreja_id", church.id)
+        .eq("ativo", true)
+        .ilike("nome", ministryName)
+        .maybeSingle();
+
+      if (ministry?.id) {
+        await admin.from("igreja_membro_ministerios").upsert({
+          igreja_id: church.id,
+          membro_id: createdMember.id,
+          ministerio_id: ministry.id,
+          adicionado_por: authUserId
+        }, { onConflict: "igreja_id,membro_id,ministerio_id" });
+      }
+    }
   } catch (error) {
     await cleanupPartialSignup(admin, {
       churchId: church.id,

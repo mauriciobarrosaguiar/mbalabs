@@ -72,7 +72,7 @@ export default async function ElshadayAccessPage({
       .eq("igreja_id", context.igreja.id),
     context.admin
       .from("igreja_membros")
-      .select("id,nome,email,telefone,whatsapp,user_id,situacao")
+      .select("id,nome,email,telefone,whatsapp,user_id,situacao,cargo")
       .eq("igreja_id", context.igreja.id)
       .order("nome")
   ]);
@@ -245,7 +245,10 @@ export default async function ElshadayAccessPage({
                       </div>
                       <p className="mt-1 break-all text-sm text-slate-600">{row.email}</p>
                       <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold">
-                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-800">{roleLabel(row.papel)}</span>
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-800">Acesso: {roleLabel(row.papel)}</span>
+                        {row.member ? (
+                          <span className="rounded-full bg-amber-50 px-3 py-1 text-amber-900">Cargo: {row.member.cargo || "Membro"}</span>
+                        ) : null}
                         <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
                           {row.member ? `Membro: ${row.member.nome}` : "Sem vínculo com membro"}
                         </span>
