@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -9,7 +10,6 @@ import {
   BookOpen,
   CalendarDays,
   ChevronRight,
-  Church,
   FileBarChart,
   HandHeart,
   HandCoins,
@@ -224,10 +224,17 @@ export function ElshadayMobileAppChrome({
         <div className="mx-auto flex max-w-2xl items-center gap-3">
           <Link
             aria-label="Ir para a Home"
-            className="grid size-12 shrink-0 place-items-center rounded-[16px] bg-[#123d2d] text-[#f3d58e] shadow-sm"
+            className="size-12 shrink-0 overflow-hidden rounded-[16px] shadow-sm ring-1 ring-[#d7b458]/25"
             href="/elshaday/gestao"
           >
-            <Church size={25} strokeWidth={2.2} />
+            <Image
+              alt="Elshaday"
+              className="size-12 object-cover"
+              height={48}
+              priority
+              src="/elshaday/logo.png"
+              width={48}
+            />
           </Link>
           <Link className="min-w-0 flex-1" href="/elshaday/gestao">
             <p className="truncate text-[20px] font-black leading-tight tracking-tight text-slate-950">
