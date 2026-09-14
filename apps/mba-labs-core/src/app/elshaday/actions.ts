@@ -931,6 +931,8 @@ export async function updateElshadayMember(formData: FormData) {
         bairro: nullable(formData, "bairro"),
         cidade: nullable(formData, "cidade"),
         estado: estado ? estado.toUpperCase().slice(0, 2) : null,
+        sexo: nullable(formData, "sexo"),
+        estado_civil: nullable(formData, "estado_civil"),
         data_conversao: nullableDate(formData, "data_conversao"),
         data_batismo: nullableDate(formData, "data_batismo"),
         data_entrada: nullableDate(formData, "data_entrada"),
