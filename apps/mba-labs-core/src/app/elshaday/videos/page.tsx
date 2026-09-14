@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, ExternalLink, Play, Plus, Video, Youtube } from "lucide-react";
+import { CalendarDays, ExternalLink, Play, Plus, Video } from "lucide-react";
 import { dateBR, hasElshadayRole, requireElshadayContext } from "@/lib/elshaday";
 import { getYouTubeEmbedUrl, getYouTubeVideoId } from "@/lib/youtube";
 import { createElshadayYoutubeVideo } from "./actions";
@@ -48,7 +48,7 @@ export default async function ElshadayVideosPage({
           </p>
         </div>
         <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-red-50 text-red-600">
-          <Youtube size={25} />
+          <Video size={25} />
         </div>
       </header>
 
@@ -97,7 +97,7 @@ export default async function ElshadayVideosPage({
                 className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#123d2d] px-5 font-black text-white sm:w-auto"
                 type="submit"
               >
-                <Youtube size={19} /> Publicar vídeo
+                <Video size={19} /> Publicar vídeo
               </button>
             </div>
           </form>
