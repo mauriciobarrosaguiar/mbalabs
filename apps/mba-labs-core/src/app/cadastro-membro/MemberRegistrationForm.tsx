@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type ComponentType, type InputHTMLAttributes } from "react";
+import { useEffect, useState, type ComponentType, type InputHTMLAttributes } from "react";
 import {
+  BadgeCheck,
   CalendarDays,
   Eye,
   EyeOff,
@@ -12,20 +13,51 @@ import {
   Phone,
   UserRound
 } from "lucide-react";
+import { createSupabaseClient } from "@mba-labs/shared/supabase/client";
 import { ElshadaySubmitButton } from "../elshaday/ElshadaySubmitButton";
 import { registerPublicElshadayMember } from "./actions";
 
 type Icon = ComponentType<{ size?: number; className?: string; "aria-hidden"?: boolean }>;
 
 export function MemberRegistrationForm({
+  churchId,
   convite,
-  ministryOptions
+  ministryOptions,
+  roleOptions
 }: {
+  churchId: string;
   convite: string;
   ministryOptions: Array<{ id: string; nome: string }>;
+  roleOptions: Array<{ id: string; nome: string }>;
 }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [inviteIdentity, setInviteIdentity] = useState<{ email: string; nome: string } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const supabase = createSupabaseClient();
+
+    void supabase.auth.getSession().then(({ data }) => {
+      const user = data.session?.user;
+      const metadata = user?.user_metadata ?? {};
+      if (
+        active &&
+        user?.email &&
+        metadata.origem === "elshaday-convite-cadastro" &&
+        String(metadata.igreja_id ?? "") === churchId
+      ) {
+        setInviteIdentity({
+          email: String(user.email),
+          nome: String(metadata.nome ?? "")
+        });
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [churchId]);
 
   return (
     <section className="overflow-hidden rounded-[28px] border border-[#123d2d]/10 bg-white shadow-[0_18px_55px_rgba(18,61,45,.10)]">
@@ -42,10 +74,19 @@ export function MemberRegistrationForm({
           </div>
         </div>
 
+        {inviteIdentity ? (
+          <div className="mt-4 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-950">
+            <BadgeCheck aria-hidden className="mt-0.5 shrink-0 text-[#176445]" size={20} />
+            <p className="text-sm font-bold leading-6">
+              Convite Elshaday confirmado. Complete seus dados e crie sua senha para enviar o cadastro à igreja.
+            </p>
+          </div>
+        ) : null}
+
         <div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#d4aa54]/60 bg-[#fbf4e5] p-4 text-[#5b431f]">
           <Info aria-hidden className="mt-0.5 shrink-0" size={20} />
           <p className="text-sm font-bold leading-6">
-            Após concluir, sua conta ficará aguardando aprovação. Quando a igreja liberar, você poderá entrar normalmente com o e-mail e a senha criados aqui.
+            Após concluir, sua conta e qualquer cargo informado ficarão aguardando aprovação. Seu cargo não concede permissões no aplicativo.
           </p>
         </div>
       </div>
@@ -56,12 +97,33 @@ export function MemberRegistrationForm({
           <label>Website<input autoComplete="off" name="website" tabIndex={-1} /></label>
         </div>
 
-        <Field icon={UserRound} label="Nome completo *" name="nome" autoComplete="name" required wide />
+        <Field
+          key={"nome-" + (inviteIdentity?.email ?? "publico")}
+          icon={UserRound}
+          label="Nome completo *"
+          name="nome"
+          autoComplete="name"
+          defaultValue={inviteIdentity?.nome}
+          required
+          wide
+        />
         <Field icon={CalendarDays} label="Data de nascimento" name="data_nascimento" type="date" />
         <Field label="CPF" name="cpf" inputMode="numeric" maxLength={14} placeholder="000.000.000-00" mask="cpf" />
         <Field icon={Phone} label="WhatsApp *" name="whatsapp" inputMode="tel" autoComplete="tel" maxLength={15} placeholder="(63) 99999-9999" mask="phone" required />
         <Field icon={Phone} label="Telefone" name="telefone" inputMode="tel" autoComplete="tel" maxLength={15} placeholder="(63) 3333-3333" mask="phone" />
-        <Field icon={Mail} label="E-mail para entrar *" name="email" type="email" autoComplete="email" placeholder="seuemail@exemplo.com" required wide />
+        <Field
+          key={"email-" + (inviteIdentity?.email ?? "publico")}
+          icon={Mail}
+          label="E-mail para entrar *"
+          name="email"
+          type="email"
+          autoComplete="email"
+          defaultValue={inviteIdentity?.email}
+          placeholder="seuemail@exemplo.com"
+          readOnly={Boolean(inviteIdentity)}
+          required
+          wide
+        />
 
         <PasswordField
           label="Crie uma senha *"
@@ -81,6 +143,21 @@ export function MemberRegistrationForm({
         <Field icon={CalendarDays} label="Data de entrada na igreja" name="data_entrada" type="date" />
         <Field icon={CalendarDays} label="Data de conversão" name="data_conversao" type="date" />
         <Field icon={CalendarDays} label="Data de batismo" name="data_batismo" type="date" />
+
+        <label className="grid min-w-0 gap-1.5 text-sm font-black text-[#294238]">
+          Cargo que exerce na igreja
+          <select className={inputClass()} defaultValue="" name="cargo_solicitado_id">
+            <option value="">Membro / não tenho cargo</option>
+            {roleOptions
+              .filter((role) => role.nome.toLocaleLowerCase("pt-BR") !== "membro")
+              .map((role) => (
+                <option key={role.id} value={role.id}>{role.nome}</option>
+              ))}
+          </select>
+          <span className="text-xs font-semibold leading-5 text-slate-500">
+            O cargo será confirmado pela liderança antes de aparecer na sua ficha.
+          </span>
+        </label>
 
         <label className="grid min-w-0 gap-1.5 text-sm font-black text-[#294238]">
           Ministério

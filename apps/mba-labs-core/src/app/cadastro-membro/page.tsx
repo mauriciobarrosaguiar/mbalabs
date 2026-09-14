@@ -36,12 +36,24 @@ export default async function PublicMemberRegistrationPage({
     redirect("/login?app=elshaday");
   }
 
-  const { data: ministries } = await admin
-    .from("igreja_ministerios")
-    .select("id,nome")
-    .eq("igreja_id", church.id)
-    .eq("ativo", true)
-    .order("nome");
+  const [ministriesResult, rolesResult] = await Promise.all([
+    admin
+      .from("igreja_ministerios")
+      .select("id,nome")
+      .eq("igreja_id", church.id)
+      .eq("ativo", true)
+      .order("nome"),
+    admin
+      .from("igreja_cargos")
+      .select("id,nome,ordem")
+      .eq("igreja_id", church.id)
+      .eq("ativo", true)
+      .order("ordem")
+      .order("nome")
+  ]);
+
+  const ministries = ministriesResult.data ?? [];
+  const roles = rolesResult.data ?? [];
 
   const ok = read(query.ok);
   const erro = read(query.erro);
@@ -96,8 +108,10 @@ export default async function PublicMemberRegistrationPage({
 
         {!ok ? (
           <MemberRegistrationForm
+            churchId={String(church.id)}
             convite={convite}
-            ministryOptions={(ministries ?? []).map((item: any) => ({ id: String(item.id), nome: String(item.nome) }))}
+            ministryOptions={ministries.map((item: any) => ({ id: String(item.id), nome: String(item.nome) }))}
+            roleOptions={roles.map((item: any) => ({ id: String(item.id), nome: String(item.nome) }))}
           />
         ) : null}
       </div>

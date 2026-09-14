@@ -168,26 +168,16 @@ export default async function ElshadayAccessPage({
         <summary className="cursor-pointer list-none font-black">
           <span className="inline-flex items-center gap-2">
             <UserPlus size={19} className="text-[#176445]" />
-            Criar ou liberar novo acesso
+            Convidar novo membro
           </span>
         </summary>
 
-        <form action={createElshadayAccess} className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <form action={createElshadayAccess} className="mt-5 grid gap-4 sm:grid-cols-2">
           <Field label="Nome completo" name="nome" required />
           <Field label="E-mail" name="email" type="email" required />
-          <Field label="Telefone" name="telefone" />
-
-          <label className="grid gap-2 text-sm font-bold text-slate-700">
-            Perfil no Elshaday
-            <select className="input" name="papel" defaultValue="membro" required>
-              {ROLE_OPTIONS.map((role) => (
-                <option key={role.value} value={role.value}>{role.label}</option>
-              ))}
-            </select>
-          </label>
 
           <label className="grid gap-2 text-sm font-bold text-slate-700 sm:col-span-2">
-            Vincular a membro já cadastrado
+            Vincular a uma ficha já cadastrada
             <select className="input" name="membro_id" defaultValue="">
               <option value="">Não vincular agora</option>
               {members.map((member: any) => (
@@ -198,14 +188,15 @@ export default async function ElshadayAccessPage({
             </select>
           </label>
 
-          <div className="sm:col-span-2 lg:col-span-3 rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-            Para um e-mail novo, o MBA Labs enviará um convite seguro para a própria pessoa definir a senha.
-            Se o e-mail já pertencer a um usuário desta igreja, o acesso ao Elshaday será atualizado sem criar duplicidade.
+          <div className="sm:col-span-2 rounded-2xl border border-[#d4aa54]/40 bg-[#fbf4e5] p-4 text-sm leading-6 text-[#5b431f]">
+            O membro receberá um e-mail identificado como Elshaday. Ao aceitar, abrirá diretamente o cadastro
+            para preencher seus dados, criar a senha e informar um cargo para aprovação. O convite não libera
+            acesso nem cargo automaticamente.
           </div>
 
-          <div className="sm:col-span-2 lg:col-span-3">
-            <ElshadaySubmitButton className="min-h-12 rounded-2xl bg-[#123d2d] px-6 font-black text-white" pendingLabel="Criando acesso...">
-              Criar acesso e enviar convite
+          <div className="sm:col-span-2">
+            <ElshadaySubmitButton className="min-h-12 rounded-2xl bg-[#123d2d] px-6 font-black text-white" pendingLabel="Enviando convite...">
+              Enviar convite do Elshaday
             </ElshadaySubmitButton>
           </div>
         </form>
@@ -389,7 +380,7 @@ function Status({ active }: { active: boolean }) {
 
 function successMessage(code: string) {
   const messages: Record<string, string> = {
-    convite: "Acesso criado. Se o e-mail era novo, o convite para definir senha foi enviado.",
+    convite: "Convite Elshaday enviado. O membro concluirá o cadastro, criará a senha e aguardará aprovação.",
     perfil: "Perfil atualizado com sucesso.",
     status: "Status do acesso atualizado.",
     membro: "Vínculo com o membro atualizado.",

@@ -13,7 +13,9 @@ import {
   uploadElshadayMemberPhoto
 } from "../../completion-actions";
 import {
+  approveElshadayRequestedRole,
   changeElshadayMemberRole,
+  rejectElshadayRequestedRole,
   syncElshadayMemberMinistries
 } from "../hierarchy-actions";
 import {
@@ -141,6 +143,7 @@ export default async function ElshadayMemberDetailPage({
     .map((ministryId) => ministryNameById.get(ministryId))
     .filter(Boolean) as string[];
   const currentRoleName = roleNameById.get(String(member.cargo_id ?? "")) || member.cargo || "Membro";
+  const requestedRoleName = roleNameById.get(String(member.cargo_solicitado_id ?? "")) || null;
   const history = historyResult.data ?? [];
   const actorIds = Array.from(new Set(history.map((item: any) => String(item.alterado_por ?? "")).filter(Boolean)));
   const { data: actors } = actorIds.length
@@ -283,6 +286,38 @@ export default async function ElshadayMemberDetailPage({
             <BadgeCheck className="text-[#176445]" size={20} />
             <h2 className="font-black">Cargo eclesiástico</h2>
           </div>
+          {requestedRoleName ? (
+            <div className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+              <p className="text-xs font-black uppercase tracking-wide text-amber-800">Aguardando aprovação</p>
+              <p className="mt-1 text-xl font-black">{requestedRoleName}</p>
+              <p className="mt-1 text-sm font-semibold leading-6 text-amber-900/80">
+                Informado pelo membro durante o cadastro. Isso não altera o perfil de acesso ao aplicativo.
+              </p>
+              {canChangeRole ? (
+                <div className="mt-4 grid gap-3">
+                  <form action={approveElshadayRequestedRole} className="grid gap-3">
+                    <input name="membro_id" type="hidden" value={member.id} />
+                    <label className="grid gap-2 text-sm font-bold">
+                      Data de início/nomeação
+                      <input className="input" defaultValue={new Date().toISOString().slice(0, 10)} name="data_inicio" type="date" required />
+                    </label>
+                    <input className="input" name="observacao" placeholder="Observação da aprovação (opcional)" />
+                    <button className="min-h-11 rounded-xl bg-[#123d2d] px-5 text-sm font-black text-white" type="submit">
+                      Aprovar cargo
+                    </button>
+                  </form>
+                  <form action={rejectElshadayRequestedRole} className="grid gap-3 border-t border-amber-200 pt-3">
+                    <input name="membro_id" type="hidden" value={member.id} />
+                    <input className="input" name="observacao" placeholder="Motivo da recusa (opcional)" />
+                    <button className="min-h-11 rounded-xl border border-red-200 bg-white px-5 text-sm font-black text-red-700" type="submit">
+                      Recusar solicitação
+                    </button>
+                  </form>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="mt-4 rounded-2xl bg-emerald-50 p-4">
             <p className="text-xs font-black uppercase tracking-wide text-emerald-800">Cargo atual</p>
             <p className="mt-1 text-xl font-black text-emerald-950">{currentRoleName}</p>
@@ -633,26 +668,16 @@ export default async function ElshadayMemberDetailPage({
             member.email ? (
               <details className="mt-5 rounded-2xl border border-sky-200 bg-white p-4">
                 <summary className="cursor-pointer list-none font-black">Criar acesso para este membro</summary>
-                <form action={createElshadayAccess} className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  O membro receberá o convite oficial do Elshaday e concluirá os dados, a senha e eventual solicitação de cargo.
+                </p>
+                <form action={createElshadayAccess} className="mt-4 grid gap-3">
                   <input type="hidden" name="nome" value={member.nome} />
                   <input type="hidden" name="email" value={member.email} />
-                  <input type="hidden" name="telefone" value={member.telefone || member.whatsapp || ""} />
                   <input type="hidden" name="membro_id" value={member.id} />
                   <input type="hidden" name="return_to" value={`/elshaday/membros/${member.id}`} />
-                  {canManageAccess ? (
-                    <select className="input" name="papel" defaultValue="membro">
-                      {ROLES.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
-                    </select>
-                  ) : (
-                    <>
-                      <input type="hidden" name="papel" value="membro" />
-                      <div className="flex min-h-12 items-center rounded-2xl border border-sky-200 bg-sky-50 px-4 text-sm font-black text-sky-950">
-                        Perfil: Membro
-                      </div>
-                    </>
-                  )}
-                  <button className="rounded-2xl bg-[#123d2d] px-5 font-black text-white" type="submit">
-                    Criar e enviar convite
+                  <button className="min-h-12 rounded-2xl bg-[#123d2d] px-5 font-black text-white" type="submit">
+                    Enviar convite do Elshaday
                   </button>
                 </form>
               </details>
@@ -711,6 +736,8 @@ function successMessage(code: string) {
     familia_removida: "Vínculo familiar removido.",
     foto: "Foto do membro atualizada.",
     cargo: "Cargo alterado e histórico registrado.",
+    "cargo-aprovado": "Cargo solicitado aprovado e registrado no histórico.",
+    "cargo-recusado": "Solicitação de cargo recusada. O cargo atual foi preservado.",
     ministerios: "Ministérios atualizados."
   };
   return map[code] ?? "Alteração concluída.";
