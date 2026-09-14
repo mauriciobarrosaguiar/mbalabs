@@ -14,7 +14,7 @@ import {
   Settings2,
   ShieldCheck,
   UsersRound,
-  Youtube
+  Video as Youtube
 } from "lucide-react";
 import { elshadayRoleLabel, type ElshadayRole } from "@/lib/elshaday-role";
 import { ElshadayMobileAppChrome } from "./ElshadayMobileAppChrome";
