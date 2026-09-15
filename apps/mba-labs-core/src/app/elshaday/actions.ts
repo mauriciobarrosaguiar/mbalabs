@@ -783,7 +783,7 @@ export async function sendElshadayPasswordEmail(formData: FormData) {
 
     const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://www.mbalabs.com.br").replace(/\/$/, "");
     const { error } = await context.admin.auth.resetPasswordForEmail(String(coreUser.email), {
-      redirectTo: `${siteUrl}/alterar-senha`
+      redirectTo: `${siteUrl}/alterar-senha?app=elshaday`
     });
     if (error) throw error;
 
@@ -796,6 +796,77 @@ export async function sendElshadayPasswordEmail(formData: FormData) {
   }
 
   accessRedirect("ok", "senha");
+}
+
+export async function resetElshadayMemberAccess(formData: FormData) {
+  const context = await requireElshadayContext("/elshaday/membros");
+  requireElshadayRole(context, ["admin"]);
+  const membroId = text(formData, "membro_id");
+  const returnTo = safeElshadayReturn(formData, `/elshaday/membros/${membroId}`);
+
+  try {
+    if (!context.igreja.empresa_id) throw new Error("Igreja sem organização vinculada.");
+
+    const { data: member, error: memberError } = await context.admin
+      .from("igreja_membros")
+      .select("id,user_id,nome,email,situacao")
+      .eq("id", membroId)
+      .eq("igreja_id", context.igreja.id)
+      .maybeSingle();
+
+    if (memberError || !member) throw new Error("Membro não pertence a esta igreja.");
+    if (!member.user_id) {
+      throw new Error("Este membro ainda não possui um acesso concluído para redefinir.");
+    }
+
+    const { data: coreUser, error: coreUserError } = await context.admin
+      .from("core_usuarios")
+      .select("id,auth_user_id,nome,email")
+      .eq("empresa_id", context.igreja.empresa_id)
+      .eq("auth_user_id", member.user_id)
+      .maybeSingle();
+
+    if (coreUserError || !coreUser) {
+      throw new Error("O acesso vinculado a este membro não pertence à Igreja Elshaday.");
+    }
+
+    const { data: authData, error: authError } = await context.admin.auth.admin.getUserById(
+      String(member.user_id)
+    );
+    const email = String(authData?.user?.email ?? coreUser.email ?? member.email ?? "")
+      .trim()
+      .toLowerCase();
+
+    if (authError || !authData?.user) throw new Error("Não foi possível localizar a conta de autenticação do membro.");
+    if (!email || !email.includes("@")) {
+      throw new Error("O acesso deste membro não possui um e-mail válido.");
+    }
+
+    const siteUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://www.mbalabs.com.br").replace(/\/$/, "");
+    const { error: resetError } = await context.admin.auth.resetPasswordForEmail(email, {
+      redirectTo: `${siteUrl}/alterar-senha?app=elshaday`
+    });
+    if (resetError) throw resetError;
+
+    await auditChurchAccess(context, "elshaday redefinição de acesso enviada", {
+      membro_id: member.id,
+      usuario_id: coreUser.id,
+      auth_user_id: member.user_id,
+      email,
+      situacao_preservada: member.situacao
+    });
+  } catch (error) {
+    redirectWithMessage(
+      returnTo,
+      "erro",
+      error instanceof Error ? error.message : "Não foi possível enviar a redefinição de acesso."
+    );
+  }
+
+  revalidatePath("/elshaday/acessos");
+  revalidatePath("/elshaday/membros");
+  revalidatePath(returnTo);
+  redirectWithMessage(returnTo, "ok", "acesso-redefinido");
 }
 
 

@@ -8,6 +8,7 @@ import {
   updateElshadayMember
 } from "../../actions";
 import { DeletePendingMemberForm } from "./DeletePendingMemberForm";
+import { ResetMemberAccessForm } from "./ResetMemberAccessForm";
 import {
   addElshadayMemberRelation,
   removeElshadayMemberRelation,
@@ -656,6 +657,28 @@ export default async function ElshadayMemberDetailPage({
             </div>
           ) : null}
 
+          {canManageAccess && member.user_id ? (
+            <div className="mt-5 rounded-2xl border border-sky-200 bg-white p-4">
+              <h3 className="font-black text-sky-950">Redefinir acesso do membro</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Envia um link seguro para o membro criar uma nova senha. A ficha, o histórico, o perfil e os vínculos
+                permanecem preservados.
+              </p>
+              {member.situacao === "inativo" ? (
+                <p className="mt-2 text-sm font-bold leading-6 text-amber-800">
+                  Este membro está inativo. A redefinição não reativa o cadastro.
+                </p>
+              ) : null}
+              <div className="mt-4">
+                <ResetMemberAccessForm
+                  email={currentAccess?.email || member.email}
+                  memberId={String(member.id)}
+                  memberName={String(member.nome)}
+                />
+              </div>
+            </div>
+          ) : null}
+
           {canManageAccess ? (
             <form action={linkElshadayMemberAccess} className="mt-5 grid gap-3 md:grid-cols-[1fr_auto]">
               <input type="hidden" name="membro_id" value={member.id} />
@@ -746,6 +769,7 @@ function successMessage(code: string) {
     situacao: "Situação do membro atualizada.",
     vinculo: "Vínculo com o acesso digital atualizado.",
     convite: "Acesso criado e convite enviado para o e-mail do membro.",
+    "acesso-redefinido": "Link para redefinir o acesso enviado ao e-mail do membro. A ficha e o histórico foram preservados.",
     familia: "Vínculo familiar salvo.",
     familia_removida: "Vínculo familiar removido.",
     foto: "Foto do membro atualizada.",
