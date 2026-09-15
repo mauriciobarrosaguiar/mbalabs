@@ -7,6 +7,7 @@ import {
   setElshadayMemberStatus,
   updateElshadayMember
 } from "../../actions";
+import { DeletePendingMemberForm } from "./DeletePendingMemberForm";
 import {
   addElshadayMemberRelation,
   removeElshadayMemberRelation,
@@ -609,6 +610,19 @@ export default async function ElshadayMemberDetailPage({
               {member.situacao === "inativo" ? "Reativar membro" : "Inativar membro"}
             </button>
           </form>
+        </section>
+      ) : null}
+
+      {canManageAccess ? (
+        <section className="rounded-[28px] border border-red-200 bg-red-50 p-5">
+          <h2 className="font-black text-red-950">Excluir cadastro pendente</h2>
+          <p className="mt-2 text-sm leading-6 text-red-900/80">
+            Use somente para corrigir um cadastro ou reenviar um convite. A exclusão será bloqueada se o membro
+            já possuir acesso concluído, contribuição, presença ou vínculo familiar.
+          </p>
+          <div className="mt-4">
+            <DeletePendingMemberForm memberId={String(member.id)} memberName={String(member.nome)} />
+          </div>
         </section>
       ) : null}
 

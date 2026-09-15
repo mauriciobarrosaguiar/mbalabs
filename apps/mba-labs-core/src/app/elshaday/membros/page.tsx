@@ -440,6 +440,9 @@ function memberSuccess(code: string) {
     const parts = code.split(":");
     return "Importação concluída: " + (parts[1] ?? "0") + " membro(s) importado(s) e " + (parts[2] ?? "0") + " ignorado(s).";
   }
+  if (code === "excluido") {
+    return "Cadastro e convite pendente excluídos. O mesmo e-mail já pode receber um novo convite.";
+  }
   return "Operação concluída.";
 }
 

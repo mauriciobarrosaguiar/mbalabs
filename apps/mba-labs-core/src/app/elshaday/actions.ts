@@ -902,6 +902,144 @@ export async function setElshadayMemberStatus(formData: FormData) {
   redirectWithMessage(returnTo, "ok", "situacao");
 }
 
+export async function deletePendingElshadayMember(formData: FormData) {
+  const context = await requireElshadayContext("/elshaday/membros");
+  requireElshadayRole(context, ["admin"]);
+  const membroId = text(formData, "membro_id");
+  const returnTo = safeElshadayReturn(formData, `/elshaday/membros/${membroId}`);
+
+  try {
+    const { data: member, error: memberError } = await context.admin
+      .from("igreja_membros")
+      .select("id,user_id,nome,email,foto_url")
+      .eq("id", membroId)
+      .eq("igreja_id", context.igreja.id)
+      .maybeSingle();
+
+    if (memberError || !member) throw new Error("Membro não pertence a esta igreja.");
+    if (member.user_id) {
+      throw new Error("Este membro já possui acesso concluído. Inative o cadastro para preservar o histórico.");
+    }
+
+    const [financeResult, pixResult, attendanceResult, relationsResult] = await Promise.all([
+      context.admin
+        .from("igreja_financeiro_entradas")
+        .select("id", { count: "exact", head: true })
+        .eq("igreja_id", context.igreja.id)
+        .eq("membro_id", membroId),
+      context.admin
+        .from("igreja_pix_cobrancas")
+        .select("id", { count: "exact", head: true })
+        .eq("igreja_id", context.igreja.id)
+        .eq("membro_id", membroId),
+      context.admin
+        .from("igreja_evento_presencas")
+        .select("id", { count: "exact", head: true })
+        .eq("igreja_id", context.igreja.id)
+        .eq("membro_id", membroId),
+      context.admin
+        .from("igreja_membro_relacoes")
+        .select("id", { count: "exact", head: true })
+        .eq("igreja_id", context.igreja.id)
+        .or(`membro_id.eq.${membroId},parente_id.eq.${membroId}`)
+    ]);
+
+    const historyError =
+      financeResult.error ?? pixResult.error ?? attendanceResult.error ?? relationsResult.error;
+    if (historyError) throw new Error("Não foi possível verificar o histórico deste membro.");
+
+    const historyCount =
+      (financeResult.count ?? 0) +
+      (pixResult.count ?? 0) +
+      (attendanceResult.count ?? 0) +
+      (relationsResult.count ?? 0);
+    if (historyCount > 0) {
+      throw new Error("Este membro possui histórico na igreja. Inative o cadastro em vez de excluir.");
+    }
+
+    let pendingInviteUserId: string | null = null;
+    const email = String(member.email ?? "").trim().toLowerCase();
+    if (email) {
+      const authUser = await findAuthUserByEmail(context.admin, email);
+      if (authUser) {
+        const metadata = authUser.user_metadata ?? {};
+        const isPendingElshadayInvite =
+          metadata.origem === "elshaday-convite-cadastro" &&
+          String(metadata.igreja_id ?? "") === String(context.igreja.id);
+
+        if (!isPendingElshadayInvite) {
+          throw new Error("Este e-mail pertence a uma conta já existente. O cadastro não pode ser excluído por esta ação.");
+        }
+
+        const [coreUsersResult, profilesResult, linkedMembersResult] = await Promise.all([
+          context.admin
+            .from("core_usuarios")
+            .select("id", { count: "exact", head: true })
+            .eq("auth_user_id", authUser.id),
+          context.admin
+            .from("igreja_perfis")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", authUser.id),
+          context.admin
+            .from("igreja_membros")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", authUser.id)
+        ]);
+
+        const accessError = coreUsersResult.error ?? profilesResult.error ?? linkedMembersResult.error;
+        if (accessError) throw new Error("Não foi possível verificar os acessos vinculados ao convite.");
+
+        const accessCount =
+          (coreUsersResult.count ?? 0) +
+          (profilesResult.count ?? 0) +
+          (linkedMembersResult.count ?? 0);
+        if (accessCount > 0) {
+          throw new Error("O convite já foi convertido em acesso. Inative o cadastro em vez de excluir.");
+        }
+
+        pendingInviteUserId = String(authUser.id);
+      }
+    }
+
+    if (pendingInviteUserId) {
+      const { error: authError } = await context.admin.auth.admin.deleteUser(pendingInviteUserId);
+      if (authError) throw new Error("Não foi possível remover o convite pendente para permitir um novo envio.");
+    }
+
+    const { data: deleted, error: deleteError } = await context.admin
+      .from("igreja_membros")
+      .delete()
+      .eq("id", membroId)
+      .eq("igreja_id", context.igreja.id)
+      .select("id")
+      .maybeSingle();
+
+    if (deleteError || !deleted) throw new Error("Não foi possível excluir o cadastro do membro.");
+
+    if (member.foto_url) {
+      await context.admin.storage.from("igreja-membros").remove([String(member.foto_url)]);
+    }
+
+    await auditChurchAccess(context, "elshaday cadastro pendente excluído", {
+      membro_id: membroId,
+      nome: member.nome,
+      email: member.email,
+      convite_auth_removido: Boolean(pendingInviteUserId)
+    });
+  } catch (error) {
+    redirectWithMessage(
+      returnTo,
+      "erro",
+      error instanceof Error ? error.message : "Não foi possível excluir o cadastro."
+    );
+  }
+
+  revalidatePath("/elshaday");
+  revalidatePath("/elshaday/membros");
+  revalidatePath("/elshaday/acessos");
+  redirectWithMessage("/elshaday/membros", "ok", "excluido");
+}
+
 export async function linkElshadayMemberAccess(formData: FormData) {
   const context = await requireElshadayContext("/elshaday/membros");
   requireElshadayRole(context, ["admin"]);
