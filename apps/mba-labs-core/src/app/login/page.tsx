@@ -3,7 +3,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/AuthForms";
 import { BrandLogo } from "@/components/BrandLogo";
-import { InstallAppCard } from "@/components/InstallAppCard";
 import { PwaRegister } from "@/components/PwaRegister";
 import { getLoginDestination, getSessionProfile } from "@/lib/core-data";
 import { getPublicElshadayContext } from "@/lib/elshaday";
@@ -104,8 +103,6 @@ export default async function LoginPage({
         <Link className="w-fit" href="/" aria-label="Voltar para o início da MBA Labs">
           <BrandLogo size="md" />
         </Link>
-
-        <InstallAppCard />
 
         <section className="panel grid gap-6 p-6">
           <div className="grid gap-2">
