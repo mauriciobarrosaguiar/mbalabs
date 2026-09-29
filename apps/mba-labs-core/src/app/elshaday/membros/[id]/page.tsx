@@ -165,6 +165,7 @@ export default async function ElshadayMemberDetailPage({
 
   let accessUsers: any[] = [];
   let currentAccess: any = null;
+  let memberAccessStatus: string | null = null;
 
   if (canManageAccess && context.igreja.empresa_id) {
     const { data: app } = await context.admin
@@ -198,16 +199,20 @@ export default async function ElshadayMemberDetailPage({
         (permissions ?? []).map((row: any) => [String(row.usuario_id), row])
       );
 
-      accessUsers = (users ?? [])
-        .map((user: any) => ({
-          ...user,
-          permission: permissionByUser.get(String(user.id))
-        }))
+      const usersWithPermission = (users ?? []).map((user: any) => ({
+        ...user,
+        permission: permissionByUser.get(String(user.id))
+      }));
+
+      accessUsers = usersWithPermission
         .filter((user: any) => user.auth_user_id && user.permission?.status === "ativo");
 
-      currentAccess = member.user_id
-        ? accessUsers.find((user: any) => String(user.auth_user_id) === String(member.user_id)) ?? null
+      const linkedAccess = member.user_id
+        ? usersWithPermission.find((user: any) => String(user.auth_user_id) === String(member.user_id)) ?? null
         : null;
+
+      memberAccessStatus = linkedAccess?.permission?.status ? String(linkedAccess.permission.status) : null;
+      currentAccess = linkedAccess?.permission?.status === "ativo" ? linkedAccess : null;
     }
   }
 
@@ -256,7 +261,21 @@ export default async function ElshadayMemberDetailPage({
         <Info icon={<Phone size={18} />} label="Telefone/WhatsApp" value={member.whatsapp || member.telefone || "-"} />
         <Info icon={<Mail size={18} />} label="E-mail" value={member.email || "-"} />
         <Info icon={<MapPin size={18} />} label="Localização" value={[member.bairro, member.cidade, member.estado].filter(Boolean).join(" · ") || "-"} />
-        <Info icon={<ShieldCheck size={18} />} label="Acesso digital" value={member.user_id ? "Vinculado" : "Sem login"} />
+        <Info
+          icon={<ShieldCheck size={18} />}
+          label="Acesso digital"
+          value={
+            !member.user_id
+              ? "Sem login"
+              : memberAccessStatus === "ativo"
+                ? "Ativo"
+                : memberAccessStatus === "pendente"
+                  ? "Aguardando aprovação"
+                  : memberAccessStatus === "bloqueado"
+                    ? "Bloqueado"
+                    : "Vinculado"
+          }
+        />
       </section>
 
       <section className="rounded-[28px] border border-emerald-950/10 bg-white p-5">
@@ -652,9 +671,19 @@ export default async function ElshadayMemberDetailPage({
               </p>
             </div>
           ) : member.user_id ? (
-            <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-900">
-              Este membro já possui um login vinculado.
-            </div>
+            memberAccessStatus === "pendente" ? (
+              <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-900">
+                O login já foi criado, mas o acesso ao Elshaday ainda aguarda aprovação do administrador.
+              </div>
+            ) : memberAccessStatus === "bloqueado" ? (
+              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-800">
+                O login está vinculado, porém o acesso ao Elshaday está bloqueado.
+              </div>
+            ) : (
+              <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-900">
+                Este membro já possui um login vinculado.
+              </div>
+            )
           ) : null}
 
           {canManageAccess && member.user_id ? (
