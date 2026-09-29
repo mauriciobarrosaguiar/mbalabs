@@ -113,7 +113,8 @@ export default async function ElshadayAccessPage({
     .filter(Boolean) as any[];
 
   const active = rows.filter((row) => row.accessStatus === "ativo").length;
-  const blocked = rows.filter((row) => row.accessStatus !== "ativo").length;
+  const pending = rows.filter((row) => row.accessStatus === "pendente").length;
+  const blocked = rows.filter((row) => row.accessStatus !== "ativo" && row.accessStatus !== "pendente").length;
   const linked = rows.filter((row) => row.member).length;
 
   const ok = typeof params.ok === "string" ? params.ok : "";
@@ -145,9 +146,10 @@ export default async function ElshadayAccessPage({
         </div>
       ) : null}
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi label="Acessos ativos" value={active} detail="Podem entrar no Elshaday" />
-        <Kpi label="Bloqueados" value={blocked} detail="Sem acesso ao app" />
+        <Kpi label="Aguardando aprovação" value={pending} detail="Cadastro concluído, acesso ainda não liberado" />
+        <Kpi label="Bloqueados" value={blocked} detail="Acesso suspenso ao app" />
         <Kpi label="Vinculados a membro" value={linked} detail="Login ligado à ficha de membro" />
       </section>
 
@@ -223,13 +225,14 @@ export default async function ElshadayAccessPage({
             {rows.map((row) => {
               const isSelf = String(row.auth_user_id ?? "") === context.current.authUser.id;
               const isActive = row.accessStatus === "ativo";
+              const isPending = row.accessStatus === "pendente";
               return (
                 <article className="rounded-[28px] border border-emerald-950/10 bg-white p-5" key={row.id}>
                   <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="text-lg font-black">{row.nome}</h3>
-                        <Status active={isActive} />
+                        <Status status={row.accessStatus} />
                         {isSelf ? (
                           <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-black text-sky-800">Você</span>
                         ) : null}
@@ -259,7 +262,7 @@ export default async function ElshadayAccessPage({
                         title={isSelf ? "Você não pode bloquear o próprio acesso." : undefined}
                         type="submit"
                       >
-                        {isActive ? "Bloquear acesso" : "Reativar acesso"}
+                        {isActive ? "Bloquear acesso" : isPending ? "Aprovar acesso" : "Reativar acesso"}
                       </button>
                     </form>
                   </div>
@@ -368,12 +371,18 @@ function Kpi({ label, value, detail }: { label: string; value: number; detail: s
   );
 }
 
-function Status({ active }: { active: boolean }) {
+function Status({ status }: { status: string }) {
+  const pending = status === "pendente";
+  const active = status === "ativo";
   return (
     <span className={`rounded-full px-2.5 py-1 text-xs font-black ${
-      active ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"
+      active
+        ? "bg-emerald-100 text-emerald-800"
+        : pending
+          ? "bg-amber-100 text-amber-800"
+          : "bg-red-100 text-red-700"
     }`}>
-      {active ? "Ativo" : "Bloqueado"}
+      {active ? "Ativo" : pending ? "Aguardando aprovação" : "Bloqueado"}
     </span>
   );
 }
