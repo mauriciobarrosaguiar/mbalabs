@@ -1,15 +1,15 @@
 # MBA Cotações — Relatório Técnico de QA e Preparação para Produção
 
-Data: 24/09/2026  
+Data: 29/09/2026
 Repositório: `mauriciobarrosaguiar/mbalabs`  
 Aplicação canônica: `apps/mba-labs-core`  
-Versão-base: `576abae`  
+Versão-base: `45fba08` (`origin/main`)
 
 ## Resumo executivo
 
 A arquitetura atual foi preservada. Não foi criada uma nova aplicação e o legado `apps/mba-cotacoes` não foi alterado. Foram corrigidos defeitos de autorização, cálculo, estoque, CNPJ, idempotência, tokens públicos, logs, datas e segurança do WhatsApp. Foi adicionada massa QA reutilizável, suíte Vitest e suíte Playwright com golden path e teste simultâneo de duas farmácias.
 
-O código local compila e os 19 testes unitários/de integração passam. A migration corretiva foi aplicada com sucesso em um projeto Supabase QA isolado, que recebeu 3 empresas, 9 contas Auth, 180 produtos, 18 representantes, respostas e pedidos fictícios. Nesse ambiente passaram login Auth, isolamento RLS por usuário, tentativa de IDOR por UUID, FK composta, CNPJ, ranking, total e idempotência de pedido. Contudo, produção **não deve ser considerada homologada**: os vínculos históricos cross-tenant ainda existem lá e o E2E autenticado de navegador/Evolution API continuam não validados.
+O código local compila e os 19 testes unitários/de integração passam. A migration corretiva foi aplicada com sucesso em um projeto Supabase QA isolado, que recebeu 3 empresas, 9 contas Auth, 180 produtos, 18 representantes, respostas e pedidos fictícios. Nesse ambiente passaram login Auth, isolamento RLS por usuário, tentativa de IDOR por UUID, FK composta, CNPJ, ranking, total e idempotência de pedido. O Preview Vercel QA também está operacional: um representante abriu o link correto, enviou resposta parcial, recebeu bloqueio de edição após o envio e a gravação foi confirmada no banco. Contudo, produção **não deve ser considerada homologada**: os vínculos históricos cross-tenant ainda existem lá e o golden path autenticado completo/Evolution API continuam não validados.
 
 ### Estado resumido
 
@@ -19,10 +19,12 @@ O código local compila e os 19 testes unitários/de integração passam. A migr
 | Lint MBA Cotações | PASSOU |
 | Typecheck MBA Cotações | PASSOU |
 | Testes unitários/integração | 19/19 PASSOU |
-| Testes Playwright executados | 0/30 esperados — PENDENTE (42 descobertos; 12 skips deliberados) |
+| Testes Playwright executados | 0/30 esperados — runner bloqueado; validação pública real executada separadamente |
 | Multi-tenancy no QA | PASSOU — RLS, UUID direto e FK composta |
 | Multi-tenancy no banco real | FALHOU — BLOQUEADOR |
-| WhatsApp seguro para QA | PASSOU em unidade; integração NÃO VALIDADA |
+| Preview Vercel QA | PASSOU — deploy READY, Supabase/flags isolados por branch |
+| Resposta pública real | PASSOU — POST 200, bloqueio de reenvio e persistência conferida |
+| WhatsApp seguro para QA | PASSOU em unidade e configuração mock; clique autenticado/Evolution NÃO VALIDADOS |
 | Ranking e estoque | PASSOU |
 | Pedidos e arredondamento | PASSOU em unidade e persistência QA; UI PENDENTE |
 | Mobile/desktop | Configurado; execução PENDENTE |
@@ -120,7 +122,7 @@ Ela adiciona:
 - índices para foreign keys e consultas por tenant;
 - grants/revokes explícitos das tabelas WhatsApp backend-only.
 
-**Estado:** aplicada e testada no projeto QA isolado `ulabbmjxdvxxiybhtgnn`. A tentativa de branch falhou porque Branching exige plano Pro; foi usado projeto adicional Free, sem copiar dados de produção. A migration bloqueou referência tenant B → farmácia A com SQLSTATE `23503` e bloqueou pedido duplicado com `23505`. O projeto foi pausado ao final da rodada, preservando a evidência para retomada sem deixá-lo exposto. Ela **não foi aplicada em produção**.
+**Estado:** aplicada e testada no projeto QA isolado `ulabbmjxdvxxiybhtgnn`. A tentativa de branch falhou porque Branching exige plano Pro; foi usado projeto adicional Free, sem copiar dados de produção. A migration bloqueou referência tenant B → farmácia A com SQLSTATE `23503` e bloqueou pedido duplicado com `23505`. O projeto está ativo para o Preview QA, sem qualquer ligação com dados de produção. Ela **não foi aplicada em produção**.
 
 ## Massa de QA
 
@@ -192,7 +194,7 @@ Foram criados os cenários públicos e `golden-path.qa.spec.ts`. A configuraçã
 - login, lista, cotação, resposta pública, ranking, finalização, geração repetida de pedido e link vencedor;
 - dois contextos de farmácia simultâneos, alteração manual de URL e probe API sem mutação.
 
-O teste mutável roda somente uma vez, recusa hosts/projeto de produção e intercepta o endpoint WhatsApp. A execução continua pendente: o projeto QA existe, mas o conector não fornece a chave server-side necessária ao Preview; localmente não há Chrome instalado e o download Playwright falhou repetidamente porque o CDN retornou arquivo de 0 MiB/truncado. Portanto, nenhum caso visual foi marcado como aprovado.
+O teste mutável roda somente uma vez, recusa hosts/projeto de produção e intercepta o endpoint WhatsApp. O Preview foi publicado com variáveis exclusivas do branch e modo WhatsApp mock. Pelo navegador remoto, o link público válido exibiu somente Drogaria QA Palmas/Profarma e 10 itens; a resposta parcial de R$ 9,75 foi enviada e gravada, o refresh manteve todos os controles bloqueados e um token inválido foi recusado. A suíte Playwright completa ainda não rodou: localmente não há Chrome instalado e o download Playwright falhou depois das tentativas internas porque o CDN retornou arquivo de 0 MiB/truncado. Assim, somente o fluxo público comprovado foi marcado como aprovado; login, dashboard e golden path autenticado permanecem pendentes.
 
 ## Bugs encontrados
 
@@ -346,6 +348,16 @@ O teste mutável roda somente uma vez, recusa hosts/projeto de produção e inte
 - Problema: lint global tem 2 erros/94 warnings fora do módulo; typecheck raiz falha em `packages/shared` por tipos Node.
 - Resultado: **PENDENTE FORA DO ESCOPO**, sem alterar Igreja Elshaday ou outros produtos.
 
+### BUG-017 — Preview QA iniciou com chave server-side inválida
+
+- Severidade: **MÉDIO (configuração QA)**
+- Área: deploy/ambiente
+- Problema: a primeira configuração copiou uma representação truncada da chave mascarada e a rota pública retornou “Invalid API key”.
+- Causa: valor protegido na interface não continha o segredo completo.
+- Correção: substituição pela chave completa do projeto QA, limitada exclusivamente ao branch de homologação, seguida de novo deploy.
+- Teste: deploy `dpl_Hhj7hfvujd9uGKMUGPdidZCMpZWj` em READY; GET do link válido e inválido e POST da resposta retornaram 200, sem erro de chave nos logs.
+- Resultado: **CORRIGIDO E PASSOU**.
+
 ## Segurança
 
 ### Comprovado
@@ -412,10 +424,17 @@ Resultado: **NÃO VALIDADO** para a carga solicitada.
 
 ## Logs e observabilidade
 
-- Foram observados 9 eventos PostgreSQL em nível ERROR na janela consultada de 24 horas; a integração não expôs mensagem suficiente para atribuição segura.
-- Nos últimos 7 dias do Vercel não apareceram erros de runtime nas rotas `/cotacoes` ou `/api/cotacoes` consultadas.
-- Havia dois erros antigos de Server Action na raiz, fora do MBA Cotações.
+- O primeiro Preview QA revelou imediatamente a chave server-side truncada; o erro foi corrigido e redeployado.
+- No deploy corrigido, o POST `/api/cotacoes/public/supplier-response/[token]` retornou 200 e os GETs do link válido/reutilizado e do token inválido também retornaram 200.
+- Nenhum erro apareceu nos logs do deploy corrigido na janela consultada.
 - Tokens, telefones e payloads sensíveis foram reduzidos nos logs alterados.
+
+## Supabase Advisors
+
+- Segurança: 4 tabelas com RLS e nenhuma policy de cliente, 10 helpers `SECURITY DEFINER` executáveis por `authenticated` e proteção contra senha vazada desabilitada.
+- Performance no schema compartilhado: 113 FKs sem índice, 2 casos de initplan em RLS, 52 índices ainda sem uso no ambiente novo, 12 conjuntos de policies permissivas múltiplas e 1 índice duplicado em `purchase_orders`.
+- Os avisos foram registrados como pendência; não foram removidos em massa porque o banco é compartilhado com outros produtos MBA Labs e isso exigiria análise de impacto própria.
+- Referências: [RLS sem policy](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy), [funções SECURITY DEFINER](https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable) e [proteção de senhas](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
 
 ## Arquivos/áreas alterados
 
@@ -432,26 +451,23 @@ Resultado: **NÃO VALIDADO** para a carga solicitada.
 
 ## Pendências externas
 
-- chave server-side do Supabase QA para executar o Preview (não expor no frontend/relatório);
-- Preview Vercel conectado ao QA;
 - número WhatsApp de teste/instância Evolution;
-- navegador Playwright disponível;
+- binário Chromium/runner Playwright disponível;
 - decisão sobre Efi (manter desabilitado ou implementar assinatura real);
 - janela de manutenção/backup para migration de produção.
 
 ## Recomendação de implantação
 
-1. Configurar a chave server-side do projeto QA somente no Preview/local seguro.
-2. Publicar preview Vercel com todas as flags de segurança QA.
-3. Rodar a suíte Playwright completa em runner com Chromium válido.
-4. Manter os 19 testes, lint, typecheck e build como gate.
-5. Corrigir qualquer falha e repetir golden path + duas farmácias.
-6. Rodar carga e medir dashboard/ranking/backup.
-7. Executar cleanup e provar isolamento.
-8. Fazer backup verificável da produção.
-9. Aplicar migration em produção e repetir consultas de integridade.
-10. Fazer deploy do código e smoke test com contas controladas.
+1. Rodar a suíte Playwright completa em runner com Chromium válido.
+2. Manter os 19 testes, lint, typecheck e build como gate.
+3. Corrigir qualquer falha e repetir golden path + duas farmácias.
+4. Rodar carga e medir dashboard/ranking/backup.
+5. Executar cleanup e provar isolamento.
+6. Configurar uma instância/número WhatsApp de teste explicitamente autorizado e validar falhas/retries.
+7. Fazer backup verificável da produção.
+8. Aplicar a migration em produção e repetir as 14 consultas de integridade até todas retornarem zero.
+9. Fazer deploy do código e smoke test com contas controladas.
 
 ## Resultado final
 
-O branch local está substancialmente mais seguro e o banco QA comprovou persistência, autenticação, RLS, integridade composta, ranking, CNPJ, total e idempotência. Mesmo assim, **MBA Cotações ainda não está homologado para produção**. Permanecem pendentes o E2E visual autenticado, WhatsApp/Evolution, carga solicitada e, principalmente, o saneamento/deploy no banco real. O bloqueador principal continua objetivo: as contagens cross-tenant da produção precisam chegar a zero após backup e aplicação da migration já ensaiada no QA.
+O branch QA, o banco isolado e o Preview estão operacionais. Foram comprovados persistência, autenticação Supabase, RLS, integridade composta, ranking, CNPJ, total, idempotência, abertura do link público, envio parcial, bloqueio de reenvio e recusa de token inválido. Mesmo assim, **MBA Cotações ainda não está homologado para produção**. Permanecem pendentes o E2E autenticado completo, WhatsApp/Evolution, carga solicitada e, principalmente, o saneamento/deploy no banco real. O bloqueador principal continua objetivo: as contagens cross-tenant da produção precisam chegar a zero após backup e aplicação da migration já ensaiada no QA.

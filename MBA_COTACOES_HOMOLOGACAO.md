@@ -1,8 +1,8 @@
 # MBA Cotações — Checklist de Homologação
 
-Data da auditoria: 24/09/2026  
+Data da auditoria: 29/09/2026
 Escopo: `apps/mba-labs-core` e schema compartilhado do Supabase relacionado ao MBA Cotações.  
-Commit-base analisado: `576abae` (`main`).  
+Commit-base analisado: `45fba08` (`origin/main`), com correções no branch `qa/mba-cotacoes-homologacao`.
 
 ## Legenda
 
@@ -20,7 +20,7 @@ Motivos objetivos:
 
 1. O banco de produção contém vínculos históricos cross-tenant de fornecedores: 11 sessões, 9 respostas, 41 itens de resposta e 3 pedidos.
 2. A migration foi aprovada no Supabase QA isolado, mas ainda não foi aplicada em produção; as inconsistências reais continuam presentes.
-3. O golden path autenticado de navegador não foi executado por ausência de chave server-side do projeto QA no conector e falha repetida no download do Chromium (arquivo retornado com 0 MiB).
+3. O Preview QA está operacional e o fluxo público real foi exercitado, mas o golden path autenticado completo não foi executado porque a instalação do Chromium do Playwright recebeu arquivo truncado/0 MiB.
 4. Evolution API/WhatsApp real não foi validada com número de teste autorizado.
 
 ## Checklist funcional
@@ -35,12 +35,12 @@ Motivos objetivos:
 | Representantes | PENDENTE | Massa inclui ativo, inativo e sem WhatsApp; edição/exclusão pela UI não executadas. |
 | Produtos | PENDENTE | 180 produtos persistidos no QA; CRUD de tela não executado. |
 | Lista de falta | PENDENTE | 36 itens persistidos e isolados; fluxo visual criar/editar/continuar pendente. |
-| Criar cotação | CORRIGIDO | Rollback compensatório evita cotação órfã; criação pela UI aguarda Preview/navegador. |
-| Enviar cotação | PENDENTE | Fluxo Playwright criado; integração real aguarda Preview/navegador. |
-| WhatsApp | PENDENTE | Modo QA/allowlist/mock passou em testes unitários; Evolution real não validada. |
-| Link representante | PASSOU | Link inválido em produção não expõe formulário/dashboard; token válido QA aguarda execução. |
-| Responder cotação | CORRIGIDO | Idempotência, resposta sem estoque e mensagens seguras cobertas por testes; E2E real pendente. |
-| Receber resposta | PENDENTE | 6 respostas/60 itens persistidos sem cruzamento; endpoint e tela ainda não executados. |
+| Criar cotação | CORRIGIDO | Rollback compensatório evita cotação órfã; criação pela UI autenticada ainda não foi executada. |
+| Enviar cotação | PENDENTE | Fluxo Playwright criado; envio real pela área autenticada não foi executado. |
+| WhatsApp | PENDENTE | Preview QA está com modo teste + mock + allowlist; unidade passou, mas o clique autenticado e a Evolution real não foram validados. |
+| Link representante | PASSOU | Token válido abriu somente a cotação/fornecedor corretos; token inválido foi recusado e não houve exposição de dashboard ou concorrentes. |
+| Responder cotação | PASSOU | Resposta parcial real enviada pelo Preview; página bloqueou nova edição e permaneceu somente leitura após refresh. |
+| Receber resposta | PASSOU | POST real retornou 200; banco QA registrou sessão/resposta `submitted`, 1/10 item precificado e R$ 9,75. Tela autenticada da farmácia permanece pendente. |
 | Ranking | PASSOU | Menor preço, empate e exclusão sem estoque passaram em unidade e com preços conhecidos no banco QA. |
 | Finalizar | PENDENTE | E2E criado; não executado em sandbox. |
 | Vencedores | CORRIGIDO | Atendimento parcial e estoque passaram em testes; persistência QA pendente. |
@@ -69,10 +69,12 @@ Motivos objetivos:
 | Execução Playwright | PENDENTE | Next local falhou com `uv_interface_addresses`; navegador também não pôde ser instalado no ambiente. |
 | Seed sem flag QA | PASSOU | Execução foi bloqueada antes de acessar banco. |
 | Seed apontado à produção | PASSOU | Execução foi bloqueada explicitamente pelo project ref de produção. |
-| Migration em banco QA | PASSOU | Projeto isolado `ulabbmjxdvxxiybhtgnn`: 25 migrations aplicadas; FK cross-tenant e unique de pedido testadas negativamente; projeto pausado após os testes. |
+| Migration em banco QA | PASSOU | Projeto isolado `ulabbmjxdvxxiybhtgnn`: 25 migrations aplicadas; FK cross-tenant e unique de pedido testadas negativamente; projeto ativo somente para o Preview QA. |
 | Supabase Auth QA | PASSOU | Login por senha retornou sessão válida para `comprador.qa.1@example.invalid`. |
 | RLS QA | PASSOU | Farmácia A vê 1 tenant próprio; consulta direta pelo UUID da B retorna 0 linhas. |
-| Supabase Advisors QA | PENDENTE | Sem warnings de search path/anon após alinhamento; permanecem helpers `SECURITY DEFINER` autenticados, 4 tabelas backend-only sem policy e proteção de senha vazada desabilitada. |
+| Preview Vercel QA | PASSOU | Deploy `dpl_Hhj7hfvujd9uGKMUGPdidZCMpZWj` em READY, apontando exclusivamente ao Supabase QA por variáveis limitadas ao branch. |
+| Logs do Preview | PASSOU | Resposta pública POST 200; link válido/recarregado e token inválido GET 200; nenhum erro no deploy corrigido na janela consultada. |
+| Supabase Advisors QA | PENDENTE | 4 tabelas com RLS sem policy, 10 helpers `SECURITY DEFINER` executáveis, proteção contra senha vazada desabilitada; performance: 113 FKs sem índice no schema compartilhado, 2 initplans RLS, 12 policies permissivas múltiplas e 1 índice duplicado. |
 
 ## Matriz de testes reais
 
@@ -103,16 +105,19 @@ Motivos objetivos:
 | INT-001 | Golden path de regras | PASSOU | Dois tenants, respostas, ranking e pedidos isolados em memória. |
 | E2E-001 | Login → dashboard | PENDENTE | Auth QA passou; execução visual bloqueada pelo runner. |
 | E2E-002 | Criar/abrir lista | PENDENTE | Massa QA existe; execução visual bloqueada pelo runner. |
-| E2E-003 | Criar cotação da lista | PENDENTE | Estrutura criada; automação completa aguarda Preview/navegador. |
+| E2E-003 | Criar cotação da lista | PENDENTE | Estrutura criada; automação autenticada completa aguarda runner de navegador. |
 | E2E-004 | Enviar WhatsApp | PENDENTE | Interceptado no golden path; Evolution real não testada. |
-| E2E-005 | Representante responder | PENDENTE | Resposta persistida no QA; página/endpoint não executados. |
+| E2E-005 | Representante responder | PASSOU | Formulário público real enviou resposta parcial; POST 200 e persistência QA conferida. |
 | E2E-006 | Ranking | PENDENTE | Validado em unidade, mas página real não executada. |
 | E2E-007 | Gerar pedido duas vezes | PENDENTE | Banco rejeitou duplicidade; duplo clique visual não executado. |
 | E2E-008 | Link vencedor | PENDENTE | Token persistido e único; página não executada. |
 | E2E-009 | Duas farmácias simultâneas | PENDENTE | RLS/UUID passaram no QA; dois navegadores simultâneos não executados. |
 | WEB-001 | `/cotacoes` anônimo | PASSOU | Redireciona para `/login?next=%2Fcotacoes`. |
-| WEB-002 | Token público inválido | PASSOU | Mensagem segura, sem formulário e sem dashboard. |
+| WEB-002 | Token público inválido no Preview QA | PASSOU | Token de 64 zeros exibiu somente mensagem segura, sem formulário nem dashboard. |
 | WEB-003 | Overflow da página pública | PASSOU | Check manual público no viewport disponível; matriz móvel ainda pendente. |
+| WEB-004 | Reuso após envio | PASSOU | Refresh manteve status “Enviada”, campos e botão de envio desabilitados. |
+| WEB-005 | CNPJ/tenant no link público | PASSOU | Página mostrou Drogaria QA Palmas e CNPJ 11.222.333/0001-81, sem dados da Farmácia Sandbox Norte. |
+| WEB-006 | Persistência da resposta | PASSOU | Sessão e resposta `submitted`; 1 item com preço 9,7500. |
 
 ## Variáveis exigidas (somente nomes)
 
@@ -156,8 +161,8 @@ Motivos objetivos:
 - [x] Criar projeto Supabase QA isolado (branch indisponível no plano Free; projeto adicional sem custo mensal).
 - [x] Aplicar `20260924134029_harden_cotacoes_qa_and_idempotency.sql` no QA.
 - [x] Criar massa QA e confirmar 3 tenants, 9 usuários Auth, 180 produtos, 18 representantes, 6 respostas e 3 pedidos.
-- [ ] Publicar Preview Vercel apontado exclusivamente ao Supabase QA.
-- [ ] Configurar `WHATSAPP_TEST_MODE=true`, mock ou número explicitamente autorizado.
+- [x] Publicar Preview Vercel apontado exclusivamente ao Supabase QA.
+- [x] Configurar `WHATSAPP_TEST_MODE=true`, mock e allowlist fictícia reservada somente no branch QA.
 - [ ] Executar a matriz Playwright: 30 execuções esperadas e conferir os 12 skips deliberados.
 - [ ] Executar teste de carga com 10 empresas/1.000 produtos/5.000 respostas.
 - [ ] Executar `qa:cleanup` após o E2E e provar que dados fora dos tenants QA permaneceram intactos.
