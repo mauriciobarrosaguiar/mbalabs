@@ -1,4 +1,9 @@
 import { createSupabaseAdminClient, hasSupabaseAdminConfig, hasSupabaseConfig } from "@/modules/cotacoes/lib/supabase/server";
+import {
+  normalizeWhatsappPhone,
+  resolveWhatsappDeliveryTarget,
+  type WhatsappDeliveryTarget,
+} from "@/modules/cotacoes/lib/whatsapp/test-safety";
 import type { PurchaseOrder } from "@/modules/cotacoes/lib/types";
 
 export type WhatsappTipoEnvio = "link_cotacao" | "resultado_cotacao";
@@ -37,7 +42,7 @@ type SendInput = { empresaId: string; cotacaoId: string; vendedorId: string; tel
 function ready() { return hasSupabaseConfig() && hasSupabaseAdminConfig(); }
 function db(): Db { return createSupabaseAdminClient() as any; }
 function requireDb() { if (!ready()) throw new Error("Supabase não configurado para o WhatsApp MBA Cotações."); return db(); }
-export function normalizeWhatsappPhone(value?: string | null) { let digits = String(value ?? "").replace(/\D/g, ""); while (digits.startsWith("0")) digits = digits.slice(1); if (digits.length === 10 || digits.length === 11) digits = `55${digits}`; return digits; }
+export { normalizeWhatsappPhone, resolveWhatsappDeliveryTarget } from "@/modules/cotacoes/lib/whatsapp/test-safety";
 
 export async function getWhatsappGlobalConfigForAdmin(): Promise<WhatsappAdminConfig | null> {
   if (!ready()) return null;
@@ -84,11 +89,13 @@ export async function testWhatsappGlobalConfig() {
 }
 
 export async function sendWhatsappGlobalTestMessage(telefone: string, mensagem: string) {
+  const target = resolveWhatsappDeliveryTarget(telefone);
+  const phone = target.phone;
+  if (!validPhone(phone)) throw new Error("WhatsApp de teste inválido. Use DDI + DDD + número.");
+  if (target.mock) return true;
   const config = await getLatestConfig();
   validateConfig(config);
-  const phone = normalizeWhatsappPhone(telefone);
-  if (!validPhone(phone)) throw new Error("WhatsApp de teste inválido. Use DDI + DDD + número.");
-  await callProvider(config!, phone, mensagem || "Mensagem de teste do MBA Cotações.");
+  await callProvider(config!, phone, `${target.messagePrefix}${mensagem || "Mensagem de teste do MBA Cotações."}`);
   if (config?.id) await db().from("cot_whatsapp_global_config").update({ status_conexao: "conectado" }).eq("id", config.id);
   return true;
 }
@@ -160,7 +167,7 @@ export async function listWhatsappEnvios(input: { quotationId: string; tipoEnvio
 }
 
 export async function sendWhatsAppMbaCotacoes(input: SendInput): Promise<SendWhatsAppResult> {
-  const telefone = normalizeWhatsappPhone(input.telefone);
+  let telefone = normalizeWhatsappPhone(input.telefone);
   if (!ready()) return { vendedorId: input.vendedorId, telefone, status: "falhou", erro: "Supabase não configurado." };
   const supabase = db();
   const existing = await existingEnvio(supabase, input);
@@ -188,15 +195,39 @@ export async function sendWhatsAppMbaCotacoes(input: SendInput): Promise<SendWha
     }
   }
 
+  let target: WhatsappDeliveryTarget;
+  try {
+    target = resolveWhatsappDeliveryTarget(telefone);
+    telefone = target.phone;
+  } catch (error) {
+    const erro = error instanceof Error ? error.message : "Envio de teste bloqueado.";
+    const envioId = await upsertEnvio(supabase, input, telefone, "pendente");
+    await updateEnvio(supabase, input, envioId, "falhou", erro);
+    return { vendedorId: input.vendedorId, telefone, status: "falhou", erro };
+  }
+
   const envioId = await upsertEnvio(supabase, input, telefone, "pendente");
   let provider: WhatsappProvider | undefined;
   try {
     if (!validPhone(telefone)) throw new Error("Vendedor sem WhatsApp válido cadastrado.");
+    if (target.mock) {
+      const enviadoEm = new Date().toISOString();
+      provider = "outro";
+      await updateEnvio(supabase, input, envioId, "enviado", null, provider, enviadoEm);
+      return {
+        vendedorId: input.vendedorId,
+        telefone,
+        status: "enviado",
+        enviadoPor: "qa_mock",
+        enviadoEm,
+        providerMessageId: `qa-mock-${input.cotacaoId}-${input.vendedorId}`,
+      };
+    }
     const config = await getActiveConfig();
     validateConfig(config);
     if (!config?.ativo) throw new Error("Envio automático desativado.");
     provider = config.provider;
-    const receipt = await callProviderWithRetry(config, telefone, input.mensagem);
+    const receipt = await callProviderWithRetry(config, telefone, `${target.messagePrefix}${input.mensagem}`);
     const enviadoEm = new Date().toISOString();
     await updateEnvio(supabase, input, envioId, "enviado", null, provider, enviadoEm);
     return {

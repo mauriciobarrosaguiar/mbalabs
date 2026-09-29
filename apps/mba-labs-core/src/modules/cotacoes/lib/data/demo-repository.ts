@@ -382,6 +382,7 @@ export function generatePharmacyAnalysis(quotationId = "quote-pharmacy-001") {
 }
 
 export function getPharmacyAnalysis(quotationId = "quote-pharmacy-001", _tenantId?: string) {
+  void _tenantId;
   return generatePharmacyAnalysis(quotationId);
 }
 
@@ -391,6 +392,7 @@ export function generateBiddingAnalysis(quotationId = "quote-bidding-001") {
 }
 
 export function getBiddingAnalysis(quotationId = "quote-bidding-001", _tenantId?: string) {
+  void _tenantId;
   return generateBiddingAnalysis(quotationId);
 }
 

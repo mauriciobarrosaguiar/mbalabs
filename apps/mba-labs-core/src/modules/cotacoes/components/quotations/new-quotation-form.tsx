@@ -36,6 +36,7 @@ import {
 } from "@/modules/cotacoes/lib/labels";
 import { saveDemoQuotationToLocalStorage } from "@/modules/cotacoes/lib/data/demo-repository";
 import { formatDateBR, formatInteger } from "@/modules/cotacoes/lib/formatters";
+import { dateInputValue } from "@/modules/cotacoes/lib/deadline";
 import type { Laboratory, ModuleType, Product, Supplier } from "@/modules/cotacoes/lib/types";
 
 interface QuotationDraft {
@@ -563,7 +564,7 @@ function isLocalBrowser() {
 function getDefaultDeadline() {
   const date = new Date();
   date.setDate(date.getDate() + 7);
-  return date.toISOString().slice(0, 10);
+  return dateInputValue(date);
 }
 
 function isPastDeadline(value: string) {

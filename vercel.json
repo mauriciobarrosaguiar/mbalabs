@@ -5,7 +5,7 @@
       "main": true,
       "feature/*": false,
       "fix/*": false,
-      "qa/*": false,
+      "qa/*": true,
       "chore/*": false,
       "dependabot/*": false
     }

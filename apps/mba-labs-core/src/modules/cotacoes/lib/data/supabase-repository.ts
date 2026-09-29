@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import "server-only";
 
 import { createSupabaseAdminClient, hasSupabaseAdminConfig, hasSupabaseConfig } from "@/modules/cotacoes/lib/supabase/server";
@@ -1054,6 +1053,7 @@ function mapQuotation(row: Record<string, any>): Quotation {
     moduleType: row.module_type,
     name: row.name,
     pharmacyId: row.pharmacy_id ?? undefined,
+    buyerDocument: row.buyer_document ?? undefined,
     buyerCompanyName: row.buyer_company_name ?? undefined,
     destinationClient: row.destination_client ?? undefined,
     orgaoDestino: row.orgao_destino ?? undefined,
@@ -1079,6 +1079,7 @@ function mapQuotationToDb(input: Partial<Quotation>) {
     module_type: input.moduleType,
     name: input.name,
     pharmacy_id: input.pharmacyId || null,
+    buyer_document: input.buyerDocument ? String(input.buyerDocument).replace(/\D/g, "") : null,
     buyer_company_name: input.buyerCompanyName || null,
     destination_client: input.destinationClient || null,
     orgao_destino: input.orgaoDestino || null,

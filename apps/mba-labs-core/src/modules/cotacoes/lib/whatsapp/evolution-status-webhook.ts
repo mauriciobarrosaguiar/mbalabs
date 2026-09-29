@@ -103,7 +103,11 @@ async function applyUpdate(supabase: Db, update: StatusUpdate) {
 function extractUpdates(payload: Record<string, unknown>) {
   const base: unknown[] = Array.isArray(payload.data) ? payload.data : payload.data ? [payload.data] : [payload];
   const expanded: unknown[] = [];
-  for (const item of base) { const value = record(item); Array.isArray(value.statuses) ? expanded.push(...value.statuses) : expanded.push(item); }
+  for (const item of base) {
+    const value = record(item);
+    if (Array.isArray(value.statuses)) expanded.push(...value.statuses);
+    else expanded.push(item);
+  }
   const result: StatusUpdate[] = [];
   for (const item of expanded) {
     const value = record(item); const key = record(value.key); const update = record(value.update); const updateKey = record(update.key); const message = record(value.message); const messageKey = record(message.key);

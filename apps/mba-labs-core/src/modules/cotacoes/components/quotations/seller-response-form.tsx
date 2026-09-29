@@ -392,7 +392,7 @@ export function SellerResponseForm({
         <p className="text-sm text-muted-foreground">
           {isBidding
             ? "Dados do comprador ficam travados. Você responde apenas sua oferta, preço, quantidade, prazo e observação."
-            : "Dados da farmácia ficam travados. Você informa apenas preço e observação opcional."}
+            : "Dados da farmácia ficam travados. Você informa disponibilidade, preço e observação opcional."}
         </p>
         <div className="flex flex-col gap-2 sm:flex-row">
           {!isBidding ? (
@@ -450,6 +450,7 @@ function PharmacyDesktopGrid({
           <TableHead className="min-w-56">Descrição</TableHead>
           <TableHead>Lab. solicitado</TableHead>
           <TableHead>Qtd</TableHead>
+          <TableHead>Estoque</TableHead>
           <TableHead>Preço</TableHead>
           <TableHead className="min-w-52">Obs.</TableHead>
         </TableRow>
@@ -466,9 +467,19 @@ function PharmacyDesktopGrid({
               <TableCell>{item.requestedLaboratory ?? "Qualquer"}</TableCell>
               <TableCell title={getUnitLabel(item.requestedUnit)}>{formatInteger(item.requestedQuantity)}</TableCell>
               <TableCell>
+                <StockSelect
+                  value={row.hasStock}
+                  disabled={locked}
+                  onChange={(value) => updateRow(item.id, {
+                    hasStock: value,
+                    ...(value === "nao" ? { netPrice: "" } : {}),
+                  })}
+                />
+              </TableCell>
+              <TableCell>
                 <PriceInput
                   value={row.netPrice}
-                  disabled={locked}
+                  disabled={locked || row.hasStock === "nao"}
                   onChange={(value) => updateRow(item.id, { netPrice: value })}
                 />
               </TableCell>
@@ -598,10 +609,20 @@ function SellerResponseMobileCard({
           </details>
 
           <div className="grid gap-3">
+            <LabeledSelect label="Possui estoque?">
+              <StockSelect
+                value={row.hasStock}
+                disabled={locked}
+                onChange={(value) => updateRow(item.id, {
+                  hasStock: value,
+                  ...(value === "nao" ? { netPrice: "" } : {}),
+                })}
+              />
+            </LabeledSelect>
             <PriceField
               label="Preço"
               value={row.netPrice}
-              disabled={locked}
+              disabled={locked || row.hasStock === "nao"}
               onChange={(value) => updateRow(item.id, { netPrice: value })}
             />
             <div className="space-y-2">
@@ -862,6 +883,28 @@ function DeliverySelect({
             {option}
           </SelectItem>
         ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+function StockSelect({
+  value,
+  disabled,
+  onChange,
+}: {
+  value?: "sim" | "nao";
+  disabled?: boolean;
+  onChange: (value: "sim" | "nao") => void;
+}) {
+  return (
+    <Select value={value ?? "sim"} disabled={disabled} onValueChange={(next) => onChange(next as "sim" | "nao")}>
+      <SelectTrigger className="h-8 min-w-28" aria-label="Possui estoque?">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="sim">Sim</SelectItem>
+        <SelectItem value="nao">Não</SelectItem>
       </SelectContent>
     </Select>
   );

@@ -84,6 +84,7 @@ export async function requireSuperAdmin(currentPath = "/cotacoes/admin") {
 }
 
 export function getDefaultRouteForContext(_context: Pick<AuthContext, "isSuperAdmin" | "tenantAccess">) {
+  void _context;
   return "/cotacoes";
 }
 

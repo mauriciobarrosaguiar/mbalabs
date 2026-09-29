@@ -142,6 +142,7 @@ export async function VendorResponsePage({
             <CardTitle className="text-2xl">{quotation.name}</CardTitle>
             <div className="mt-2 grid gap-1 text-sm leading-6 text-muted-foreground md:grid-cols-2">
               <p>Cliente: {buyerName}</p>
+              {quotation.buyerDocument ? <p>CNPJ: {formatCnpj(quotation.buyerDocument)}</p> : null}
               {isBidding ? (
                 <p>Processo/Pregão: {quotation.processNumber ?? "-"} / {quotation.bidNumber ?? "-"}</p>
               ) : null}
@@ -360,4 +361,10 @@ function isDemoPurchaseOrderToken(token: string) {
     token.startsWith("pedido-pharmacy") ||
     token.startsWith("pedido-bidding")
   );
+}
+
+function formatCnpj(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length !== 14) return value;
+  return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
 }

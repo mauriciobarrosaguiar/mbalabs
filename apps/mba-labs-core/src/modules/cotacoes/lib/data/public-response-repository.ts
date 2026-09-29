@@ -1,5 +1,4 @@
 // @ts-nocheck
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import "server-only";
 
 import { createSupabaseAdminClient, hasSupabaseAdminConfig, hasSupabaseConfig } from "@/modules/cotacoes/lib/supabase/server";
@@ -253,14 +252,6 @@ async function upsertResponse(
   input: SavePublicSellerResponseInput,
   submittedAt: string | null,
 ) {
-  const { data: existingResponse, error: existingResponseError } = await supabase
-    .from("supplier_quote_responses")
-    .select("id")
-    .eq("session_id", session.id)
-    .maybeSingle();
-
-  if (existingResponseError) throw existingResponseError;
-
   const responsePayload = {
     tenant_id: session.tenantId,
     quotation_id: session.quotationId,
@@ -278,16 +269,11 @@ async function upsertResponse(
     submitted_at: submittedAt,
   };
 
-  const query = existingResponse
-    ? supabase
-        .from("supplier_quote_responses")
-        .update(responsePayload)
-        .eq("id", existingResponse.id)
-        .select("id")
-        .single()
-    : supabase.from("supplier_quote_responses").insert(responsePayload).select("id").single();
-
-  const { data, error } = await query;
+  const { data, error } = await supabase
+    .from("supplier_quote_responses")
+    .upsert(responsePayload, { onConflict: "session_id" })
+    .select("id")
+    .single();
   if (error) throw error;
   return data.id as string;
 }
@@ -326,7 +312,9 @@ async function replaceResponseItems(
 
   if (payloads.length === 0) return;
 
-  const { error: insertError } = await supabase.from("supplier_quote_response_items").insert(payloads);
+  const { error: insertError } = await supabase
+    .from("supplier_quote_response_items")
+    .upsert(payloads, { onConflict: "response_id,quotation_item_id" });
   if (insertError) throw insertError;
 }
 
@@ -453,6 +441,7 @@ function mapQuotation(row: Record<string, any>): Quotation {
     moduleType: row.module_type,
     name: row.name,
     pharmacyId: row.pharmacy_id ?? undefined,
+    buyerDocument: row.buyer_document ?? undefined,
     buyerCompanyName: row.buyer_company_name ?? undefined,
     destinationClient: row.destination_client ?? undefined,
     orgaoDestino: row.orgao_destino ?? undefined,

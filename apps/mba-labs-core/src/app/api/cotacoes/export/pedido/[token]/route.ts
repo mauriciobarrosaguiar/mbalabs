@@ -94,6 +94,7 @@ export async function GET(
   const supplierContact = getPurchaseOrderSupplierContact(order);
   const summaryRows = [
     ["Farmácia", pharmacy?.nomeFantasia ?? tenant?.nomeFantasia ?? "-"],
+    ["CNPJ", formatCnpj(quotation?.buyerDocument ?? pharmacy?.cnpj ?? tenant?.cnpj ?? "")],
     ["Cotação", quotation?.name ?? "-"],
     ["Empresa vencedora", supplierCompany],
     ["Vendedor", supplierContact ?? "-"],
@@ -117,9 +118,9 @@ export async function GET(
   ];
   summaryRows.forEach(([campo, valor]) => summarySheet.addRow({ campo, valor }));
   styleWorksheet(summarySheet);
-  summarySheet.getCell("B13").numFmt = '"R$" #,##0.00';
   summarySheet.getCell("B14").numFmt = '"R$" #,##0.00';
-  summarySheet.getCell("B16").numFmt = '"R$" #,##0.00';
+  summarySheet.getCell("B15").numFmt = '"R$" #,##0.00';
+  summarySheet.getCell("B17").numFmt = '"R$" #,##0.00';
 
   const buffer = await workbook.xlsx.writeBuffer();
   const fileName = `pedido_${sanitizeFileName(supplierCompany)}_${formatDateBR(generatedAt.toISOString()).replaceAll("/", "-")}.xlsx`;
@@ -163,6 +164,12 @@ function sanitizeFileName(value: string) {
     .replace(/[^a-zA-Z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .toLowerCase();
+}
+
+function formatCnpj(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.length !== 14) return "-";
+  return digits.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
 }
 
 function isDemoPurchaseOrderToken(token: string, requestUrl: string) {

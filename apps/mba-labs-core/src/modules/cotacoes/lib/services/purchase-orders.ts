@@ -15,7 +15,7 @@ export function generatePurchaseOrders(
   const usedPharmacyItems = new Set<string>();
 
   for (const award of awards) {
-    if (award.status !== "winner") continue;
+    if (!isOrderableAward(award)) continue;
     if (award.moduleType === "pharmacy") {
       if (usedPharmacyItems.has(award.quotationItemId)) continue;
       usedPharmacyItems.add(award.quotationItemId);
@@ -77,6 +77,14 @@ export function generatePurchaseOrders(
       items,
     } satisfies PurchaseOrder;
   });
+}
+
+function isOrderableAward(award: QuotationAward) {
+  return (
+    (award.status === "winner" || award.status === "partial") &&
+    award.awardedQuantity > 0 &&
+    award.totalPrice >= 0
+  );
 }
 
 function roundMoney(value: number) {

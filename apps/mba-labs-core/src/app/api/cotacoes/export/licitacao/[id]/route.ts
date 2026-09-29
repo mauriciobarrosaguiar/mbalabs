@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import ExcelJS from "exceljs";
+import { getCurrentAuthContext } from "@/modules/cotacoes/lib/auth/session";
+import {
+  accessErrorResponse,
+  ensureQuotationAccess,
+} from "@/modules/cotacoes/lib/auth/quotation-access";
 import { getBiddingAnalysis, getQuotationBundle } from "@/modules/cotacoes/lib/data/repository";
 
 export async function GET(
@@ -11,9 +16,19 @@ export async function GET(
   },
 ) {
   const { id } = await params;
+  const auth = await getCurrentAuthContext();
+  const access = await ensureQuotationAccess(auth, id);
+  if (!access.ok) return accessErrorResponse(access);
+  if (access.quotation.module_type !== "bidding") {
+    return NextResponse.json(
+      { error: "Esta exportação está disponível somente para licitações." },
+      { status: 409 },
+    );
+  }
+
   const [analysis, { items }] = await Promise.all([
-    getBiddingAnalysis(id),
-    getQuotationBundle(id),
+    getBiddingAnalysis(id, access.tenantId),
+    getQuotationBundle(id, access.tenantId),
   ]);
   const item = items[0];
   const rankingRows = analysis.ranking.map((response) => ({

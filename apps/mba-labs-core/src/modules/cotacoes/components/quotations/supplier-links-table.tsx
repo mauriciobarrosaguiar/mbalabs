@@ -158,7 +158,10 @@ export function SupplierLinksTable({ moduleType, sessions }: { moduleType: Modul
       window.removeEventListener(WHATSAPP_STATUS_EVENT, statusHandler);
       window.removeEventListener(SEMI_AUTO_EVENT, semiAutoHandler);
     };
-  }, [quotationId, rows, sendStatus]);
+    // O handler usa os snapshots de rows/sendStatus desta renderização; ambos
+    // estão explícitos abaixo. Incluir a função recriada reanexaria listeners em todo render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quotationId, rows, sendStatus, baseUrl, prefix]);
 
   function linkFor(session: SupplierQuoteSession) { return `${baseUrl}/${prefix}/responder/${session.publicToken}`; }
   async function copyLink(session: SupplierQuoteSession) { await navigator.clipboard.writeText(linkFor(session)); toast.success("Link copiado."); }

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getCurrentAuthContext } from "@/modules/cotacoes/lib/auth/session";
 import { getRuntimeMode, getRuntimeSummary } from "@/modules/cotacoes/lib/runtime-mode";
 import { createSupabaseAdminClient, hasSupabaseAdminConfig } from "@/modules/cotacoes/lib/supabase/server";
 
@@ -21,7 +22,11 @@ const requiredTables = [
 
 const commercialColumns = ["gross_price", "discount_extra", "net_price", "delivery_term_text"];
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (!(await canReadHealth(request))) {
+    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
+  }
+
   const runtime = getRuntimeSummary();
   const response = {
     supabaseUrlConfigured: runtime.supabaseUrlConfigured,
@@ -64,4 +69,13 @@ export async function GET() {
   }
 
   return NextResponse.json(response);
+}
+
+async function canReadHealth(request: Request) {
+  const expectedSecret = process.env.CRON_SECRET;
+  const authorization = request.headers.get("authorization");
+  if (expectedSecret && authorization === `Bearer ${expectedSecret}`) return true;
+
+  const auth = await getCurrentAuthContext();
+  return auth.isAuthenticated && auth.isActive && auth.isSuperAdmin;
 }

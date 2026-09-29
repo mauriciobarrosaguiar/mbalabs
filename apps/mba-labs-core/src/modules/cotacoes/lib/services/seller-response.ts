@@ -121,7 +121,8 @@ export function calculateSellerRow(
     extraDiscount: row.extraDiscount,
     manualNetPrice: row.netPrice,
   });
-  const attendedQuantity = netPrice > 0 ? item.requestedQuantity : 0;
+  const hasStock = row.hasStock !== "nao";
+  const attendedQuantity = netPrice > 0 && hasStock ? item.requestedQuantity : 0;
   const itemTotal = calculateItemTotal(netPrice, attendedQuantity);
 
   return {
@@ -133,7 +134,7 @@ export function calculateSellerRow(
     convertedUnitPrice: netPrice,
     packagesToBuy: attendedQuantity > 0 ? Math.ceil(attendedQuantity) : 0,
     quantityShortage: Math.max(item.requestedQuantity - attendedQuantity, 0),
-    status: netPrice > 0 ? "respondido" : "sem_resposta",
+    status: resolveStatus(netPrice, attendedQuantity, item.requestedQuantity, hasStock),
   };
 }
 
@@ -191,13 +192,15 @@ export function validateSellerResponse({
   }
 
   if (moduleType === "pharmacy") {
-    const validPriceRows = rows.filter((row) => {
+    const validResponseRows = rows.filter((row) => {
       const item = items.find((candidate) => candidate.id === row.quotationItemId);
-      return item ? calculateSellerRow(moduleType, item, row).netPrice > 0 : false;
+      if (!item) return false;
+      const calculation = calculateSellerRow(moduleType, item, row);
+      return calculation.netPrice > 0 || calculation.status === "sem_estoque";
     });
 
-    if (validPriceRows.length === 0) {
-      errors.push("Informe o preço de pelo menos um item para enviar a resposta.");
+    if (validResponseRows.length === 0) {
+      errors.push("Informe o preço ou marque sem estoque em pelo menos um item para enviar a resposta.");
     }
 
     return errors;

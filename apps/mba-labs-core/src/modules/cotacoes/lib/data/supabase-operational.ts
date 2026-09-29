@@ -1,8 +1,9 @@
 // @ts-nocheck
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import "server-only";
 
 import { createSupabaseAdminClient, hasSupabaseAdminConfig, hasSupabaseConfig } from "@/modules/cotacoes/lib/supabase/server";
+import { createPurchaseOrderPublicToken } from "@/modules/cotacoes/lib/security/public-tokens";
+import { quotationDeadlineToIso } from "@/modules/cotacoes/lib/deadline";
 import {
   calculateBiddingResponseItem,
   buildBiddingAnalysis,
@@ -411,6 +412,7 @@ export async function createSupabaseQuotation(input: {
   const pharmacy = moduleType === "pharmacy"
     ? await resolvePharmacy(supabase, tenant.id)
     : null;
+  const buyerDocument = await resolveBuyerDocument(supabase, tenant.id, pharmacy?.cnpj);
   const pharmacyProducts = moduleType === "pharmacy"
     ? await resolveQuotationProducts(supabase, tenant.id, input.items)
     : new Map<string, Record<string, any>>();
@@ -422,13 +424,14 @@ export async function createSupabaseQuotation(input: {
       module_type: moduleType,
       name: input.draft.name,
       pharmacy_id: pharmacy?.id ?? null,
+      buyer_document: buyerDocument,
       buyer_company_name: input.draft.buyerCompanyName,
       destination_client: input.draft.destinationClient,
       process_number: input.draft.processNumber,
       bid_number: input.draft.bidNumber,
       quotation_type: input.draft.quotationType,
       judgment_type: moduleType === "bidding" ? input.draft.judgmentType : null,
-      deadline_at: input.draft.deadlineAt ? new Date(input.draft.deadlineAt).toISOString() : null,
+      deadline_at: quotationDeadlineToIso(input.draft.deadlineAt),
       allow_partial_supply: input.draft.allowPartialSupply,
       allow_equivalent: input.draft.allowEquivalent,
       consider_minimum_order: input.draft.considerMinimumOrder,
@@ -473,14 +476,23 @@ export async function createSupabaseQuotation(input: {
     .insert(itemPayload)
     .select("*");
 
-  if (itemError) throw itemError;
+  if (itemError) {
+    await rollbackIncompleteQuotation(supabase, quotationRow.id, tenant.id);
+    throw itemError;
+  }
 
-  const resolvedSuppliers = await Promise.all(
-    input.suppliers.map((supplier) => resolveSupplier(supabase, tenant.id, supplier)),
-  );
+  let resolvedSuppliers: Record<string, any>[];
+  try {
+    resolvedSuppliers = await Promise.all(
+      input.suppliers.map((supplier) => resolveSupplier(supabase, tenant.id, supplier)),
+    );
+  } catch (error) {
+    await rollbackIncompleteQuotation(supabase, quotationRow.id, tenant.id);
+    throw error;
+  }
 
   const expiresAt = input.draft.deadlineAt
-    ? new Date(input.draft.deadlineAt).toISOString()
+    ? quotationDeadlineToIso(input.draft.deadlineAt)!
     : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const { data: sessionRows, error: sessionError } = await supabase
@@ -498,7 +510,10 @@ export async function createSupabaseQuotation(input: {
     })))
     .select("*");
 
-  if (sessionError) throw sessionError;
+  if (sessionError) {
+    await rollbackIncompleteQuotation(supabase, quotationRow.id, tenant.id);
+    throw sessionError;
+  }
 
   if (input.status === "waiting_responses" && (sessionRows ?? []).length > 0) {
     await recordOperationalAudit(supabase, {
@@ -511,7 +526,7 @@ export async function createSupabaseQuotation(input: {
         suppliers: (sessionRows ?? []).map((session) => ({
           supplierId: session.supplier_id,
           name: session.seller_name,
-          whatsapp: session.seller_whatsapp,
+          hasWhatsapp: Boolean(session.seller_whatsapp),
         })),
       },
     });
@@ -522,6 +537,25 @@ export async function createSupabaseQuotation(input: {
     items: (itemRows ?? []).map(mapQuotationItem),
     sessions: (sessionRows ?? []).map(mapSupplierSession),
   };
+}
+
+async function rollbackIncompleteQuotation(
+  supabase: SupabaseClient,
+  quotationId: string,
+  tenantId: string,
+) {
+  const { error } = await supabase
+    .from("quotations")
+    .delete()
+    .eq("id", quotationId)
+    .eq("tenant_id", tenantId);
+  if (error) {
+    console.error("[Supabase] Falha ao reverter cotação incompleta.", {
+      quotationId,
+      tenantId,
+      error,
+    });
+  }
 }
 
 export async function saveSupabasePublicResponse(token: string, input: {
@@ -988,8 +1022,7 @@ export async function generateAndPersistSupabasePurchaseOrders(quotationId: stri
           orderId: order.id,
           supplierId: order.supplierId,
           supplierName: order.supplierContactName ?? order.supplierName,
-          supplierWhatsapp: order.supplierWhatsapp,
-          publicToken: order.publicToken,
+          hasSupplierWhatsapp: Boolean(order.supplierWhatsapp),
         })),
       },
     });
@@ -1026,23 +1059,6 @@ function isQuotationGeneratedStatusConstraintError(error: unknown) {
     text.includes("quotations") &&
     text.includes("generated")
   );
-}
-
-function createPurchaseOrderPublicToken(order: PurchaseOrder) {
-  const quotationPart = normalizeTokenPart(order.quotationId).slice(0, 12);
-  const supplierPart = normalizeTokenPart(
-    order.supplierId ?? order.supplierCompany ?? order.supplierName ?? order.supplierContactName,
-  ).slice(0, 48);
-  return `pedido-${order.moduleType}-${quotationPart}-${supplierPart || "vendedor"}`;
-}
-
-function normalizeTokenPart(value: unknown) {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 async function insertPurchaseOrderRow(
@@ -1363,18 +1379,17 @@ export async function saveSupabasePurchaseOrderReview(
 ) {
   const supabase = db();
   console.info("[PublicOrder] Iniciando salvamento no Supabase", {
-    token,
+    tokenSuffix: token.slice(-6),
     finalize,
     itemCount: itemUpdates.length,
-    payload: itemUpdates,
   });
   const order = await getSupabasePurchaseOrderByToken(token);
   if (!order) {
-    console.warn("[PublicOrder] Pedido não encontrado para token", { token });
+    console.warn("[PublicOrder] Pedido não encontrado", { tokenSuffix: token.slice(-6) });
     throw new Error("Pedido não encontrado ou link expirado.");
   }
   console.info("[PublicOrder] Pedido encontrado", {
-    token,
+    tokenSuffix: token.slice(-6),
     orderId: order.id,
     status: order.status,
     currentItemCount: order.items.length,
@@ -1886,6 +1901,7 @@ export async function createSupabaseQuotationFromWinnerPendingItems(quotationId:
       module_type: originalRow.module_type,
       name: `${originalRow.name} - itens pendentes`,
       pharmacy_id: originalRow.pharmacy_id,
+      buyer_document: originalRow.buyer_document,
       buyer_company_name: originalRow.buyer_company_name,
       destination_client: originalRow.destination_client,
       process_number: originalRow.process_number,
@@ -2048,6 +2064,36 @@ async function resolvePharmacy(supabase: SupabaseClient, tenantId: string) {
   return data;
 }
 
+async function resolveBuyerDocument(
+  supabase: SupabaseClient,
+  tenantId: string,
+  pharmacyDocument?: string | null,
+) {
+  const { data: tenantRow, error: tenantError } = await supabase
+    .from("tenants")
+    .select("cnpj,core_empresa_id")
+    .eq("id", tenantId)
+    .single();
+  if (tenantError) throw tenantError;
+
+  let document = tenantRow.cnpj ?? pharmacyDocument ?? "";
+  if (tenantRow.core_empresa_id) {
+    const { data: coreCompany, error: coreError } = await supabase
+      .from("core_empresas")
+      .select("cnpj")
+      .eq("id", tenantRow.core_empresa_id)
+      .maybeSingle();
+    if (coreError) throw coreError;
+    document = coreCompany?.cnpj ?? document;
+  }
+
+  const digits = String(document).replace(/\D/g, "");
+  if (digits.length !== 14) {
+    throw new Error("O CNPJ da empresa não está cadastrado corretamente.");
+  }
+  return digits;
+}
+
 async function resolveQuotationProducts(
   supabase: SupabaseClient,
   tenantId: string,
@@ -2129,6 +2175,7 @@ function mapQuotation(row: Record<string, any>): Quotation {
     moduleType: row.module_type,
     name: row.name,
     pharmacyId: row.pharmacy_id ?? undefined,
+    buyerDocument: row.buyer_document ?? undefined,
     buyerCompanyName: row.buyer_company_name ?? undefined,
     destinationClient: row.destination_client ?? undefined,
     orgaoDestino: row.orgao_destino ?? undefined,

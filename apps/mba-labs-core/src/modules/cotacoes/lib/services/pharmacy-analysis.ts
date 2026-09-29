@@ -34,7 +34,9 @@ export function generatePharmacyAwards(
       (item) =>
         item.quotationItemId === quotationItem.id &&
         item.unitPrice != null &&
-        item.unitPrice > 0,
+        item.unitPrice > 0 &&
+        item.hasStock !== false &&
+        (item.availableQuantity == null || item.availableQuantity > 0),
     )
     .sort((a, b) => comparePharmacyResponseItems(a, b, responses));
 
@@ -83,7 +85,9 @@ export function buildPharmacyAnalysis(
   const validResponseItems = responseItems.filter(
     (responseItem) =>
       submittedResponseIds.has(responseItem.responseId) &&
-      (responseItem.unitPrice ?? 0) > 0,
+      (responseItem.unitPrice ?? 0) > 0 &&
+      responseItem.hasStock !== false &&
+      (responseItem.availableQuantity == null || responseItem.availableQuantity > 0),
   );
   const ranking = quotationItems.flatMap((item) =>
     validResponseItems

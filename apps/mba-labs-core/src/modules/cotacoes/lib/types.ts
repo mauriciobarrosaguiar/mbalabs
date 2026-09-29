@@ -220,6 +220,7 @@ export interface Quotation {
   moduleType: ModuleType;
   name: string;
   pharmacyId?: string;
+  buyerDocument?: string;
   buyerCompanyName?: string;
   destinationClient?: string;
   orgaoDestino?: string;
