@@ -1051,7 +1051,7 @@ export async function generateAndPersistSupabasePurchaseOrders(quotationId: stri
   if (persisted.length > 0) {
     await recordOperationalAudit(supabase, {
       tenantId: bundle.quotation.tenantId,
-      action: "WhatsApp: pedido vencedor enviado ao vendedor",
+      action: "Pedido vencedor gerado para revisão do comprador",
       entity: "purchase_orders",
       metadata: {
         quotationId,
@@ -1133,7 +1133,8 @@ async function insertPurchaseOrderRow(
     supplier_whatsapp: supplierRow?.whatsapp ?? supplierResponse?.sellerWhatsapp ?? order.supplierWhatsapp ?? null,
     total_amount: order.totalAmount,
     confirmed_amount: 0,
-    status: "enviado_ao_vendedor",
+    status: "gerado",
+    buyer_review_status: "pending",
   };
 
   const { data, error } = await supabase
@@ -1157,6 +1158,7 @@ async function insertPurchaseOrderRow(
       public_token: payload.public_token,
       total_amount: payload.total_amount,
       status: "draft",
+      buyer_review_status: "pending",
     })
     .select("*")
     .single();
@@ -1179,6 +1181,7 @@ async function insertPurchaseOrderItems(
     laboratory: item.laboratory,
     unit: item.unit,
     quantity_to_buy: item.quantityToBuy,
+    initial_quantity_to_buy: item.quantityToBuy,
     billed_quantity: item.billedQuantity ?? 0,
     missing_quantity: item.missingQuantity ?? item.quantityToBuy,
     packages_to_buy: item.packagesToBuy,
@@ -1370,6 +1373,9 @@ export async function getSupabasePurchaseOrderByToken(token: string) {
       return null;
     }
     if (!orderRow) return null;
+    // Link externo só poderá ser aberto depois da aprovação do comprador.
+    // Pedidos anteriores à funcionalidade foram marcados como approved na migração.
+    if (orderRow.module_type === "pharmacy" && orderRow.buyer_review_status !== "approved") return null;
 
     const { data: quotationRow, error: quotationError } = await supabase
       .from("quotations")
@@ -2338,6 +2344,9 @@ function mapPurchaseOrder(row: Record<string, any>, itemRows: Record<string, any
     publicToken: row.public_token,
     totalAmount: Number(row.total_amount ?? 0),
     status: normalizePurchaseOrderStatus(row),
+    buyerReviewStatus: row.buyer_review_status ?? "approved",
+    buyerApprovedAt: row.buyer_approved_at ?? undefined,
+    buyerSentAt: row.buyer_sent_at ?? undefined,
     generatedAt: row.created_at ?? undefined,
     openedAt: row.opened_at ?? undefined,
     completedAt: row.completed_at ?? row.finalizado_em ?? row.conferido_em ?? (row.status === "confirmed" ? row.updated_at : undefined) ?? undefined,
@@ -2358,6 +2367,9 @@ function mapPurchaseOrderItem(item: Record<string, any>): PurchaseOrderItem {
     laboratory: item.laboratory ?? undefined,
     unit: item.unit,
     quantityToBuy: Number(item.quantity_to_buy ?? 0),
+    initialQuantityToBuy: item.initial_quantity_to_buy != null ? Number(item.initial_quantity_to_buy) : Number(item.quantity_to_buy ?? 0),
+    buyerChangeNote: item.buyer_change_note ?? undefined,
+    supplierConfirmationNote: item.supplier_confirmation_note ?? undefined,
     billedQuantity: item.billed_quantity != null ? Number(item.billed_quantity) : undefined,
     missingQuantity: item.missing_quantity != null ? Number(item.missing_quantity) : undefined,
     packagesToBuy: item.packages_to_buy ? Number(item.packages_to_buy) : undefined,

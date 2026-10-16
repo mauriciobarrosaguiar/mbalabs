@@ -18,6 +18,7 @@ import { DemoCrudTable, type DemoCrudRow } from "@/modules/cotacoes/components/f
 import { ImportWizard } from "@/modules/cotacoes/components/imports/import-wizard";
 import { DemoQuotationTable } from "@/modules/cotacoes/components/quotations/demo-quotation-table";
 import { GeneratePurchaseOrdersButton } from "@/modules/cotacoes/components/quotations/generate-purchase-orders-button";
+import { BuyerOrderReview } from "@/modules/cotacoes/components/quotations/buyer-order-review";
 import { NewQuotationForm } from "@/modules/cotacoes/components/quotations/new-quotation-form";
 import { DistributorOffersImport } from "@/modules/cotacoes/components/quotations/distributor-offers-import";
 import { PublicOrderActions } from "@/modules/cotacoes/components/quotations/public-order-actions";
@@ -2349,15 +2350,15 @@ async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotatio
           <SupplierLinksTable moduleType={moduleType} sessions={sessions} deadlineAt={quotation.deadlineAt} />
         </CardContent>
       </Card>
-      {canGenerateQuotationOrders(quotation.status) ? (
+      {canGenerateQuotationOrders(quotation.status) && orders.some((order) => quotation.moduleType !== "pharmacy" || order.buyerReviewStatus === "approved") ? (
         <Card>
-          <CardHeader><CardTitle>Links dos vendedores vencedores</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Links dos vendedores vencedores (pedidos aprovados)</CardTitle></CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
             {orders.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Nenhum pedido gerado ainda. Use Gerar pedido para criar os links dos vencedores.
               </p>
-            ) : orders.map((order) => (
+            ) : orders.filter((order) => moduleType !== "pharmacy" || order.buyerReviewStatus === "approved").map((order) => (
               <div key={order.id} className="rounded-md border border-slate-200 bg-white p-3">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -2594,7 +2595,7 @@ async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string
                     <TableCell className="text-right">{formatCurrency(award.unitPrice)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(award.totalPrice)}</TableCell>
                     <TableCell className="text-right">
-                      {!isProvisional ? <WinnerOrderLinks order={orderForAward(award)} /> : <span className="text-muted-foreground">Aguardando encerramento</span>}
+                      {!isProvisional && (!orderForAward(award) || orderForAward(award)?.buyerReviewStatus === "approved") ? <WinnerOrderLinks order={orderForAward(award)} /> : <span className="text-muted-foreground">Aguardando encerramento</span>}
                     </TableCell>
                   </TableRow>
                 );
@@ -2950,7 +2951,7 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
                         {order.items.length} itens ganhos · {formatCurrency(order.totalAmount)}
                       </p>
                     </div>
-                    <WinnerOrderLinks order={order} />
+                    {quotation.moduleType !== "pharmacy" || order.buyerReviewStatus === "approved" ? <WinnerOrderLinks order={order} /> : <span className="text-xs text-amber-800">Aguardando aprovação do comprador</span>}
                   </div>
                 </div>
               );
@@ -2979,6 +2980,7 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+              {quotation.moduleType === "pharmacy" ? <BuyerOrderReview order={order} /> : null}
               <div className="grid gap-3 rounded-md bg-slate-50 p-3 text-sm sm:grid-cols-3">
                 <SummaryCell label="Itens ganhos" value={String(order.items.length)} />
                 <SummaryCell label="Faturados" value={String(order.items.filter((item) => getOrderItemMissingQuantity(item) <= 0 && getOrderItemBilledQuantity(item) > 0).length)} />
@@ -3006,13 +3008,13 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
                   </div>
                 );
               })}
-              <Button asChild variant="outline" className="w-full">
+              {quotation.moduleType !== "pharmacy" || order.buyerReviewStatus === "approved" ? <Button asChild variant="outline" className="w-full">
                 <Link href={`/${order.moduleType === "bidding" ? "licitacao" : "cotacao"}/pedido/${order.publicToken}`}>
                   Ver link público
                   <ArrowRight className="h-4 w-4" />
                 </Link>
-              </Button>
-              <PublicOrderActions order={order} />
+              </Button> : null}
+              {quotation.moduleType !== "pharmacy" || order.buyerReviewStatus === "approved" ? <PublicOrderActions order={order} /> : null}
             </CardContent>
           </Card>
           );

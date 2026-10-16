@@ -61,6 +61,7 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
   const router = useRouter();
   const [localStatus, setLocalStatus] = useState<QuotationStatus>(status);
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [allowPendingRepresentatives, setAllowPendingRepresentatives] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [whatsappSummary, setWhatsappSummary] = useState<WhatsappSummary | null>(null);
   const [whatsappError, setWhatsappError] = useState<string | null>(null);
@@ -95,11 +96,11 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
     };
   }, [isDetail, quotationId]);
 
-  async function mutate(action: "finish" | "reopen_links") {
+  async function mutate(action: "finish" | "reopen_links", allowPendingRepresentatives = false) {
     if (loadingAction) return null;
     setLoadingAction(action);
     try {
-      const response = await fetch("/api/cotacoes/quotations", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: quotationId, action }) });
+      const response = await fetch("/api/cotacoes/quotations", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: quotationId, action, allowPendingRepresentatives }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Não foi possível atualizar a cotação.");
       if (payload.status) setLocalStatus(payload.status as QuotationStatus);
@@ -126,12 +127,12 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
     }
   }
 
-  async function finish() {
-    const payload = await mutate("finish");
+  async function finish(allowPendingRepresentatives = false) {
+    const payload = await mutate("finish", allowPendingRepresentatives);
     if (!payload) return;
     toast.success("Cotação finalizada.");
-    showWhatsappResult(await runWhatsapp("send_winner_orders"), "Pedido enviado aos vendedores ganhadores.");
-    router.push(`${base}/${quotationId}/analise`);
+    toast.info("Agora revise as quantidades, aprove e envie os pedidos quando estiverem corretos.");
+    router.push(`${base}/${quotationId}/pedidos`);
   }
 
   async function sendInBulk() {
@@ -249,11 +250,18 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Finalizar cotação</AlertDialogTitle>
-            <AlertDialogDescription>A finalização apura os vencedores e bloqueia novas respostas. Se houver representantes pendentes e o prazo ainda não terminou, o sistema não permitirá o encerramento. Confira também as ofertas das distribuidoras antes de concluir.</AlertDialogDescription>
+            <AlertDialogDescription>A finalização encerra o recebimento de preços. Os pedidos não serão enviados automaticamente: você poderá revisar e aprovar as quantidades antes de transmitir.</AlertDialogDescription>
           </AlertDialogHeader>
+          {moduleType === "pharmacy" ? (
+            <label className="flex items-start gap-2 rounded-md bg-amber-50 p-3 text-sm text-amber-900">
+              <input type="checkbox" className="mt-1" checked={allowPendingRepresentatives}
+                onChange={(e) => setAllowPendingRepresentatives(e.target.checked)} />
+              <span>Se ainda houver representantes sem resposta, autorizo encerrar antecipadamente. Eles perderão o prazo para enviar valores.</span>
+            </label>
+          ) : null}
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setConfirmFinish(false); void finish(); }}>Finalizar</AlertDialogAction>
+            <AlertDialogCancel>Continuar aguardando</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmFinish(false); void finish(allowPendingRepresentatives); }}>Finalizar cotação</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

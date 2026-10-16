@@ -1,7 +1,7 @@
 import { after, NextRequest, NextResponse } from "next/server";
 import { getCurrentAuthContext } from "@/modules/cotacoes/lib/auth/session";
 import { ensureQuotationAccess } from "@/modules/cotacoes/lib/auth/quotation-access";
-import { generatePurchaseOrders } from "@/modules/cotacoes/lib/data/repository";
+import { generatePurchaseOrders, getPurchaseOrdersByQuotation } from "@/modules/cotacoes/lib/data/repository";
 import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/server";
 import {
   listWhatsappEnvios,
@@ -16,6 +16,7 @@ import {
 type Body = {
   action?: "send_quotation_links" | "send_winner_orders" | "resend" | "confirm_manual";
   quotationId?: string;
+  orderId?: string;
   tipoEnvio?: WhatsappTipoEnvio;
   vendedorId?: string;
 };
@@ -76,6 +77,13 @@ export async function POST(request: NextRequest) {
     const access = await ensureQuotationAccess(auth, body.quotationId);
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
     const origin = request.nextUrl.origin;
+    const pharmacyWinnerAction = access.quotation.module_type === "pharmacy" &&
+      (body.action === "send_winner_orders" ||
+       (body.action === "resend" && body.tipoEnvio === "resultado_cotacao"));
+    if (pharmacyWinnerAction && !auth.isSuperAdmin &&
+        !["ADMIN_EMPRESA", "COMPRADOR"].includes(auth.profile?.role ?? "")) {
+      return NextResponse.json({ error: "Apenas compradores e administradores podem enviar pedidos aprovados." }, { status: 403 });
+    }
 
     if (body.action === "send_quotation_links") {
       const quotationId = body.quotationId;
@@ -96,9 +104,24 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.action === "send_winner_orders") {
-      const orders = await generatePurchaseOrders(body.quotationId, access.tenantId);
+      const pharmacy = access.quotation.module_type === "pharmacy";
+      let orders = pharmacy
+        ? await getPurchaseOrdersByQuotation(body.quotationId, access.tenantId)
+        : await generatePurchaseOrders(body.quotationId, access.tenantId);
+      if (pharmacy) {
+        if (!body.orderId) return NextResponse.json({ error: "Selecione o pedido revisado e aprovado antes de enviar." }, { status: 400 });
+        orders = orders.filter((order) => order.id === body.orderId);
+        if (orders.length !== 1 || orders[0].buyerReviewStatus !== "approved" ||
+            orders[0].status === "canceled" || orders[0].status === "cancelado" ||
+            !orders[0].items.some((item) => item.quantityToBuy > 0)) {
+          return NextResponse.json({ error: "Pedido não encontrado ou aguardando revisão e aprovação." }, { status: 409 });
+        }
+      }
       const whatsapp = await sendWinnerOrderLinksByQuotation({ quotationId: body.quotationId, origin, orders });
       await persistProviderMessageIds(body.quotationId, "resultado_cotacao", whatsapp.results);
+      if (pharmacy && whatsapp.enviado > 0) {
+        await markApprovedOrdersSent(body.quotationId, orders.map((order) => order.id));
+      }
       return NextResponse.json({ ok: true, orders, whatsapp });
     }
 
@@ -115,9 +138,17 @@ export async function POST(request: NextRequest) {
         await persistProviderMessageIds(body.quotationId, "link_cotacao", [result]);
         return NextResponse.json({ ok: true, whatsapp: summarizeSingle(result) });
       }
-      const orders = await generatePurchaseOrders(body.quotationId, access.tenantId);
+      const pharmacy = access.quotation.module_type === "pharmacy";
+      const orders = pharmacy
+        ? await getPurchaseOrdersByQuotation(body.quotationId, access.tenantId)
+        : await generatePurchaseOrders(body.quotationId, access.tenantId);
+      const matchingOrders = orders.filter((order) => (order.supplierId || order.id) === body.vendedorId);
+      if (pharmacy && (matchingOrders.length === 0 || matchingOrders.some((order) => order.buyerReviewStatus !== "approved"))) {
+        return NextResponse.json({ error: "A revisão e aprovação do pedido são necessárias antes do envio." }, { status: 409 });
+      }
       const whatsapp = await sendWinnerOrderLinksByQuotation({ quotationId: body.quotationId, origin, orders, vendedorId: body.vendedorId, forceResend: true });
       await persistProviderMessageIds(body.quotationId, "resultado_cotacao", whatsapp.results);
+      if (pharmacy && whatsapp.enviado > 0) await markApprovedOrdersSent(body.quotationId, matchingOrders.map((order) => order.id));
       return NextResponse.json({ ok: true, orders, whatsapp });
     }
 
@@ -202,4 +233,15 @@ async function buyerName(supabase: ReturnType<typeof createSupabaseAdminClient>,
 
 function summarizeSingle(result: Awaited<ReturnType<typeof sendWhatsAppMbaCotacoes>>) {
   return { total: 1, enviado: result.status === "enviado" ? 1 : 0, falhou: result.status === "falhou" ? 1 : 0, pendente: result.status === "pendente" ? 1 : 0, ignorado: result.skipped ? 1 : 0, results: [result] };
+}
+
+async function markApprovedOrdersSent(quotationId: string, orderIds: string[]) {
+  if (!orderIds.length) return;
+  const supabase = createSupabaseAdminClient();
+  const now = new Date().toISOString();
+  const { error } = await supabase.from("purchase_orders").update({
+    buyer_sent_at: now, status: "enviado_ao_vendedor", updated_at: now,
+  }).eq("quotation_id", quotationId).eq("buyer_review_status", "approved")
+    .in("id", orderIds).in("status", ["gerado", "draft", "enviado_ao_vendedor"]);
+  if (error) console.error("[Cotacoes] Falha ao registrar envio de pedido aprovado", error);
 }
