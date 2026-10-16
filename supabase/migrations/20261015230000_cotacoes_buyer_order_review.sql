@@ -130,7 +130,7 @@ CREATE OR REPLACE FUNCTION public.cot_order_header_review_guard()
 RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = public, pg_temp
-AS $
+AS $order_header_guard$
 BEGIN
   IF current_user NOT IN ('postgres','service_role')
     AND (NEW.buyer_review_status IS DISTINCT FROM OLD.buyer_review_status
@@ -142,7 +142,7 @@ BEGIN
   THEN RAISE EXCEPTION 'Aprovacao e alteracao de pedido devem passar pelo comprador autorizado.'; END IF;
   RETURN NEW;
 END;
-$;
+$order_header_guard$;
 
 DROP TRIGGER IF EXISTS trg_cot_order_header_review_guard ON public.purchase_orders;
 CREATE TRIGGER trg_cot_order_header_review_guard
