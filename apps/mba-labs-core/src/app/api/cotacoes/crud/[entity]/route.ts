@@ -345,7 +345,7 @@ async function productPayload(row: Row): Promise<Partial<Product>> {
     principioAtivo: text(row.principioAtivo),
     dosagem: text(row.dosagem),
     forma: text(row.forma),
-    tipoProduto: (text(row.tipoProduto) || "generico") as Product["tipoProduto"],
+    tipoProduto: text(row.tipoProduto) as Product["tipoProduto"],
     laboratorioId,
     ean,
     tenantId: text(row.tenantId) || undefined,
