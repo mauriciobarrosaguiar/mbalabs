@@ -265,11 +265,11 @@ export async function AdminSectionPage({
     return <CompanyDetailsPage tenantId={subpage} />;
   }
 
-  if (section === "empresas") {
+  if (section === "farmacias" || section === "empresas") {
     return (
       <CrudPage
-        title="Empresas clientes"
-        description="Cadastre tenants, defina módulo contratado, status e dados financeiros."
+        title="Farmácias e CNPJs"
+        description="Gerencie clientes, CNPJs, planos e acessos em um único cadastro, sem duplicar a farmácia."
       >
         <TenantManagementTable
           initialTenants={collections.tenants.filter(t=>!String(t.cnpj??"").startsWith("CORE-"))}
@@ -316,12 +316,12 @@ export async function AdminSectionPage({
     );
   }
 
-  if (section === "mensalidades" || section === "pagamentos") {
+  if (section === "mensalidades") {
     const planOptions = Object.fromEntries(collections.subscriptionPlans.map((plan) => [plan.id, plan.name]));
     return (
       <CrudPage
-        title={section === "mensalidades" ? "Mensalidades" : "Pagamentos"}
-        description="Mensalidades por empresa, com cobrança Pix preparada, baixa manual e histórico de pagamento."
+        title="Mensalidades e pagamentos"
+        description="Um único painel para vencimentos, pagamentos recebidos, pendências e baixa manual."
       >
         <div className="space-y-4 p-4">
           <div className="flex flex-wrap gap-2">
@@ -519,20 +519,20 @@ export async function AdminSectionPage({
     );
   }
 
-  if (section === "vendedores") {
+  if (section === "representantes" || section === "vendedores") {
     const sellers = collections.suppliers.filter((supplier) => supplier.tipoFornecedor === "vendedor");
 
     return (
       <CrudPage
-        title="Vendedores"
-        description="Vendedores e fornecedores externos cadastrados por empresa para receber links públicos de cotação."
+        title="Representantes"
+        description="Representantes comerciais cadastrados por farmácia para receber links de cotação."
       >
         <DemoCrudTable
           entity="suppliers"
           storageKey="mba-admin-suppliers"
-          title="Vendedor/Fornecedor"
+          title="Representante"
           primaryKey="nome"
-          emptyMessage="Nenhum vendedor cadastrado ainda."
+          emptyMessage="Nenhum representante cadastrado ainda."
           initialRows={sellers.map((seller) => ({
             id: seller.id,
             tenantId: seller.tenantId,
@@ -3767,13 +3767,14 @@ export function getAdminRouteTitle(section?: string) {
   const titles: Record<string, string> = {
     empresas: "Empresas",
     planos: "Planos",
-    mensalidades: "Mensalidades",
-    pagamentos: "Pagamentos",
+    mensalidades: "Mensalidades e pagamentos",
+    pagamentos: "Mensalidades e pagamentos",
     usuarios: "Usuários",
     farmacias: "Farmácias",
     licitacoes: "Licitações",
     distribuidoras: "Distribuidoras",
-    vendedores: "Vendedores",
+    vendedores: "Representantes",
+    representantes: "Representantes",
     logs: "Logs",
     suporte: "Suporte",
     configuracoes: "Configurações",
