@@ -10,7 +10,7 @@ import {
   type WhatsappProvider,
 } from "@/modules/cotacoes/lib/whatsapp/mba-cotacoes";
 
-const defaultSettingsPath = "/cotacoes/configuracoes/whatsapp";
+const defaultSettingsPath = "/cotacoes/gestao/infra-whatsapp";
 const allowedReturnPaths = new Set([
   defaultSettingsPath,
   "/admin/configuracoes/whatsapp",
