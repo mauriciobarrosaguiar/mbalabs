@@ -229,11 +229,82 @@ export async function getSupabaseQuotationBundle(id: string, tenantId?: string) 
       return null;
     }
 
+    // Consulta às distribuidoras acontece em paralelo: importar ofertas nunca
+    // remove links, respostas nem convites dos representantes.
+    const digitalResponses: SupplierQuoteResponse[] = [];
+    const digitalItems: SupplierQuoteResponseItem[] = [];
+    if (quotationRow.module_type === "pharmacy") {
+      const { data: offerRows, error: offersError } = await supabase
+        .from("cot_distributor_offers")
+        .select("id,tenant_id,quotation_id,quotation_item_id,supplier_id,ean,source,unit_price,available_quantity,collected_at")
+        .eq("tenant_id", quotationRow.tenant_id)
+        .eq("quotation_id", id);
+      if (offersError) {
+        // A leitura de ofertas digitais é complementar ao fluxo de representantes.
+        logSupabaseReadError("cot_distributor_offers (opcional)", offersError);
+      } else if (offerRows?.length) {
+        const supplierIds = [...new Set(offerRows.map((row) => String(row.supplier_id)))];
+        const { data: supplierRows, error: suppliersError } = await supabase
+          .from("suppliers")
+          .select("id,nome,empresa")
+          .eq("tenant_id", quotationRow.tenant_id)
+          .in("id", supplierIds);
+        if (suppliersError) throw suppliersError;
+        const supplierById = new Map((supplierRows ?? []).map((supplier) => [supplier.id, supplier]));
+        const itemById = new Map((itemRows ?? []).map((item) => [item.id, item]));
+        const digitalBySupplier = new Map<string, typeof offerRows>();
+        for (const offer of offerRows) {
+          const product = itemById.get(offer.quotation_item_id);
+          if (!product || !supplierById.has(offer.supplier_id)) continue;
+          const expectedEan = String(product.ean ?? "").replace(/\D/g, "");
+          if (!expectedEan || expectedEan !== String(offer.ean ?? "").replace(/\D/g, "")) continue;
+          const stock = Number(offer.available_quantity);
+          const price = Number(offer.unit_price);
+          if (!Number.isFinite(price) || price <= 0 ||
+              !Number.isFinite(stock) || stock < Number(product.requested_quantity)) continue;
+          const list = digitalBySupplier.get(offer.supplier_id) ?? [];
+          list.push(offer);
+          digitalBySupplier.set(offer.supplier_id, list);
+          digitalItems.push({
+            id: `digital-offer-${offer.id}`,
+            tenantId: offer.tenant_id,
+            quotationId: id,
+            quotationItemId: offer.quotation_item_id,
+            responseId: `digital-response-${offer.supplier_id}`,
+            supplierId: offer.supplier_id,
+            offeredProductName: product.product_name,
+            hasStock: true,
+            hasFullQuantity: true,
+            availableQuantity: stock,
+            packageQuantity: 1,
+            packagePrice: price,
+            unitPrice: price,
+            sellerObservation: "Preço importado de distribuidora; validar condições antes do pedido.",
+          });
+        }
+        for (const [supplierId, offers] of digitalBySupplier) {
+          const supplier = supplierById.get(supplierId);
+          digitalResponses.push({
+            id: `digital-response-${supplierId}`,
+            tenantId: quotationRow.tenant_id,
+            quotationId: id,
+            sessionId: `digital-session-${supplierId}`,
+            supplierId,
+            sellerName: `Oferta importada: ${supplier?.nome ?? "Distribuidora"}`,
+            sellerCompany: String(supplier?.empresa ?? supplier?.nome ?? "Distribuidora"),
+            sellerWhatsapp: "",
+            status: "submitted",
+            submittedAt: offers.reduce((latest, offer) => String(offer.collected_at) > latest ? String(offer.collected_at) : latest, ""),
+          });
+        }
+      }
+    }
+
     return {
       quotation: mapQuotation(quotationRow),
       items: (itemRows ?? []).map(mapQuotationItem),
-      responses: (responseRows ?? []).map(mapSupplierResponse),
-      responseItems: (responseItemRows ?? []).map(mapSupplierResponseItem),
+      responses: [...(responseRows ?? []).map(mapSupplierResponse), ...digitalResponses],
+      responseItems: [...(responseItemRows ?? []).map(mapSupplierResponseItem), ...digitalItems],
     };
   } catch (error) {
     logSupabaseReadError("quotation bundle", error);

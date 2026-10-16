@@ -218,7 +218,7 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
 
             {isDetail ? (
               <Button asChild variant="outline">
-                <Link href={`${base}/${quotationId}/analise`}><Trophy className="h-4 w-4" />{moduleType === "pharmacy" ? "Vencedores" : "Análise"}</Link>
+                <Link href={`${base}/${quotationId}/analise`}><Trophy className="h-4 w-4" />{moduleType === "pharmacy" ? (canViewOrders ? "Vencedores" : "Análise provisória") : "Análise"}</Link>
               </Button>
             ) : null}
 
@@ -249,7 +249,7 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Finalizar cotação</AlertDialogTitle>
-            <AlertDialogDescription>Deseja finalizar esta cotação? Após finalizar, fornecedores que ainda não responderam não poderão mais enviar respostas.</AlertDialogDescription>
+            <AlertDialogDescription>A finalização apura os vencedores e bloqueia novas respostas. Se houver representantes pendentes e o prazo ainda não terminou, o sistema não permitirá o encerramento. Confira também as ofertas das distribuidoras antes de concluir.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
