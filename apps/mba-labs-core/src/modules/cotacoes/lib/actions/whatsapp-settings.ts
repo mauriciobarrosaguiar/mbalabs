@@ -14,6 +14,7 @@ const defaultSettingsPath = "/cotacoes/configuracoes/whatsapp";
 const allowedReturnPaths = new Set([
   defaultSettingsPath,
   "/admin/configuracoes/whatsapp",
+  "/cotacoes/gestao/infra-whatsapp",
 ]);
 const providers = new Set(["evolution_api", "zapi", "meta_cloud_api", "outro"]);
 
