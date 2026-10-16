@@ -1,4 +1,5 @@
 import "server-only";
+import * as QRCode from "qrcode";
 
 import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/server";
 import { isTenantSuspended } from "@/modules/cotacoes/lib/auth/session";
@@ -122,10 +123,14 @@ export async function connectTenantWhatsApp(tenantId: string): Promise<Result> {
   const payload = await evolution(`/instance/connect/${encodeURIComponent(instanceName)}`);
   const base64 = [payload?.base64, payload?.qrcode?.base64, payload?.qrcode?.image]
     .find((value) => typeof value === "string" && value.length > 100);
-  const qr = base64 && (base64.startsWith("data:image/png;base64,") ||
+  const directQr = base64 && (base64.startsWith("data:image/png;base64,") ||
     /^[A-Za-z0-9+/=]+$/.test(base64))
       ? (base64.startsWith("data:") ? base64 : `data:image/png;base64,${base64}`)
       : undefined;
+  // Alguns provedores enviam somente o texto do QR, não a imagem pronta.
+  const rawQrCode = [payload?.code, payload?.qrcode?.code, payload?.qrcode]
+    .find((value) => typeof value === "string" && value.startsWith("2@"));
+  const qr = directQr ?? (rawQrCode ? await QRCode.toDataURL(rawQrCode, { width: 320, margin: 2 }) : undefined);
   await updateState(tenantId, "aguardando_qr");
   return {
     connected: false, status: "aguardando_qr", instanceName,
