@@ -49,9 +49,7 @@ export type ProductType =
   | "controlado"
   | "hospitalar"
   | "qualquer"
-  | "outros"
-  | ""
-  | (string & {});
+  | "outros";
 
 export type UnitType =
   | "CP"
