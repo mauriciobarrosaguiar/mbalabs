@@ -5,6 +5,7 @@ import {
 } from "@/modules/cotacoes/lib/data/supabase-operational";
 import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/server";
 import { canFinishQuotation, isQuotationClosed } from "@/modules/cotacoes/lib/quotation-status";
+import { getRepresentativeProgress } from "@/modules/cotacoes/lib/services/representative-progress";
 import { getCurrentAuthContext } from "@/modules/cotacoes/lib/auth/session";
 import {
   ensureCreateQuotationAccess,
@@ -124,6 +125,27 @@ export async function PATCH(request: NextRequest) {
     if (body.action === "finish") {
       if (!canFinishQuotation(quotation.status)) {
         return NextResponse.json({ error: "Somente cotações abertas, aguardando respostas ou em análise podem ser finalizadas." }, { status: 409 });
+      }
+
+      // Nunca encerrar a disputa antes das respostas ou do prazo.
+      // Este bloqueio vale para clientes API, não apenas para o botão da interface.
+      if (quotation.module_type === "pharmacy") {
+        const { data: sessionRows, error: statusError } = await supabase
+          .from("supplier_quote_sessions")
+          .select("id,status")
+          .eq("tenant_id", quotation.tenant_id)
+          .eq("quotation_id", body.id);
+        if (statusError) throw statusError;
+        const progress = getRepresentativeProgress(sessionRows ?? [], quotation.deadline_at);
+        if (!progress.canClose) {
+          return NextResponse.json(
+            {
+              error: `Ainda faltam ${progress.pending} representante(s) responder. Aguarde todas as respostas ou o encerramento do prazo da cotação.`,
+              representatives: progress,
+            },
+            { status: 409 },
+          );
+        }
       }
 
       const now = new Date().toISOString();
