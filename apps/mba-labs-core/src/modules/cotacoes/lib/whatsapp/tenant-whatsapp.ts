@@ -5,6 +5,7 @@ import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/serve
 import { isTenantSuspended } from "@/modules/cotacoes/lib/auth/session";
 
 type EvolutionConfig = {
+  id: string;
   api_url: string | null;
   api_token: string | null;
   provider: string;
@@ -18,7 +19,7 @@ function db() { return createSupabaseAdminClient(); }
 async function getInfrastructure() {
   const supabase = db();
   const { data, error } = await supabase.from("cot_whatsapp_global_config")
-    .select("provider,api_url,api_token,ativo")
+    .select("id,provider,api_url,api_token,ativo")
     .eq("ativo", true).order("updated_at", { ascending: false }).limit(1).maybeSingle();
   if (error) throw error;
   const config = data as EvolutionConfig | null;
@@ -31,7 +32,26 @@ async function getInfrastructure() {
   }
   // A infraestrutura global é gerenciada apenas no servidor; clientes não podem trocar seu endereço nem ler a chave.
   const cleanPath = url.pathname.replace(/\/message\/sendText.*$/, "").replace(/\/+$/, "");
-  return { base: url.origin + cleanPath, key: config.api_token };
+  // O portal já possuía uma chave de ambiente que não era utilizada por este
+  // módulo. Verificar apenas chaves destinadas ao MESMO host impede enviar um
+  // segredo de outro aplicativo a um serviço externo inesperado.
+  const environmentUrl = process.env.COTACOES_EVOLUTION_API_URL?.trim();
+  const environmentKey = process.env.COTACOES_EVOLUTION_API_KEY?.trim();
+  let verifiedAlternateKey: string | undefined;
+  if (environmentUrl && environmentKey && environmentKey !== config.api_token) {
+    try {
+      const candidateUrl = new URL(environmentUrl);
+      if (candidateUrl.origin === url.origin && candidateUrl.pathname.replace(/\/+$/, "") === cleanPath) {
+        verifiedAlternateKey = environmentKey;
+      }
+    } catch {
+      // URL inválida não autoriza teste de outra credencial.
+    }
+  }
+  return {
+    base: url.origin + cleanPath, key: config.api_token,
+    alternateKey: verifiedAlternateKey, configId: config.id,
+  };
 }
 
 class EvolutionHttpError extends Error {
@@ -46,22 +66,43 @@ async function evolution(
 ) {
   const config = await getInfrastructure();
   const timeoutMs = init.timeoutMs ?? 15000;
-  let response: Response;
-  try {
-    response = await fetch(config.base + path, {
-      method: init.method ?? "GET",
-      headers: { apikey: config.key, "Content-Type": "application/json" },
-      body: init.body ? JSON.stringify(init.body) : undefined,
-      cache: "no-store",
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-  } catch (error) {
-    const details = error instanceof Error ? error.message.toLowerCase() : "";
-    if (details.includes("timeout") || details.includes("timed out")) {
-      throw new Error("A Evolution API demorou a responder. O servidor de hospedagem pode estar iniciando após inatividade. Aguarde um minuto e tente novamente. Se persistir, verifique se o serviço está ativo no Render.");
+  // Não repetir requisições que criam instâncias nem mensagens. A tentativa
+  // alternativa ocorre exclusivamente quando o servidor respondeu 401: nesse
+  // caso, a primeira operação foi recusada antes de ser executada.
+  async function requestWithKey(key: string) {
+    try {
+      return await fetch(config.base + path, {
+        method: init.method ?? "GET",
+        headers: { apikey: key, "Content-Type": "application/json" },
+        body: init.body ? JSON.stringify(init.body) : undefined,
+        cache: "no-store",
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (error) {
+      const details = error instanceof Error ? error.message.toLowerCase() : "";
+      if (details.includes("timeout") || details.includes("timed out")) {
+        throw new Error("A Evolution API demorou a responder. Aguarde um minuto para o servidor iniciar e tente novamente.");
+      }
+      throw new Error("Não foi possível acessar a Evolution API. Verifique a disponibilidade do serviço no Render.");
     }
-    // Nunca retornar URLs privadas, token ou dados internos da infraestrutura.
-    throw new Error("Não foi possível acessar a Evolution API. Verifique a disponibilidade da infraestrutura WhatsApp.");
+  }
+  let response = await requestWithKey(config.key);
+  if (response.status === 401 && config.alternateKey) {
+    response = await requestWithKey(config.alternateKey);
+    if (response.ok) {
+      // Credencial validada com sucesso no próprio host da Evolution API.
+      // Sincroniza o banco, usado pelo envio de cotações, para que conexão e
+      // disparos posteriores utilizem exatamente a mesma chave.
+      const { error } = await db().from("cot_whatsapp_global_config").update({
+        api_token: config.alternateKey,
+        updated_at: new Date().toISOString(),
+        last_error: null,
+      }).eq("id", config.configId);
+      if (error) console.error("[Cotacoes WhatsApp] Falha ao sincronizar credencial válida (sem expor segredo).");
+    }
+  }
+  if (response.status === 401) {
+    throw new Error("A Evolution API recusou a autenticação (HTTP 401). Verifique se AUTHENTICATION_API_KEY no Render é igual à credencial do MBA Cotações. Nenhum WhatsApp foi conectado.");
   }
   let payload: Record<string, any> = {};
   try { payload = await response.json(); } catch {}
