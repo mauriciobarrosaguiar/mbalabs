@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     type ExpectedItem = { id: string; ean: string | null; requested_quantity: number; requested_unit: string | null };
-    const productById = new Map<string, ExpectedItem>((items ?? []).map((item: ExpectedItem) => [item.id, item]));
+    const productById = new Map<string, ExpectedItem>((items ?? []).map((item: ExpectedItem): [string, ExpectedItem] => [item.id, item]));
     const rows = [];
     for (const offer of body.offers) {
       const item = productById.get(offer.quotationItemId as string);
