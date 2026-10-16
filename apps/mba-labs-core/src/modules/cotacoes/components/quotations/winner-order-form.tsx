@@ -38,7 +38,7 @@ export function WinnerOrderForm({
   quotationItemsById: Record<string, { ean?: string; requestedLaboratory?: string }>;
 }) {
   const [order, setOrder] = useState(initialOrder);
-  const [items, setItems] = useState(() => initialOrder.items.map(normalizeItem));
+  const [items, setItems] = useState(() => initialOrder.items.filter((item) => item.quantityToBuy > 0).map(normalizeItem));
   const [pendingAction, setPendingAction] = useState<PersistAction | null>(null);
   const savingRef = useRef(false);
   const locked = finalStatuses.has(order.status);
@@ -109,7 +109,7 @@ export function WinnerOrderForm({
         throw new Error("Pedido não encontrado ou link expirado.");
       }
       setOrder(payload.order);
-      setItems(payload.order.items.map(normalizeItem));
+      setItems(payload.order.items.filter((item: PurchaseOrderItem) => item.quantityToBuy > 0).map(normalizeItem));
       toast.success(
         action === "finalize"
           ? "Pedido finalizado com sucesso."
