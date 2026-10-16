@@ -262,7 +262,7 @@ export function TenantManagementTable({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                          <Link href={`/admin/empresas/${tenant.id}`}>Ver detalhes</Link>
+                          <Link href={`/cotacoes/gestao/empresas/${tenant.id}`}>Ver detalhes</Link>
                         </DropdownMenuItem>
                         {(tenant.status === "ativo" || tenant.status === "teste") ? (
                           <DropdownMenuItem onSelect={() => { setEditing(tenant); setOpen(true); }}>
