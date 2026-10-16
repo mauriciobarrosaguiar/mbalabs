@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AppShell } from "@/modules/cotacoes/components/layout/app-shell";
 import { AdminDashboardPage, AdminSectionPage } from "@/modules/cotacoes/components/dashboard/pages";
 import { requireSuperAdmin } from "@/modules/cotacoes/lib/auth/session";
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 const sections = new Set([
-  "dashboard", "empresas", "farmacias", "usuarios", "planos",
+  "dashboard", "farmacias", "usuarios", "planos",
   "mensalidades", "pagamentos", "licitacoes", "distribuidoras",
   "vendedores", "produtos", "configuracoes", "logs",
 ]);
@@ -19,6 +19,7 @@ export default async function CotacoesGestao({
 }) {
   const slug = (await params).slug ?? ["dashboard"];
   const section = slug[0] ?? "dashboard";
+  if (section === "empresas") redirect("/cotacoes/gestao/farmacias" + (slug.length > 1 ? "/" + slug.slice(1).join("/") : ""));
   if (!sections.has(section)) notFound();
   const path = "/cotacoes/gestao" + (slug.length ? "/" + slug.join("/") : "");
   const auth = await requireSuperAdmin(path);
