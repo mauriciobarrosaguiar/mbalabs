@@ -88,7 +88,7 @@ import {
   isQuotationInProgress,
 } from "@/modules/cotacoes/lib/quotation-status";
 import { savePaymentSettingsAction } from "@/modules/cotacoes/lib/actions/payment-settings";
-import { createUserAccessAction, updateUserAccessAction } from "@/modules/cotacoes/lib/actions/users";
+import { createUserAccessAction, updateUserAccessAction, deactivateCotacoesUserAction } from "@/modules/cotacoes/lib/actions/users";
 import { listManagedUsers, listTenantOptions, type ManagedUser, type TenantOption } from "@/modules/cotacoes/lib/auth/users";
 import { createSupabaseAdminClient, hasSupabaseAdminConfig } from "@/modules/cotacoes/lib/supabase/server";
 import { listPendingShortageItems } from "@/modules/cotacoes/lib/data/shortage-items";
@@ -2096,7 +2096,7 @@ async function CompanySettingsPage({ tenantId, isSuperAdmin = false }: { tenantI
                   <Link href="/cotacoes/configuracoes/whatsapp">Configurar WhatsApp Evolution</Link>
                 </Button>
                 <Button asChild variant="outline">
-                  <Link href="/admin/logs">Ver logs gerais</Link>
+                  <Link href="/cotacoes/gestao/logs">Ver logs do Cotações</Link>
                 </Button>
               </div>
             </CardContent>
@@ -3634,8 +3634,7 @@ function AdminUsersTable({
                   <Select name="role" defaultValue={user.role}>
                     <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="SUPER_ADMIN">{userRoleLabels.SUPER_ADMIN}</SelectItem>
-                      <SelectItem value="ADMIN_EMPRESA">{userRoleLabels.ADMIN_EMPRESA}</SelectItem>
+                                  <SelectItem value="ADMIN_EMPRESA">{userRoleLabels.ADMIN_EMPRESA}</SelectItem>
                       <SelectItem value="COMPRADOR">{userRoleLabels.COMPRADOR}</SelectItem>
                       <SelectItem value="CONFERENTE">{userRoleLabels.CONFERENTE}</SelectItem>
                       <SelectItem value="FINANCEIRO">{userRoleLabels.FINANCEIRO}</SelectItem>
@@ -3664,6 +3663,17 @@ function AdminUsersTable({
                     Salvar
                   </Button>
                 </form>
+                {primaryTenant ? (
+                  <form action={deactivateCotacoesUserAction}
+                    onSubmit={undefined} className="mt-2 flex justify-end">
+                    <input type="hidden" name="tenantId" value={primaryTenant.tenantId} />
+                    <input type="hidden" name="profileId" value={user.id} />
+                    <Button type="submit" size="sm" variant="destructive"
+                      disabled={primaryTenant.status !== "ativo"}>
+                      Desativar acesso Cotações
+                    </Button>
+                  </form>
+                ) : null}
               </TableCell>
             </TableRow>
           );
@@ -3717,9 +3727,8 @@ function UserInviteForm({ tenants = [] }: { tenants?: TenantOption[] }) {
         </Select>
       </div>
       <LabeledInput
-        label="Senha temporária"
+        label="Senha temporária exclusiva (10+ caracteres)"
         name="temporaryPassword"
-        defaultValue="Alterar@123"
         required
       />
       <input type="hidden" name="mustChangePassword" value="true" />

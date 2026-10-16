@@ -1,5 +1,6 @@
 import { createSupabaseAdminClient, hasSupabaseAdminConfig, hasSupabaseConfig } from "@/modules/cotacoes/lib/supabase/server";
 import type { PurchaseOrder } from "@/modules/cotacoes/lib/types";
+import { getTenantWhatsAppSendingConfig } from "@/modules/cotacoes/lib/whatsapp/tenant-whatsapp";
 
 export type WhatsappTipoEnvio = "link_cotacao" | "resultado_cotacao";
 export type WhatsappStatus = "pendente" | "enviado" | "falhou";
@@ -192,9 +193,16 @@ export async function sendWhatsAppMbaCotacoes(input: SendInput): Promise<SendWha
   let provider: WhatsappProvider | undefined;
   try {
     if (!validPhone(telefone)) throw new Error("Vendedor sem WhatsApp válido cadastrado.");
-    const config = await getActiveConfig();
-    validateConfig(config);
-    if (!config?.ativo) throw new Error("Envio automático desativado.");
+    // Obrigatório usar a instância vinculada à empresa da cotação;
+    // nunca fazer fallback silencioso para o número central do MBA Labs.
+    const tenantConfig = await getTenantWhatsAppSendingConfig(input.empresaId);
+    const config: Config = {
+      provider: "evolution_api",
+      api_url: tenantConfig.base,
+      api_token: tenantConfig.key,
+      phone_number_id: tenantConfig.instance,
+      ativo: true,
+    };
     provider = config.provider;
     const receipt = await callProviderWithRetry(config, telefone, input.mensagem);
     const enviadoEm = new Date().toISOString();

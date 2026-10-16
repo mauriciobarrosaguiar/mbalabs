@@ -143,7 +143,12 @@ async function ensureCotacoesAuthContext(current: CurrentUserProfile): Promise<A
       tenantAccess = await resolveExplicitTenantAccess(admin, profile.id);
 
       if (!tenantAccess) {
-        const tenant = await ensureTenantBridge(admin, current);
+        // Um vínculo inativado pelo gestor do MBA Cotações não pode ser reativado
+        // automaticamente só porque a empresa segue ativa no login MBA Labs.
+        const { data: previousLinks, error: previousLinksError } = await admin
+          .from("tenant_users").select("id").eq("user_profile_id", profile.id).limit(1);
+        if (previousLinksError) throw previousLinksError;
+        const tenant = previousLinks?.length ? null : await ensureTenantBridge(admin, current);
         if (tenant) {
           const tenantUser = await ensureTenantUserBridge(admin, tenant.id, profile.id, mapTenantUserRole(role));
           tenantAccess = {
@@ -189,7 +194,7 @@ async function ensureCotacoesAuthContext(current: CurrentUserProfile): Promise<A
       authUserId: current.authUser.id,
       fullName: current.usuario.nome,
       email: current.usuario.email,
-      role: isVendor ? "VENDEDOR_EXTERNO" : role,
+      role: isVendor ? "VENDEDOR_EXTERNO" : (isSuperAdmin ? role : (tenantAccess?.role ?? role)),
       status,
       mustChangePassword: false,
     },

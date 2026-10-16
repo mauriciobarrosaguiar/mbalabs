@@ -48,21 +48,21 @@ type NavItem = {
 };
 
 const adminNav: NavItem[] = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/empresas", label: "Empresas", icon: Building2 },
-  { href: "/admin/farmacias", label: "Farmácias", icon: Store },
-  { href: "/admin/licitacoes", label: "Licitações", icon: BarChart3 },
-  { href: "/admin/distribuidoras", label: "Distribuidoras", icon: Truck },
-  { href: "/admin/vendedores", label: "Vendedores", icon: Users },
-  { href: "/admin/produtos", label: "Produtos", icon: Package },
-  { href: "/admin/usuarios", label: "Usuários", icon: Users },
-  { href: "/admin/planos", label: "Planos", icon: ClipboardCheck },
-  { href: "/admin/mensalidades", label: "Mensalidades", icon: ReceiptText },
-  { href: "/admin/pagamentos", label: "Pagamentos", icon: CreditCard },
-  { href: "/admin/configuracoes/pagamentos", label: "Config. pagamentos", icon: CreditCard },
-  { href: "/admin/configuracoes/whatsapp", label: "WhatsApp MBA", icon: MessageCircle },
-  { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
-  { href: "/admin/logs", label: "Logs", icon: ShieldCheck },
+  { href: "/cotacoes/gestao", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/cotacoes/gestao/empresas", label: "Empresas", icon: Building2 },
+  { href: "/cotacoes/gestao/farmacias", label: "Farmácias", icon: Store },
+  { href: "/cotacoes/gestao/licitacoes", label: "Licitações", icon: BarChart3 },
+  { href: "/cotacoes/gestao/distribuidoras", label: "Distribuidoras", icon: Truck },
+  { href: "/cotacoes/gestao/vendedores", label: "Vendedores", icon: Users },
+  { href: "/cotacoes/gestao/produtos", label: "Produtos", icon: Package },
+  { href: "/cotacoes/gestao/usuarios", label: "Usuários", icon: Users },
+  { href: "/cotacoes/gestao/planos", label: "Planos", icon: ClipboardCheck },
+  { href: "/cotacoes/gestao/mensalidades", label: "Mensalidades", icon: ReceiptText },
+  { href: "/cotacoes/gestao/pagamentos", label: "Pagamentos", icon: CreditCard },
+  { href: "/cotacoes/gestao/configuracoes/pagamentos", label: "Config. pagamentos", icon: CreditCard },
+  { href: "/cotacoes/gestao/infra-whatsapp", label: "Infra WhatsApp", icon: MessageCircle },
+  { href: "/cotacoes/gestao/configuracoes", label: "Configurações", icon: Settings },
+  { href: "/cotacoes/gestao/logs", label: "Logs", icon: ShieldCheck },
 ];
 
 const pharmacyNav: NavItem[] = [
@@ -75,6 +75,7 @@ const pharmacyNav: NavItem[] = [
   { href: "/cotacoes/fornecedores", label: "Fornecedores", icon: Truck, group: "Cadastros" },
   { href: "/cotacoes/distribuidoras", label: "Distribuidoras", icon: Store, group: "Cadastros" },
   { href: "/cotacoes/historico-compras", label: "Histórico de compras", icon: ReceiptText, group: "Gestão" },
+  { href: "/cotacoes/configuracoes/whatsapp", label: "WhatsApp próprio", icon: MessageCircle, group: "Gestão" },
   { href: "/cotacoes/configuracoes", label: "Configurações", icon: Settings, group: "Gestão" },
 ];
 
@@ -129,7 +130,7 @@ export function AppShell({
         </nav>
         <div className="border-t border-[#dce8e3] px-5 py-4">
           <p className="text-xs font-medium text-[#60756d]">
-            {mode === "admin" ? "MBA Labs · Admin" : "MBA Labs · v2"}
+            {mode === "admin" ? "MBA Cotações · Admin" : "MBA Cotações"}
           </p>
           {tenantName && mode === "admin" ? (
             <p className="mt-1 truncate text-xs text-muted-foreground">{tenantName}</p>
@@ -342,7 +343,8 @@ function getAppNav(role?: UserRole, tenantType?: CustomerType) {
   if (role === "SUPER_ADMIN") {
     return [
       ...mergeNav(pharmacyNav, biddingNav),
-      { href: "/cotacoes/configuracoes/whatsapp", label: "WhatsApp MBA", icon: MessageCircle, group: "Gestão" },
+      { href: "/cotacoes/gestao", label: "Admin Cotações", icon: ShieldCheck, group: "Gestão" },
+      { href: "/cotacoes/gestao/infra-whatsapp", label: "Infraestrutura WhatsApp", icon: MessageCircle, group: "Gestão" },
     ];
   }
   if (role === "VENDEDOR_EXTERNO") return supplierNav;

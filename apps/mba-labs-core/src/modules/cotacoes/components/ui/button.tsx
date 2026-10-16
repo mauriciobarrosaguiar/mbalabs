@@ -5,17 +5,17 @@ import { Slot } from "radix-ui"
 import { cn } from "@/modules/cotacoes/lib/utils"
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xl border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 cursor-pointer items-center justify-center rounded-xl border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35 active:not-aria-[haspopup]:translate-y-px active:not-aria-[haspopup]:scale-[0.97] active:brightness-[0.84] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-teal-500 focus-visible:border-teal-600 transition-[background-color,color,box-shadow,transform,filter] duration-150 motion-reduce:transition-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
+        default: "bg-primary text-primary-foreground shadow-sm hover:bg-primary/80 active:bg-primary/65",
         outline:
-          "border-border bg-white text-foreground shadow-sm hover:bg-muted/60 hover:text-foreground aria-expanded:bg-muted",
+          "border-border bg-white text-foreground shadow-sm hover:bg-slate-100 hover:border-teal-300 active:bg-teal-200 hover:text-foreground aria-expanded:bg-muted",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/75 active:bg-secondary/60 aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
         ghost:
-          "shadow-none hover:bg-muted/70 hover:text-foreground aria-expanded:bg-muted",
+          "shadow-none hover:bg-muted/70 active:bg-teal-100 hover:text-foreground aria-expanded:bg-muted",
         destructive:
           "bg-destructive/10 text-destructive shadow-none hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20",
         link: "rounded-md text-primary underline-offset-4 shadow-none hover:underline",
