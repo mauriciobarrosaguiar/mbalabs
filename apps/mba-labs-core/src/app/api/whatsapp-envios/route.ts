@@ -77,6 +77,13 @@ export async function POST(request: NextRequest) {
     const access = await ensureQuotationAccess(auth, body.quotationId);
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
     const origin = request.nextUrl.origin;
+    const pharmacyWinnerAction = access.quotation.module_type === "pharmacy" &&
+      (body.action === "send_winner_orders" ||
+       (body.action === "resend" && body.tipoEnvio === "resultado_cotacao"));
+    if (pharmacyWinnerAction && !auth.isSuperAdmin &&
+        !["ADMIN_EMPRESA", "COMPRADOR"].includes(auth.profile?.role ?? "")) {
+      return NextResponse.json({ error: "Apenas compradores e administradores podem enviar pedidos aprovados." }, { status: 403 });
+    }
 
     if (body.action === "send_quotation_links") {
       const quotationId = body.quotationId;
