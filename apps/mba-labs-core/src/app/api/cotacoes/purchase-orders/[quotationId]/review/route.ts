@@ -9,6 +9,7 @@ type ReviewBody = {
   quantity?: number;
   note?: string;
   supplierConfirmationNote?: string;
+  minimumOrderChecked?: boolean;
 };
 
 function isBuyer(role?: string) {
