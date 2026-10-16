@@ -100,9 +100,8 @@ export async function updateUserAccessAction(formData: FormData) {
 
   if (error) throw error;
 
-  if (role !== "SUPER_ADMIN" && tenantId) {
-    await upsertTenantUser(profileId, tenantId, role, status);
-  }
+  if (!tenantId) throw new Error("Escolha a empresa do usuário.");
+  await upsertTenantUser(profileId, tenantId, role, status);
 
   revalidatePath("/cotacoes/gestao/usuarios");
   redirect("/cotacoes/gestao/usuarios");
