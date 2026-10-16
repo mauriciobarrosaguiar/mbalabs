@@ -1,7 +1,7 @@
 -- Etapa de revisão de pedidos após encerramento da cotação.
 -- Preserva pedidos antigos: somente pedidos NOVOS começam aguardando aprovação.
 ALTER TABLE public.purchase_orders
-  ADD COLUMN IF NOT EXISTS buyer_review_status text NOT NULL DEFAULT 'pending'
+  ADD COLUMN IF NOT EXISTS buyer_review_status text NOT NULL DEFAULT 'approved'
     CHECK (buyer_review_status IN ('pending', 'approved')),
   ADD COLUMN IF NOT EXISTS buyer_approved_at timestamptz,
   ADD COLUMN IF NOT EXISTS buyer_approved_by text,
