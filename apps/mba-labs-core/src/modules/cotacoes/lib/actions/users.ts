@@ -8,6 +8,7 @@ import { syncCotacoesCompanyAccess } from "@/modules/cotacoes/lib/auth/company-p
 
 const profileRoles = ["SUPER_ADMIN", "ADMIN_EMPRESA", "COMPRADOR", "CONFERENTE", "FINANCEIRO"] as const;
 const statuses = ["ativo", "inativo", "convidado"] as const;
+const tenantRoles = ["ADMIN_EMPRESA", "COMPRADOR", "CONFERENTE", "FINANCEIRO"] as const;
 
 type TenantRole = Exclude<(typeof profileRoles)[number], "SUPER_ADMIN">;
 type ProfileStatus = (typeof statuses)[number];
@@ -77,19 +78,17 @@ export async function createUserAccessAction(formData: FormData) {
 
   if (profileError) throw profileError;
 
-  if (role !== "SUPER_ADMIN" && tenantId) {
-    await upsertTenantUser(profile.id, tenantId, role, status);
-  }
+  await upsertTenantUser(profile.id, tenantId, role, status);
 
   revalidatePath("/cotacoes/gestao/usuarios");
   redirect("/cotacoes/gestao/usuarios");
 }
 
 export async function updateUserAccessAction(formData: FormData) {
-  await requireSuperAdmin("/admin/usuarios");
+  await requireSuperAdmin("/cotacoes/gestao/usuarios");
 
   const profileId = readRequired(formData, "profileId");
-  const role = readEnum(formData, "role", profileRoles, "COMPRADOR");
+  const role = readEnum(formData, "role", tenantRoles, "COMPRADOR");
   const status = readEnum(formData, "status", statuses, "ativo");
   const tenantId = normalizeOptionalId(String(formData.get("tenantId") ?? ""));
 
@@ -105,8 +104,8 @@ export async function updateUserAccessAction(formData: FormData) {
     await upsertTenantUser(profileId, tenantId, role, status);
   }
 
-  revalidatePath("/admin/usuarios");
-  redirect("/admin/usuarios");
+  revalidatePath("/cotacoes/gestao/usuarios");
+  redirect("/cotacoes/gestao/usuarios");
 }
 
 async function getOrCreateAuthUser({
