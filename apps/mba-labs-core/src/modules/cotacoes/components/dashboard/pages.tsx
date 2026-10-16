@@ -254,8 +254,14 @@ export async function AdminSectionPage({
   if (runtime.missingProductionConfig) return <SupabaseRequiredState />;
 
   const collections = await getCollections();
+  // O tenant técnico CORE do MBA Labs não é uma farmácia e não deve aparecer
+  // em cadastros operacionais, seletores, representantes ou cobranças.
+  const clientTenants = collections.tenants.filter(
+    (tenant) => !String(tenant.cnpj ?? "").startsWith("CORE-"),
+  );
+  const clientTenantIds = new Set(clientTenants.map((tenant) => tenant.id));
   const tenantOptions = Object.fromEntries(
-    collections.tenants.map((tenant) => [tenant.id, `${tenant.nomeFantasia} · ${labelFrom(customerTypeLabels, tenant.tipoCliente)}`]),
+    clientTenants.map((tenant) => [tenant.id, `${tenant.nomeFantasia} · ${labelFrom(customerTypeLabels, tenant.tipoCliente)}`]),
   );
   if (section === "configuracoes" && subpage === "pagamentos") {
     return <PaymentSettingsPage />;
@@ -272,7 +278,7 @@ export async function AdminSectionPage({
         description="Gerencie clientes, CNPJs, planos e acessos em um único cadastro, sem duplicar a farmácia."
       >
         <TenantManagementTable
-          initialTenants={collections.tenants.filter(t=>!String(t.cnpj??"").startsWith("CORE-"))}
+          initialTenants={clientTenants}
           plans={collections.subscriptionPlans}
         />
       </CrudPage>
@@ -338,7 +344,7 @@ export async function AdminSectionPage({
             title="Mensalidade"
             primaryKey="referenceMonth"
             statusOptions={paymentStatusOptions}
-            initialRows={collections.monthlySubscriptions.map((subscription) => ({
+            initialRows={collections.monthlySubscriptions.filter((subscription) => clientTenantIds.has(subscription.tenantId)).map((subscription) => ({
               id: subscription.id,
               tenantId: subscription.tenantId,
               planId: subscription.planId ?? collections.tenants.find((tenant) => tenant.id === subscription.tenantId)?.planoId ?? "",
@@ -492,7 +498,7 @@ export async function AdminSectionPage({
           title="Distribuidora"
           primaryKey="nome"
           emptyMessage="Nenhuma distribuidora cadastrada."
-          initialRows={collections.distributors.map((distributor) => ({
+          initialRows={collections.distributors.filter((distributor) => clientTenantIds.has(distributor.tenantId)).map((distributor) => ({
             id: distributor.id,
             tenantId: distributor.tenantId,
             nome: distributor.nome,
@@ -520,7 +526,7 @@ export async function AdminSectionPage({
   }
 
   if (section === "representantes" || section === "vendedores") {
-    const sellers = collections.suppliers.filter((supplier) => supplier.tipoFornecedor === "vendedor");
+    const sellers = collections.suppliers.filter((supplier) => supplier.tipoFornecedor === "vendedor" && clientTenantIds.has(supplier.tenantId));
 
     return (
       <CrudPage
