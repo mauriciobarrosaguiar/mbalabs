@@ -61,6 +61,7 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
   const router = useRouter();
   const [localStatus, setLocalStatus] = useState<QuotationStatus>(status);
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [allowPendingRepresentatives, setAllowPendingRepresentatives] = useState(false);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [whatsappSummary, setWhatsappSummary] = useState<WhatsappSummary | null>(null);
   const [whatsappError, setWhatsappError] = useState<string | null>(null);
@@ -249,11 +250,18 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Finalizar cotação</AlertDialogTitle>
-            <AlertDialogDescription>A finalização apura os vencedores e bloqueia novas respostas. Se houver representantes pendentes e o prazo ainda não terminou, o sistema não permitirá o encerramento. Confira também as ofertas das distribuidoras antes de concluir.</AlertDialogDescription>
+            <AlertDialogDescription>A finalização encerra o recebimento de preços. Os pedidos não serão enviados automaticamente: você poderá revisar e aprovar as quantidades antes de transmitir.</AlertDialogDescription>
           </AlertDialogHeader>
+          {moduleType === "pharmacy" ? (
+            <label className="flex items-start gap-2 rounded-md bg-amber-50 p-3 text-sm text-amber-900">
+              <input type="checkbox" className="mt-1" checked={allowPendingRepresentatives}
+                onChange={(e) => setAllowPendingRepresentatives(e.target.checked)} />
+              <span>Se ainda houver representantes sem resposta, autorizo encerrar antecipadamente. Eles perderão o prazo para enviar valores.</span>
+            </label>
+          ) : null}
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setConfirmFinish(false); void finish(); }}>Finalizar</AlertDialogAction>
+            <AlertDialogCancel>Continuar aguardando</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmFinish(false); void finish(allowPendingRepresentatives); }}>Finalizar cotação</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
