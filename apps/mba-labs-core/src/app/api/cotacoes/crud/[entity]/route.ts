@@ -236,8 +236,9 @@ async function createByEntity(entity: Entity, row: Row) {
   if (entity === "laboratories") return createLaboratory(laboratoryPayload(row) as Parameters<typeof createLaboratory>[0]);
   if (entity === "tenants") {
     const tenant = await createTenant(tenantPayload(row) as Parameters<typeof createTenant>[0]);
-    await createTenantSideEffects(tenant, row);
+    await createTenantSideEffects(tenant, { ...row, autoCreatePharmacy: true });
     await syncCotacoesCompanyAccess(tenant);
+    await syncPrimaryPharmacy(tenant);
     return tenant;
   }
   if (entity === "pharmacies") return createPharmacy(pharmacyPayload(row) as Parameters<typeof createPharmacy>[0]);
@@ -255,6 +256,7 @@ async function updateByEntity(entity: Entity, id: string, row: Row) {
     const updated = await updateTenant(id, tenantPayload(row));
     if (!updated) throw new Error("Empresa não encontrada no MBA Cotações.");
     await syncCotacoesCompanyAccess(updated);
+    await syncPrimaryPharmacy(updated);
     return updated;
   }
   if (entity === "pharmacies") return updatePharmacy(id, pharmacyPayload(row));
@@ -457,6 +459,31 @@ async function createTenantSideEffects(tenant: Tenant, row: Row) {
       status: "pending",
       paymentMethod: "pix",
     });
+  }
+}
+
+async function syncPrimaryPharmacy(tenant: Tenant) {
+  // A empresa (tenant) é o cadastro comercial e a farmácia é sua unidade operacional.
+  // Mantemos unidades adicionais existentes intactas: não há segundo cadastro no menu.
+  if (tenant.tipoCliente === "distributor_bidding" || !/^\d{14}$/.test(onlyDigits(tenant.cnpj))) return;
+  const supabase = createSupabaseAdminClient();
+  const { data: units, error } = await supabase.from("pharmacies")
+    .select("id,cnpj").eq("tenant_id", tenant.id).order("created_at").limit(2);
+  if (error) throw error;
+  const payload = {
+    tenant_id: tenant.id, nome_fantasia: tenant.nomeFantasia,
+    razao_social: tenant.razaoSocial, cnpj: onlyDigits(tenant.cnpj),
+    responsavel: tenant.responsavelNome, whatsapp: tenant.responsavelWhatsapp,
+    email: tenant.responsavelEmail, status: tenant.status === "ativo" || tenant.status === "teste" ? "ativo" : "inativo",
+    updated_at: new Date().toISOString(),
+  };
+  if (!units?.length) {
+    const { error: createError } = await supabase.from("pharmacies").insert(payload);
+    if (createError) throw createError;
+  } else if (units.length === 1) {
+    const { error: updateError } = await supabase.from("pharmacies")
+      .update(payload).eq("tenant_id", tenant.id).eq("id", units[0].id);
+    if (updateError) throw updateError;
   }
 }
 
