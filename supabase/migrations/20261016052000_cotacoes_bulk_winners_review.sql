@@ -63,7 +63,7 @@ BEGIN
   FOR v_edit IN SELECT value FROM jsonb_array_elements(p_items)
   LOOP
     IF (v_edit->>'itemId') IS NULL OR (v_edit->>'orderId') IS NULL
-       OR (v_edit->>'quantity') IS NULL OR (v_edit->>'quantity') !~ '^[0-9]{1,7}([.][0-9]{1,3})?
+       OR (v_edit->>'quantity') IS NULL OR (v_edit->>'quantity') !~ '^[0-9]{1,7}([.][0-9]{1,3})?$'
     THEN RAISE EXCEPTION 'Identificador ou quantidade de produto invalido.'; END IF;
     v_quantity := (v_edit->>'quantity')::numeric;
     IF v_quantity < 0 OR v_quantity > 1000000 THEN
