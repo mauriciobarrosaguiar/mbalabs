@@ -20,5 +20,6 @@ create index if not exists cot_distributor_offers_by_quote
 alter table public.cot_distributor_offers enable row level security;
 -- Apenas o backend com credencial de serviço poderá acessar esta tabela.
 revoke all on public.cot_distributor_offers from anon, authenticated;
+grant select, insert, update, delete on public.cot_distributor_offers to service_role;
 comment on table public.cot_distributor_offers is
   'Preços de distribuidoras importados/homologados, separados das propostas por representante e isolados por empresa.';
