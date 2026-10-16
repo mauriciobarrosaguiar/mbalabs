@@ -19,6 +19,7 @@ import { ImportWizard } from "@/modules/cotacoes/components/imports/import-wizar
 import { DemoQuotationTable } from "@/modules/cotacoes/components/quotations/demo-quotation-table";
 import { GeneratePurchaseOrdersButton } from "@/modules/cotacoes/components/quotations/generate-purchase-orders-button";
 import { NewQuotationForm } from "@/modules/cotacoes/components/quotations/new-quotation-form";
+import { DistributorOffersImport } from "@/modules/cotacoes/components/quotations/distributor-offers-import";
 import { PublicOrderActions } from "@/modules/cotacoes/components/quotations/public-order-actions";
 import { QuotationBasicEditor } from "@/modules/cotacoes/components/quotations/quotation-basic-editor";
 import { BackButton, QuotationPageActions } from "@/modules/cotacoes/components/quotations/quotation-page-actions";
@@ -2283,6 +2284,9 @@ async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotatio
       : ["respostas", "analise", "mapa-comparativo", "saldo-pendente", "pedidos"];
 
   const representativeProgress = getRepresentativeProgress(sessions, quotation.deadlineAt);
+  const distributorSuppliers = moduleType === "pharmacy" && !isQuotationClosed(quotation.status)
+    ? (await getCollections(tenantId)).suppliers
+    : [];
   const items = rawItems.map((item) => ({
     ...item,
     status: getQuotationItemStatusFromOrders(item, orders),
@@ -2336,6 +2340,9 @@ async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotatio
           <ItemsTable items={items} />
         </CardContent>
       </Card>
+      {moduleType === "pharmacy" && !isQuotationClosed(quotation.status) ? (
+        <DistributorOffersImport quotationId={quotation.id} items={rawItems} suppliers={distributorSuppliers} />
+      ) : null}
       <Card>
         <CardHeader><CardTitle>Links dos fornecedores</CardTitle></CardHeader>
         <CardContent className="p-0">
