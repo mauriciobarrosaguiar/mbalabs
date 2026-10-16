@@ -127,6 +127,19 @@ export async function getTenantWhatsAppStatus(tenantId: string): Promise<Result>
   }
 }
 
+/**
+ * Testa as credenciais e o estado da Evolution API sem criar ou listar sessões
+ * para o navegador. Somente informações booleanas são retornadas ao cliente.
+ */
+export async function diagnoseTenantWhatsAppInfrastructure(tenantId: string) {
+  await getTenant(tenantId);
+  await evolution("/instance/fetchInstances", { timeoutMs: 85000 });
+  return {
+    reachable: true,
+    message: "Evolution API respondeu com sucesso e a chave de infraestrutura foi aceita. Agora você pode conectar o WhatsApp desta farmácia.",
+  };
+}
+
 export async function connectTenantWhatsApp(tenantId: string): Promise<Result> {
   await getTenant(tenantId);
   const previous = await sessionFor(tenantId);
