@@ -5,14 +5,20 @@ import {
   connectTenantWhatsApp,
   disconnectTenantWhatsApp,
   getTenantWhatsAppStatus,
+  diagnoseTenantWhatsAppInfrastructure,
 } from "@/modules/cotacoes/lib/whatsapp/tenant-whatsapp";
 
 export const dynamic = "force-dynamic";
+// Render pode precisar inicializar a Evolution API após inatividade.
+export const maxDuration = 180;
 export const revalidate = 0;
 
 async function tenantAccess() {
   const [auth, session] = await Promise.all([getCurrentAuthContext(), getSessionProfile()]);
-  const entitled = auth.isSuperAdmin || (session.appsLiberados ?? [])
+  if (auth.isSuperAdmin) {
+    return { error: NextResponse.json({ error: "O WhatsApp só pode ser conectado pelo administrador da própria farmácia." }, { status: 403 }) };
+  }
+  const entitled = (session.appsLiberados ?? [])
     .some((app) => (app.slug === "mba-cotacoes" || app.slug === "mbacotacoes") && app.canAccess);
   if (!entitled) {
     return { error: NextResponse.json({ error: "Empresa sem assinatura ativa do MBA Cotações." }, { status: 403 }) };
@@ -23,7 +29,7 @@ async function tenantAccess() {
   }
   return {
     tenantId: auth.tenantAccess.tenantId,
-    canManage: auth.isSuperAdmin || auth.tenantAccess.role === "ADMIN_EMPRESA",
+    canManage: auth.tenantAccess.role === "ADMIN_EMPRESA",
   };
 }
 
@@ -46,6 +52,7 @@ export async function POST(request: NextRequest) {
     if (auth.error) return auth.error;
     if (!auth.canManage) return NextResponse.json({ error: "Somente administradores da empresa podem conectar o WhatsApp." }, { status: 403 });
     const input = await request.json().catch(() => ({})) as { action?: string };
+    if (input.action === "diagnose") return NextResponse.json({ ok: true, ...(await diagnoseTenantWhatsAppInfrastructure(auth.tenantId!)) });
     if (input.action === "connect") return NextResponse.json({ ok: true, ...(await connectTenantWhatsApp(auth.tenantId!)) });
     if (input.action === "disconnect") return NextResponse.json(await disconnectTenantWhatsApp(auth.tenantId!));
     return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
