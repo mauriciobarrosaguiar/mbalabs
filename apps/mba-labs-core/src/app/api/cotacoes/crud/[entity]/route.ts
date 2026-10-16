@@ -30,6 +30,7 @@ import {
   updateTenant,
 } from "@/modules/cotacoes/lib/data/repository";
 import { getCurrentAuthContext, isTenantSuspended } from "@/modules/cotacoes/lib/auth/session";
+import { syncCotacoesCompanyAccess } from "@/modules/cotacoes/lib/auth/company-provisioning";
 import { isSupabaseWriteConfigured } from "@/modules/cotacoes/lib/runtime-mode";
 import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/server";
 import type { Distributor, Laboratory, MonthlySubscription, Pharmacy, Product, SubscriptionPlan, Supplier, Tenant } from "@/modules/cotacoes/lib/types";
@@ -236,6 +237,7 @@ async function createByEntity(entity: Entity, row: Row) {
   if (entity === "tenants") {
     const tenant = await createTenant(tenantPayload(row) as Parameters<typeof createTenant>[0]);
     await createTenantSideEffects(tenant, row);
+    await syncCotacoesCompanyAccess(tenant);
     return tenant;
   }
   if (entity === "pharmacies") return createPharmacy(pharmacyPayload(row) as Parameters<typeof createPharmacy>[0]);
@@ -249,7 +251,12 @@ async function updateByEntity(entity: Entity, id: string, row: Row) {
   if (entity === "suppliers") return updateSupplier(id, supplierPayload(row));
   if (entity === "distributors") return updateDistributor(id, distributorPayload(row));
   if (entity === "laboratories") return updateLaboratory(id, laboratoryPayload(row));
-  if (entity === "tenants") return updateTenant(id, tenantPayload(row));
+  if (entity === "tenants") {
+    const updated = await updateTenant(id, tenantPayload(row));
+    if (!updated) throw new Error("Empresa não encontrada no MBA Cotações.");
+    await syncCotacoesCompanyAccess(updated);
+    return updated;
+  }
   if (entity === "pharmacies") return updatePharmacy(id, pharmacyPayload(row));
   if (entity === "plans") return updateSubscriptionPlan(id, planPayload(row));
   if (entity === "monthly_subscriptions") return updateMonthlySubscription(id, monthlySubscriptionPayload(row));
@@ -261,7 +268,11 @@ async function deleteByEntity(entity: Entity, id: string, tenantId?: string) {
   if (entity === "suppliers") return deleteSupplier(id, tenantId);
   if (entity === "distributors") return deleteDistributor(id);
   if (entity === "laboratories") return deleteLaboratory(id);
-  if (entity === "tenants") return deleteTenant(id);
+  if (entity === "tenants") {
+    const suspended = await deleteTenant(id);
+    if (suspended) await syncCotacoesCompanyAccess(suspended);
+    return suspended;
+  }
   if (entity === "pharmacies") return deletePharmacy(id);
   if (entity === "plans") return deleteSubscriptionPlan(id);
   if (entity === "monthly_subscriptions") return deleteMonthlySubscription(id);
