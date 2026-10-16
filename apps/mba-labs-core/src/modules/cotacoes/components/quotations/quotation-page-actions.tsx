@@ -95,11 +95,11 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
     };
   }, [isDetail, quotationId]);
 
-  async function mutate(action: "finish" | "reopen_links") {
+  async function mutate(action: "finish" | "reopen_links", allowPendingRepresentatives = false) {
     if (loadingAction) return null;
     setLoadingAction(action);
     try {
-      const response = await fetch("/api/cotacoes/quotations", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: quotationId, action }) });
+      const response = await fetch("/api/cotacoes/quotations", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: quotationId, action, allowPendingRepresentatives }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Não foi possível atualizar a cotação.");
       if (payload.status) setLocalStatus(payload.status as QuotationStatus);
@@ -126,12 +126,12 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
     }
   }
 
-  async function finish() {
-    const payload = await mutate("finish");
+  async function finish(allowPendingRepresentatives = false) {
+    const payload = await mutate("finish", allowPendingRepresentatives);
     if (!payload) return;
     toast.success("Cotação finalizada.");
-    showWhatsappResult(await runWhatsapp("send_winner_orders"), "Pedido enviado aos vendedores ganhadores.");
-    router.push(`${base}/${quotationId}/analise`);
+    toast.info("Agora revise as quantidades, aprove e envie os pedidos quando estiverem corretos.");
+    router.push(`${base}/${quotationId}/pedidos`);
   }
 
   async function sendInBulk() {
