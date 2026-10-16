@@ -21,6 +21,7 @@ export function BuyerOrderReview({ order }: Props) {
     }])),
   );
   const [busy, setBusy] = useState<string | null>(null);
+  const [minimumOrderChecked, setMinimumOrderChecked] = useState(false);
   const isPending = order.buyerReviewStatus === "pending";
 
   function patch(id: string, update: Partial<ItemEdit>) {
@@ -70,7 +71,7 @@ export function BuyerOrderReview({ order }: Props) {
     if (!window.confirm("Aprovar este pedido com as quantidades revisadas? Após aprovar, não será possível editar os itens.")) return;
     setBusy("approve");
     try {
-      const result = await callReview("POST", {});
+      const result = await callReview("POST", { minimumOrderChecked });
       toast.success(String(result.message ?? "Pedido aprovado."));
       router.refresh();
     } catch (error) {
@@ -165,6 +166,12 @@ export function BuyerOrderReview({ order }: Props) {
       }) : (
         <p className="text-sm text-slate-600">O pedido está pronto para o envio, sem alteração das propostas recebidas na cotação.</p>
       )}
+      {isPending && order.items.some((item) => Number((edits[item.id]?.quantity ?? item.quantityToBuy).toString().replace(",", ".")) < (item.initialQuantityToBuy ?? item.quantityToBuy)) ? (
+        <label className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <input type="checkbox" checked={minimumOrderChecked} onChange={(e) => setMinimumOrderChecked(e.target.checked)} />
+          <span>Verifiquei com a distribuidora/representante o pedido mínimo, frete e descontos após reduzir as quantidades.</span>
+        </label>
+      ) : null}
       <div className="flex flex-wrap justify-end gap-2">
         {isPending ? (
           <Button type="button" disabled={Boolean(busy)} onClick={() => void approve()}>
