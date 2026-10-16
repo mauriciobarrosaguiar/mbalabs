@@ -62,7 +62,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Um ou mais itens não pertencem à cotação selecionada." }, { status: 400 });
     }
 
-    const productById = new Map((items ?? []).map((item) => [item.id, item]));
+    type ExpectedItem = { id: string; ean: string | null; requested_quantity: number };
+    const productById = new Map<string, ExpectedItem>((items ?? []).map((item: ExpectedItem) => [item.id, item]));
     const rows = [];
     for (const offer of body.offers) {
       const item = productById.get(offer.quotationItemId as string);
