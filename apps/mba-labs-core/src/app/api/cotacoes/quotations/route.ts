@@ -130,7 +130,8 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: "Somente cotações abertas, aguardando respostas ou em análise podem ser finalizadas." }, { status: 409 });
       }
 
-      // Nunca encerrar a disputa antes das respostas ou do prazo.
+      let earlyClosureWithPending = false;
+      // O fechamento antecipado requer confirmação explícita do comprador.
       // Este bloqueio vale para clientes API, não apenas para o botão da interface.
       if (quotation.module_type === "pharmacy") {
         const { data: sessionRows, error: statusError } = await supabase
@@ -140,6 +141,7 @@ export async function PATCH(request: NextRequest) {
           .eq("quotation_id", body.id);
         if (statusError) throw statusError;
         const progress = getRepresentativeProgress(sessionRows ?? [], quotation.deadline_at);
+        earlyClosureWithPending = !progress.canClose && progress.pending > 0;
         if (!progress.canClose && body.allowPendingRepresentatives !== true) {
           return NextResponse.json(
             {
@@ -159,7 +161,7 @@ export async function PATCH(request: NextRequest) {
         .neq("status", "submitted");
       if (sessionUpdateError) throw sessionUpdateError;
 
-      const finishNote = body.allowPendingRepresentatives === true && quotation.module_type === "pharmacy"
+      const finishNote = earlyClosureWithPending && body.allowPendingRepresentatives === true
         ? `Finalização antecipada autorizada pelo comprador em ${now}; usuário ${auth.user?.id ?? "não identificado"}.`
         : null;
       const { error: updateError } = await supabase
