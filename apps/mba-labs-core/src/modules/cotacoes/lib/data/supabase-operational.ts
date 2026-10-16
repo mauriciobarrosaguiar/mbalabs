@@ -256,8 +256,8 @@ export async function getSupabaseQuotationBundle(id: string, tenantId?: string) 
         for (const offer of offerRows) {
           const product = itemById.get(offer.quotation_item_id);
           if (!product || !supplierById.has(offer.supplier_id)) continue;
-          const expectedEan = String(product.ean ?? "").replace(/\\D/g, "");
-          if (!expectedEan || expectedEan !== String(offer.ean ?? "").replace(/\\D/g, "")) continue;
+          const expectedEan = String(product.ean ?? "").replace(/\D/g, "");
+          if (!expectedEan || expectedEan !== String(offer.ean ?? "").replace(/\D/g, "")) continue;
           const stock = Number(offer.available_quantity);
           const price = Number(offer.unit_price);
           if (!Number.isFinite(price) || price <= 0 ||
