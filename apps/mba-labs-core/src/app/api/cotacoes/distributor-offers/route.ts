@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
     const rows = [];
     for (const offer of body.offers) {
       const item = productById.get(offer.quotationItemId as string);
+      if (!item) return NextResponse.json({ error: "Item não encontrado na cotação." }, { status: 400 });
       // Importação sem conversão de embalagem: bloquear cotações em CP/CAP/ML/G/KG.
       const unit = String(item?.requested_unit ?? "").toUpperCase();
       if (!["CX", "FR", "FLAC", "BIS", "UN", "AMP", "SACHE"].includes(unit)) {
