@@ -20,7 +20,7 @@ export function GeneratePurchaseOrdersButton({ quotationId, disabled }: { quotat
       const count = Array.isArray(payload.orders) ? payload.orders.length : 0;
       toast.success(count > 0 ? "Pedidos gerados com sucesso." : "Nenhum pedido foi gerado.");
 
-      if (count > 0) toast.info("Pedidos salvos em rascunho. Revise quantidades e aprove cada pedido antes do envio.");
+      if (count > 0) toast.info("Revise todas as quantidades na mesma tela. Ao aprovar, os pedidos serão enviados automaticamente aos representantes.");
 
       router.refresh();
     } catch (error) {
