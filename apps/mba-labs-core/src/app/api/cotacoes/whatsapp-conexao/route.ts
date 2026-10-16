@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentAuthContext, isTenantSuspended } from "@/modules/cotacoes/lib/auth/session";
+import { getSessionProfile } from "@/lib/core-data";
 import {
   connectTenantWhatsApp,
   disconnectTenantWhatsApp,
@@ -10,7 +11,12 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 async function tenantAccess() {
-  const auth = await getCurrentAuthContext();
+  const [auth, session] = await Promise.all([getCurrentAuthContext(), getSessionProfile()]);
+  const entitled = auth.isSuperAdmin || (session.appsLiberados ?? [])
+    .some((app) => (app.slug === "mba-cotacoes" || app.slug === "mbacotacoes") && app.canAccess);
+  if (!entitled) {
+    return { error: NextResponse.json({ error: "Empresa sem assinatura ativa do MBA Cotações." }, { status: 403 }) };
+  }
   if (!auth.isAuthenticated || !auth.isActive || !auth.tenantAccess ||
       isTenantSuspended(auth.tenantAccess.tenantStatus)) {
     return { error: NextResponse.json({ error: "Você precisa selecionar uma empresa válida do MBA Cotações." }, { status: 403 }) };
