@@ -60,7 +60,7 @@ const adminNav: NavItem[] = [
   { href: "/cotacoes/gestao/mensalidades", label: "Mensalidades", icon: ReceiptText },
   { href: "/cotacoes/gestao/pagamentos", label: "Pagamentos", icon: CreditCard },
   { href: "/cotacoes/gestao/configuracoes/pagamentos", label: "Config. pagamentos", icon: CreditCard },
-  { href: "/cotacoes/configuracoes/whatsapp", label: "Infra WhatsApp", icon: MessageCircle },
+  { href: "/cotacoes/gestao/infra-whatsapp", label: "Infra WhatsApp", icon: MessageCircle },
   { href: "/cotacoes/gestao/configuracoes", label: "Configurações", icon: Settings },
   { href: "/cotacoes/gestao/logs", label: "Logs", icon: ShieldCheck },
 ];
@@ -75,6 +75,7 @@ const pharmacyNav: NavItem[] = [
   { href: "/cotacoes/fornecedores", label: "Fornecedores", icon: Truck, group: "Cadastros" },
   { href: "/cotacoes/distribuidoras", label: "Distribuidoras", icon: Store, group: "Cadastros" },
   { href: "/cotacoes/historico-compras", label: "Histórico de compras", icon: ReceiptText, group: "Gestão" },
+  { href: "/cotacoes/configuracoes/whatsapp", label: "WhatsApp próprio", icon: MessageCircle, group: "Gestão" },
   { href: "/cotacoes/configuracoes", label: "Configurações", icon: Settings, group: "Gestão" },
 ];
 
@@ -343,7 +344,7 @@ function getAppNav(role?: UserRole, tenantType?: CustomerType) {
     return [
       ...mergeNav(pharmacyNav, biddingNav),
       { href: "/cotacoes/gestao", label: "Admin Cotações", icon: ShieldCheck, group: "Gestão" },
-      { href: "/cotacoes/configuracoes/whatsapp", label: "WhatsApp MBA", icon: MessageCircle, group: "Gestão" },
+      { href: "/cotacoes/gestao/infra-whatsapp", label: "Infraestrutura WhatsApp", icon: MessageCircle, group: "Gestão" },
     ];
   }
   if (role === "VENDEDOR_EXTERNO") return supplierNav;
