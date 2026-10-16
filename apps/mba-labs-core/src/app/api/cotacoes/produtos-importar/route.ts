@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body=await request.json() as {mode?:string;action?:string;items?:ProductInput[];accepted?:boolean};
+    const body=await request.json() as {mode?:string;action?:string;items?:ProductInput[];accepted?:boolean;page?:number};
     const mode=body.mode==="catalog"?"catalog":"tenant";
     const authorized=await access(mode);
     const supabase=createSupabaseAdminClient();
@@ -65,16 +65,17 @@ export async function POST(request: NextRequest) {
       const {data:pref}=await supabase.from("cot_catalog_preferences").select("accepted")
         .eq("tenant_id",authorized.tenantId).maybeSingle();
       if(!pref?.accepted) return NextResponse.json({error:"O administrador da farmácia precisa aceitar o catálogo antes de copiar."},{status:403});
-      const offset=Number(body.items?.[0]?.ean??0); // não utilizado; paginação por cursor seguro no servidor
-      void offset;
+
+      const page=Number.isInteger(body.page)&&body.page!>=0&&body.page!<=10000?body.page!:0;
       const {data:all,error}=await supabase.from("cot_product_catalog")
-        .select("ean,produto,laboratorio,tipo_produto").eq("ativo",true).order("ean").limit(1000);
+        .select("ean,produto,laboratorio,tipo_produto").eq("ativo",true)
+        .order("ean").order("laboratorio").range(page*250,(page+1)*250-1);
       if(error)throw error;
       const result=await importProducts(supabase,authorized.tenantId,(all??[]).map(p=>({
         ean:p.ean,nome:p.produto,laboratorio:p.laboratorio,tipoProduto:p.tipo_produto??""
       })),false);
-      return NextResponse.json({ok:true,...result,limited:(all??[]).length===1000,
-        message:"Copiados até 1.000 itens. Os produtos da farmácia foram mantidos."});
+      return NextResponse.json({ok:true,...result,hasMore:(all??[]).length===250,
+        message:"Catálogo copiado em lotes, mantendo os produtos da farmácia."});
     }
     if(!Array.isArray(body.items)||body.items.length<1||body.items.length>250){
       return NextResponse.json({error:"Envie entre 1 e 250 produtos por lote."},{status:400});
@@ -138,22 +139,17 @@ async function importProducts(supabase:Client,tenantId:string,items:ProductInput
       laboratorio_id:laboratory,tipo_produto:item.tipoProduto||null,status:"ativo",
     });
   }
-  let created=0,updated=0;
-  for(const row of rows.values()){
-    if(row.id){
-      const {error}=await supabase.from("products").update({
-        nome:row.nome,tipo_produto:row.tipo_produto,status:row.status,updated_at:new Date().toISOString()
-      }).eq("id",row.id).eq("tenant_id",tenantId);
-      if(error)throw error;
-      updated++;
-    } else {
-      const {error}=await supabase.from("products").insert({
-        tenant_id:row.tenant_id,nome:row.nome,ean:row.ean,
-        laboratorio_id:row.laboratorio_id,tipo_produto:row.tipo_produto,status:"ativo"
-      });
-      if(error)throw error;
-      created++;
-    }
+  const upserts=[...rows.values()].map(row=>({
+    id:row.id??crypto.randomUUID(),
+    tenant_id:row.tenant_id,nome:row.nome,ean:row.ean,
+    laboratorio_id:row.laboratorio_id,tipo_produto:row.tipo_produto,status:row.status,
+    updated_at:new Date().toISOString()
+  }));
+  if(upserts.length){
+    const {error}=await supabase.from("products").upsert(upserts,{onConflict:"id"});
+    if(error)throw error;
   }
+  const updated=[...rows.values()].filter(x=>Boolean(x.id)).length;
+  const created=rows.size-updated;
   return {created,updated,skipped:items.length-created-updated};
 }
