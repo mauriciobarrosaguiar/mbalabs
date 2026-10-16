@@ -54,6 +54,13 @@ BEGIN
     NEW.initial_quantity_to_buy = COALESCE(NEW.initial_quantity_to_buy, NEW.quantity_to_buy);
     RETURN NEW;
   END IF;
+  IF current_user NOT IN ('postgres','service_role')
+     AND (NEW.quantity_to_buy IS DISTINCT FROM OLD.quantity_to_buy
+          OR NEW.unit_price IS DISTINCT FROM OLD.unit_price
+          OR NEW.total_price IS DISTINCT FROM OLD.total_price
+          OR NEW.initial_quantity_to_buy IS DISTINCT FROM OLD.initial_quantity_to_buy
+          OR NEW.supplier_confirmation_note IS DISTINCT FROM OLD.supplier_confirmation_note)
+  THEN RAISE EXCEPTION 'Alteracao de compra exige revisao autenticada pela aplicacao.'; END IF;
   IF NEW.initial_quantity_to_buy IS DISTINCT FROM OLD.initial_quantity_to_buy THEN
     RAISE EXCEPTION 'Quantidade original da cotacao e imutavel.';
   END IF;
@@ -117,4 +124,30 @@ FOR EACH ROW EXECUTE FUNCTION public.cot_order_item_review_audit();
 
 REVOKE ALL ON FUNCTION public.cot_order_item_review_guard() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.cot_order_item_review_audit() FROM PUBLIC;
+
+-- Impede que um usuário autenticado contorne a revisão pelo acesso direto à Data API.
+CREATE OR REPLACE FUNCTION public.cot_order_header_review_guard()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $
+BEGIN
+  IF current_user NOT IN ('postgres','service_role')
+    AND (NEW.buyer_review_status IS DISTINCT FROM OLD.buyer_review_status
+         OR NEW.buyer_approved_at IS DISTINCT FROM OLD.buyer_approved_at
+         OR NEW.buyer_approved_by IS DISTINCT FROM OLD.buyer_approved_by
+         OR NEW.buyer_minimum_checked_at IS DISTINCT FROM OLD.buyer_minimum_checked_at
+         OR NEW.buyer_sent_at IS DISTINCT FROM OLD.buyer_sent_at
+         OR NEW.total_amount IS DISTINCT FROM OLD.total_amount)
+  THEN RAISE EXCEPTION 'Aprovacao e alteracao de pedido devem passar pelo comprador autorizado.'; END IF;
+  RETURN NEW;
+END;
+$;
+
+DROP TRIGGER IF EXISTS trg_cot_order_header_review_guard ON public.purchase_orders;
+CREATE TRIGGER trg_cot_order_header_review_guard
+BEFORE UPDATE ON public.purchase_orders
+FOR EACH ROW EXECUTE FUNCTION public.cot_order_header_review_guard();
+REVOKE ALL ON FUNCTION public.cot_order_header_review_guard() FROM PUBLIC;
+
 COMMENT ON COLUMN public.purchase_orders.buyer_review_status IS 'pending: comprador deve revisar antes de transmitir; approved: liberado para envio';
