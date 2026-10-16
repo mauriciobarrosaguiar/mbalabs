@@ -73,9 +73,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const note = typeof body.note === "string" ? body.note.trim().slice(0, 500) : "";
     const supplierConfirmationNote = typeof body.supplierConfirmationNote === "string"
       ? body.supplierConfirmationNote.trim().slice(0, 500) : "";
-    if (quantity > initial && supplierConfirmationNote.length < 10) {
-      return NextResponse.json({ error: "Para aumentar a quantidade, registre a confirmação do representante sobre preço e estoque (mínimo 10 caracteres)." }, { status: 409 });
-    }
+    // Aumento de quantidade é decisão do comprador; não exige confirmação manual
+    // prévia do representante. Valores seguem o preço unitário da proposta.
     if (quantity === 0 && note.length < 4) {
       return NextResponse.json({ error: "Informe o motivo da retirada do item." }, { status: 400 });
     }
@@ -119,10 +118,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     type ItemReviewRow = { quantity_to_buy: number | string; initial_quantity_to_buy: number | string | null; supplier_confirmation_note: string | null };
     if (!items?.some((item: ItemReviewRow) => Number(item.quantity_to_buy) > 0)) {
       return NextResponse.json({ error: "O pedido está sem produtos. Mantenha pelo menos um item com quantidade maior que zero." }, { status: 409 });
-    }
-    if (items.some((item: ItemReviewRow) => Number(item.quantity_to_buy) > Number(item.initial_quantity_to_buy) &&
-      String(item.supplier_confirmation_note ?? "").trim().length < 10)) {
-      return NextResponse.json({ error: "Acréscimos exigem registro da confirmação do representante sobre preço e estoque." }, { status: 409 });
     }
     const reducedItems = items.filter((item: ItemReviewRow) => Number(item.quantity_to_buy) < Number(item.initial_quantity_to_buy));
     if (reducedItems.length > 0 && body.minimumOrderChecked !== true) {
