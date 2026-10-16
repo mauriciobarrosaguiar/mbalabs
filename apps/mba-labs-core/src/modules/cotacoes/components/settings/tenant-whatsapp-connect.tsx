@@ -90,11 +90,20 @@ export function TenantWhatsappConnect({ canManage }: { canManage: boolean }) {
         </div>
       ) : null}
       {error ? <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
+      {!error && connection?.message && !connection.connected ? (
+        <p className="rounded-md bg-amber-50 p-3 text-sm text-amber-900">{connection.message}</p>
+      ) : null}
+      {busy === "connect" ? (
+        <p role="status" className="rounded-md bg-teal-50 p-3 text-sm text-teal-950">
+          Preparando a conexão segura. Se o servidor WhatsApp estiver iniciando após inatividade,
+          a primeira tentativa poderá levar até cerca de 90 segundos. Aguarde sem recarregar a página.
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Button type="button" onClick={() => void perform("connect")} disabled={!canManage || busy !== null || Boolean(connection?.connected)}
           className="active:scale-95">
           {busy === "connect" ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
-          {busy === "connect" ? "Solicitando QR..." : "Conectar meu WhatsApp"}
+          {busy === "connect" ? "Aguardando servidor e QR Code..." : "Conectar meu WhatsApp"}
         </Button>
         <Button type="button" variant="outline" disabled={busy !== null} onClick={() => {
           setBusy("refresh");
