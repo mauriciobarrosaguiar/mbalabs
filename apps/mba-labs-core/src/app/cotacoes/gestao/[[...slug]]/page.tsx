@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/modules/cotacoes/components/layout/app-shell";
-import { AdminSectionPage } from "@/modules/cotacoes/components/dashboard/pages";
+import { AdminDashboardPage, AdminSectionPage } from "@/modules/cotacoes/components/dashboard/pages";
 import { requireSuperAdmin } from "@/modules/cotacoes/lib/auth/session";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,7 @@ export default async function CotacoesGestao({
       tenantName={auth.tenantAccess?.tenantName}
     >
       {section === "dashboard" ? (
-        <AdminSectionPage section="dashboard" />
+        <AdminDashboardPage />
       ) : (
         <AdminSectionPage section={section} slug={slug} />
       )}
