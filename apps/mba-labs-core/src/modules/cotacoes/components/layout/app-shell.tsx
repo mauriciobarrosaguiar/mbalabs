@@ -49,12 +49,11 @@ type NavItem = {
 
 const adminNav: NavItem[] = [
   { href: "/cotacoes/gestao", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/cotacoes/gestao/empresas", label: "Empresas", icon: Building2 },
-  { href: "/cotacoes/gestao/farmacias", label: "Farmácias", icon: Store },
+  { href: "/cotacoes/gestao/farmacias", label: "Farmácias / CNPJs", icon: Store },
   { href: "/cotacoes/gestao/licitacoes", label: "Licitações", icon: BarChart3 },
   { href: "/cotacoes/gestao/distribuidoras", label: "Distribuidoras", icon: Truck },
   { href: "/cotacoes/gestao/vendedores", label: "Vendedores", icon: Users },
-  { href: "/cotacoes/gestao/produtos", label: "Produtos", icon: Package },
+  { href: "/cotacoes/gestao/produtos", label: "Catálogo de medicamentos", icon: Package },
   { href: "/cotacoes/gestao/usuarios", label: "Usuários", icon: Users },
   { href: "/cotacoes/gestao/planos", label: "Planos", icon: ClipboardCheck },
   { href: "/cotacoes/gestao/mensalidades", label: "Mensalidades", icon: ReceiptText },
@@ -340,13 +339,7 @@ function isActive(currentPath: string, href: string) {
 }
 
 function getAppNav(role?: UserRole, tenantType?: CustomerType) {
-  if (role === "SUPER_ADMIN") {
-    return [
-      ...mergeNav(pharmacyNav, biddingNav),
-      { href: "/cotacoes/gestao", label: "Admin Cotações", icon: ShieldCheck, group: "Gestão" },
-      { href: "/cotacoes/gestao/infra-whatsapp", label: "Infraestrutura WhatsApp", icon: MessageCircle, group: "Gestão" },
-    ];
-  }
+  if (role === "SUPER_ADMIN") return adminNav;
   if (role === "VENDEDOR_EXTERNO") return supplierNav;
   if (tenantType === "pharmacy") return pharmacyNav;
   if (tenantType === "distributor_bidding") return biddingNav;

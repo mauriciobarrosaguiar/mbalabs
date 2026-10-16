@@ -64,7 +64,7 @@ export async function requireCompanyAccess(currentPath = "/cotacoes") {
     redirect("/acesso-bloqueado?app=mba-cotacoes");
   }
 
-  if (context.isSuperAdmin) return context;
+  if (context.isSuperAdmin) redirect("/cotacoes/gestao");
 
   if (!context.tenantAccess) {
     redirect("/acesso-bloqueado?app=mba-cotacoes");
@@ -83,8 +83,8 @@ export async function requireSuperAdmin(currentPath = "/cotacoes/admin") {
   return context as AuthContext & { profile: AuthProfile };
 }
 
-export function getDefaultRouteForContext(_context: Pick<AuthContext, "isSuperAdmin" | "tenantAccess">) {
-  return "/cotacoes";
+export function getDefaultRouteForContext(context: Pick<AuthContext, "isSuperAdmin" | "tenantAccess">) {
+  return context.isSuperAdmin ? "/cotacoes/gestao" : "/cotacoes";
 }
 
 export function isTenantSuspended(status?: string | null) {

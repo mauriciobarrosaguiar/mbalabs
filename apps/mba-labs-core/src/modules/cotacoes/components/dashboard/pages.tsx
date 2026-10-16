@@ -10,6 +10,8 @@ import {
   ReceiptText,
   Users,
 } from "lucide-react";
+import { FlexibleProductImporter } from "@/modules/cotacoes/components/products/flexible-product-importer";
+import { CatalogAdminPanel } from "@/modules/cotacoes/components/products/catalog-admin-panel";
 import { TenantManagementTable } from "@/modules/cotacoes/components/admin/tenant-management-table";
 import { KpiCard } from "@/modules/cotacoes/components/dashboard/kpi-card";
 import { StatusBadge } from "@/modules/cotacoes/components/dashboard/status-badge";
@@ -202,7 +204,7 @@ export async function AdminDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tenants.map((tenant) => (
+                {tenants.filter(t=>!String(t.cnpj??"").startsWith("CORE-")).map((tenant) => (
                   <TableRow key={tenant.id}>
                     <TableCell className="font-medium">{tenant.nomeFantasia}</TableCell>
                     <TableCell>{labelFrom(customerTypeLabels, tenant.tipoCliente)}</TableCell>
@@ -259,7 +261,7 @@ export async function AdminSectionPage({
     return <PaymentSettingsPage />;
   }
 
-  if (section === "empresas" && subpage) {
+  if ((section === "empresas" || section === "farmacias") && subpage) {
     return <CompanyDetailsPage tenantId={subpage} />;
   }
 
@@ -270,7 +272,7 @@ export async function AdminSectionPage({
         description="Cadastre tenants, defina módulo contratado, status e dados financeiros."
       >
         <TenantManagementTable
-          initialTenants={collections.tenants}
+          initialTenants={collections.tenants.filter(t=>!String(t.cnpj??"").startsWith("CORE-"))}
           plans={collections.subscriptionPlans}
         />
       </CrudPage>
@@ -414,77 +416,7 @@ export async function AdminSectionPage({
     );
   }
 
-  if (section === "produtos") {
-    return (
-      <CrudPage
-        title="Produtos"
-        description="Produtos cadastrados por empresa, com busca, importação, edição e inativação."
-      >
-        <DemoCrudTable
-          entity="products"
-          storageKey="mba-admin-products"
-          title="Produto"
-          primaryKey="nome"
-          showStatus={false}
-          initialRows={collections.products.map((product) => ({
-            id: product.id,
-            tenantId: product.tenantId,
-            ean: product.ean ?? "",
-            nome: product.nome,
-            laboratorio: collections.laboratories.find((laboratory) => laboratory.id === product.laboratorioId)?.nome ?? "",
-            status: product.status,
-          }))}
-          fields={[
-            { key: "tenantId", label: "Empresa", type: "hidden", defaultValue: Object.keys(tenantOptions)[0] ?? "" },
-            { key: "ean", label: "EAN", required: true },
-            { key: "nome", label: "Produto", required: true },
-            { key: "laboratorio", label: "Laboratório", required: true },
-          ]}
-        />
-      </CrudPage>
-    );
-  }
-
-  if (section === "farmacias") {
-    return (
-      <CrudPage
-        title="Farmácias"
-        description="Farmácias e CNPJs compradores cadastrados por empresa."
-      >
-        <DemoCrudTable
-          entity="pharmacies"
-          storageKey="mba-admin-pharmacies"
-          title="Farmácia/CNPJ"
-          primaryKey="nomeFantasia"
-          emptyMessage="Nenhuma farmácia cadastrada. Cadastre uma empresa do tipo Farmácia ou adicione uma unidade dentro da empresa."
-          initialRows={collections.pharmacies.map((pharmacy) => ({
-            id: pharmacy.id,
-            tenantId: pharmacy.tenantId,
-            nomeFantasia: pharmacy.nomeFantasia,
-            razaoSocial: pharmacy.razaoSocial,
-            cnpj: pharmacy.cnpj,
-            cidade: pharmacy.cidade,
-            uf: pharmacy.uf,
-            responsavel: pharmacy.responsavel,
-            whatsapp: pharmacy.whatsapp,
-            email: pharmacy.email,
-            status: pharmacy.status,
-          }))}
-          fields={[
-            { key: "tenantId", label: "Empresa", type: "select", options: tenantOptions },
-            { key: "nomeFantasia", label: "Nome Fantasia" },
-            { key: "razaoSocial", label: "Razão Social" },
-            { key: "cnpj", label: "CNPJ" },
-            { key: "cidade", label: "Cidade" },
-            { key: "uf", label: "UF", type: "select", options: ufLabels },
-            { key: "responsavel", label: "Responsável" },
-            { key: "whatsapp", label: "WhatsApp" },
-            { key: "email", label: "E-mail", type: "email" },
-          ]}
-        />
-      </CrudPage>
-    );
-  }
+  if (section === "produtos") return <CatalogAdminPanel />;
 
   if (section === "licitacoes") {
     const biddingQuotations = collections.quotations.filter((quotation) => quotation.moduleType === "bidding");
@@ -1261,6 +1193,7 @@ function TenantProductsTable({
             { key: "ean", label: "EAN", required: true },
             { key: "nome", label: "Produto", required: true },
             { key: "laboratorio", label: "Laboratório", required: true },
+          { key: "tipoProduto", label: "Tipo de produto (opcional)" },
           ]}
         />
       </CardContent>
@@ -1493,12 +1426,14 @@ async function ProductsPage({ tenantId }: { tenantId?: string }) {
     nome: product.nome,
     laboratorio: laboratories.find((laboratory) => laboratory.id === product.laboratorioId)?.nome ?? "",
     status: product.status,
+    tipoProduto: product.tipoProduto ?? "",
   })) as DemoCrudRow[];
   return (
     <CrudPage
       title="Produtos"
-      description="Cadastro simples para cotação de farmácia: EAN, produto e laboratório."
+      description="Base própria da farmácia com importação por colunas e tipo de produto opcional."
     >
+      <FlexibleProductImporter mode="tenant" />
       <DemoCrudTable
         entity="products"
         storageKey="cotafarma-demo-products"

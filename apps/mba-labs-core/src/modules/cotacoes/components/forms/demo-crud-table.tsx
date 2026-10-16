@@ -278,15 +278,15 @@ export function DemoCrudTable({
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => void downloadModel()}>
+          {entity !== "products" ? <Button variant="outline" onClick={() => void downloadModel()}>
             <FileSpreadsheet className="h-4 w-4" />
             Baixar modelo Excel
-          </Button>
+          </Button> : null}
           <Button variant="outline" onClick={exportRows}>
             <Download className="h-4 w-4" />
             Exportar lista
           </Button>
-          <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-sm font-medium hover:bg-muted">
+          {entity !== "products" ? <label className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-2.5 text-sm font-medium hover:bg-muted">
             <Upload className="h-4 w-4" />
             Importar em massa
             <input
@@ -295,7 +295,7 @@ export function DemoCrudTable({
               accept=".xlsx,.xls,.csv"
               onChange={(event) => void handleImport(event.target.files?.[0])}
             />
-          </label>
+          </label> : null}
           <Button onClick={() => { setIsCreating(true); setEditing(null); }}>
             <Plus className="h-4 w-4" />
             Novo

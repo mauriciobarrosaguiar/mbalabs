@@ -41,7 +41,7 @@ export function ensureCreateQuotationAccess(
   }
 
   if (auth.isSuperAdmin) {
-    return { ok: true, tenantId: requestedTenantId || undefined };
+    return { ok: false, status: 403, error: "O administrador MBA Labs gerencia farmácias e catálogos, mas não pode operar cotações." };
   }
 
   if (!auth.tenantAccess) {
@@ -65,6 +65,8 @@ export async function ensureQuotationAccess(
   if (!hasSupabaseConfig() || !hasSupabaseAdminConfig()) {
     return { ok: false, status: 409, error: "Supabase nao configurado." };
   }
+
+  if (auth.isSuperAdmin) return { ok: false, status: 403, error: "Conta administrativa sem permissão para operar cotações de farmácias." };
 
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
