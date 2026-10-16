@@ -90,6 +90,7 @@ import { createUserAccessAction, updateUserAccessAction } from "@/modules/cotaco
 import { listManagedUsers, listTenantOptions, type ManagedUser, type TenantOption } from "@/modules/cotacoes/lib/auth/users";
 import { createSupabaseAdminClient, hasSupabaseAdminConfig } from "@/modules/cotacoes/lib/supabase/server";
 import { listPendingShortageItems } from "@/modules/cotacoes/lib/data/shortage-items";
+import { getRepresentativeProgress } from "@/modules/cotacoes/lib/services/representative-progress";
 import type {
   CustomerType,
   QuotationAward,
@@ -2281,6 +2282,7 @@ async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotatio
       ? ["respostas", "analise", "pedidos"]
       : ["respostas", "analise", "mapa-comparativo", "saldo-pendente", "pedidos"];
 
+  const representativeProgress = getRepresentativeProgress(sessions, quotation.deadlineAt);
   const items = rawItems.map((item) => ({
     ...item,
     status: getQuotationItemStatusFromOrders(item, orders),
@@ -2300,6 +2302,22 @@ async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotatio
         />
       ) : null}
       <QuotationPageActions quotationId={quotation.id} moduleType={moduleType} status={quotation.status} currentPage="detail" />
+      {moduleType === "pharmacy" ? (
+        <Card>
+          <CardHeader><CardTitle>Cotação híbrida: representantes e distribuidoras</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p>Representantes: {representativeProgress.submitted} resposta(s) finalizada(s) de {representativeProgress.total} convite(s); {representativeProgress.pending} pendente(s).</p>
+            <p className="text-muted-foreground">
+              {isQuotationClosed(quotation.status)
+                ? "Cotação encerrada: resultado final disponível na análise."
+                : representativeProgress.canClose
+                  ? "Pronta para encerramento, após conferência das ofertas."
+                  : "Aguardando as respostas dos representantes ou o fim do prazo. O menor preço é provisório."}
+            </p>
+            <p className="text-muted-foreground">Ofertas diretas das distribuidoras serão consideradas em paralelo quando houver conectores ou fontes de preços homologadas para este CNPJ. Sem conexão, os representantes continuam participando normalmente.</p>
+          </CardContent>
+        </Card>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         {!isQuotationClosed(quotation.status) ? (
           <Button asChild variant="outline" size="sm">
@@ -2493,11 +2511,14 @@ async function BiddingResponses({ quotationId, tenantId }: { quotationId: string
 }
 
 async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string; tenantId?: string }) {
-  const [analysis, { quotation, items, responses }, orders] = await Promise.all([
+  const [analysis, { quotation, items, responses }, orders, sessions] = await Promise.all([
     getPharmacyAnalysis(quotationId, tenantId),
     getQuotationBundle(quotationId, tenantId),
     getPurchaseOrdersByQuotation(quotationId, tenantId),
+    getSupplierSessions(quotationId, tenantId),
   ]);
+  const isProvisional = !canGenerateQuotationOrders(quotation.status);
+  const representativeProgress = getRepresentativeProgress(sessions, quotation.deadlineAt);
   const supplierDisplayName = buildSupplierNameResolver({ responses });
 
   const orderForAward = (award: QuotationAward) =>
@@ -2513,20 +2534,25 @@ async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string
     <PageStack>
       <HeaderBlock
         title="Análise da cotação farmácia"
-        description="Menor preço por produto, diferença entre ofertas e pedido mínimo por distribuidora."
+        description={isProvisional
+          ? "Classificação provisória: aguardando propostas dos representantes ou o fim do prazo antes de declarar vencedores."
+          : "Resultado da cotação encerrada, com preço por produto e condições dos fornecedores."}
         actionLabel={canGenerateQuotationOrders(quotation.status) ? "Gerar pedido" : undefined}
         actionHref={canGenerateQuotationOrders(quotation.status) ? `/cotacoes/cotacoes-farmacia/${quotationId}/pedidos` : undefined}
       />
       <QuotationPageActions quotationId={quotationId} moduleType="pharmacy" status={quotation.status} currentPage="analysis" />
       <Card>
-        <CardHeader><CardTitle>Vencedores e links de pedido</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{isProvisional ? "Líderes provisórios por item — ainda sem vencedores" : "Vencedores e links de pedido"}</CardTitle></CardHeader>
+        {isProvisional ? (
+          <CardContent className="text-sm text-amber-800">Respostas recebidas: {representativeProgress.submitted}/{representativeProgress.total}. Pendente(s): {representativeProgress.pending}. As ofertas podem mudar até o encerramento da cotação.</CardContent>
+        ) : null}
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Produto</TableHead>
                 <TableHead className="text-right">Quantidade</TableHead>
-                <TableHead>Fornecedor vencedor</TableHead>
+                <TableHead>{isProvisional ? "Fornecedor na liderança" : "Fornecedor vencedor"}</TableHead>
                 <TableHead className="text-right">Preco informado</TableHead>
                 <TableHead className="text-right">Total do item</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -2561,7 +2587,7 @@ async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string
                     <TableCell className="text-right">{formatCurrency(award.unitPrice)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(award.totalPrice)}</TableCell>
                     <TableCell className="text-right">
-                      <WinnerOrderLinks order={orderForAward(award)} />
+                      {!isProvisional ? <WinnerOrderLinks order={orderForAward(award)} /> : <span className="text-muted-foreground">Aguardando encerramento</span>}
                     </TableCell>
                   </TableRow>
                 );
@@ -2574,7 +2600,7 @@ async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string
         metrics={[
           { label: "Itens", value: String(analysis.totals.totalItems), hint: "Produtos cotados" },
           { label: "Respondidos", value: String(analysis.totals.answeredItems), hint: "Com preço válido", tone: "success" },
-          { label: "Total vencedor", value: formatCurrency(analysis.totals.estimatedTotal), hint: "Menor preço", tone: "default" },
+          { label: isProvisional ? "Menor total provisório" : "Total vencedor", value: formatCurrency(analysis.totals.estimatedTotal), hint: isProvisional ? "Sujeito a novas respostas" : "Menor preço", tone: "default" },
           { label: "Economia", value: formatCurrency(analysis.totals.estimatedSavings), hint: "Vs última compra", tone: "success" },
         ]}
       />
