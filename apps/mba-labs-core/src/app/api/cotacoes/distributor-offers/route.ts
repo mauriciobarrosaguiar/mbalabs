@@ -55,18 +55,23 @@ export async function POST(request: NextRequest) {
     }
     const { data: items, error: itemsError } = await supabase
       .from("quotation_items")
-      .select("id,ean,requested_quantity")
+      .select("id,ean,requested_quantity,requested_unit")
       .eq("quotation_id", body.quotationId).eq("tenant_id", tenantId).in("id", ids as string[]);
     if (itemsError) throw itemsError;
     if ((items ?? []).length !== body.offers.length) {
       return NextResponse.json({ error: "Um ou mais itens não pertencem à cotação selecionada." }, { status: 400 });
     }
 
-    type ExpectedItem = { id: string; ean: string | null; requested_quantity: number };
+    type ExpectedItem = { id: string; ean: string | null; requested_quantity: number; requested_unit: string | null };
     const productById = new Map<string, ExpectedItem>((items ?? []).map((item: ExpectedItem) => [item.id, item]));
     const rows = [];
     for (const offer of body.offers) {
       const item = productById.get(offer.quotationItemId as string);
+      // Importação sem conversão de embalagem: bloquear cotações em CP/CAP/ML/G/KG.
+      const unit = String(item?.requested_unit ?? "").toUpperCase();
+      if (!["CX", "FR", "FLAC", "BIS", "UN", "AMP", "SACHE"].includes(unit)) {
+        return NextResponse.json({ error: "A unidade deste produto exige conversão de embalagem antes da comparação automática." }, { status: 400 });
+      }
       const expectedEan = String(item?.ean ?? "").replace(/\D/g, "");
       const offeredEan = String(offer.ean ?? "").replace(/\D/g, "");
       if (!expectedEan || offeredEan !== expectedEan) {
