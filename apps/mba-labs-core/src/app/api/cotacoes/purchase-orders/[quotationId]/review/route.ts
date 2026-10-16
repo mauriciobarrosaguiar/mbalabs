@@ -115,10 +115,11 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .select("id,quantity_to_buy,initial_quantity_to_buy,supplier_confirmation_note")
       .eq("tenant_id", order!.tenant_id).eq("purchase_order_id", order!.id);
     if (error) throw error;
-    if (!items?.some((item) => Number(item.quantity_to_buy) > 0)) {
+    type ItemReviewRow = { quantity_to_buy: number | string; initial_quantity_to_buy: number | string | null; supplier_confirmation_note: string | null };
+    if (!items?.some((item: ItemReviewRow) => Number(item.quantity_to_buy) > 0)) {
       return NextResponse.json({ error: "O pedido está sem produtos. Mantenha pelo menos um item com quantidade maior que zero." }, { status: 409 });
     }
-    if (items.some((item) => Number(item.quantity_to_buy) > Number(item.initial_quantity_to_buy) &&
+    if (items.some((item: ItemReviewRow) => Number(item.quantity_to_buy) > Number(item.initial_quantity_to_buy) &&
       String(item.supplier_confirmation_note ?? "").trim().length < 10)) {
       return NextResponse.json({ error: "Acréscimos exigem registro da confirmação do representante sobre preço e estoque." }, { status: 409 });
     }
