@@ -204,7 +204,7 @@ export async function AdminDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tenants.map((tenant) => (
+                {tenants.filter(t=>!String(t.cnpj??"").startsWith("CORE-")).map((tenant) => (
                   <TableRow key={tenant.id}>
                     <TableCell className="font-medium">{tenant.nomeFantasia}</TableCell>
                     <TableCell>{labelFrom(customerTypeLabels, tenant.tipoCliente)}</TableCell>
@@ -1192,7 +1192,7 @@ function TenantProductsTable({
             { key: "tenantId", label: "Empresa", type: "hidden", defaultValue: tenantId },
             { key: "ean", label: "EAN", required: true },
             { key: "nome", label: "Produto", required: true },
-            { key: "laboratorio", label: "Laboratório" },
+            { key: "laboratorio", label: "Laboratório", required: true },
           { key: "tipoProduto", label: "Tipo de produto (opcional)" },
           ]}
         />
