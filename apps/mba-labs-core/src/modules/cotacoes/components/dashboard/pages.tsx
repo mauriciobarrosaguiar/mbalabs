@@ -3535,7 +3535,8 @@ function AdminUsersTable({
   }
 
   return (
-    <Table>
+    <div className="w-full max-w-full overflow-x-auto rounded-md border border-slate-200">
+    <Table className="min-w-[1180px]">
       <TableHeader>
         <TableRow>
           <TableHead>Nome</TableHead>
@@ -3552,8 +3553,8 @@ function AdminUsersTable({
 
           return (
             <TableRow key={user.id}>
-              <TableCell className="font-medium">{user.fullName}</TableCell>
-              <TableCell>{user.email}</TableCell>
+              <TableCell className="max-w-[220px] font-medium break-words">{user.fullName}</TableCell>
+              <TableCell className="max-w-[260px] break-all">{user.email}</TableCell>
               <TableCell>{labelFrom(userRoleLabels, user.role)}</TableCell>
               <TableCell>
                 {primaryTenant
@@ -3564,6 +3565,12 @@ function AdminUsersTable({
                 <StatusBadge status={user.status} label={labelFrom(statusLabels, user.status)} />
               </TableCell>
               <TableCell>
+                {user.role === "SUPER_ADMIN" ? (
+                  <p className="max-w-[340px] rounded-md bg-slate-50 p-3 text-xs text-slate-700">
+                    Administrador central do MBA Labs: acesso somente à gestão, sem vínculo com farmácia e sem alteração por esta tela.
+                  </p>
+                ) : (
+                <>
                 <form action={updateUserAccessAction} className="flex justify-end gap-2">
                   <input type="hidden" name="profileId" value={user.id} />
                   <Select name="role" defaultValue={user.role}>
@@ -3600,7 +3607,7 @@ function AdminUsersTable({
                 </form>
                 {primaryTenant ? (
                   <form action={deactivateCotacoesUserAction}
-                    onSubmit={undefined} className="mt-2 flex justify-end">
+                    className="mt-2 flex justify-end">
                     <input type="hidden" name="tenantId" value={primaryTenant.tenantId} />
                     <input type="hidden" name="profileId" value={user.id} />
                     <Button type="submit" size="sm" variant="destructive"
@@ -3609,12 +3616,15 @@ function AdminUsersTable({
                     </Button>
                   </form>
                 ) : null}
+                </>
+                )}
               </TableCell>
             </TableRow>
           );
         })}
       </TableBody>
     </Table>
+    </div>
   );
 }
 
@@ -3628,7 +3638,6 @@ function UserInviteForm({ tenants = [] }: { tenants?: TenantOption[] }) {
         <Select name="role" defaultValue="COMPRADOR">
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="SUPER_ADMIN">{userRoleLabels.SUPER_ADMIN}</SelectItem>
             <SelectItem value="ADMIN_EMPRESA">{userRoleLabels.ADMIN_EMPRESA}</SelectItem>
             <SelectItem value="COMPRADOR">{userRoleLabels.COMPRADOR}</SelectItem>
             <SelectItem value="CONFERENTE">{userRoleLabels.CONFERENTE}</SelectItem>
@@ -3639,9 +3648,9 @@ function UserInviteForm({ tenants = [] }: { tenants?: TenantOption[] }) {
       <div className="space-y-2">
         <Label>Empresa</Label>
         <Select name="tenantId" defaultValue={tenants[0]?.id ?? "none"}>
-          <SelectTrigger><SelectValue placeholder="Sem vínculo" /></SelectTrigger>
+          <SelectTrigger><SelectValue placeholder="Selecione a farmácia" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">Sem vínculo</SelectItem>
+            {tenants.length === 0 ? <SelectItem value="none">Cadastre uma farmácia primeiro</SelectItem> : null}
             {tenants.map((tenant) => (
               <SelectItem key={tenant.id} value={tenant.id}>
                 {tenant.name} · {labelFrom(customerTypeLabels, tenant.type)}
