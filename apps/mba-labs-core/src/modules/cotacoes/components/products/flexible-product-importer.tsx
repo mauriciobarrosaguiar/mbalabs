@@ -173,11 +173,26 @@ export function FlexibleProductImporter({mode}:{mode:Mode}) {
    }catch{}
  }
  // A consulta de preferência depende de ação do usuário para evitar chamadas repetidas no render.
- function downloadModel() {
-   const csv="EAN;Produto;Laboratório;TIPO DE PRODUTO (STATUS DO PRODUTO)\r\n";
-   const url=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"}));
-   const a=document.createElement("a");a.href=url;a.download="modelo_produtos_mba_cotacoes.csv";a.click();
-   URL.revokeObjectURL(url);
+ async function downloadModel() {
+   try {
+     const ExcelJS=await import("exceljs");
+     const workbook=new ExcelJS.Workbook();
+     const sheet=workbook.addWorksheet("Produtos");
+     sheet.columns=[
+       {header:"EAN",key:"ean",width:21,style:{numFmt:"@"}},
+       {header:"Produto",key:"nome",width:65},
+       {header:"Laboratório",key:"laboratorio",width:45},
+       {header:"TIPO DE PRODUTO (STATUS DO PRODUTO)",key:"tipoProduto",width:40},
+     ];
+     sheet.getRow(1).font={bold:true,color:{argb:"FFFFFFFF"}};
+     sheet.getRow(1).fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF007F69"}};
+     sheet.views=[{state:"frozen",ySplit:1}];
+     const buffer=await workbook.xlsx.writeBuffer();
+     const blob=new Blob([buffer as BlobPart],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+     const url=URL.createObjectURL(blob);
+     const link=document.createElement("a");link.href=url;link.download="modelo_produtos_mba_cotacoes.xlsx";link.click();
+     URL.revokeObjectURL(url);
+   }catch{toast.error("Não foi possível gerar o modelo Excel.");}
  }
 
  return <div className="space-y-4 rounded-xl border border-teal-200 bg-white p-4 text-slate-900">
@@ -187,7 +202,7 @@ export function FlexibleProductImporter({mode}:{mode:Mode}) {
     <p className="text-xs text-slate-600">Aceita bases com colunas e ordem diferentes. Tipo de produto pode ficar em branco.</p>
    </div>
    <div className="flex flex-wrap gap-2">
-    <Button variant="outline" onClick={downloadModel}><FileSpreadsheet className="size-4"/>Modelo 4 colunas</Button>
+    <Button variant="outline" onClick={()=>void downloadModel()}><FileSpreadsheet className="size-4"/>Modelo 4 colunas</Button>
     <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-teal-400 bg-teal-50 px-3 text-sm font-medium hover:bg-teal-100">
       <Upload className="size-4"/>{pending?"Aguarde...":"Selecionar Excel, CSV ou TXT"}
       <input type="file" className="hidden" accept=".xlsx,.csv,.tsv,.txt" disabled={pending} onChange={e=>void chooseFile(e.target.files?.[0])}/>
