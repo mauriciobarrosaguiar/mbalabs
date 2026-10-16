@@ -34,23 +34,52 @@ async function getInfrastructure() {
   return { base: url.origin + cleanPath, key: config.api_token };
 }
 
-async function evolution(path: string, init: { method?: "GET" | "POST" | "DELETE"; body?: unknown } = {}) {
-  const config = await getInfrastructure();
-  const response = await fetch(config.base + path, {
-    method: init.method ?? "GET",
-    headers: { apikey: config.key, "Content-Type": "application/json" },
-    body: init.body ? JSON.stringify(init.body) : undefined,
-    cache: "no-store",
-    signal: AbortSignal.timeout(12000),
-  });
-  const content = await response.text();
-  let payload: Record<string, any> = {};
-  try { payload = JSON.parse(content); } catch {}
-  if (!response.ok) {
-    // Erros da API externa podem conter tokens/detalhes sensíveis; nunca incluí-los na resposta.
-    throw new Error(`WhatsApp não concluiu operação (HTTP ${response.status}). Verifique instância e infraestrutura.`);
+class EvolutionHttpError extends Error {
+  constructor(readonly statusCode: number) {
+    super(`O servidor WhatsApp não concluiu a operação (HTTP ${statusCode}).`);
   }
+}
+
+async function evolution(
+  path: string,
+  init: { method?: "GET" | "POST" | "DELETE"; body?: unknown; timeoutMs?: number } = {},
+) {
+  const config = await getInfrastructure();
+  const timeoutMs = init.timeoutMs ?? 15000;
+  let response: Response;
+  try {
+    response = await fetch(config.base + path, {
+      method: init.method ?? "GET",
+      headers: { apikey: config.key, "Content-Type": "application/json" },
+      body: init.body ? JSON.stringify(init.body) : undefined,
+      cache: "no-store",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (error) {
+    const details = error instanceof Error ? error.message.toLowerCase() : "";
+    if (details.includes("timeout") || details.includes("timed out")) {
+      throw new Error("A Evolution API demorou a responder. O servidor de hospedagem pode estar iniciando após inatividade. Aguarde um minuto e tente novamente. Se persistir, verifique se o serviço está ativo no Render.");
+    }
+    // Nunca retornar URLs privadas, token ou dados internos da infraestrutura.
+    throw new Error("Não foi possível acessar a Evolution API. Verifique a disponibilidade da infraestrutura WhatsApp.");
+  }
+  let payload: Record<string, any> = {};
+  try { payload = await response.json(); } catch {}
+  if (!response.ok) throw new EvolutionHttpError(response.status);
   return payload;
+}
+
+async function extractConnectionQr(payload: Record<string, any> | undefined): Promise<string | undefined> {
+  if (!payload) return undefined;
+  const image = [payload.base64, payload.qrcode?.base64, payload.qrcode?.image]
+    .find((value) => typeof value === "string" && value.length > 100);
+  const directQr = typeof image === "string" &&
+    (image.startsWith("data:image/png;base64,") || /^[A-Za-z0-9+/=]+$/.test(image))
+      ? (image.startsWith("data:") ? image : `data:image/png;base64,${image}`)
+      : undefined;
+  const code = [payload.code, payload.qrcode?.code, payload.qrcode]
+    .find((value) => typeof value === "string" && value.startsWith("2@"));
+  return directQr ?? (code ? await QRCode.toDataURL(code, { width: 320, margin: 2 }) : undefined);
 }
 
 function connectionState(payload: any) {
@@ -94,48 +123,58 @@ export async function getTenantWhatsAppStatus(tenantId: string): Promise<Result>
   } catch {
     // Nunca transformar erros em "conectado"; não há fallback para o número central.
     await updateState(tenantId, "erro", "Não foi possível verificar a instância.");
-    return { connected: false, status: "erro", instanceName: existing.instance_name };
+    return { connected: false, status: "erro", instanceName: existing.instance_name, message: "Não foi possível confirmar a conexão com a Evolution API. Verifique a infraestrutura e tente novamente." };
   }
 }
 
 export async function connectTenantWhatsApp(tenantId: string): Promise<Result> {
   await getTenant(tenantId);
   const previous = await sessionFor(tenantId);
+  // Nome exclusivo derivado do UUID do tenant; nunca usar o número central ou o
+  // identificador de outra empresa.
   const instanceName = previous?.instance_name ?? `mbacot_${tenantId.replace(/-/g, "").slice(0,28)}`;
+  let createdPayload: Record<string, any> | undefined;
+
   if (!previous) {
     try {
-      await evolution("/instance/create", {
+      // A inicialização de uma instância Render gratuita pode exceder 1 minuto;
+      // 12s interrompia a primeira conexão antes de entregar o QR Code.
+      createdPayload = await evolution("/instance/create", {
         method: "POST",
         body: { instanceName, integration: "WHATSAPP-BAILEYS", qrcode: true },
+        timeoutMs: 95000,
       });
     } catch (error) {
-      // Nunca associar instância que já existe a outro tenant. O nome é determinístico por UUID.
-      throw new Error(error instanceof Error ? error.message : "Não foi possível criar a instância WhatsApp.");
+      // Uma chamada anterior pode ter criado a instância na Evolution API e
+      // expirado antes que a resposta fosse recebida. Somente para este nome
+      // derivado do tenant aceitamos 409 para recuperar o pareamento.
+      if (!(error instanceof EvolutionHttpError && error.statusCode === 409)) throw error;
     }
-    const { error } = await db().from("cot_whatsapp_tenant_sessions").insert({
+    const { error } = await db().from("cot_whatsapp_tenant_sessions").upsert({
       tenant_id: tenantId, instance_name: instanceName, status: "aguardando_qr",
-    });
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "tenant_id" });
     if (error) throw error;
   }
 
-  const state = await getTenantWhatsAppStatus(tenantId);
-  if (state.connected) return state;
-  const payload = await evolution(`/instance/connect/${encodeURIComponent(instanceName)}`);
-  const base64 = [payload?.base64, payload?.qrcode?.base64, payload?.qrcode?.image]
-    .find((value) => typeof value === "string" && value.length > 100);
-  const directQr = base64 && (base64.startsWith("data:image/png;base64,") ||
-    /^[A-Za-z0-9+/=]+$/.test(base64))
-      ? (base64.startsWith("data:") ? base64 : `data:image/png;base64,${base64}`)
-      : undefined;
-  // Alguns provedores enviam somente o texto do QR, não a imagem pronta.
-  const rawQrCode = [payload?.code, payload?.qrcode?.code, payload?.qrcode]
-    .find((value) => typeof value === "string" && value.startsWith("2@"));
-  const qr = directQr ?? (rawQrCode ? await QRCode.toDataURL(rawQrCode, { width: 320, margin: 2 }) : undefined);
+  if (previous?.status === "conectado") {
+    const status = await getTenantWhatsAppStatus(tenantId);
+    if (status.connected) return status;
+  }
+
+  // A resposta de /instance/create já pode trazer o QR; não fazer uma segunda
+  // requisição longa desnecessariamente quando ele estiver disponível.
+  const directQr = await extractConnectionQr(createdPayload);
+  const qr = directQr ?? await extractConnectionQr(
+    await evolution(`/instance/connect/${encodeURIComponent(instanceName)}`, { timeoutMs: 95000 }),
+  );
   await updateState(tenantId, "aguardando_qr");
   return {
     connected: false, status: "aguardando_qr", instanceName,
-    qr, message: qr ? "Escaneie o QR Code usando Aparelhos conectados do seu WhatsApp." :
-      "Instância criada, mas o provedor não disponibilizou imagem de QR Code. Verifique a configuração da Evolution API.",
+    qr,
+    message: qr
+      ? "Escaneie o QR Code no WhatsApp da empresa em Aparelhos conectados."
+      : "A instância respondeu, mas ainda não entregou QR Code. Aguarde alguns segundos e clique novamente em Conectar meu WhatsApp.",
   };
 }
 
