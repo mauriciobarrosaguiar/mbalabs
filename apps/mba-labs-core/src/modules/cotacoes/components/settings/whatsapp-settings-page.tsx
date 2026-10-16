@@ -1,4 +1,5 @@
-import { MessageCircle, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { MessageCircle, ServerCog, ShieldCheck } from "lucide-react";
 import { AppShell } from "@/modules/cotacoes/components/layout/app-shell";
 import { Badge } from "@/modules/cotacoes/components/ui/badge";
 import { Button } from "@/modules/cotacoes/components/ui/button";
@@ -7,139 +8,140 @@ import { Input } from "@/modules/cotacoes/components/ui/input";
 import { Label } from "@/modules/cotacoes/components/ui/label";
 import {
   saveWhatsappSettingsAction,
-  sendWhatsappTestMessageAction,
   testWhatsappConnectionAction,
 } from "@/modules/cotacoes/lib/actions/whatsapp-settings";
 import { requireSuperAdmin } from "@/modules/cotacoes/lib/auth/session";
 import { getWhatsappGlobalConfigForAdmin } from "@/modules/cotacoes/lib/whatsapp/mba-cotacoes";
 
-type SearchParams = Promise<Record<string, string | undefined>>;
-
 type Props = {
-  searchParams: SearchParams;
+  searchParams: Promise<Record<string, string | undefined>>;
   currentPath?: string;
   subtitle?: string;
 };
 
 export async function WhatsappMbaCotacoesSettingsPage({
   searchParams,
-  currentPath = "/cotacoes/configuracoes/whatsapp",
-  subtitle = "Admin Master MBA Labs",
+  currentPath = "/cotacoes/gestao/infra-whatsapp",
+  subtitle = "Administração master · infraestrutura compartilhada",
 }: Props) {
   const [auth, config, params] = await Promise.all([
     requireSuperAdmin(currentPath),
     getWhatsappGlobalConfigForAdmin(),
     searchParams,
   ]);
+
   const status = params.status;
-  const mensagem = params.mensagem;
+  const message = params.mensagem;
+  const validated = config?.status_conexao === "infraestrutura_validada";
 
   return (
     <AppShell
       mode="admin"
       currentPath={currentPath}
-      title="WhatsApp MBA Cotações"
+      title="Infraestrutura WhatsApp"
       subtitle={subtitle}
       profileRole={auth.profile.role}
       tenantType={auth.tenantAccess?.tenantType}
       tenantName={auth.tenantAccess?.tenantName}
     >
-      <div className="space-y-6">
-        <div className="rounded-md border border-slate-200 bg-white p-5">
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+      <div className="space-y-5">
+        <div className="rounded-xl border border-teal-200 bg-white p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className="bg-teal-50 text-teal-800 hover:bg-teal-50">Número central</Badge>
-                <Badge className="bg-slate-900 text-white hover:bg-slate-900">Somente Admin Master</Badge>
-                <Badge variant={config?.ativo ? "default" : "outline"}>{config?.ativo ? "Ativo" : "Inativo"}</Badge>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">Somente administrador master</Badge>
+                <Badge variant={validated ? "default" : "outline"}>
+                  {validated ? "Servidor e autenticação validados" : "Validação pendente"}
+                </Badge>
               </div>
-              <h2 className="mt-3 text-xl font-semibold text-slate-950">Envio automático pelo WhatsApp oficial</h2>
-              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
-                Esta área é exclusiva do Admin Master do MBA Labs. Clientes, farmácias e vendedores não acessam API, token, QR Code ou número conectado.
+              <h2 className="mt-3 text-xl font-semibold text-slate-950">
+                Configurar Evolution API para todas as farmácias
+              </h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+                Aqui você configura exclusivamente o endereço e a chave de acesso do servidor.
+                Cada cliente conecta seu próprio número por QR Code na sua área.
+                Nenhum WhatsApp será conectado ou enviado pelo seu número de administrador.
               </p>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-md bg-teal-50 text-teal-700">
-              <MessageCircle className="h-6 w-6" />
-            </div>
+            <ServerCog className="h-7 w-7 text-teal-700" />
           </div>
         </div>
 
-        {mensagem ? (
-          <div className={`rounded-md border p-3 text-sm ${status === "erro" ? "border-red-200 bg-red-50 text-red-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
-            {mensagem}
+        {message ? (
+          <div role="status" className={`rounded-md border p-3 text-sm ${status === "erro"
+            ? "border-red-200 bg-red-50 text-red-800"
+            : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}>
+            {message}
           </div>
         ) : null}
 
-        <Card>
-          <CardHeader><CardTitle>WhatsApp MBA Cotações</CardTitle></CardHeader>
+        <Card className="bg-white text-slate-900">
+          <CardHeader><CardTitle>Credenciais da infraestrutura</CardTitle></CardHeader>
           <CardContent>
-            <form action={saveWhatsappSettingsAction} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <form action={saveWhatsappSettingsAction} className="space-y-4">
               <input type="hidden" name="return_to" value={currentPath} />
-              <div className="space-y-2">
-                <Label>Provider</Label>
-                <select name="provider" defaultValue={config?.provider ?? "evolution_api"} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
-                  <option value="evolution_api">Evolution API</option>
-                  <option value="zapi">Z-API</option>
-                  <option value="meta_cloud_api">Meta Cloud API</option>
-                  <option value="outro">Outro</option>
-                </select>
+              <input type="hidden" name="provider" value="evolution_api" />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Provedor</Label>
+                  <Input value="Evolution API" disabled className="bg-slate-50 text-slate-700" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="evolution-api-url">URL da Evolution API</Label>
+                  <Input id="evolution-api-url" name="api_url" type="url"
+                    defaultValue={config?.api_url ?? ""} required
+                    placeholder="https://seu-servidor.onrender.com"
+                    className="bg-white text-slate-900" />
+                </div>
               </div>
-              <TextField name="api_url" label="API URL" defaultValue={config?.api_url ?? ""} />
-              <TextField name="phone_number_id" label="Phone number ID / Instância" defaultValue={config?.phone_number_id ?? ""} />
-              <TextField name="numero_oficial" label="Número oficial" defaultValue={config?.numero_oficial ?? ""} placeholder="5563999999999" />
-              <TextField name="nome_exibicao" label="Nome de exibição" defaultValue={config?.nome_exibicao ?? "MBA Cotações"} />
-              <TextField name="status_conexao" label="Status da conexão" defaultValue={config?.status_conexao ?? "nao_configurado"} />
               <div className="space-y-2">
-                <Label>API token</Label>
-                <Input name="api_token" type="password" placeholder={config?.api_token_configurado ? "token configurado — preencha só para trocar" : "cole o token/API key"} />
+                <Label htmlFor="evolution-api-token">Chave da API (apikey)</Label>
+                <Input id="evolution-api-token" name="api_token"
+                  type="password" autoComplete="new-password"
+                  placeholder={config?.api_token_configurado
+                    ? "Chave já configurada — deixe em branco para manter"
+                    : "Informe a chave definida em AUTHENTICATION_API_KEY no Render"}
+                  className="bg-white text-slate-900" />
+                <p className="text-xs leading-5 text-slate-600">
+                  {config?.api_token_configurado ? "Existe uma chave salva no servidor. Seu valor não é exibido." : "Nenhuma chave configurada."}
+                  {" "}O valor precisa ser o mesmo de AUTHENTICATION_API_KEY no Render.
+                  Não compartilhe a chave com clientes e não a envie em conversas.
+                </p>
               </div>
-              <label className="flex min-h-10 items-center gap-2 rounded-md border border-slate-200 px-3 text-sm md:mt-8">
+              <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
                 <input name="ativo" type="checkbox" defaultChecked={config?.ativo ?? true} />
-                Ativar envio automático
+                Ativar infraestrutura para conexão dos WhatsApps das farmácias
               </label>
-              <div className="flex flex-wrap gap-2 md:col-span-2 xl:col-span-3">
-                <Button type="submit">Salvar configuração</Button>
-              </div>
+              <Button type="submit"><ShieldCheck className="h-4 w-4" />Salvar infraestrutura</Button>
             </form>
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader><CardTitle>Testar conexão</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm leading-6 text-muted-foreground">Valida se existe configuração mínima para o provedor.</p>
-              <form action={testWhatsappConnectionAction}>
-                <input type="hidden" name="return_to" value={currentPath} />
-                <Button type="submit" variant="outline"><ShieldCheck className="h-4 w-4" />Testar conexão</Button>
-              </form>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle>Enviar mensagem teste</CardTitle></CardHeader>
-            <CardContent>
-              <form action={sendWhatsappTestMessageAction} className="space-y-3">
-                <input type="hidden" name="return_to" value={currentPath} />
-                <TextField name="telefone_teste" label="WhatsApp de teste" placeholder="5563999999999" />
-                <div className="space-y-2">
-                  <Label>Mensagem</Label>
-                  <textarea name="mensagem_teste" className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" defaultValue="Mensagem de teste do MBA Cotações." />
-                </div>
-                <Button type="submit" variant="outline"><MessageCircle className="h-4 w-4" />Enviar mensagem teste</Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+        <Card className="bg-white text-slate-900">
+          <CardHeader><CardTitle>Diagnóstico da Evolution API</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm leading-6 text-slate-700">
+              Depois de salvar, teste a conexão real com a API. O teste verifica a
+              autenticação do servidor sem criar instâncias nem enviar mensagens.
+            </p>
+            <form action={testWhatsappConnectionAction}>
+              <input type="hidden" name="return_to" value={currentPath} />
+              <Button type="submit" variant="outline">
+                <MessageCircle className="h-4 w-4" />Testar servidor e autenticação
+              </Button>
+            </form>
+            <p className="text-xs leading-5 text-slate-600">
+              Se aparecer HTTP 401, a chave da API salva aqui não corresponde à chave
+              AUTHENTICATION_API_KEY do Render. Corrija essa divergência antes de tentar
+              conectar a farmácia. O teste pode demorar enquanto o servidor inicia.
+            </p>
+            <p className="text-xs text-slate-600">
+              Conexões individuais são feitas somente na página WhatsApp próprio, no acesso da farmácia.
+              <span className="ml-1"><Link href="/cotacoes/gestao/farmacias" className="underline">Gerenciar farmácias</Link></span>
+            </p>
+          </CardContent>
+        </Card>
       </div>
     </AppShell>
-  );
-}
-
-function TextField({ name, label, defaultValue, placeholder }: { name: string; label: string; defaultValue?: string; placeholder?: string }) {
-  return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <Input name={name} defaultValue={defaultValue} placeholder={placeholder} />
-    </div>
   );
 }
