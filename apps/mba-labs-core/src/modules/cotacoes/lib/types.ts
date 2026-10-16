@@ -382,6 +382,9 @@ export interface PurchaseOrder {
   publicToken: string;
   totalAmount: number;
   status: PurchaseOrderStatus;
+  buyerReviewStatus?: "pending" | "approved";
+  buyerApprovedAt?: string;
+  buyerSentAt?: string;
   generatedAt?: string;
   openedAt?: string;
   completedAt?: string;
@@ -399,6 +402,9 @@ export interface PurchaseOrderItem {
   laboratory?: string;
   unit: UnitType | string;
   quantityToBuy: number;
+  initialQuantityToBuy?: number;
+  buyerChangeNote?: string;
+  supplierConfirmationNote?: string;
   billedQuantity?: number;
   missingQuantity?: number;
   packagesToBuy?: number;
