@@ -1134,6 +1134,7 @@ async function insertPurchaseOrderRow(
     total_amount: order.totalAmount,
     confirmed_amount: 0,
     status: "gerado",
+    buyer_review_status: "pending",
   };
 
   const { data, error } = await supabase
@@ -1157,6 +1158,7 @@ async function insertPurchaseOrderRow(
       public_token: payload.public_token,
       total_amount: payload.total_amount,
       status: "draft",
+      buyer_review_status: "pending",
     })
     .select("*")
     .single();
