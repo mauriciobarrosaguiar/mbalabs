@@ -20,7 +20,7 @@ import { DemoCrudTable, type DemoCrudRow } from "@/modules/cotacoes/components/f
 import { ImportWizard } from "@/modules/cotacoes/components/imports/import-wizard";
 import { DemoQuotationTable } from "@/modules/cotacoes/components/quotations/demo-quotation-table";
 import { GeneratePurchaseOrdersButton } from "@/modules/cotacoes/components/quotations/generate-purchase-orders-button";
-import { BuyerOrderReview } from "@/modules/cotacoes/components/quotations/buyer-order-review";
+import { BulkBuyerOrderReview } from "@/modules/cotacoes/components/quotations/bulk-buyer-order-review";
 import { NewQuotationForm } from "@/modules/cotacoes/components/quotations/new-quotation-form";
 import { DistributorOffersImport } from "@/modules/cotacoes/components/quotations/distributor-offers-import";
 import { PublicOrderActions } from "@/modules/cotacoes/components/quotations/public-order-actions";
@@ -2900,6 +2900,9 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
           </CardContent>
         </Card>
       ) : null}
+      {quotation.moduleType === "pharmacy" && orders.length > 0 ? (
+        <BulkBuyerOrderReview quotationId={quotationId} orders={orders} />
+      ) : null}
       <div className="grid gap-4 lg:grid-cols-2">
         {orders.map((order) => {
           const supplierCompany = getPurchaseOrderSupplierCompany(order);
@@ -2921,7 +2924,7 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {quotation.moduleType === "pharmacy" ? <BuyerOrderReview order={order} /> : null}
+
               <div className="grid gap-3 rounded-md bg-slate-50 p-3 text-sm sm:grid-cols-3">
                 <SummaryCell label="Itens ganhos" value={String(order.items.length)} />
                 <SummaryCell label="Faturados" value={String(order.items.filter((item) => getOrderItemMissingQuantity(item) <= 0 && getOrderItemBilledQuantity(item) > 0).length)} />
