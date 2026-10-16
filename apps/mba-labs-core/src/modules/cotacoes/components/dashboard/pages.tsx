@@ -992,7 +992,7 @@ async function CompanyDetailsPage({ tenantId }: { tenantId: string }) {
         metrics={[
           { label: "Farmácias/CNPJs", value: String(pharmacies.length), hint: "Unidades operacionais", tone: "info" },
           { label: "Usuários", value: String(tenantUsers.length), hint: "Vinculados à empresa", tone: "default" },
-          { label: "Vendedores", value: String(sellers.length), hint: "Recebem cotações", tone: "success" },
+          { label: "Representantes", value: String(sellers.length), hint: "Recebem cotações", tone: "success" },
           { label: "Mensalidades", value: String(subscriptions.length), hint: "Histórico financeiro", tone: "warning" },
         ]}
       />
@@ -1001,7 +1001,7 @@ async function CompanyDetailsPage({ tenantId }: { tenantId: string }) {
           <TabsTrigger value="dados">Dados</TabsTrigger>
           <TabsTrigger value="farmacias">Farmácias/CNPJs</TabsTrigger>
           <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-          <TabsTrigger value="vendedores">Vendedores</TabsTrigger>
+          <TabsTrigger value="vendedores">Representantes</TabsTrigger>
           <TabsTrigger value="distribuidoras">Distribuidoras</TabsTrigger>
           <TabsTrigger value="produtos">Produtos</TabsTrigger>
           <TabsTrigger value="cotacoes">Cotações</TabsTrigger>
@@ -1074,7 +1074,7 @@ async function CompanyDetailsPage({ tenantId }: { tenantId: string }) {
             <DemoCrudTable
               entity="suppliers"
               storageKey={`mba-company-${tenant.id}-suppliers`}
-              title="Vendedor"
+              title="Representante"
               primaryKey="nome"
               statusOptions={activeInactiveOptions}
               emptyMessage="Nenhum vendedor cadastrado ainda."
