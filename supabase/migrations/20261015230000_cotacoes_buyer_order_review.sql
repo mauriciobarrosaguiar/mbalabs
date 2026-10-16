@@ -5,7 +5,8 @@ ALTER TABLE public.purchase_orders
     CHECK (buyer_review_status IN ('pending', 'approved')),
   ADD COLUMN IF NOT EXISTS buyer_approved_at timestamptz,
   ADD COLUMN IF NOT EXISTS buyer_approved_by text,
-  ADD COLUMN IF NOT EXISTS buyer_sent_at timestamptz;
+  ADD COLUMN IF NOT EXISTS buyer_sent_at timestamptz,
+  ADD COLUMN IF NOT EXISTS buyer_minimum_checked_at timestamptz;
 
 UPDATE public.purchase_orders
    SET buyer_review_status = 'approved'
