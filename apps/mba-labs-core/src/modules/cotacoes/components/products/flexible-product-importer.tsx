@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Check, FileSpreadsheet, Loader2, Upload } from "lucide-react";
@@ -65,6 +65,8 @@ function findHeader(lines:Row[]) {
   return best;
 }
 
+function actionProgressText(value:number,mode:Mode){return mode==="catalog"?value+"% processado":value+" (lotes ou % processado)";}
+
 export function FlexibleProductImporter({mode}:{mode:Mode}) {
  const router=useRouter();
  const [headers,setHeaders]=useState<string[]>([]);
@@ -74,6 +76,11 @@ export function FlexibleProductImporter({mode}:{mode:Mode}) {
  const [pending,setPending]=useState(false);
  const [progress,setProgress]=useState(0);
  const [accepted,setAccepted]=useState<boolean|null>(null);
+ useEffect(()=>{
+   if(mode!=="tenant")return;
+   void fetch("/api/cotacoes/produtos-importar?mode=tenant",{cache:"no-store"})
+     .then(r=>r.ok?r.json():null).then(v=>{if(v)setAccepted(Boolean(v.accepted));}).catch(()=>undefined);
+ },[mode]);
 
  const mapped=useMemo(()=>{
    if(map.ean<0||map.nome<0)return [];
@@ -111,17 +118,32 @@ export function FlexibleProductImporter({mode}:{mode:Mode}) {
    }
    setPending(true);setProgress(0);
    try{
-     const total=action==="copy"?1:Math.ceil(mapped.length/250);
      let created=0,updated=0,processed=0;
-     for(let i=0;i<total;i++){
-       const response=await fetch("/api/cotacoes/produtos-importar",{
-         method:"POST",headers:{"Content-Type":"application/json"},
-         body:JSON.stringify({mode,action,items:action==="copy"?undefined:mapped.slice(i*250,(i+1)*250)})
-       });
-       const result=await response.json();
-       if(!response.ok)throw new Error(result.error??"Falha na importação");
-       created+=Number(result.created??0);updated+=Number(result.updated??0);processed+=Number(result.processed??0);
-       setProgress(Math.round((i+1)/total*100));
+     if(action==="copy"){
+       let hasMore=true, page=0;
+       while(hasMore && page<10000){
+         const response=await fetch("/api/cotacoes/produtos-importar",{
+           method:"POST",headers:{"Content-Type":"application/json"},
+           body:JSON.stringify({mode:"tenant",action:"copy",page})
+         });
+         const result=await response.json();
+         if(!response.ok)throw new Error(result.error??"Falha na cópia do catálogo.");
+         created+=Number(result.created??0);updated+=Number(result.updated??0);
+         hasMore=Boolean(result.hasMore); page++;
+         setProgress(page);
+       }
+     }else{
+       const total=Math.ceil(mapped.length/250);
+       for(let i=0;i<total;i++){
+         const response=await fetch("/api/cotacoes/produtos-importar",{
+           method:"POST",headers:{"Content-Type":"application/json"},
+           body:JSON.stringify({mode,action,items:mapped.slice(i*250,(i+1)*250)})
+         });
+         const result=await response.json();
+         if(!response.ok)throw new Error(result.error??"Falha na importação");
+         created+=Number(result.created??0);updated+=Number(result.updated??0);processed+=Number(result.processed??0);
+         setProgress(Math.round((i+1)/total*100));
+       }
      }
      toast.success(action==="copy"?`${created} produtos copiados para sua farmácia.`:
        `${processed||created+updated} produtos processados. ${created} novos, ${updated} atualizados.`);
@@ -177,7 +199,7 @@ export function FlexibleProductImporter({mode}:{mode:Mode}) {
    <Button variant="outline" onClick={()=>void getPreference()}>Consultar</Button>
    <Button disabled={pending} variant="outline" onClick={()=>void toggle(true)}><Check className="size-4"/>Aceitar catálogo</Button>
    <Button disabled={pending} variant="outline" onClick={()=>void toggle(false)}>Não utilizar catálogo</Button>
-   {accepted?<Button disabled={pending} onClick={()=>void send("copy")}>Copiar catálogo para meus produtos (até 1.000)</Button>:null}
+   {accepted?<Button disabled={pending} onClick={()=>void send("copy")}>Copiar catálogo para meus produtos</Button>:null}
    <p className="w-full text-xs text-slate-500">O catálogo só é copiado mediante autorização. Produtos próprios não são removidos nem compartilhados.</p>
   </div>:null}
   {headers.length>0?<>
@@ -205,7 +227,7 @@ export function FlexibleProductImporter({mode}:{mode:Mode}) {
       {pending?<Loader2 className="size-4 animate-spin"/>:<Upload className="size-4"/>}
       {pending?"Importando...":"Confirmar importação"}
      </Button>
-     {pending?<p className="text-sm text-teal-800" role="status">{progress}% processado</p>:null}
+     {pending?<p className="text-sm text-teal-800" role="status">{actionProgressText(progress,mode)}</p>:null}
      <Button variant="outline" disabled={pending} onClick={()=>{setHeaders([]);setRows([]);setFilename("");}}>Cancelar</Button>
     </div>
    </>:null}
