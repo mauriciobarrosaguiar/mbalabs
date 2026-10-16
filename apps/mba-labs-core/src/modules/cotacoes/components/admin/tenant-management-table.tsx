@@ -215,7 +215,7 @@ export function TenantManagementTable({
             <option value="ativo">Ativo</option>
             <option value="suspenso">Suspenso</option>
             <option value="cancelado">Cancelado</option>
-            <option value="inativo">Inativo</option>
+
           </select>
         </div>
         <Button onClick={create}>
@@ -294,12 +294,7 @@ export function TenantManagementTable({
                             Cancelar
                           </DropdownMenuItem>
                         ) : null}
-                        {tenant.status !== "inativo" ? (
-                          <DropdownMenuItem onSelect={() => updateStatus(tenant.id, "inativo")}>
-                            <Archive className="h-4 w-4" />
-                            Inativar
-                          </DropdownMenuItem>
-                        ) : null}
+
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
