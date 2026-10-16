@@ -124,11 +124,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       String(item.supplier_confirmation_note ?? "").trim().length < 10)) {
       return NextResponse.json({ error: "Acréscimos exigem registro da confirmação do representante sobre preço e estoque." }, { status: 409 });
     }
+    const reducedItems = items.filter((item: ItemReviewRow) => Number(item.quantity_to_buy) < Number(item.initial_quantity_to_buy));
+    if (reducedItems.length > 0 && body.minimumOrderChecked !== true) {
+      return NextResponse.json({ error: "Confirme que verificou o pedido mínimo e as condições comerciais após reduzir quantidades." }, { status: 409 });
+    }
     const now = new Date().toISOString();
     const result = await supabase.from("purchase_orders").update({
       buyer_review_status: "approved",
       buyer_approved_at: now,
       buyer_approved_by: auth!.user?.id ?? "comprador",
+      buyer_minimum_checked_at: reducedItems.length > 0 ? now : null,
       updated_at: now,
     }).eq("tenant_id", order!.tenant_id).eq("id", order!.id)
       .eq("buyer_review_status", "pending").select("id").maybeSingle();
