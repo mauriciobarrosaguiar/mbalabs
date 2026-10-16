@@ -116,19 +116,6 @@ export function ShortageListPage() {
     }
   }
 
-  function selectRegisteredProduct(productId: string) {
-    setSelectedProductId(productId);
-    if (!productId) return;
-    const product = products.find((entry) => entry.id === productId);
-    if (!product) return;
-    setForm((current) => ({
-      ...current,
-      productName: product.name,
-      ean: product.ean ?? "",
-      requestedUnit: normalizeRegisteredUnit(product.unit),
-    }));
-  }
-
   function typeProductName(value: string) {
     const exactMatch = products.find((product) => normalizeText(product.name) === normalizeText(value));
     const previousSelected = products.find((product) => product.id === selectedProductId);
@@ -199,32 +186,28 @@ export function ShortageListPage() {
         <CardContent>
           <form onSubmit={saveItem} className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <div className="space-y-2 xl:col-span-2">
-              <Label htmlFor="shortage-product-select">Produto</Label>
-              <select
-                id="shortage-product-select"
-                value={selectedProductId}
-                onChange={(event) => selectRegisteredProduct(event.target.value)}
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                disabled={loading || products.length === 0}
-              >
-                <option value="">
-                  {products.length > 0 ? "Selecionar produto já cadastrado..." : "Nenhum produto cadastrado"}
-                </option>
-                {products.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name}{product.ean ? ` · EAN ${product.ean}` : ""}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-muted-foreground">Ou digite o produto manualmente abaixo.</p>
+              <Label htmlFor="shortage-product">Produto — selecione ou digite o nome</Label>
               <Input
                 id="shortage-product"
+                list="shortage-products-suggestions"
                 value={form.productName}
                 onChange={(event) => typeProductName(event.target.value)}
-                placeholder="Digite o nome do produto"
+                placeholder={loading ? "Carregando produtos..." : "Selecione da lista ou digite um produto novo"}
+                autoComplete="off"
                 required
                 maxLength={240}
+                aria-describedby="shortage-product-help"
               />
+              <datalist id="shortage-products-suggestions">
+                {products.map((product) => (
+                  <option key={product.id} value={product.name}
+                    label={product.ean ? `EAN ${product.ean}` : "Cadastrado"} />
+                ))}
+              </datalist>
+              <p id="shortage-product-help" className="text-xs text-muted-foreground">
+                Digite para filtrar a lista suspensa ou informe livremente um produto
+                ainda não cadastrado. Ao selecionar um cadastro, o EAN é preenchido automaticamente.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="shortage-ean">EAN (opcional)</Label>
