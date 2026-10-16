@@ -57,6 +57,7 @@ const adminNav: NavItem[] = [
   { href: "/cotacoes/gestao/planos", label: "Planos", icon: ClipboardCheck },
   { href: "/cotacoes/gestao/mensalidades", label: "Mensalidades e pagamentos", icon: ReceiptText },
   { href: "/cotacoes/gestao/configuracoes/pagamentos", label: "Config. pagamentos", icon: CreditCard },
+  { href: "/cotacoes/gestao/infra-whatsapp", label: "Infraestrutura WhatsApp", icon: MessageCircle },
   { href: "/cotacoes/gestao/logs", label: "Logs", icon: ShieldCheck },
 ];
 
