@@ -113,7 +113,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   try {
-    const body = await request.json() as { id?: string; action?: string; reason?: string };
+    const body = await request.json() as { id?: string; action?: string; reason?: string; allowPendingRepresentatives?: boolean };
     if (!body.id) return NextResponse.json({ error: "ID obrigatório." }, { status: 400 });
 
     const supabase = createSupabaseAdminClient();
@@ -123,6 +123,9 @@ export async function PATCH(request: NextRequest) {
     const quotation = access.quotation as Record<string, any>;
 
     if (body.action === "finish") {
+      if (!auth.isSuperAdmin && !["ADMIN_EMPRESA", "COMPRADOR"].includes(auth.profile?.role ?? "")) {
+        return NextResponse.json({ error: "Apenas compradores e administradores podem encerrar a cotação." }, { status: 403 });
+      }
       if (!canFinishQuotation(quotation.status)) {
         return NextResponse.json({ error: "Somente cotações abertas, aguardando respostas ou em análise podem ser finalizadas." }, { status: 409 });
       }
@@ -137,7 +140,7 @@ export async function PATCH(request: NextRequest) {
           .eq("quotation_id", body.id);
         if (statusError) throw statusError;
         const progress = getRepresentativeProgress(sessionRows ?? [], quotation.deadline_at);
-        if (!progress.canClose) {
+        if (!progress.canClose && body.allowPendingRepresentatives !== true) {
           return NextResponse.json(
             {
               error: `Ainda faltam ${progress.pending} representante(s) responder. Aguarde todas as respostas ou o encerramento do prazo da cotação.`,
@@ -156,9 +159,16 @@ export async function PATCH(request: NextRequest) {
         .neq("status", "submitted");
       if (sessionUpdateError) throw sessionUpdateError;
 
+      const finishNote = body.allowPendingRepresentatives === true && quotation.module_type === "pharmacy"
+        ? `Finalização antecipada autorizada pelo comprador em ${now}; usuário ${auth.user?.id ?? "não identificado"}.`
+        : null;
       const { error: updateError } = await supabase
         .from("quotations")
-        .update({ status: "finished", updated_at: now })
+        .update({
+          status: "finished",
+          notes: finishNote ? [quotation.notes, finishNote].filter(Boolean).join("\n") : quotation.notes,
+          updated_at: now,
+        })
         .eq("id", body.id);
       if (updateError) throw updateError;
 
