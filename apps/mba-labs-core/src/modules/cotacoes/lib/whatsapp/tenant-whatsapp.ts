@@ -172,6 +172,16 @@ export async function getTenantWhatsAppStatus(tenantId: string): Promise<Result>
  * Testa as credenciais e o estado da Evolution API sem criar ou listar sessões
  * para o navegador. Somente informações booleanas são retornadas ao cliente.
  */
+/**
+ * Verificação exclusiva da infraestrutura do administrador.
+ * Não conecta contas, não cria instâncias e não retorna dados das farmácias.
+ * A autorização é aplicada na server action que chama esta função.
+ */
+export async function verifyGlobalEvolutionInfrastructure() {
+  await evolution("/instance/fetchInstances", { timeoutMs: 85000 });
+  return true;
+}
+
 export async function diagnoseTenantWhatsAppInfrastructure(tenantId: string) {
   await getTenant(tenantId);
   await evolution("/instance/fetchInstances", { timeoutMs: 85000 });

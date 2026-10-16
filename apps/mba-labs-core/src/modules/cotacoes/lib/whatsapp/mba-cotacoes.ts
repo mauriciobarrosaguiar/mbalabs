@@ -1,6 +1,6 @@
 import { createSupabaseAdminClient, hasSupabaseAdminConfig, hasSupabaseConfig } from "@/modules/cotacoes/lib/supabase/server";
 import type { PurchaseOrder } from "@/modules/cotacoes/lib/types";
-import { getTenantWhatsAppSendingConfig } from "@/modules/cotacoes/lib/whatsapp/tenant-whatsapp";
+import { getTenantWhatsAppSendingConfig, verifyGlobalEvolutionInfrastructure } from "@/modules/cotacoes/lib/whatsapp/tenant-whatsapp";
 
 export type WhatsappTipoEnvio = "link_cotacao" | "resultado_cotacao";
 export type WhatsappStatus = "pendente" | "enviado" | "falhou";
@@ -60,9 +60,11 @@ export async function saveWhatsappGlobalConfig(input: SaveWhatsappConfigInput) {
     provider: input.provider,
     api_url: input.api_url || null,
     api_token: input.api_token || existing?.api_token || null,
-    phone_number_id: input.phone_number_id || null,
-    numero_oficial: normalizeWhatsappPhone(input.numero_oficial) || null,
-    nome_exibicao: input.nome_exibicao || "MBA Cotações",
+    // Campos do número central preexistente são preservados no banco por
+    // compatibilidade, mas nunca são usados no envio multi-tenant.
+    phone_number_id: input.phone_number_id || existing?.phone_number_id || null,
+    numero_oficial: normalizeWhatsappPhone(input.numero_oficial) || existing?.numero_oficial || null,
+    nome_exibicao: input.nome_exibicao || existing?.nome_exibicao || "MBA Cotações",
     status_conexao: input.status_conexao || (input.ativo ? "configurado" : "inativo"),
     ativo: input.ativo,
     updated_at: new Date().toISOString(),
@@ -80,8 +82,33 @@ export async function saveWhatsappGlobalConfig(input: SaveWhatsappConfigInput) {
 export async function testWhatsappGlobalConfig() {
   const config = await getLatestConfig();
   validateConfig(config);
-  if (config?.id) await db().from("cot_whatsapp_global_config").update({ status_conexao: config.ativo ? "configurado" : "inativo" }).eq("id", config.id);
-  return true;
+  if (config?.provider !== "evolution_api") throw new Error("Configure o provedor Evolution API.");
+  if (!config.ativo) throw new Error("Ative a infraestrutura antes do teste.");
+  const checkedAt = new Date().toISOString();
+  try {
+    // Diferente do teste antigo de preenchimento, este faz uma chamada real
+    // ao servidor Evolution e verifica a autenticação (sem instanciar números).
+    await verifyGlobalEvolutionInfrastructure();
+    if (config.id) {
+      const { error } = await db().from("cot_whatsapp_global_config").update({
+        status_conexao: "infraestrutura_validada",
+        last_health_check: checkedAt,
+        last_error: null,
+      }).eq("id", config.id);
+      if (error) throw error;
+    }
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Não foi possível validar a Evolution API.";
+    if (config.id) {
+      await db().from("cot_whatsapp_global_config").update({
+        status_conexao: "erro",
+        last_health_check: checkedAt,
+        last_error: message.slice(0, 400),
+      }).eq("id", config.id);
+    }
+    throw error;
+  }
 }
 
 export async function sendWhatsappGlobalTestMessage(telefone: string, mensagem: string) {

@@ -15,7 +15,7 @@ type Connection = {
 
 export function TenantWhatsappConnect({ canManage }: { canManage: boolean }) {
   const [connection, setConnection] = useState<Connection | null>(null);
-  const [busy, setBusy] = useState<"connect" | "disconnect" | "refresh" | "diagnose" | null>(null);
+  const [busy, setBusy] = useState<"connect" | "disconnect" | "refresh" | null>(null);
   const [error, setError] = useState("");
 
   const refresh = useCallback(async () => {
@@ -35,7 +35,7 @@ export function TenantWhatsappConnect({ canManage }: { canManage: boolean }) {
     return () => { active = false; window.clearInterval(interval); };
   }, [refresh]);
 
-  async function perform(action: "connect" | "disconnect" | "diagnose") {
+  async function perform(action: "connect" | "disconnect") {
     if (busy) return;
     if (action === "disconnect" &&
         !window.confirm("Desconectar o WhatsApp desta empresa? Os próximos envios automáticos serão interrompidos.")) return;
@@ -49,9 +49,7 @@ export function TenantWhatsappConnect({ canManage }: { canManage: boolean }) {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error ?? "Não foi possível realizar a ação.");
-      if (action === "diagnose") {
-        toast.success(String(result.message ?? "Evolution API respondeu corretamente."));
-      } else if (action === "disconnect") {
+      if (action === "disconnect") {
         setConnection({ connected: false, status: "desconectado", instanceName: connection?.instanceName ?? "" });
         toast.success("WhatsApp da empresa desconectado.");
       } else {
@@ -95,9 +93,9 @@ export function TenantWhatsappConnect({ canManage }: { canManage: boolean }) {
       {!error && connection?.message && !connection.connected ? (
         <p className="rounded-md bg-amber-50 p-3 text-sm text-amber-900">{connection.message}</p>
       ) : null}
-      {busy === "connect" || busy === "diagnose" ? (
+      {busy === "connect" ? (
         <p role="status" className="rounded-md bg-teal-50 p-3 text-sm text-teal-950">
-          {busy === "diagnose" ? "Verificando infraestrutura do WhatsApp." : "Preparando a conexão segura."} Se o servidor estiver iniciando após inatividade,
+          Preparando a conexão segura. Se o servidor estiver iniciando após inatividade,
           a primeira tentativa poderá levar até cerca de 90 segundos. Aguarde sem recarregar a página.
         </p>
       ) : null}
@@ -106,10 +104,6 @@ export function TenantWhatsappConnect({ canManage }: { canManage: boolean }) {
           className="active:scale-95">
           {busy === "connect" ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
           {busy === "connect" ? "Aguardando servidor e QR Code..." : "Conectar meu WhatsApp"}
-        </Button>
-        <Button type="button" variant="outline" disabled={busy !== null} onClick={() => void perform("diagnose")}>
-          {busy === "diagnose" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-          {busy === "diagnose" ? "Testando servidor..." : "Testar servidor WhatsApp"}
         </Button>
         <Button type="button" variant="outline" disabled={busy !== null} onClick={() => {
           setBusy("refresh");

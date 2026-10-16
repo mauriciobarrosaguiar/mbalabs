@@ -5,7 +5,6 @@ import {
   connectTenantWhatsApp,
   disconnectTenantWhatsApp,
   getTenantWhatsAppStatus,
-  diagnoseTenantWhatsAppInfrastructure,
 } from "@/modules/cotacoes/lib/whatsapp/tenant-whatsapp";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +51,6 @@ export async function POST(request: NextRequest) {
     if (auth.error) return auth.error;
     if (!auth.canManage) return NextResponse.json({ error: "Somente administradores da empresa podem conectar o WhatsApp." }, { status: 403 });
     const input = await request.json().catch(() => ({})) as { action?: string };
-    if (input.action === "diagnose") return NextResponse.json({ ok: true, ...(await diagnoseTenantWhatsAppInfrastructure(auth.tenantId!)) });
     if (input.action === "connect") return NextResponse.json({ ok: true, ...(await connectTenantWhatsApp(auth.tenantId!)) });
     if (input.action === "disconnect") return NextResponse.json(await disconnectTenantWhatsApp(auth.tenantId!));
     return NextResponse.json({ error: "Ação inválida." }, { status: 400 });

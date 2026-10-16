@@ -22,7 +22,7 @@ export default async function CotacoesGestao({
   if (section === "empresas") redirect("/cotacoes/gestao/farmacias" + (slug.length > 1 ? "/" + slug.slice(1).join("/") : ""));
   if (section === "pagamentos") redirect("/cotacoes/gestao/mensalidades");
   if (section === "vendedores") redirect("/cotacoes/gestao/representantes");
-  if (section === "licitacoes" || section === "infra-whatsapp") redirect("/cotacoes/gestao");
+  if (section === "licitacoes") redirect("/cotacoes/gestao");
   if (!sections.has(section)) notFound();
   const path = "/cotacoes/gestao" + (slug.length ? "/" + slug.join("/") : "");
   const auth = await requireSuperAdmin(path);
