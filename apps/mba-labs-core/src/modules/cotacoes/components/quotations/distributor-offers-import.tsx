@@ -84,7 +84,7 @@ export function DistributorOffersImport({ quotationId, items, suppliers }: Props
       <h3 className="font-semibold">Ofertas diretas das distribuidoras (importação)</h3>
       <p className="text-sm text-muted-foreground">
         Importe uma tabela de preços autorizada enquanto os representantes respondem. Não consulta portais automaticamente:
-        a conexão direta depende de homologação com cada distribuidora. Só são aceitos EANs idênticos e estoque suficiente.
+        a conexão direta depende de homologação com cada distribuidora. Informe o preço por embalagem/unidade cotada; só são aceitos EANs idênticos e estoque suficiente. Itens em comprimidos/cápsulas/gramas exigem conversão antes da importação.
       </p>
       <label className="block space-y-1 text-sm">
         <span>Distribuidora cadastrada</span>
