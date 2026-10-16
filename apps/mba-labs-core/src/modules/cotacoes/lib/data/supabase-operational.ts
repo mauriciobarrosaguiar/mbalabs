@@ -1371,6 +1371,9 @@ export async function getSupabasePurchaseOrderByToken(token: string) {
       return null;
     }
     if (!orderRow) return null;
+    // Link externo só poderá ser aberto depois da aprovação do comprador.
+    // Pedidos anteriores à funcionalidade foram marcados como approved na migração.
+    if (orderRow.module_type === "pharmacy" && orderRow.buyer_review_status !== "approved") return null;
 
     const { data: quotationRow, error: quotationError } = await supabase
       .from("quotations")
