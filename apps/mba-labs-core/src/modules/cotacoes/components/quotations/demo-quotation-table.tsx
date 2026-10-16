@@ -74,6 +74,7 @@ export function DemoQuotationTable({
   });
   const [serverRows, setServerRows] = useState(() => initialQuotations);
   const [pendingFinish, setPendingFinish] = useState<QuotationRow | null>(null);
+  const [allowPendingRepresentatives, setAllowPendingRepresentatives] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<QuotationRow | null>(null);
   const base = moduleType === "pharmacy" ? "/cotacoes/cotacoes-farmacia" : "/cotacoes/licitacoes";
 
@@ -167,7 +168,7 @@ export function DemoQuotationTable({
     router.refresh();
   }
 
-  async function finishQuotation(row: QuotationRow) {
+  async function finishQuotation(row: QuotationRow, earlyClose = false) {
     if (!canFinish(row.status)) return;
     if (row.source === "localStorage") {
       updateLocalRow(row.id, { status: "finished" });
@@ -176,7 +177,7 @@ export function DemoQuotationTable({
       return;
     }
 
-    const payload = await mutateQuotation("PATCH", { id: row.id, action: "finish" });
+    const payload = await mutateQuotation("PATCH", { id: row.id, action: "finish", allowPendingRepresentatives: earlyClose });
     if (!payload) return;
     setServerRows((current) => current.map((quotation) => (
       quotation.id === row.id ? { ...quotation, status: "finished" } : quotation
@@ -294,16 +295,23 @@ export function DemoQuotationTable({
         <AlertDialogHeader>
           <AlertDialogTitle>Finalizar cotação</AlertDialogTitle>
           <AlertDialogDescription>
-            Deseja finalizar esta cotação? Após finalizar, fornecedores que ainda não responderam não poderão mais enviar respostas.
+            Ao finalizar, os representantes que ainda não responderam perderão o acesso. O pedido ficará disponível para revisão de quantidades antes do envio.
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {moduleType === "pharmacy" ? (
+          <label className="flex items-start gap-2 rounded bg-amber-50 p-3 text-sm text-amber-900">
+            <input type="checkbox" checked={allowPendingRepresentatives}
+              onChange={(event) => setAllowPendingRepresentatives(event.target.checked)} />
+            <span>Autorizo encerrar antecipadamente, mesmo com representantes pendentes.</span>
+          </label>
+        ) : null}
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogCancel>Continuar aguardando</AlertDialogCancel>
           <AlertDialogAction
             onClick={() => {
               const row = pendingFinish;
               setPendingFinish(null);
-              if (row) void finishQuotation(row);
+              if (row) void finishQuotation(row, allowPendingRepresentatives);
             }}
           >
             Finalizar
