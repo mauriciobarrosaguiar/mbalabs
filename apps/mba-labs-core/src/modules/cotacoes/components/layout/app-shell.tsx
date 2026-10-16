@@ -50,17 +50,13 @@ type NavItem = {
 const adminNav: NavItem[] = [
   { href: "/cotacoes/gestao", label: "Dashboard", icon: LayoutDashboard },
   { href: "/cotacoes/gestao/farmacias", label: "Farmácias / CNPJs", icon: Store },
-  { href: "/cotacoes/gestao/licitacoes", label: "Licitações", icon: BarChart3 },
+  { href: "/cotacoes/gestao/representantes", label: "Representantes", icon: Users },
   { href: "/cotacoes/gestao/distribuidoras", label: "Distribuidoras", icon: Truck },
-  { href: "/cotacoes/gestao/vendedores", label: "Vendedores", icon: Users },
   { href: "/cotacoes/gestao/produtos", label: "Catálogo de medicamentos", icon: Package },
   { href: "/cotacoes/gestao/usuarios", label: "Usuários", icon: Users },
   { href: "/cotacoes/gestao/planos", label: "Planos", icon: ClipboardCheck },
-  { href: "/cotacoes/gestao/mensalidades", label: "Mensalidades", icon: ReceiptText },
-  { href: "/cotacoes/gestao/pagamentos", label: "Pagamentos", icon: CreditCard },
+  { href: "/cotacoes/gestao/mensalidades", label: "Mensalidades e pagamentos", icon: ReceiptText },
   { href: "/cotacoes/gestao/configuracoes/pagamentos", label: "Config. pagamentos", icon: CreditCard },
-  { href: "/cotacoes/gestao/infra-whatsapp", label: "Infra WhatsApp", icon: MessageCircle },
-  { href: "/cotacoes/gestao/configuracoes", label: "Configurações", icon: Settings },
   { href: "/cotacoes/gestao/logs", label: "Logs", icon: ShieldCheck },
 ];
 
@@ -71,7 +67,7 @@ const pharmacyNav: NavItem[] = [
   { href: "/cotacoes/lista-faltas", label: "Lista de faltas", icon: ClipboardList, group: "Farmácia" },
   { href: "/cotacoes/pedidos-gerados-farmacia", label: "Pedidos gerados", icon: ReceiptText, group: "Farmácia" },
   { href: "/cotacoes/produtos", label: "Produtos", icon: Package, group: "Cadastros" },
-  { href: "/cotacoes/fornecedores", label: "Fornecedores", icon: Truck, group: "Cadastros" },
+  { href: "/cotacoes/fornecedores", label: "Representantes", icon: Users, group: "Cadastros" },
   { href: "/cotacoes/distribuidoras", label: "Distribuidoras", icon: Store, group: "Cadastros" },
   { href: "/cotacoes/historico-compras", label: "Histórico de compras", icon: ReceiptText, group: "Gestão" },
   { href: "/cotacoes/configuracoes/whatsapp", label: "WhatsApp próprio", icon: MessageCircle, group: "Gestão" },
@@ -310,6 +306,15 @@ function GroupedNav({
     groups.set(group, [...(groups.get(group) ?? []), item]);
   }
 
+  // Um único menu ativo: ganha a rota mais específica. "Dashboard" não fica
+  // selecionado em todas as subpáginas de /cotacoes/gestao.
+  const activeHref = nav
+    .filter((item) => isActive(currentPath, item.href))
+    .reduce<string | undefined>(
+      (best, item) => !best || item.href.length > best.length ? item.href : best,
+      undefined,
+    );
+
   return (
     <>
       {Array.from(groups.entries()).map(([group, items]) => (
@@ -323,7 +328,7 @@ function GroupedNav({
             <NavLink
               key={item.href}
               item={item}
-              active={isActive(currentPath, item.href)}
+              active={activeHref === item.href}
               variant={variant}
             />
           ))}
@@ -334,7 +339,7 @@ function GroupedNav({
 }
 
 function isActive(currentPath: string, href: string) {
-  if (href === "/admin" || href === "/cotacoes") return currentPath === href;
+  if (href === "/admin" || href === "/cotacoes" || href === "/cotacoes/gestao") return currentPath === href;
   return currentPath === href || currentPath.startsWith(`${href}/`);
 }
 

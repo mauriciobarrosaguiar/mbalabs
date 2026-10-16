@@ -13,11 +13,11 @@ export default async function WhatsappEmpresaPage() {
       profileRole={auth.profile.role} tenantType={auth.tenantAccess?.tenantType}
       tenantName={auth.tenantAccess?.tenantName}>
       {auth.tenantAccess ? (
-        <TenantWhatsappConnect canManage={auth.isSuperAdmin || auth.tenantAccess.role === "ADMIN_EMPRESA"} />
+        <TenantWhatsappConnect canManage={auth.tenantAccess.role === "ADMIN_EMPRESA"} />
       ) : (
         <div className="rounded-lg border bg-white p-5 text-sm">
           Para configurar um WhatsApp de cliente, acesse com o administrador da farmácia correspondente.
-          A infraestrutura geral é gerenciada separadamente no Admin MBA Cotações.
+          O WhatsApp só pode ser configurado por uma farmácia ativa.
         </div>
       )}
     </AppShell>

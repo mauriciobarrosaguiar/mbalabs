@@ -254,8 +254,14 @@ export async function AdminSectionPage({
   if (runtime.missingProductionConfig) return <SupabaseRequiredState />;
 
   const collections = await getCollections();
+  // O tenant técnico CORE do MBA Labs não é uma farmácia e não deve aparecer
+  // em cadastros operacionais, seletores, representantes ou cobranças.
+  const clientTenants = collections.tenants.filter(
+    (tenant) => !String(tenant.cnpj ?? "").startsWith("CORE-"),
+  );
+  const clientTenantIds = new Set(clientTenants.map((tenant) => tenant.id));
   const tenantOptions = Object.fromEntries(
-    collections.tenants.map((tenant) => [tenant.id, `${tenant.nomeFantasia} · ${labelFrom(customerTypeLabels, tenant.tipoCliente)}`]),
+    clientTenants.map((tenant) => [tenant.id, `${tenant.nomeFantasia} · ${labelFrom(customerTypeLabels, tenant.tipoCliente)}`]),
   );
   if (section === "configuracoes" && subpage === "pagamentos") {
     return <PaymentSettingsPage />;
@@ -265,14 +271,14 @@ export async function AdminSectionPage({
     return <CompanyDetailsPage tenantId={subpage} />;
   }
 
-  if (section === "empresas") {
+  if (section === "farmacias" || section === "empresas") {
     return (
       <CrudPage
-        title="Empresas clientes"
-        description="Cadastre tenants, defina módulo contratado, status e dados financeiros."
+        title="Farmácias e CNPJs"
+        description="Gerencie clientes, CNPJs, planos e acessos em um único cadastro, sem duplicar a farmácia."
       >
         <TenantManagementTable
-          initialTenants={collections.tenants.filter(t=>!String(t.cnpj??"").startsWith("CORE-"))}
+          initialTenants={clientTenants}
           plans={collections.subscriptionPlans}
         />
       </CrudPage>
@@ -316,12 +322,12 @@ export async function AdminSectionPage({
     );
   }
 
-  if (section === "mensalidades" || section === "pagamentos") {
+  if (section === "mensalidades") {
     const planOptions = Object.fromEntries(collections.subscriptionPlans.map((plan) => [plan.id, plan.name]));
     return (
       <CrudPage
-        title={section === "mensalidades" ? "Mensalidades" : "Pagamentos"}
-        description="Mensalidades por empresa, com cobrança Pix preparada, baixa manual e histórico de pagamento."
+        title="Mensalidades e pagamentos"
+        description="Um único painel para vencimentos, pagamentos recebidos, pendências e baixa manual."
       >
         <div className="space-y-4 p-4">
           <div className="flex flex-wrap gap-2">
@@ -338,7 +344,7 @@ export async function AdminSectionPage({
             title="Mensalidade"
             primaryKey="referenceMonth"
             statusOptions={paymentStatusOptions}
-            initialRows={collections.monthlySubscriptions.map((subscription) => ({
+            initialRows={collections.monthlySubscriptions.filter((subscription) => clientTenantIds.has(subscription.tenantId)).map((subscription) => ({
               id: subscription.id,
               tenantId: subscription.tenantId,
               planId: subscription.planId ?? collections.tenants.find((tenant) => tenant.id === subscription.tenantId)?.planoId ?? "",
@@ -492,7 +498,7 @@ export async function AdminSectionPage({
           title="Distribuidora"
           primaryKey="nome"
           emptyMessage="Nenhuma distribuidora cadastrada."
-          initialRows={collections.distributors.map((distributor) => ({
+          initialRows={collections.distributors.filter((distributor) => clientTenantIds.has(distributor.tenantId)).map((distributor) => ({
             id: distributor.id,
             tenantId: distributor.tenantId,
             nome: distributor.nome,
@@ -519,20 +525,20 @@ export async function AdminSectionPage({
     );
   }
 
-  if (section === "vendedores") {
-    const sellers = collections.suppliers.filter((supplier) => supplier.tipoFornecedor === "vendedor");
+  if (section === "representantes" || section === "vendedores") {
+    const sellers = collections.suppliers.filter((supplier) => supplier.tipoFornecedor === "vendedor" && clientTenantIds.has(supplier.tenantId));
 
     return (
       <CrudPage
-        title="Vendedores"
-        description="Vendedores e fornecedores externos cadastrados por empresa para receber links públicos de cotação."
+        title="Representantes"
+        description="Representantes comerciais cadastrados por farmácia para receber links de cotação."
       >
         <DemoCrudTable
           entity="suppliers"
           storageKey="mba-admin-suppliers"
-          title="Vendedor/Fornecedor"
+          title="Representante"
           primaryKey="nome"
-          emptyMessage="Nenhum vendedor cadastrado ainda."
+          emptyMessage="Nenhum representante cadastrado ainda."
           initialRows={sellers.map((seller) => ({
             id: seller.id,
             tenantId: seller.tenantId,
@@ -986,7 +992,7 @@ async function CompanyDetailsPage({ tenantId }: { tenantId: string }) {
         metrics={[
           { label: "Farmácias/CNPJs", value: String(pharmacies.length), hint: "Unidades operacionais", tone: "info" },
           { label: "Usuários", value: String(tenantUsers.length), hint: "Vinculados à empresa", tone: "default" },
-          { label: "Vendedores", value: String(sellers.length), hint: "Recebem cotações", tone: "success" },
+          { label: "Representantes", value: String(sellers.length), hint: "Recebem cotações", tone: "success" },
           { label: "Mensalidades", value: String(subscriptions.length), hint: "Histórico financeiro", tone: "warning" },
         ]}
       />
@@ -995,7 +1001,7 @@ async function CompanyDetailsPage({ tenantId }: { tenantId: string }) {
           <TabsTrigger value="dados">Dados</TabsTrigger>
           <TabsTrigger value="farmacias">Farmácias/CNPJs</TabsTrigger>
           <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-          <TabsTrigger value="vendedores">Vendedores</TabsTrigger>
+          <TabsTrigger value="vendedores">Representantes</TabsTrigger>
           <TabsTrigger value="distribuidoras">Distribuidoras</TabsTrigger>
           <TabsTrigger value="produtos">Produtos</TabsTrigger>
           <TabsTrigger value="cotacoes">Cotações</TabsTrigger>
@@ -1068,7 +1074,7 @@ async function CompanyDetailsPage({ tenantId }: { tenantId: string }) {
             <DemoCrudTable
               entity="suppliers"
               storageKey={`mba-company-${tenant.id}-suppliers`}
-              title="Vendedor"
+              title="Representante"
               primaryKey="nome"
               statusOptions={activeInactiveOptions}
               emptyMessage="Nenhum vendedor cadastrado ainda."
@@ -3535,7 +3541,8 @@ function AdminUsersTable({
   }
 
   return (
-    <Table>
+    <div className="w-full max-w-full overflow-x-auto rounded-md border border-slate-200">
+    <Table className="min-w-[1180px]">
       <TableHeader>
         <TableRow>
           <TableHead>Nome</TableHead>
@@ -3552,8 +3559,8 @@ function AdminUsersTable({
 
           return (
             <TableRow key={user.id}>
-              <TableCell className="font-medium">{user.fullName}</TableCell>
-              <TableCell>{user.email}</TableCell>
+              <TableCell className="max-w-[220px] font-medium break-words">{user.fullName}</TableCell>
+              <TableCell className="max-w-[260px] break-all">{user.email}</TableCell>
               <TableCell>{labelFrom(userRoleLabels, user.role)}</TableCell>
               <TableCell>
                 {primaryTenant
@@ -3564,6 +3571,12 @@ function AdminUsersTable({
                 <StatusBadge status={user.status} label={labelFrom(statusLabels, user.status)} />
               </TableCell>
               <TableCell>
+                {user.role === "SUPER_ADMIN" ? (
+                  <p className="max-w-[340px] rounded-md bg-slate-50 p-3 text-xs text-slate-700">
+                    Administrador central do MBA Labs: acesso somente à gestão, sem vínculo com farmácia e sem alteração por esta tela.
+                  </p>
+                ) : (
+                <>
                 <form action={updateUserAccessAction} className="flex justify-end gap-2">
                   <input type="hidden" name="profileId" value={user.id} />
                   <Select name="role" defaultValue={user.role}>
@@ -3600,7 +3613,7 @@ function AdminUsersTable({
                 </form>
                 {primaryTenant ? (
                   <form action={deactivateCotacoesUserAction}
-                    onSubmit={undefined} className="mt-2 flex justify-end">
+                    className="mt-2 flex justify-end">
                     <input type="hidden" name="tenantId" value={primaryTenant.tenantId} />
                     <input type="hidden" name="profileId" value={user.id} />
                     <Button type="submit" size="sm" variant="destructive"
@@ -3609,12 +3622,15 @@ function AdminUsersTable({
                     </Button>
                   </form>
                 ) : null}
+                </>
+                )}
               </TableCell>
             </TableRow>
           );
         })}
       </TableBody>
     </Table>
+    </div>
   );
 }
 
@@ -3628,7 +3644,6 @@ function UserInviteForm({ tenants = [] }: { tenants?: TenantOption[] }) {
         <Select name="role" defaultValue="COMPRADOR">
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="SUPER_ADMIN">{userRoleLabels.SUPER_ADMIN}</SelectItem>
             <SelectItem value="ADMIN_EMPRESA">{userRoleLabels.ADMIN_EMPRESA}</SelectItem>
             <SelectItem value="COMPRADOR">{userRoleLabels.COMPRADOR}</SelectItem>
             <SelectItem value="CONFERENTE">{userRoleLabels.CONFERENTE}</SelectItem>
@@ -3639,9 +3654,9 @@ function UserInviteForm({ tenants = [] }: { tenants?: TenantOption[] }) {
       <div className="space-y-2">
         <Label>Empresa</Label>
         <Select name="tenantId" defaultValue={tenants[0]?.id ?? "none"}>
-          <SelectTrigger><SelectValue placeholder="Sem vínculo" /></SelectTrigger>
+          <SelectTrigger><SelectValue placeholder="Selecione a farmácia" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">Sem vínculo</SelectItem>
+            {tenants.length === 0 ? <SelectItem value="none">Cadastre uma farmácia primeiro</SelectItem> : null}
             {tenants.map((tenant) => (
               <SelectItem key={tenant.id} value={tenant.id}>
                 {tenant.name} · {labelFrom(customerTypeLabels, tenant.type)}
@@ -3767,13 +3782,14 @@ export function getAdminRouteTitle(section?: string) {
   const titles: Record<string, string> = {
     empresas: "Empresas",
     planos: "Planos",
-    mensalidades: "Mensalidades",
-    pagamentos: "Pagamentos",
+    mensalidades: "Mensalidades e pagamentos",
+    pagamentos: "Mensalidades e pagamentos",
     usuarios: "Usuários",
     farmacias: "Farmácias",
     licitacoes: "Licitações",
     distribuidoras: "Distribuidoras",
-    vendedores: "Vendedores",
+    vendedores: "Representantes",
+    representantes: "Representantes",
     logs: "Logs",
     suporte: "Suporte",
     configuracoes: "Configurações",
