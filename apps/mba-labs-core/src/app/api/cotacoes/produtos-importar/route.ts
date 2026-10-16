@@ -66,12 +66,12 @@ export async function POST(request: NextRequest) {
         .eq("tenant_id",authorized.tenantId).maybeSingle();
       if(!pref?.accepted) return NextResponse.json({error:"O administrador da farmácia precisa aceitar o catálogo antes de copiar."},{status:403});
 
-      const page=Number.isInteger(body.page)&&body.page!>=0&&body.page!<=10000?body.page!:0;
+      const page=(typeof body.page==="number"&&Number.isInteger(body.page)&&body.page>=0&&body.page<=10000)?body.page:0;
       const {data:all,error}=await supabase.from("cot_product_catalog")
         .select("ean,produto,laboratorio,tipo_produto").eq("ativo",true)
         .order("ean").order("laboratorio").range(page*250,(page+1)*250-1);
       if(error)throw error;
-      const result=await importProducts(supabase,authorized.tenantId,(all??[]).map(p=>({
+      const result=await importProducts(supabase,authorized.tenantId,(all??[]).map((p:{ean:string;produto:string;laboratorio:string;tipo_produto:string|null})=>({
         ean:p.ean,nome:p.produto,laboratorio:p.laboratorio,tipoProduto:p.tipo_produto??""
       })),false);
       return NextResponse.json({ok:true,...result,hasMore:(all??[]).length===250,
@@ -114,7 +114,7 @@ async function importProducts(supabase:Client,tenantId:string,items:ProductInput
   const {data:oldLabs,error:labsError}=await supabase.from("laboratories").select("id,nome")
     .eq("tenant_id",tenantId);
   if(labsError)throw labsError;
-  const byName=new Map((oldLabs??[]).map(l=>[key(l.nome),l.id]));
+  const byName:Map<string,string>=new Map((oldLabs??[]).map((l:{nome:string;id:string})=>[key(l.nome),l.id]));
   const missing=labNames.filter(n=>!byName.has(key(n)));
   if(missing.length){
     const {data:inserted,error:insertErr}=await supabase.from("laboratories")
@@ -127,7 +127,7 @@ async function importProducts(supabase:Client,tenantId:string,items:ProductInput
   const {data:existing,error:existingError}=await supabase.from("products")
     .select("id,ean,laboratorio_id").eq("tenant_id",tenantId).in("ean",eans);
   if(existingError)throw existingError;
-  const existingByKey=new Map((existing??[]).map(p=>[p.ean+"|"+(p.laboratorio_id??""),p.id]));
+  const existingByKey:Map<string,string>=new Map((existing??[]).map((p:{ean:string;laboratorio_id:string|null;id:string})=>[p.ean+"|"+(p.laboratorio_id??""),p.id]));
   const rows=new Map<string,{id?:string;tenant_id:string;nome:string;ean:string;laboratorio_id:string|null;tipo_produto:string|null;status:string}>();
   for(const item of items){
     const laboratory=byName.get(key(item.laboratorio??""))??null;
