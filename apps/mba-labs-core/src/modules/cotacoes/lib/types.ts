@@ -397,6 +397,7 @@ export interface PurchaseOrderItem {
   tenantId: string;
   purchaseOrderId: string;
   quotationItemId: string;
+  distributorId?: string;
   productName: string;
   offeredProductName?: string;
   laboratory?: string;
