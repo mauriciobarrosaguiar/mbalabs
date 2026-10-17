@@ -37,3 +37,62 @@ test('item estrangeiro enviado no corpo é ignorado',async()=>{
  assert.equal(state.tables.supplier_quote_response_items.length,1);
  assert.equal(state.tables.supplier_quote_response_items[0].quotation_item_id,'item-A');
 });
+
+
+test('declaração sem estoque, mesmo sem preço, permanece registrada como zero', async () => {
+ await save('test-link-A', input({status:'submitted', rows:[{quotationItemId:'item-A', hasStock:'nao'}]}));
+ const stored=state.tables.supplier_quote_response_items[0];
+ assert.equal(stored.has_stock,false);
+ assert.equal(stored.available_quantity,0);
+ assert.equal(stored.unit_price,null);
+});
+
+test('quantidade parcial informada limita estoque gravado sem alterar preço unitário', async () => {
+ await save('test-link-A',input({status:'submitted', rows:[{quotationItemId:'item-A',netPrice:'10,00',hasStock:'sim',attendedQuantity:'20'}]}));
+ const stored=state.tables.supplier_quote_response_items[0];
+ assert.equal(stored.available_quantity,20);
+ assert.equal(stored.unit_price,10);
+ assert.equal(stored.total_price_available,200);
+});
+
+test('não permite quantidade parcial quando o comprador a proibiu', async () => {
+ state.tables.quotation_items[0].allow_partial_supply=false;
+ await assert.rejects(
+  ()=>save('test-link-A',input({status:'submitted',rows:[{quotationItemId:'item-A',netPrice:'10,00',attendedQuantity:'20'}]})),
+  /não permite entrega parcial/,
+ );
+ assert.equal(state.writes.length,0);
+});
+
+test('proíbe substituição por equivalente sem permissão do comprador', async () => {
+ await assert.rejects(
+  ()=>save('test-link-A',input({status:'submitted',rows:[{quotationItemId:'item-A',netPrice:'10,00',offeredProductName:'TESTE PRODUTO DIFERENTE'}]})),
+  /não autorizou produto equivalente/,
+ );
+ assert.equal(state.writes.length,0);
+});
+
+test('permite equivalente explicitamente autorizado globalmente e pelo item', async () => {
+ state.tables.quotations[0].allow_equivalent=true;
+ state.tables.quotation_items[0].accept_equivalent=true;
+ await save('test-link-A',input({status:'submitted',rows:[{quotationItemId:'item-A',netPrice:'10,00',offeredProductName:'TESTE ALTERNATIVO'}]}));
+ assert.equal(state.tables.supplier_quote_response_items[0].offered_product_name,'TESTE ALTERNATIVO');
+});
+
+test('vincula nome exato de distribuidora apenas ao cadastro do tenant da cotação', async () => {
+ state.tables.distributors=[
+  {id:'dist-A',tenant_id:'tenant-A',nome:'DISTRIBUIDORA TESTE'},
+  {id:'dist-B',tenant_id:'tenant-B',nome:'DISTRIBUIDORA TESTE'},
+ ];
+ await save('test-link-A',input({status:'submitted',seller:{billingCompany:'Distribuidora Teste'},rows:[{quotationItemId:'item-A',netPrice:'10,00'}]}));
+ assert.equal(state.tables.supplier_quote_response_items[0].distributor_id,'dist-A');
+});
+
+test('não vincula distribuidora se houver nome ambíguo na mesma empresa', async () => {
+ state.tables.distributors=[
+  {id:'dist-A1',tenant_id:'tenant-A',nome:'DISTRIBUIDORA TESTE'},
+  {id:'dist-A2',tenant_id:'tenant-A',nome:'DISTRIBUIDORA TESTE'},
+ ];
+ await save('test-link-A',input({status:'submitted',seller:{billingCompany:'DISTRIBUIDORA TESTE'},rows:[{quotationItemId:'item-A',netPrice:'10,00'}]}));
+ assert.equal(state.tables.supplier_quote_response_items[0].distributor_id,null);
+});

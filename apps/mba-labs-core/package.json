@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start -p 3000",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:cotacoes": "node --experimental-strip-types --test tests/cotacoes-*.test.mjs",
+    "prebuild": "npm run test:cotacoes"
   },
   "dependencies": {
     "@mba-labs/shared": "*",

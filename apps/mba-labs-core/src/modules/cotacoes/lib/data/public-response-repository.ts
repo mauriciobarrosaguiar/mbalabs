@@ -186,6 +186,7 @@ export async function savePublicSellerResponse(token: string, input: SavePublicS
       moduleType: input.moduleType,
       items: publicQuote.items,
       rows: input.rows,
+      allowEquivalent: quotation.allowEquivalent,
     });
 
     if (validationErrors.length > 0) {
@@ -203,6 +204,7 @@ export async function savePublicSellerResponse(token: string, input: SavePublicS
     moduleType: input.moduleType,
     items: publicQuote.items,
     rows: input.rows,
+    billingCompanyName: input.seller?.billingCompany,
   });
 
   const { error: sessionError } = await supabase
@@ -300,8 +302,23 @@ async function replaceResponseItems(
     moduleType: ModuleType;
     items: QuotationItem[];
     rows: SellerResponseRowDraft[];
+    billingCompanyName?: string;
   },
 ) {
+  // Vincular somente um nome de distribuidora que corresponda exatamente
+  // a um cadastro da MESMA farmácia; não interpretar texto livre ambiguamente.
+  let distributorId: string | null = null;
+  const entered = input.billingCompanyName?.trim().normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  if (input.moduleType === "pharmacy" && entered) {
+    const { data: distributorRows, error: distributorError } = await supabase
+      .from("distributors").select("id,nome").eq("tenant_id", input.session.tenantId);
+    if (distributorError) throw distributorError;
+    const candidates = (distributorRows ?? []).filter((candidate) =>
+      String(candidate.nome ?? "").trim().normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR") === entered);
+    if (candidates.length === 1) distributorId = String(candidates[0].id);
+  }
   const { error: deleteError } = await supabase
     .from("supplier_quote_response_items")
     .delete()
@@ -319,9 +336,11 @@ async function replaceResponseItems(
     }
 
     const calculation = calculateSellerRow("pharmacy", item, row);
-    if (calculation.netPrice <= 0) return [];
+    // Guardar declaração explícita "sem estoque", mesmo sem preço.
+    // Não criar registros para campos inteiramente em branco.
+    if (calculation.netPrice <= 0 && row.hasStock !== "nao") return [];
 
-    return [buildPharmacyResponseItemPayload(input.responseId, input.session, item, row)];
+    return [buildPharmacyResponseItemPayload(input.responseId, input.session, item, row, distributorId)];
   });
 
   if (payloads.length === 0) return;
@@ -335,11 +354,12 @@ function buildPharmacyResponseItemPayload(
   session: SupplierQuoteSession,
   item: QuotationItem,
   row: SellerResponseRowDraft,
+  distributorId: string | null,
 ) {
   const calculation = calculateSellerRow("pharmacy", item, row);
   const grossPrice = parseNumberInput(row.grossPrice);
   const extraDiscount = parseNumberInput(row.extraDiscount);
-  const netPrice = calculation.netPrice || parseNumberInput(row.netPrice);
+  const netPrice = calculation.netPrice;
 
   return {
     tenant_id: session.tenantId,
@@ -347,15 +367,19 @@ function buildPharmacyResponseItemPayload(
     quotation_item_id: item.id,
     response_id: responseId,
     supplier_id: session.supplierId ?? null,
+    distributor_id: distributorId,
     offered_product_name: clean(row.offeredProductName) ?? item.productName,
     offered_laboratory: clean(row.offeredLaboratory) ?? item.requestedLaboratory ?? null,
     package_price: null,
     gross_price: grossPrice || null,
     discount_extra: extraDiscount || null,
-    net_price: netPrice || null,
-    unit_price: netPrice || null,
+    net_price: netPrice > 0 ? netPrice : null,
+    unit_price: netPrice > 0 ? netPrice : null,
     has_stock: row.hasStock !== "nao",
-    available_quantity: calculation.attendedQuantity || null,
+    // Zero é indisponibilidade explícita. NULL sinaliza resposta só com preço.
+    available_quantity: row.hasStock === "nao"
+      ? 0
+      : row.attendedQuantity?.trim() ? calculation.attendedQuantity : null,
     delivery_term_text: clean(row.deliveryText) ?? null,
     delivery_days: parseDeliveryDays(row.deliveryText),
     seller_observation: clean(row.observation) ?? null,
