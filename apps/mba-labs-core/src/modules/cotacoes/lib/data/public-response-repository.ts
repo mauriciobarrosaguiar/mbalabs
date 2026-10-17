@@ -320,7 +320,9 @@ async function replaceResponseItems(
     }
 
     const calculation = calculateSellerRow("pharmacy", item, row);
-    if (calculation.netPrice <= 0) return [];
+    // Guardar declaração explícita "sem estoque", mesmo sem preço.
+    // Não criar registros para campos inteiramente em branco.
+    if (calculation.netPrice <= 0 && row.hasStock !== "nao") return [];
 
     return [buildPharmacyResponseItemPayload(input.responseId, input.session, item, row)];
   });
