@@ -528,7 +528,7 @@ export async function createSupabaseQuotation(input: {
       requested_laboratory: item.requestedLaboratory || "Qualquer",
       laboratory_required: Boolean(item.laboratoryRequired),
       product_type: product?.tipo_produto ?? item.productType ?? "generico",
-      accept_equivalent: item.acceptEquivalent ?? true,
+      accept_equivalent: Boolean(input.draft.allowEquivalent) && (item.acceptEquivalent ?? true),
       allow_partial_supply: input.draft.allowPartialSupply,
       minimum_validity: item.minimumValidity || null,
       ms_registration_required: Boolean(item.msRegistrationRequired),
