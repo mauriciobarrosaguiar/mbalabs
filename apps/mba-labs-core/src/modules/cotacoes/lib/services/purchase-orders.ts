@@ -15,10 +15,11 @@ export function generatePurchaseOrders(
   const usedPharmacyItems = new Set<string>();
 
   for (const award of awards) {
-    if (award.status !== "winner") continue;
+    if (award.status !== "winner" && !(award.moduleType === "pharmacy" && award.status === "partial")) continue;
     if (award.moduleType === "pharmacy") {
-      if (usedPharmacyItems.has(award.quotationItemId)) continue;
-      usedPharmacyItems.add(award.quotationItemId);
+      const awardKey = `${award.quotationId}:${award.quotationItemId}:${award.supplierResponseItemId}`;
+      if (usedPharmacyItems.has(awardKey)) continue;
+      usedPharmacyItems.add(awardKey);
     }
 
     const key = award.supplierId ?? award.supplierName;

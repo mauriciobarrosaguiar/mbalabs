@@ -1241,7 +1241,7 @@ function mapSupplierResponseItem(row: Record<string, any>): SupplierQuoteRespons
     packageQuantity: row.package_quantity ? Number(row.package_quantity) : undefined,
     packagePrice: row.package_price ? Number(row.package_price) : undefined,
     hasFullQuantity: row.has_full_quantity ?? undefined,
-    availableQuantity: row.available_quantity ? Number(row.available_quantity) : undefined,
+    availableQuantity: row.available_quantity != null ? Number(row.available_quantity) : undefined,
     deliveryDays: row.delivery_days ? Number(row.delivery_days) : undefined,
     deliveryTermText: row.delivery_term_text ?? undefined,
     sellerObservation: row.seller_observation ?? undefined,
