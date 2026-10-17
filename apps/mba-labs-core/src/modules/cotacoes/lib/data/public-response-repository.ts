@@ -339,7 +339,7 @@ function buildPharmacyResponseItemPayload(
   const calculation = calculateSellerRow("pharmacy", item, row);
   const grossPrice = parseNumberInput(row.grossPrice);
   const extraDiscount = parseNumberInput(row.extraDiscount);
-  const netPrice = calculation.netPrice || parseNumberInput(row.netPrice);
+  const netPrice = calculation.netPrice;
 
   return {
     tenant_id: session.tenantId,
@@ -352,10 +352,13 @@ function buildPharmacyResponseItemPayload(
     package_price: null,
     gross_price: grossPrice || null,
     discount_extra: extraDiscount || null,
-    net_price: netPrice || null,
-    unit_price: netPrice || null,
+    net_price: netPrice > 0 ? netPrice : null,
+    unit_price: netPrice > 0 ? netPrice : null,
     has_stock: row.hasStock !== "nao",
-    available_quantity: calculation.attendedQuantity || null,
+    // Zero é indisponibilidade explícita. NULL sinaliza resposta só com preço.
+    available_quantity: row.hasStock === "nao"
+      ? 0
+      : row.attendedQuantity?.trim() ? calculation.attendedQuantity : null,
     delivery_term_text: clean(row.deliveryText) ?? null,
     delivery_days: parseDeliveryDays(row.deliveryText),
     seller_observation: clean(row.observation) ?? null,
