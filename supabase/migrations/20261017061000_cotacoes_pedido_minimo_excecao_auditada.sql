@@ -9,7 +9,7 @@ CREATE INDEX IF NOT EXISTS cot_po_items_distributor_idx
 -- Preenchimento conservador de pedidos pendentes antigos: uma única oferta
 -- inequívoca por item/representante/preço e dentro do mesmo tenant.
 WITH matches AS (
-  SELECT pi.id item_id,min(sri.distributor_id) distributor_id,
+  SELECT pi.id item_id,min(sri.distributor_id::text)::uuid distributor_id,
     count(DISTINCT sri.distributor_id) n
   FROM public.purchase_order_items pi
   JOIN public.purchase_orders po
