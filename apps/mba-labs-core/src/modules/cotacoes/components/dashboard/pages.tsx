@@ -66,6 +66,7 @@ import {
   userRoleLabels,
 } from "@/modules/cotacoes/lib/labels";
 import {
+  countConfirmedNotBilledItems,
   getPurchaseOrderSupplierCompany,
   getPurchaseOrderSupplierContact,
   getPurchaseOrderSupplierDisplay,
@@ -2830,7 +2831,7 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
   const billedItems = allOrderItems.filter((item) => getOrderItemMissingQuantity(item) <= 0 && getOrderItemBilledQuantity(item) > 0).length;
   const partialItems = allOrderItems.filter((item) => getOrderItemBilledQuantity(item) > 0 && getOrderItemMissingQuantity(item) > 0).length;
   const notBilledItems = quotation.moduleType === "pharmacy"
-    ? Math.max(items.length - totalItemsWithOrder, 0)
+    ? countConfirmedNotBilledItems(orders)
     : allOrderItems.filter((item) => getOrderItemBilledQuantity(item) <= 0 && getOrderItemMissingQuantity(item) > 0).length;
   const expectedAmount = orders.reduce((total, order) => total + order.totalAmount, 0);
   const confirmedAmount = allOrderItems.reduce((total, item) => total + getOrderItemBilledQuantity(item) * item.unitPrice, 0);
@@ -2858,7 +2859,7 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
           { label: "Pedidos finalizados", value: String(orders.filter((order) => ["finalizado_pelo_vendedor", "parcialmente_faturado", "nao_faturado", "confirmed"].includes(order.status)).length), hint: "Conferidos pelo vendedor", tone: "success" },
           { label: "Itens faturados", value: `${billedItems}/${billedItemsDenominator}`, hint: quotation.moduleType === "pharmacy" ? "Confirmados / com pedido" : "Confirmados" },
           { label: "Itens parciais", value: String(partialItems), hint: "Com falta parcial", tone: partialItems > 0 ? "warning" : "default" },
-          { label: "Itens não faturados", value: String(notBilledItems), hint: quotation.moduleType === "pharmacy" ? "Sem resposta válida" : "Com pendência", tone: notBilledItems > 0 ? "warning" : "default" },
+          { label: "Itens não faturados", value: String(notBilledItems), hint: quotation.moduleType === "pharmacy" ? "Informados pelo representante" : "Com pendência", tone: notBilledItems > 0 ? "warning" : "default" },
           { label: "Valor previsto", value: formatCurrency(expectedAmount), hint: "Pedido vencedor" },
           { label: "Valor confirmado", value: formatCurrency(confirmedAmount), hint: "Faturado" },
         ]}
