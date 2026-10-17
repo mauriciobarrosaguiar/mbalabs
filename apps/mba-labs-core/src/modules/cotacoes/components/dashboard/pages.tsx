@@ -1473,13 +1473,13 @@ async function SuppliersPage({ tenantId }: { tenantId?: string }) {
   })) as DemoCrudRow[];
   return (
     <CrudPage
-      title="Fornecedores e vendedores"
-      description="Contatos usados para gerar links públicos de resposta."
+      title="Representantes"
+      description="Cadastre os representantes que receberão links de cotação. O WhatsApp é opcional no cadastro e necessário para envio automático."
     >
       <DemoCrudTable
         entity="suppliers"
         storageKey="cotafarma-demo-suppliers"
-        title="Fornecedor"
+        title="Representante"
         primaryKey="nome"
         initialRows={demoRows}
         fields={[
@@ -1488,7 +1488,7 @@ async function SuppliersPage({ tenantId }: { tenantId?: string }) {
           { key: "empresa", label: "Empresa" },
           { key: "whatsapp", label: "WhatsApp" },
           { key: "email", label: "E-mail", type: "email" },
-          { key: "tipoFornecedor", label: "Tipo fornecedor", type: "select", options: supplierTypeLabels },
+          { key: "tipoFornecedor", label: "Tipo de contato", type: "select", options: supplierTypeLabels },
           { key: "observacao", label: "Observação" },
         ]}
       />

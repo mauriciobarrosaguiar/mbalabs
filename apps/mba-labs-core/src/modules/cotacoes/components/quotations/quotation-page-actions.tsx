@@ -43,6 +43,7 @@ type WhatsappSummary = {
   ignorado?: number;
   results?: WhatsappResult[];
 };
+type WhatsappDispatch = { queued: true } | { queued: false; summary: WhatsappSummary };
 const SEMI_AUTO_EVENT = "mba-cotacoes:whatsapp-semi-auto";
 const PREPARE_WHATSAPP_EVENT = "mba-cotacoes:whatsapp-prepare-window";
 const RELEASE_WHATSAPP_EVENT = "mba-cotacoes:whatsapp-release-window";
@@ -120,7 +121,13 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
       const response = await fetch("/api/whatsapp-envios", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, quotationId }) });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Falha no envio por WhatsApp.");
-      return payload.whatsapp as WhatsappSummary | undefined;
+      // A API aceita o trabalho e envia depois (Next.js after).
+      // Não existe confirmação de entrega enquanto estiver na fila.
+      if (payload.queued === true) return { queued: true } satisfies WhatsappDispatch;
+      if (payload.whatsapp && typeof payload.whatsapp === "object") {
+        return { queued: false, summary: payload.whatsapp as WhatsappSummary } satisfies WhatsappDispatch;
+      }
+      throw new Error("O servidor não informou o estado do envio. Consulte os status antes de tentar novamente.");
     } catch (error) {
       toast.warning(error instanceof Error ? error.message : "WhatsApp não enviado. O fluxo foi mantido.");
       return null;
@@ -131,7 +138,7 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
     const payload = await mutate("finish", allowPendingRepresentatives);
     if (!payload) return;
     toast.success("Cotação finalizada.");
-    toast.info("Agora revise as quantidades, aprove e envie os pedidos quando estiverem corretos.");
+    toast.info("Revise as quantidades de todos os vencedores; ao aprovar, o envio automático será iniciado pelo WhatsApp da farmácia.");
     router.push(`${base}/${quotationId}/pedidos`);
   }
 
@@ -152,25 +159,34 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
       if (!response.ok) throw new Error(payload.error ?? "Não foi possível liberar os links da cotação.");
       if (payload.status) setLocalStatus(payload.status as QuotationStatus);
 
-      const whatsapp = await runWhatsapp("send_quotation_links");
-      if (!whatsapp) {
-        setWhatsappError("Não foi possível confirmar o disparo automático pela Evolution. Nenhum envio manual foi marcado automaticamente.");
+      const dispatch = await runWhatsapp("send_quotation_links");
+      if (!dispatch) {
+        setWhatsappError("A solicitação falhou. Consulte o histórico de envios antes de tentar novamente.");
         window.dispatchEvent(new CustomEvent(RELEASE_WHATSAPP_EVENT, { detail: { quotationId } }));
         return;
       }
+      if (dispatch.queued) {
+        // O servidor confirmou apenas o agendamento. Não abrir WhatsApp manual
+        // nem acusar falha: os resultados reais chegam no polling existente.
+        window.dispatchEvent(new CustomEvent(RELEASE_WHATSAPP_EVENT, { detail: { quotationId } }));
+        toast.info("Envio em processamento. Acompanhe o status de cada representante; ainda não há confirmação de entrega.");
+        router.refresh();
+        return;
+      }
 
+      const whatsapp = dispatch.summary;
       setWhatsappSummary(whatsapp);
       window.dispatchEvent(new CustomEvent(WHATSAPP_STATUS_EVENT, {
         detail: { quotationId, results: whatsapp.results ?? [] },
       }));
-      showWhatsappResult(whatsapp, "Cotação enviada em massa aos vendedores.");
+      showWhatsappResult(whatsapp, "Resultado dos envios da cotação:");
 
       const failedVendorIds = (whatsapp.results ?? [])
         .filter((result) => result.status === "falhou" && result.vendedorId)
         .map((result) => String(result.vendedorId));
 
       if (failedVendorIds.length > 0) {
-        toast.info("A Evolution não confirmou todos os envios. Abrindo a fila manual no WhatsApp.");
+        toast.info("Alguns envios falharam. Você pode utilizar a opção manual apenas para os representantes afetados.");
         window.dispatchEvent(new CustomEvent(SEMI_AUTO_EVENT, {
           detail: { quotationId, vendedorIds: failedVendorIds, autoOpen: true },
         }));
@@ -207,7 +223,7 @@ export function QuotationPageActions({ quotationId, moduleType, status, currentP
             {isDetail && canSendInBulk ? (
               <Button type="button" onClick={() => void sendInBulk()} disabled={Boolean(loadingAction)}>
                 <Send className="h-4 w-4" />
-                {loadingAction === "bulk_send" ? "Enviando..." : "Enviar em massa aos vendedores"}
+                {loadingAction === "bulk_send" ? "Enviando..." : "Enviar cotação aos representantes"}
               </Button>
             ) : null}
 
