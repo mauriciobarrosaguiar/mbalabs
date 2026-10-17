@@ -182,10 +182,12 @@ export function validateSellerResponse({
   moduleType,
   items,
   rows,
+  allowEquivalent = true,
 }: {
   moduleType: ModuleType;
   items: QuotationItem[];
   rows: SellerResponseRowDraft[];
+  allowEquivalent?: boolean;
 }) {
   const errors: string[] = [];
   const respondedRows = rows.filter((row) => {
@@ -214,7 +216,7 @@ export function validateSellerResponse({
       if (!item) continue;
       const offer = row.offeredProductName?.trim();
       if (offer && offer.toLocaleLowerCase("pt-BR") !== item.productName.trim().toLocaleLowerCase("pt-BR") &&
-        !item.acceptEquivalent) {
+        (!item.acceptEquivalent || !allowEquivalent)) {
         errors.push(`${item.productName}: a farmácia não autorizou produto equivalente.`);
       }
       if (row.hasStock === "nao") continue;
