@@ -1,5 +1,11 @@
 import type { PurchaseOrder } from "@/modules/cotacoes/lib/types";
 
+export function countConfirmedNotBilledItems(orders: PurchaseOrder[]) {
+  return orders.reduce((count, order) => count + order.items.filter(
+    (item) => item.fulfillmentStatus === "nao_faturado",
+  ).length, 0);
+}
+
 export function getPurchaseOrderSupplierCompany(order: PurchaseOrder) {
   return clean(order.supplierCompany) ?? clean(order.supplierName) ?? "Fornecedor";
 }

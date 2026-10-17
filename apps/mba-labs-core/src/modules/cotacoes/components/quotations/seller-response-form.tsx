@@ -30,6 +30,7 @@ import {
   formatCurrencyBRInput,
   formatCurrencyBRL,
   formatDateBR,
+  formatDeadlineDateBR,
   formatInteger,
 } from "@/modules/cotacoes/lib/formatters";
 import { productTypeLabels, unitLabels } from "@/modules/cotacoes/lib/labels";
@@ -337,7 +338,7 @@ export function SellerResponseForm({
         {!isBidding ? (
           <div className="mb-4 rounded-md bg-teal-50 p-3 text-sm text-teal-900">
             <p className="font-semibold">{buyerName ?? "Cliente"} · {quotationName ?? "Cotação"}</p>
-            <p className="mt-1">Informe os preços dos produtos abaixo{deadlineAt ? ` até ${formatDateBR(deadlineAt)}` : ""}.</p>
+            <p className="mt-1">Informe os preços dos produtos abaixo{deadlineAt ? ` até ${formatDeadlineDateBR(deadlineAt)}` : ""}.</p>
           </div>
         ) : null}
         <div className="grid gap-3 md:grid-cols-4">
