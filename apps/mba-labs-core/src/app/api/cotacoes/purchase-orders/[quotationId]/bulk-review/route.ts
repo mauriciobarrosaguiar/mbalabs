@@ -9,7 +9,17 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 180;
 
 type Change = { orderId: string; itemId: string; quantity: number; note?: string };
-type RequestBody = { action?: "save" | "approve_send"; items?: Change[] };
+type MinimumException = {
+  orderId: string;
+  distributorId: string;
+  confirmed: boolean;
+  reason: string;
+};
+type RequestBody = {
+  action?: "save" | "approve_send";
+  items?: Change[];
+  minimumExceptions?: MinimumException[];
+};
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -46,6 +56,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Revise os identificadores e as quantidades dos produtos." }, { status: 400 });
     }
 
+    const minimumExceptions = body.minimumExceptions ?? [];
+    if (!Array.isArray(minimumExceptions) || minimumExceptions.length > 200 ||
+      minimumExceptions.some((exception) =>
+        !uuid.test(exception.orderId) || !uuid.test(exception.distributorId) ||
+        exception.confirmed !== true || typeof exception.reason !== "string" ||
+        exception.reason.trim().length < 10 || exception.reason.trim().length > 500) ||
+      (body.action === "save" && minimumExceptions.length > 0)) {
+      return NextResponse.json({
+        error: "Confirme cada exceção de pedido mínimo e informe justificativa de 10 a 500 caracteres.",
+      }, { status: 400 });
+    }
+
     const supabase = createSupabaseAdminClient();
     const { data, error } = await supabase.rpc("cot_review_winner_orders_batch", {
       p_tenant_id: access.tenantId,
@@ -58,9 +80,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         note: item.note ?? "",
       })),
       p_approve: body.action === "approve_send",
+      p_exceptions: minimumExceptions.map((exception) => ({
+        orderId: exception.orderId,
+        distributorId: exception.distributorId,
+        confirmed: exception.confirmed,
+        reason: exception.reason.trim(),
+      })),
     });
     if (error) {
-      const message = /Cotacao|Pedido|pedido|cotacao|Item|Produto|produto|Quantidade|quantidade|identificador|revisao|alterados|Preco/.test(error.message)
+      const message = /Cotacao|Pedido|pedido|cotacao|Item|Produto|produto|Quantidade|quantidade|identificador|revisao|alterados|Preco|minimo|excecao|Confirmacao|distribuidora/.test(error.message)
         ? error.message : "Não foi possível salvar a revisão conjunta. Atualize a página e tente novamente.";
       return NextResponse.json({ error: message }, { status: 409 });
     }
@@ -116,7 +144,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       });
       return NextResponse.json({
         ok: true, ...data, queued: true,
-        message: "Todos os pedidos foram aprovados. O envio automático aos representantes foi iniciado; consulte o status de cada envio.",
+        message: "Todos os pedidos foram aprovados; exceções de pedido mínimo foram auditadas. O envio aos representantes foi iniciado.",
       });
     }
     return NextResponse.json({ ok: true, ...data, message: "Quantidades de todos os representantes salvas juntas. Revise o total antes de aprovar." });
