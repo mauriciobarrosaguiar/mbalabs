@@ -25,8 +25,11 @@ export async function loadMinimumOrderRules(
     .eq("tenant_id", tenantId)
     .in("id", ids);
   if (error) throw new Error("Não foi possível verificar pedidos mínimos das distribuidoras.");
-  const byId = new Map((data ?? []).map((d) =>
-    [d.id as string, { name: d.nome as string, minimum: Number(d.pedido_minimo) }]));
+  type DistributorRow = { id: string; nome: string; pedido_minimo: number | string };
+  const byId = new Map<string, { name: string; minimum: number }>(
+    ((data ?? []) as DistributorRow[]).map((d): [string, { name: string; minimum: number }] =>
+      [d.id, { name: d.nome, minimum: Number(d.pedido_minimo) }]),
+  );
 
   return orders.flatMap((order) => {
     const groups = new Map<string, string[]>();
