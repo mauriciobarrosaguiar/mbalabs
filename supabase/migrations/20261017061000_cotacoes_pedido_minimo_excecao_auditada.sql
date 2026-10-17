@@ -50,6 +50,7 @@ CREATE INDEX IF NOT EXISTS cot_minimum_exceptions_tenant_idx
 ALTER TABLE public.cot_minimum_order_exceptions ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.cot_minimum_order_exceptions FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT ON public.cot_minimum_order_exceptions TO service_role;
+REVOKE UPDATE, DELETE, TRUNCATE ON public.cot_minimum_order_exceptions FROM service_role;
 
 -- Assinatura com p_exceptions; antigos chamadores continuam podendo omiti-lo,
 -- mas nunca aprovam um valor abaixo do mínimo sem justificativa.
