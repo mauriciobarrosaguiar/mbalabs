@@ -21,6 +21,7 @@ import { ImportWizard } from "@/modules/cotacoes/components/imports/import-wizar
 import { DemoQuotationTable } from "@/modules/cotacoes/components/quotations/demo-quotation-table";
 import { GeneratePurchaseOrdersButton } from "@/modules/cotacoes/components/quotations/generate-purchase-orders-button";
 import { BulkBuyerOrderReview } from "@/modules/cotacoes/components/quotations/bulk-buyer-order-review";
+import { loadMinimumOrderRules } from "@/modules/cotacoes/lib/services/minimum-order-server";
 import { NewQuotationForm } from "@/modules/cotacoes/components/quotations/new-quotation-form";
 import { DistributorOffersImport } from "@/modules/cotacoes/components/quotations/distributor-offers-import";
 import { PublicOrderActions } from "@/modules/cotacoes/components/quotations/public-order-actions";
@@ -2810,6 +2811,10 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
     console.error("Erro ao buscar pedidos dos vencedores", { quotationId, error });
     ordersError = "Não foi possível carregar os pedidos dos vencedores. Tente novamente ou verifique o log do servidor.";
   }
+  const minimumRules = quotation.moduleType === "pharmacy" && tenantId
+    ? await loadMinimumOrderRules(tenantId, orders, quotation.considerMinimumOrder)
+    : [];
+
   const emptyTitle = quotation.moduleType === "pharmacy"
     ? !canGenerateOrders
       ? "Finalize a cotação para gerar pedidos dos vencedores."
@@ -2902,7 +2907,7 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
         </Card>
       ) : null}
       {quotation.moduleType === "pharmacy" && orders.length > 0 ? (
-        <BulkBuyerOrderReview quotationId={quotationId} orders={orders} />
+        <BulkBuyerOrderReview quotationId={quotationId} orders={orders} minimumRules={minimumRules} minimumEnabled={quotation.considerMinimumOrder} />
       ) : null}
       <div className="grid gap-4 lg:grid-cols-2">
         {orders.map((order) => {
