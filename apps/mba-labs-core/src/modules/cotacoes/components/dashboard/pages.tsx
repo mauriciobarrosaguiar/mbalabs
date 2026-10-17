@@ -2811,8 +2811,8 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
     console.error("Erro ao buscar pedidos dos vencedores", { quotationId, error });
     ordersError = "Não foi possível carregar os pedidos dos vencedores. Tente novamente ou verifique o log do servidor.";
   }
-  const minimumRules = quotation.moduleType === "pharmacy" && tenantId
-    ? await loadMinimumOrderRules(tenantId, orders, quotation.considerMinimumOrder)
+  const minimumRules = quotation.moduleType === "pharmacy"
+    ? await loadMinimumOrderRules(quotation.tenantId, orders, quotation.considerMinimumOrder)
     : [];
 
   const emptyTitle = quotation.moduleType === "pharmacy"
