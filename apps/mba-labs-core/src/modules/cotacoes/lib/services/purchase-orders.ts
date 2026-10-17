@@ -42,6 +42,7 @@ export function generatePurchaseOrders(
         tenantId: award.tenantId,
         purchaseOrderId: orderId,
         quotationItemId: award.quotationItemId,
+        distributorId: responseItem?.distributorId,
         productName: quotationItem?.productName ?? "Produto",
         offeredProductName: responseItem?.offeredProductName,
         laboratory: responseItem?.offeredLaboratory,
