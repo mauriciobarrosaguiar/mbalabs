@@ -10,7 +10,7 @@ export async function POST(
   const { quotationId } = await params;
   try {
     const auth = await getCurrentAuthContext();
-    const access = await ensureQuotationAccess(auth, quotationId);
+    const access = await ensureQuotationAccess(auth, quotationId, undefined, "manage");
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
     const orders = await generatePurchaseOrders(quotationId, access.tenantId);

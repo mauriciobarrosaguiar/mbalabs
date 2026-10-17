@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json() as Body;
     if (!body.quotationId) return NextResponse.json({ error: "Cotação obrigatória." }, { status: 400 });
     const auth = await getCurrentAuthContext();
-    const access = await ensureQuotationAccess(auth, body.quotationId);
+    const access = await ensureQuotationAccess(auth, body.quotationId, undefined, "manage");
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
     const origin = request.nextUrl.origin;
     const pharmacyWinnerAction = access.quotation.module_type === "pharmacy" &&
