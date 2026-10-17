@@ -186,6 +186,7 @@ export async function savePublicSellerResponse(token: string, input: SavePublicS
       moduleType: input.moduleType,
       items: publicQuote.items,
       rows: input.rows,
+      allowEquivalent: quotation.allowEquivalent,
     });
 
     if (validationErrors.length > 0) {
