@@ -132,6 +132,7 @@ async function mutate(
       await assertEntityOwnership(entity, id, auth.tenantId);
     }
 
+    if (entity === "products") validateProductFields(scopedData);
     await assertNoDuplicateEntity(entity, scopedData, operation === "update" ? id : undefined);
 
     const saved = operation === "create"
@@ -176,6 +177,11 @@ async function authorizeCrud(entity: Entity): Promise<CrudAuth> {
 
   if (!auth.tenantAccess || isTenantSuspended(auth.tenantAccess.tenantStatus)) {
     throw new RouteError("Empresa sem acesso ativo ao MBA Cotacoes.", 403);
+  }
+
+  if (auth.tenantAccess.status !== "ativo" ||
+      !["ADMIN_EMPRESA", "COMPRADOR"].includes(auth.tenantAccess.role)) {
+    throw new RouteError("Sem permissão para alterar os cadastros desta empresa.", 403);
   }
 
   return { isSuperAdmin: false, tenantId: auth.tenantAccess.tenantId };
@@ -327,6 +333,19 @@ async function assertNoDuplicateEntity(entity: Entity, row: Row, editingId?: str
       throw new RouteError("Produto duplicado: use outro EAN ou outro laboratorio para cadastrar uma excecao.", 409);
     }
   }
+}
+
+function validateProductFields(row: Row) {
+  const nome = text(row.nome);
+  const ean = text(row.ean);
+  const laboratorio = text(row.laboratorio);
+  // Inativar um produto próprio não exige reenviar seus dados comerciais.
+  if (!nome && !ean && !laboratorio && text(row.status)) return;
+  if (!/^\d{8,14}$/.test(ean)) {
+    throw new RouteError("Informe EAN de 8 a 14 dígitos, sem letras ou símbolos.", 400);
+  }
+  if (!nome) throw new RouteError("Produto obrigatorio.", 400);
+  if (!laboratorio) throw new RouteError("Laboratorio obrigatorio.", 400);
 }
 
 async function productPayload(row: Row): Promise<Partial<Product>> {
@@ -677,3 +696,4 @@ function normalizeKey(value: string) {
 function monthReference(date: string) {
   return text(date).slice(0, 7) || new Date().toISOString().slice(0, 7);
 }
+
