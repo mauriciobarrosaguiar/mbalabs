@@ -1297,6 +1297,7 @@ function mapPurchaseOrderItem(item: Record<string, any>): PurchaseOrderItem {
     tenantId: item.tenant_id,
     purchaseOrderId: item.purchase_order_id,
     quotationItemId: item.quotation_item_id,
+    distributorId: item.distributor_id ?? undefined,
     productName: item.product_name,
     offeredProductName: item.offered_product_name ?? undefined,
     laboratory: item.laboratory ?? undefined,

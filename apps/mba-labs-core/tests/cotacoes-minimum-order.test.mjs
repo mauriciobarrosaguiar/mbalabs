@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import { stripTypeScriptTypes } from "node:module";
 import { calculateMinimumOrderShortfalls } from "../src/modules/cotacoes/lib/services/minimum-order.ts";
 
 const order = (id, parts) => ({
@@ -17,6 +18,18 @@ const order = (id, parts) => ({
 const makeRule = (id, dist, min, items) => ({
   orderId: id, distributorId: dist, distributorName: "TESTE DISTRIBUIDORA",
   minimum: min, itemIds: items,
+});
+
+test("itens carregados do banco preservam a distribuidora para a revisão de mínimo", () => {
+  const source = readFileSync(new URL("../src/modules/cotacoes/lib/data/supabase-repository.ts", import.meta.url), "utf8");
+  const mapper = source.slice(source.indexOf("function mapPurchaseOrderItem("), source.indexOf("function normalizePurchaseOrderFulfillmentStatus("));
+  const map = new Function("parseLegacyPurchaseOrderReview", "normalizePurchaseOrderFulfillmentStatus",
+    stripTypeScriptTypes(mapper) + "; return mapPurchaseOrderItem;")(() => null, () => "pending");
+  const item = map({id:"a", tenant_id:"tenant-ficticio", purchase_order_id:"po1", quotation_item_id:"qi1",
+    product_name:"TESTE", distributor_id:"d1", quantity_to_buy:10, unit_price:35, total_price:350});
+  assert.equal(item.distributorId, "d1");
+  const loadedOrder = {...order("po1", []), items:[item]};
+  assert.equal(calculateMinimumOrderShortfalls([loadedOrder], [makeRule("po1","d1",500,["a"])])[0].shortfall, 150);
 });
 
 test("não gera exceção quando o valor da distribuidora atinge o mínimo", () => {
