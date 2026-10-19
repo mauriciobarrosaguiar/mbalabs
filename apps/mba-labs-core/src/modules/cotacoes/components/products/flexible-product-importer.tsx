@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { detectProductImportDelimiter } from "@/modules/cotacoes/lib/csv-delimiter";
 import { Check, FileSpreadsheet, Loader2, Upload } from "lucide-react";
 import { Button } from "@/modules/cotacoes/components/ui/button";
 
@@ -34,21 +35,6 @@ function csvRecords(s:string,delimiter:string):string[][] {
   }
   row.push(field.trim());if(row.some(Boolean))out.push(row);return out;
 }
-function detectCsvDelimiter(sample:string) {
-  const counts:Record<string,number>={";":0,"\t":0,",":0};
-  let quoted=false;
-  for(let i=0;i<sample.length;i++){
-    const c=sample[i];
-    if(c==='"'){
-      if(quoted&&sample[i+1]==='"')i++;
-      else quoted=!quoted;
-    } else if(!quoted&&c in counts){
-      counts[c]++;
-    }
-  }
-  return [";","\t",","].sort((a,b)=>counts[b]-counts[a])[0];
-}
-
 async function loadRows(file:File) {
   if(file.size>15*1024*1024)throw new Error("Arquivo acima de 15 MB. Divida a planilha em partes menores.");
   const ext=file.name.toLowerCase().split(".").pop();
@@ -65,8 +51,8 @@ async function loadRows(file:File) {
     return rows;
   }
   if(!["csv","txt","tsv"].includes(ext??""))throw new Error("Use Excel .xlsx, CSV, TXT ou TSV. Arquivos .xls antigos devem ser salvos como .xlsx.");
-  const text=await file.text(); const sample=text.split(/\r?\n/,4).join("\n");
-  const delimiter=ext==="tsv"?"\t":detectCsvDelimiter(sample);
+  const text=await file.text();
+  const delimiter=ext==="tsv"?"\t":detectProductImportDelimiter(text);
   return csvRecords(text.replace(/^\uFEFF/,""),delimiter);
 }
 function findHeader(lines:Row[]) {
