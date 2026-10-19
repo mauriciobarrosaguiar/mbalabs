@@ -22,6 +22,7 @@ import { DemoQuotationTable } from "@/modules/cotacoes/components/quotations/dem
 import { GeneratePurchaseOrdersButton } from "@/modules/cotacoes/components/quotations/generate-purchase-orders-button";
 import { BulkBuyerOrderReview } from "@/modules/cotacoes/components/quotations/bulk-buyer-order-review";
 import { loadMinimumOrderRules } from "@/modules/cotacoes/lib/services/minimum-order-server";
+import { buildBilledPurchaseHistory } from "@/modules/cotacoes/lib/services/purchase-history";
 import { NewQuotationForm } from "@/modules/cotacoes/components/quotations/new-quotation-form";
 import { DistributorOffersImport } from "@/modules/cotacoes/components/quotations/distributor-offers-import";
 import { PublicOrderActions } from "@/modules/cotacoes/components/quotations/public-order-actions";
@@ -1628,6 +1629,39 @@ function ImportsPage() {
 
 async function ReportsPage({ section, tenantId }: { section: string; tenantId?: string }) {
   const collections = await getCollections(tenantId);
+  if (section === "historico-compras") {
+    const orders = (await Promise.all(collections.quotations.map((quotation) =>
+      getPurchaseOrdersByQuotation(quotation.id, tenantId),
+    ))).flat();
+    const rows = buildBilledPurchaseHistory(orders, tenantId);
+    return (
+      <PageStack>
+        <HeaderBlock title="Histórico de compras" description="Conferência dos pedidos finalizados, com quantidades faturadas e faltas." />
+        <Card>
+          <CardHeader><CardTitle>Total faturado: {formatCurrency(rows.reduce((sum, row) => sum + row.billedAmount, 0))}</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto p-0">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Produto</TableHead><TableHead>Representante</TableHead><TableHead>Data</TableHead>
+                <TableHead>Pedido</TableHead><TableHead>Faturado</TableHead><TableHead>Falta</TableHead>
+                <TableHead>Valor faturado</TableHead><TableHead>Situação</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {rows.length === 0 ? <TableRow><TableCell colSpan={8} className="py-8 text-center text-slate-500">Nenhum pedido com conferência finalizada.</TableCell></TableRow> : rows.map((row) => (
+                  <TableRow key={`${row.orderId}-${row.id}`}>
+                    <TableCell className="font-medium">{row.productName}</TableCell><TableCell>{row.supplierName}</TableCell>
+                    <TableCell>{row.date ? formatDate(row.date) : "-"}</TableCell><TableCell>{formatNumber(row.requested)}</TableCell>
+                    <TableCell>{formatNumber(row.billed)}</TableCell><TableCell>{formatNumber(row.missing)}</TableCell>
+                    <TableCell>{formatCurrency(row.billedAmount)}</TableCell><TableCell><StatusBadge status={row.status} /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </PageStack>
+    );
+  }
   const titleMap: Record<string, string> = {
     "historico-precos": "Histórico de preços",
     "historico-compras": "Histórico de compras",
