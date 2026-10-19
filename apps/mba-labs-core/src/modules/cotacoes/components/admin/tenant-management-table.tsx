@@ -63,6 +63,7 @@ export function TenantManagementTable({
   const [statusFilter, setStatusFilter] = useState("todos");
   const [editing, setEditing] = useState<TenantFormRow | null>(null);
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const planById = useMemo(() => new Map(plans.map((plan) => [plan.id, plan])), [plans]);
 
   const visibleTenants = useMemo(() => {
@@ -127,9 +128,10 @@ export function TenantManagementTable({
       valorMensal: parseCurrencyInput(String(formData.get("valorMensal") ?? "0")),
       observacoesInternas: String(formData.get("observacoesInternas") ?? ""),
     };
-    const autoCreatePharmacy = formData.get("autoCreatePharmacy") === "on";
+    const autoCreatePharmacy = !tenants.some((tenant) => tenant.id === id) && (row.tipoCliente === "pharmacy" || row.tipoCliente === "both");
 
     if (remoteTenantCrudEnabled()) {
+      setSaving(true);
       try {
         const exists = tenants.some((tenant) => tenant.id === id);
         const response = await fetch("/api/cotacoes/crud/tenants", {
@@ -149,6 +151,8 @@ export function TenantManagementTable({
         toast.success("Empresa salva no Supabase");
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Erro ao salvar empresa.");
+      } finally {
+        setSaving(false);
       }
       return;
     }
@@ -215,7 +219,7 @@ export function TenantManagementTable({
             <option value="ativo">Ativo</option>
             <option value="suspenso">Suspenso</option>
             <option value="cancelado">Cancelado</option>
-            <option value="inativo">Inativo</option>
+
           </select>
         </div>
         <Button onClick={create}>
@@ -262,7 +266,7 @@ export function TenantManagementTable({
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
-                          <Link href={`/admin/empresas/${tenant.id}`}>Ver detalhes</Link>
+                          <Link href={`/cotacoes/gestao/farmacias/${tenant.id}`}>Ver detalhes</Link>
                         </DropdownMenuItem>
                         {(tenant.status === "ativo" || tenant.status === "teste") ? (
                           <DropdownMenuItem onSelect={() => { setEditing(tenant); setOpen(true); }}>
@@ -294,12 +298,7 @@ export function TenantManagementTable({
                             Cancelar
                           </DropdownMenuItem>
                         ) : null}
-                        {tenant.status !== "inativo" ? (
-                          <DropdownMenuItem onSelect={() => updateStatus(tenant.id, "inativo")}>
-                            <Archive className="h-4 w-4" />
-                            Inativar
-                          </DropdownMenuItem>
-                        ) : null}
+
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -318,11 +317,11 @@ export function TenantManagementTable({
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
+        <DialogContent className="max-h-[92vh] overflow-y-auto !bg-white !text-slate-900 sm:max-w-4xl [&_label]:!text-slate-900 [&_input:not([type=checkbox])]:!bg-white [&_input:not([type=checkbox])]:!text-slate-900 [&_input]:!border-slate-300 [&_input]:placeholder:!text-slate-400 [&_textarea]:!bg-white [&_textarea]:!text-slate-900 [&_select]:!bg-white [&_select]:!text-slate-900 [&_[data-slot=select-trigger]]:!bg-white [&_[data-slot=select-trigger]]:!text-slate-900">
           <DialogHeader>
-            <DialogTitle>{editing?.nomeFantasia ? "Editar empresa" : "Nova empresa"}</DialogTitle>
+            <DialogTitle>{editing?.nomeFantasia ? "Editar farmácia / cliente" : "Nova farmácia / cliente"}</DialogTitle>
             <DialogDescription>
-              Dados comerciais, módulo contratado e controle financeiro do cliente.
+              Cadastro único do cliente: CNPJ, plano, responsável e acesso ao MBA Cotações.
             </DialogDescription>
           </DialogHeader>
           {editing ? (
@@ -346,7 +345,7 @@ export function TenantManagementTable({
                   <select
                     name="planoId"
                     defaultValue={editing.planoId}
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    className="h-10 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900"
                   >
                     {plans.map((plan) => (
                       <option key={plan.id} value={plan.id}>
@@ -367,22 +366,11 @@ export function TenantManagementTable({
                   type="date"
                   defaultValue={editing.dataVencimento?.slice(0, 10)}
                 />
-                <div className="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 md:col-span-2">
-                  <input
-                    id="autoCreatePharmacy"
-                    name="autoCreatePharmacy"
-                    type="checkbox"
-                    defaultChecked={!tenants.some((tenant) => tenant.id === editing.id) && editing.tipoCliente === "pharmacy"}
-                    className="mt-1"
-                  />
-                  <Label htmlFor="autoCreatePharmacy" className="text-sm leading-5">
-                    Criar farmácia/CNPJ operacional automaticamente com os mesmos dados da empresa.
-                  </Label>
-                </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Observações internas</Label>
                   <Textarea
                     name="observacoesInternas"
+                    className="!bg-white !text-slate-900"
                     defaultValue={editing.observacoesInternas}
                     placeholder="Notas comerciais, suporte, cobrança..."
                   />
@@ -392,7 +380,7 @@ export function TenantManagementTable({
                 <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit">Salvar empresa</Button>
+                <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar farmácia"}</Button>
               </DialogFooter>
             </form>
           ) : null}
@@ -423,7 +411,7 @@ function Field({
   return (
     <div className="space-y-2">
       <Label htmlFor={name}>{label}</Label>
-      <Input id={name} name={name} type={type} defaultValue={defaultValue} />
+      <Input id={name} name={name} type={type} defaultValue={defaultValue} className="!bg-white !text-slate-900 !border-slate-300 placeholder:!text-slate-400" />
     </div>
   );
 }

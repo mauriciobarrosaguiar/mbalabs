@@ -30,6 +30,7 @@ import {
   updateTenant,
 } from "@/modules/cotacoes/lib/data/repository";
 import { getCurrentAuthContext, isTenantSuspended } from "@/modules/cotacoes/lib/auth/session";
+import { syncCotacoesCompanyAccess } from "@/modules/cotacoes/lib/auth/company-provisioning";
 import { isSupabaseWriteConfigured } from "@/modules/cotacoes/lib/runtime-mode";
 import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/server";
 import type { Distributor, Laboratory, MonthlySubscription, Pharmacy, Product, SubscriptionPlan, Supplier, Tenant } from "@/modules/cotacoes/lib/types";
@@ -131,6 +132,7 @@ async function mutate(
       await assertEntityOwnership(entity, id, auth.tenantId);
     }
 
+    if (entity === "products") validateProductFields(scopedData);
     await assertNoDuplicateEntity(entity, scopedData, operation === "update" ? id : undefined);
 
     const saved = operation === "create"
@@ -175,6 +177,11 @@ async function authorizeCrud(entity: Entity): Promise<CrudAuth> {
 
   if (!auth.tenantAccess || isTenantSuspended(auth.tenantAccess.tenantStatus)) {
     throw new RouteError("Empresa sem acesso ativo ao MBA Cotacoes.", 403);
+  }
+
+  if (auth.tenantAccess.status !== "ativo" ||
+      !["ADMIN_EMPRESA", "COMPRADOR"].includes(auth.tenantAccess.role)) {
+    throw new RouteError("Sem permissão para alterar os cadastros desta empresa.", 403);
   }
 
   return { isSuperAdmin: false, tenantId: auth.tenantAccess.tenantId };
@@ -235,7 +242,9 @@ async function createByEntity(entity: Entity, row: Row) {
   if (entity === "laboratories") return createLaboratory(laboratoryPayload(row) as Parameters<typeof createLaboratory>[0]);
   if (entity === "tenants") {
     const tenant = await createTenant(tenantPayload(row) as Parameters<typeof createTenant>[0]);
-    await createTenantSideEffects(tenant, row);
+    await createTenantSideEffects(tenant, { ...row, autoCreatePharmacy: true });
+    await syncCotacoesCompanyAccess(tenant);
+    await syncPrimaryPharmacy(tenant);
     return tenant;
   }
   if (entity === "pharmacies") return createPharmacy(pharmacyPayload(row) as Parameters<typeof createPharmacy>[0]);
@@ -249,7 +258,13 @@ async function updateByEntity(entity: Entity, id: string, row: Row) {
   if (entity === "suppliers") return updateSupplier(id, supplierPayload(row));
   if (entity === "distributors") return updateDistributor(id, distributorPayload(row));
   if (entity === "laboratories") return updateLaboratory(id, laboratoryPayload(row));
-  if (entity === "tenants") return updateTenant(id, tenantPayload(row));
+  if (entity === "tenants") {
+    const updated = await updateTenant(id, tenantPayload(row));
+    if (!updated) throw new Error("Empresa não encontrada no MBA Cotações.");
+    await syncCotacoesCompanyAccess(updated);
+    await syncPrimaryPharmacy(updated);
+    return updated;
+  }
   if (entity === "pharmacies") return updatePharmacy(id, pharmacyPayload(row));
   if (entity === "plans") return updateSubscriptionPlan(id, planPayload(row));
   if (entity === "monthly_subscriptions") return updateMonthlySubscription(id, monthlySubscriptionPayload(row));
@@ -261,7 +276,11 @@ async function deleteByEntity(entity: Entity, id: string, tenantId?: string) {
   if (entity === "suppliers") return deleteSupplier(id, tenantId);
   if (entity === "distributors") return deleteDistributor(id);
   if (entity === "laboratories") return deleteLaboratory(id);
-  if (entity === "tenants") return deleteTenant(id);
+  if (entity === "tenants") {
+    const suspended = await deleteTenant(id);
+    if (suspended) await syncCotacoesCompanyAccess(suspended);
+    return suspended;
+  }
   if (entity === "pharmacies") return deletePharmacy(id);
   if (entity === "plans") return deleteSubscriptionPlan(id);
   if (entity === "monthly_subscriptions") return deleteMonthlySubscription(id);
@@ -316,6 +335,19 @@ async function assertNoDuplicateEntity(entity: Entity, row: Row, editingId?: str
   }
 }
 
+function validateProductFields(row: Row) {
+  const nome = text(row.nome);
+  const ean = text(row.ean);
+  const laboratorio = text(row.laboratorio);
+  // Inativar um produto próprio não exige reenviar seus dados comerciais.
+  if (!nome && !ean && !laboratorio && text(row.status)) return;
+  if (!/^\d{8,14}$/.test(ean)) {
+    throw new RouteError("Informe EAN de 8 a 14 dígitos, sem letras ou símbolos.", 400);
+  }
+  if (!nome) throw new RouteError("Produto obrigatorio.", 400);
+  if (!laboratorio) throw new RouteError("Laboratorio obrigatorio.", 400);
+}
+
 async function productPayload(row: Row): Promise<Partial<Product>> {
   const nome = text(row.nome);
   const ean = text(row.ean);
@@ -332,7 +364,7 @@ async function productPayload(row: Row): Promise<Partial<Product>> {
     principioAtivo: text(row.principioAtivo),
     dosagem: text(row.dosagem),
     forma: text(row.forma),
-    tipoProduto: (text(row.tipoProduto) || "generico") as Product["tipoProduto"],
+    tipoProduto: text(row.tipoProduto) as Product["tipoProduto"],
     laboratorioId,
     ean,
     tenantId: text(row.tenantId) || undefined,
@@ -446,6 +478,31 @@ async function createTenantSideEffects(tenant: Tenant, row: Row) {
       status: "pending",
       paymentMethod: "pix",
     });
+  }
+}
+
+async function syncPrimaryPharmacy(tenant: Tenant) {
+  // A empresa (tenant) é o cadastro comercial e a farmácia é sua unidade operacional.
+  // Mantemos unidades adicionais existentes intactas: não há segundo cadastro no menu.
+  if (tenant.tipoCliente === "distributor_bidding" || !/^\d{14}$/.test(onlyDigits(tenant.cnpj))) return;
+  const supabase = createSupabaseAdminClient();
+  const { data: units, error } = await supabase.from("pharmacies")
+    .select("id,cnpj").eq("tenant_id", tenant.id).order("created_at").limit(2);
+  if (error) throw error;
+  const payload = {
+    tenant_id: tenant.id, nome_fantasia: tenant.nomeFantasia,
+    razao_social: tenant.razaoSocial, cnpj: onlyDigits(tenant.cnpj),
+    responsavel: tenant.responsavelNome, whatsapp: tenant.responsavelWhatsapp,
+    email: tenant.responsavelEmail, status: tenant.status === "ativo" || tenant.status === "teste" ? "ativo" : "inativo",
+    updated_at: new Date().toISOString(),
+  };
+  if (!units?.length) {
+    const { error: createError } = await supabase.from("pharmacies").insert(payload);
+    if (createError) throw createError;
+  } else if (units.length === 1) {
+    const { error: updateError } = await supabase.from("pharmacies")
+      .update(payload).eq("tenant_id", tenant.id).eq("id", units[0].id);
+    if (updateError) throw updateError;
   }
 }
 
@@ -639,3 +696,4 @@ function normalizeKey(value: string) {
 function monthReference(date: string) {
   return text(date).slice(0, 7) || new Date().toISOString().slice(0, 7);
 }
+

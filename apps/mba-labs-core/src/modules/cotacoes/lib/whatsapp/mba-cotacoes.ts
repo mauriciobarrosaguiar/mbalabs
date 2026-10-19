@@ -1,10 +1,6 @@
 import { createSupabaseAdminClient, hasSupabaseAdminConfig, hasSupabaseConfig } from "@/modules/cotacoes/lib/supabase/server";
-import {
-  normalizeWhatsappPhone,
-  resolveWhatsappDeliveryTarget,
-  type WhatsappDeliveryTarget,
-} from "@/modules/cotacoes/lib/whatsapp/test-safety";
 import type { PurchaseOrder } from "@/modules/cotacoes/lib/types";
+import { getTenantWhatsAppSendingConfig, verifyGlobalEvolutionInfrastructure } from "@/modules/cotacoes/lib/whatsapp/tenant-whatsapp";
 
 export type WhatsappTipoEnvio = "link_cotacao" | "resultado_cotacao";
 export type WhatsappStatus = "pendente" | "enviado" | "falhou";
@@ -42,7 +38,7 @@ type SendInput = { empresaId: string; cotacaoId: string; vendedorId: string; tel
 function ready() { return hasSupabaseConfig() && hasSupabaseAdminConfig(); }
 function db(): Db { return createSupabaseAdminClient() as any; }
 function requireDb() { if (!ready()) throw new Error("Supabase não configurado para o WhatsApp MBA Cotações."); return db(); }
-export { normalizeWhatsappPhone, resolveWhatsappDeliveryTarget } from "@/modules/cotacoes/lib/whatsapp/test-safety";
+export function normalizeWhatsappPhone(value?: string | null) { let digits = String(value ?? "").replace(/\D/g, ""); while (digits.startsWith("0")) digits = digits.slice(1); if (digits.length === 10 || digits.length === 11) digits = `55${digits}`; return digits; }
 
 export async function getWhatsappGlobalConfigForAdmin(): Promise<WhatsappAdminConfig | null> {
   if (!ready()) return null;
@@ -64,9 +60,11 @@ export async function saveWhatsappGlobalConfig(input: SaveWhatsappConfigInput) {
     provider: input.provider,
     api_url: input.api_url || null,
     api_token: input.api_token || existing?.api_token || null,
-    phone_number_id: input.phone_number_id || null,
-    numero_oficial: normalizeWhatsappPhone(input.numero_oficial) || null,
-    nome_exibicao: input.nome_exibicao || "MBA Cotações",
+    // Campos do número central preexistente são preservados no banco por
+    // compatibilidade, mas nunca são usados no envio multi-tenant.
+    phone_number_id: input.phone_number_id || existing?.phone_number_id || null,
+    numero_oficial: normalizeWhatsappPhone(input.numero_oficial) || existing?.numero_oficial || null,
+    nome_exibicao: input.nome_exibicao || existing?.nome_exibicao || "MBA Cotações",
     status_conexao: input.status_conexao || (input.ativo ? "configurado" : "inativo"),
     ativo: input.ativo,
     updated_at: new Date().toISOString(),
@@ -84,18 +82,41 @@ export async function saveWhatsappGlobalConfig(input: SaveWhatsappConfigInput) {
 export async function testWhatsappGlobalConfig() {
   const config = await getLatestConfig();
   validateConfig(config);
-  if (config?.id) await db().from("cot_whatsapp_global_config").update({ status_conexao: config.ativo ? "configurado" : "inativo" }).eq("id", config.id);
-  return true;
+  if (config?.provider !== "evolution_api") throw new Error("Configure o provedor Evolution API.");
+  if (!config.ativo) throw new Error("Ative a infraestrutura antes do teste.");
+  const checkedAt = new Date().toISOString();
+  try {
+    // Diferente do teste antigo de preenchimento, este faz uma chamada real
+    // ao servidor Evolution e verifica a autenticação (sem instanciar números).
+    await verifyGlobalEvolutionInfrastructure();
+    if (config.id) {
+      const { error } = await db().from("cot_whatsapp_global_config").update({
+        status_conexao: "infraestrutura_validada",
+        last_health_check: checkedAt,
+        last_error: null,
+      }).eq("id", config.id);
+      if (error) throw error;
+    }
+    return true;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Não foi possível validar a Evolution API.";
+    if (config.id) {
+      await db().from("cot_whatsapp_global_config").update({
+        status_conexao: "erro",
+        last_health_check: checkedAt,
+        last_error: message.slice(0, 400),
+      }).eq("id", config.id);
+    }
+    throw error;
+  }
 }
 
 export async function sendWhatsappGlobalTestMessage(telefone: string, mensagem: string) {
-  const target = resolveWhatsappDeliveryTarget(telefone);
-  const phone = target.phone;
-  if (!validPhone(phone)) throw new Error("WhatsApp de teste inválido. Use DDI + DDD + número.");
-  if (target.mock) return true;
   const config = await getLatestConfig();
   validateConfig(config);
-  await callProvider(config!, phone, `${target.messagePrefix}${mensagem || "Mensagem de teste do MBA Cotações."}`);
+  const phone = normalizeWhatsappPhone(telefone);
+  if (!validPhone(phone)) throw new Error("WhatsApp de teste inválido. Use DDI + DDD + número.");
+  await callProvider(config!, phone, mensagem || "Mensagem de teste do MBA Cotações.");
   if (config?.id) await db().from("cot_whatsapp_global_config").update({ status_conexao: "conectado" }).eq("id", config.id);
   return true;
 }
@@ -167,7 +188,8 @@ export async function listWhatsappEnvios(input: { quotationId: string; tipoEnvio
 }
 
 export async function sendWhatsAppMbaCotacoes(input: SendInput): Promise<SendWhatsAppResult> {
-  let telefone = normalizeWhatsappPhone(input.telefone);
+  const simulation = qaWhatsAppSimulation();
+  const telefone = normalizeWhatsappPhone(input.telefone);
   if (!ready()) return { vendedorId: input.vendedorId, telefone, status: "falhou", erro: "Supabase não configurado." };
   const supabase = db();
   const existing = await existingEnvio(supabase, input);
@@ -195,39 +217,27 @@ export async function sendWhatsAppMbaCotacoes(input: SendInput): Promise<SendWha
     }
   }
 
-  let target: WhatsappDeliveryTarget;
-  try {
-    target = resolveWhatsappDeliveryTarget(telefone);
-    telefone = target.phone;
-  } catch (error) {
-    const erro = error instanceof Error ? error.message : "Envio de teste bloqueado.";
-    const envioId = await upsertEnvio(supabase, input, telefone, "pendente");
-    await updateEnvio(supabase, input, envioId, "falhou", erro);
-    return { vendedorId: input.vendedorId, telefone, status: "falhou", erro };
-  }
-
   const envioId = await upsertEnvio(supabase, input, telefone, "pendente");
+  if (simulation) {
+    const erro = "TESTE_QA: solicitação simulada; nenhuma mensagem enviada ou entregue.";
+    await updateEnvio(supabase, input, envioId, "pendente", erro, "qa_simulator");
+    return { vendedorId: input.vendedorId, telefone, status: "pendente", erro, enviadoPor: "qa_simulator" };
+  }
   let provider: WhatsappProvider | undefined;
   try {
     if (!validPhone(telefone)) throw new Error("Vendedor sem WhatsApp válido cadastrado.");
-    if (target.mock) {
-      const enviadoEm = new Date().toISOString();
-      provider = "outro";
-      await updateEnvio(supabase, input, envioId, "enviado", null, provider, enviadoEm);
-      return {
-        vendedorId: input.vendedorId,
-        telefone,
-        status: "enviado",
-        enviadoPor: "qa_mock",
-        enviadoEm,
-        providerMessageId: `qa-mock-${input.cotacaoId}-${input.vendedorId}`,
-      };
-    }
-    const config = await getActiveConfig();
-    validateConfig(config);
-    if (!config?.ativo) throw new Error("Envio automático desativado.");
+    // Obrigatório usar a instância vinculada à empresa da cotação;
+    // nunca fazer fallback silencioso para o número central do MBA Labs.
+    const tenantConfig = await getTenantWhatsAppSendingConfig(input.empresaId);
+    const config: Config = {
+      provider: "evolution_api",
+      api_url: tenantConfig.base,
+      api_token: tenantConfig.key,
+      phone_number_id: tenantConfig.instance,
+      ativo: true,
+    };
     provider = config.provider;
-    const receipt = await callProviderWithRetry(config, telefone, `${target.messagePrefix}${input.mensagem}`);
+    const receipt = await callProviderWithRetry(config, telefone, input.mensagem);
     const enviadoEm = new Date().toISOString();
     await updateEnvio(supabase, input, envioId, "enviado", null, provider, enviadoEm);
     return {
@@ -279,6 +289,7 @@ export async function sendWinnerOrderLinksByQuotation(input: { quotationId: stri
 }
 
 async function callProvider(config: Config, phone: string, message: string): Promise<ProviderSendReceipt> {
+  if (qaWhatsAppSimulation()) throw new Error("TESTE_QA: chamada externa de WhatsApp bloqueada pelo simulador.");
   const base = String(config.api_url ?? "").replace(/\/$/, "");
   if (!base) throw new Error("API URL do WhatsApp não configurada.");
   const instance = getProviderInstance(config);
@@ -412,3 +423,15 @@ async function buyerName(supabase: Db, quotation: any) { const { data: tenant } 
 function vendorId(order: PurchaseOrder) { return order.supplierId || order.id; }
 function summarize(results: SendWhatsAppResult[]): WhatsappBatchResult { return { total: results.length, enviado: results.filter((r) => r.status === "enviado").length, falhou: results.filter((r) => r.status === "falhou").length, pendente: results.filter((r) => r.status === "pendente").length, ignorado: results.filter((r) => r.skipped).length, results }; }
 function emptyBatch() { return summarize([]); }
+
+// Fail closed: test flags must never allow external sends outside the isolated QA project.
+function qaWhatsAppSimulation() {
+  const enabled = [process.env.WHATSAPP_TEST_MODE, process.env.WHATSAPP_MOCK].some((value) => value === "true" || value === "1");
+  if (!enabled) return false;
+  let hostname = "";
+  try { hostname = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").hostname; } catch { /* reject below */ }
+  if (process.env.VERCEL_ENV === "production" || hostname !== "ulabbmjxdvxxiybhtgnn.supabase.co") {
+    throw new Error("Simulador WhatsApp permitido somente no Supabase QA e fora de produção.");
+  }
+  return true;
+}

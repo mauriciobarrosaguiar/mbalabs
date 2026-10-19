@@ -10,10 +10,11 @@ import {
   type WhatsappProvider,
 } from "@/modules/cotacoes/lib/whatsapp/mba-cotacoes";
 
-const defaultSettingsPath = "/cotacoes/configuracoes/whatsapp";
+const defaultSettingsPath = "/cotacoes/gestao/infra-whatsapp";
 const allowedReturnPaths = new Set([
   defaultSettingsPath,
   "/admin/configuracoes/whatsapp",
+  "/cotacoes/gestao/infra-whatsapp",
 ]);
 const providers = new Set(["evolution_api", "zapi", "meta_cloud_api", "outro"]);
 
@@ -39,11 +40,12 @@ export async function saveWhatsappSettingsAction(formData: FormData) {
     });
     revalidatePath(defaultSettingsPath);
     revalidatePath("/admin/configuracoes/whatsapp");
+    revalidatePath("/cotacoes/gestao/infra-whatsapp");
   } catch (error) {
     go(returnPath, "erro", errorMessage(error, "Não foi possível salvar a configuração."));
   }
 
-  go(returnPath, "sucesso", "Configuração do WhatsApp MBA Cotações salva.");
+  go(returnPath, "sucesso", "Credenciais da infraestrutura salvas no servidor. Execute o teste de autenticação abaixo.");
 }
 
 export async function testWhatsappConnectionAction(formData?: FormData) {
@@ -58,7 +60,7 @@ export async function testWhatsappConnectionAction(formData?: FormData) {
     go(returnPath, "erro", errorMessage(error, "Não foi possível testar a conexão."));
   }
 
-  go(returnPath, "sucesso", "Configuração validada. Envie uma mensagem teste para confirmar o provider.");
+  go(returnPath, "sucesso", "Evolution API respondeu com sucesso e aceitou a chave de autenticação. As farmácias já podem conectar seus WhatsApps individualmente.");
 }
 
 export async function sendWhatsappTestMessageAction(formData: FormData) {

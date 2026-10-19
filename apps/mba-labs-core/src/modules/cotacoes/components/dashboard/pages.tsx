@@ -10,6 +10,8 @@ import {
   ReceiptText,
   Users,
 } from "lucide-react";
+import { FlexibleProductImporter } from "@/modules/cotacoes/components/products/flexible-product-importer";
+import { CatalogAdminPanel } from "@/modules/cotacoes/components/products/catalog-admin-panel";
 import { TenantManagementTable } from "@/modules/cotacoes/components/admin/tenant-management-table";
 import { KpiCard } from "@/modules/cotacoes/components/dashboard/kpi-card";
 import { StatusBadge } from "@/modules/cotacoes/components/dashboard/status-badge";
@@ -18,7 +20,10 @@ import { DemoCrudTable, type DemoCrudRow } from "@/modules/cotacoes/components/f
 import { ImportWizard } from "@/modules/cotacoes/components/imports/import-wizard";
 import { DemoQuotationTable } from "@/modules/cotacoes/components/quotations/demo-quotation-table";
 import { GeneratePurchaseOrdersButton } from "@/modules/cotacoes/components/quotations/generate-purchase-orders-button";
+import { BulkBuyerOrderReview } from "@/modules/cotacoes/components/quotations/bulk-buyer-order-review";
+import { loadMinimumOrderRules } from "@/modules/cotacoes/lib/services/minimum-order-server";
 import { NewQuotationForm } from "@/modules/cotacoes/components/quotations/new-quotation-form";
+import { DistributorOffersImport } from "@/modules/cotacoes/components/quotations/distributor-offers-import";
 import { PublicOrderActions } from "@/modules/cotacoes/components/quotations/public-order-actions";
 import { QuotationBasicEditor } from "@/modules/cotacoes/components/quotations/quotation-basic-editor";
 import { BackButton, QuotationPageActions } from "@/modules/cotacoes/components/quotations/quotation-page-actions";
@@ -62,6 +67,7 @@ import {
   userRoleLabels,
 } from "@/modules/cotacoes/lib/labels";
 import {
+  countConfirmedNotBilledItems,
   getPurchaseOrderSupplierCompany,
   getPurchaseOrderSupplierContact,
   getPurchaseOrderSupplierDisplay,
@@ -86,10 +92,11 @@ import {
   isQuotationInProgress,
 } from "@/modules/cotacoes/lib/quotation-status";
 import { savePaymentSettingsAction } from "@/modules/cotacoes/lib/actions/payment-settings";
-import { createUserAccessAction, updateUserAccessAction } from "@/modules/cotacoes/lib/actions/users";
+import { createUserAccessAction, updateUserAccessAction, deactivateCotacoesUserAction } from "@/modules/cotacoes/lib/actions/users";
 import { listManagedUsers, listTenantOptions, type ManagedUser, type TenantOption } from "@/modules/cotacoes/lib/auth/users";
 import { createSupabaseAdminClient, hasSupabaseAdminConfig } from "@/modules/cotacoes/lib/supabase/server";
 import { listPendingShortageItems } from "@/modules/cotacoes/lib/data/shortage-items";
+import { getRepresentativeProgress } from "@/modules/cotacoes/lib/services/representative-progress";
 import type {
   CustomerType,
   QuotationAward,
@@ -199,7 +206,7 @@ export async function AdminDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tenants.map((tenant) => (
+                {tenants.filter(t=>!String(t.cnpj??"").startsWith("CORE-")).map((tenant) => (
                   <TableRow key={tenant.id}>
                     <TableCell className="font-medium">{tenant.nomeFantasia}</TableCell>
                     <TableCell>{labelFrom(customerTypeLabels, tenant.tipoCliente)}</TableCell>
@@ -249,25 +256,31 @@ export async function AdminSectionPage({
   if (runtime.missingProductionConfig) return <SupabaseRequiredState />;
 
   const collections = await getCollections();
+  // O tenant técnico CORE do MBA Labs não é uma farmácia e não deve aparecer
+  // em cadastros operacionais, seletores, representantes ou cobranças.
+  const clientTenants = collections.tenants.filter(
+    (tenant) => !String(tenant.cnpj ?? "").startsWith("CORE-"),
+  );
+  const clientTenantIds = new Set(clientTenants.map((tenant) => tenant.id));
   const tenantOptions = Object.fromEntries(
-    collections.tenants.map((tenant) => [tenant.id, `${tenant.nomeFantasia} · ${labelFrom(customerTypeLabels, tenant.tipoCliente)}`]),
+    clientTenants.map((tenant) => [tenant.id, `${tenant.nomeFantasia} · ${labelFrom(customerTypeLabels, tenant.tipoCliente)}`]),
   );
   if (section === "configuracoes" && subpage === "pagamentos") {
     return <PaymentSettingsPage />;
   }
 
-  if (section === "empresas" && subpage) {
+  if ((section === "empresas" || section === "farmacias") && subpage) {
     return <CompanyDetailsPage tenantId={subpage} />;
   }
 
-  if (section === "empresas") {
+  if (section === "farmacias" || section === "empresas") {
     return (
       <CrudPage
-        title="Empresas clientes"
-        description="Cadastre tenants, defina módulo contratado, status e dados financeiros."
+        title="Farmácias e CNPJs"
+        description="Gerencie clientes, CNPJs, planos e acessos em um único cadastro, sem duplicar a farmácia."
       >
         <TenantManagementTable
-          initialTenants={collections.tenants}
+          initialTenants={clientTenants}
           plans={collections.subscriptionPlans}
         />
       </CrudPage>
@@ -311,12 +324,12 @@ export async function AdminSectionPage({
     );
   }
 
-  if (section === "mensalidades" || section === "pagamentos") {
+  if (section === "mensalidades") {
     const planOptions = Object.fromEntries(collections.subscriptionPlans.map((plan) => [plan.id, plan.name]));
     return (
       <CrudPage
-        title={section === "mensalidades" ? "Mensalidades" : "Pagamentos"}
-        description="Mensalidades por empresa, com cobrança Pix preparada, baixa manual e histórico de pagamento."
+        title="Mensalidades e pagamentos"
+        description="Um único painel para vencimentos, pagamentos recebidos, pendências e baixa manual."
       >
         <div className="space-y-4 p-4">
           <div className="flex flex-wrap gap-2">
@@ -333,7 +346,7 @@ export async function AdminSectionPage({
             title="Mensalidade"
             primaryKey="referenceMonth"
             statusOptions={paymentStatusOptions}
-            initialRows={collections.monthlySubscriptions.map((subscription) => ({
+            initialRows={collections.monthlySubscriptions.filter((subscription) => clientTenantIds.has(subscription.tenantId)).map((subscription) => ({
               id: subscription.id,
               tenantId: subscription.tenantId,
               planId: subscription.planId ?? collections.tenants.find((tenant) => tenant.id === subscription.tenantId)?.planoId ?? "",
@@ -411,77 +424,7 @@ export async function AdminSectionPage({
     );
   }
 
-  if (section === "produtos") {
-    return (
-      <CrudPage
-        title="Produtos"
-        description="Produtos cadastrados por empresa, com busca, importação, edição e inativação."
-      >
-        <DemoCrudTable
-          entity="products"
-          storageKey="mba-admin-products"
-          title="Produto"
-          primaryKey="nome"
-          showStatus={false}
-          initialRows={collections.products.map((product) => ({
-            id: product.id,
-            tenantId: product.tenantId,
-            ean: product.ean ?? "",
-            nome: product.nome,
-            laboratorio: collections.laboratories.find((laboratory) => laboratory.id === product.laboratorioId)?.nome ?? "",
-            status: product.status,
-          }))}
-          fields={[
-            { key: "tenantId", label: "Empresa", type: "hidden", defaultValue: Object.keys(tenantOptions)[0] ?? "" },
-            { key: "ean", label: "EAN", required: true },
-            { key: "nome", label: "Produto", required: true },
-            { key: "laboratorio", label: "Laboratório", required: true },
-          ]}
-        />
-      </CrudPage>
-    );
-  }
-
-  if (section === "farmacias") {
-    return (
-      <CrudPage
-        title="Farmácias"
-        description="Farmácias e CNPJs compradores cadastrados por empresa."
-      >
-        <DemoCrudTable
-          entity="pharmacies"
-          storageKey="mba-admin-pharmacies"
-          title="Farmácia/CNPJ"
-          primaryKey="nomeFantasia"
-          emptyMessage="Nenhuma farmácia cadastrada. Cadastre uma empresa do tipo Farmácia ou adicione uma unidade dentro da empresa."
-          initialRows={collections.pharmacies.map((pharmacy) => ({
-            id: pharmacy.id,
-            tenantId: pharmacy.tenantId,
-            nomeFantasia: pharmacy.nomeFantasia,
-            razaoSocial: pharmacy.razaoSocial,
-            cnpj: pharmacy.cnpj,
-            cidade: pharmacy.cidade,
-            uf: pharmacy.uf,
-            responsavel: pharmacy.responsavel,
-            whatsapp: pharmacy.whatsapp,
-            email: pharmacy.email,
-            status: pharmacy.status,
-          }))}
-          fields={[
-            { key: "tenantId", label: "Empresa", type: "select", options: tenantOptions },
-            { key: "nomeFantasia", label: "Nome Fantasia" },
-            { key: "razaoSocial", label: "Razão Social" },
-            { key: "cnpj", label: "CNPJ" },
-            { key: "cidade", label: "Cidade" },
-            { key: "uf", label: "UF", type: "select", options: ufLabels },
-            { key: "responsavel", label: "Responsável" },
-            { key: "whatsapp", label: "WhatsApp" },
-            { key: "email", label: "E-mail", type: "email" },
-          ]}
-        />
-      </CrudPage>
-    );
-  }
+  if (section === "produtos") return <CatalogAdminPanel />;
 
   if (section === "licitacoes") {
     const biddingQuotations = collections.quotations.filter((quotation) => quotation.moduleType === "bidding");
@@ -557,7 +500,7 @@ export async function AdminSectionPage({
           title="Distribuidora"
           primaryKey="nome"
           emptyMessage="Nenhuma distribuidora cadastrada."
-          initialRows={collections.distributors.map((distributor) => ({
+          initialRows={collections.distributors.filter((distributor) => clientTenantIds.has(distributor.tenantId)).map((distributor) => ({
             id: distributor.id,
             tenantId: distributor.tenantId,
             nome: distributor.nome,
@@ -584,20 +527,20 @@ export async function AdminSectionPage({
     );
   }
 
-  if (section === "vendedores") {
-    const sellers = collections.suppliers.filter((supplier) => supplier.tipoFornecedor === "vendedor");
+  if (section === "representantes" || section === "vendedores") {
+    const sellers = collections.suppliers.filter((supplier) => supplier.tipoFornecedor === "vendedor" && clientTenantIds.has(supplier.tenantId));
 
     return (
       <CrudPage
-        title="Vendedores"
-        description="Vendedores e fornecedores externos cadastrados por empresa para receber links públicos de cotação."
+        title="Representantes"
+        description="Representantes comerciais cadastrados por farmácia para receber links de cotação."
       >
         <DemoCrudTable
           entity="suppliers"
           storageKey="mba-admin-suppliers"
-          title="Vendedor/Fornecedor"
+          title="Representante"
           primaryKey="nome"
-          emptyMessage="Nenhum vendedor cadastrado ainda."
+          emptyMessage="Nenhum representante cadastrado ainda."
           initialRows={sellers.map((seller) => ({
             id: seller.id,
             tenantId: seller.tenantId,
@@ -1051,7 +994,7 @@ async function CompanyDetailsPage({ tenantId }: { tenantId: string }) {
         metrics={[
           { label: "Farmácias/CNPJs", value: String(pharmacies.length), hint: "Unidades operacionais", tone: "info" },
           { label: "Usuários", value: String(tenantUsers.length), hint: "Vinculados à empresa", tone: "default" },
-          { label: "Vendedores", value: String(sellers.length), hint: "Recebem cotações", tone: "success" },
+          { label: "Representantes", value: String(sellers.length), hint: "Recebem cotações", tone: "success" },
           { label: "Mensalidades", value: String(subscriptions.length), hint: "Histórico financeiro", tone: "warning" },
         ]}
       />
@@ -1060,7 +1003,7 @@ async function CompanyDetailsPage({ tenantId }: { tenantId: string }) {
           <TabsTrigger value="dados">Dados</TabsTrigger>
           <TabsTrigger value="farmacias">Farmácias/CNPJs</TabsTrigger>
           <TabsTrigger value="usuarios">Usuários</TabsTrigger>
-          <TabsTrigger value="vendedores">Vendedores</TabsTrigger>
+          <TabsTrigger value="vendedores">Representantes</TabsTrigger>
           <TabsTrigger value="distribuidoras">Distribuidoras</TabsTrigger>
           <TabsTrigger value="produtos">Produtos</TabsTrigger>
           <TabsTrigger value="cotacoes">Cotações</TabsTrigger>
@@ -1133,7 +1076,7 @@ async function CompanyDetailsPage({ tenantId }: { tenantId: string }) {
             <DemoCrudTable
               entity="suppliers"
               storageKey={`mba-company-${tenant.id}-suppliers`}
-              title="Vendedor"
+              title="Representante"
               primaryKey="nome"
               statusOptions={activeInactiveOptions}
               emptyMessage="Nenhum vendedor cadastrado ainda."
@@ -1258,6 +1201,7 @@ function TenantProductsTable({
             { key: "ean", label: "EAN", required: true },
             { key: "nome", label: "Produto", required: true },
             { key: "laboratorio", label: "Laboratório", required: true },
+          { key: "tipoProduto", label: "Tipo de produto (opcional)" },
           ]}
         />
       </CardContent>
@@ -1490,12 +1434,14 @@ async function ProductsPage({ tenantId }: { tenantId?: string }) {
     nome: product.nome,
     laboratorio: laboratories.find((laboratory) => laboratory.id === product.laboratorioId)?.nome ?? "",
     status: product.status,
+    tipoProduto: product.tipoProduto ?? "",
   })) as DemoCrudRow[];
   return (
     <CrudPage
       title="Produtos"
-      description="Cadastro simples para cotação de farmácia: EAN, produto e laboratório."
+      description="Base própria da farmácia com importação por colunas e tipo de produto opcional."
     >
+      <FlexibleProductImporter mode="tenant" />
       <DemoCrudTable
         entity="products"
         storageKey="cotafarma-demo-products"
@@ -1529,13 +1475,13 @@ async function SuppliersPage({ tenantId }: { tenantId?: string }) {
   })) as DemoCrudRow[];
   return (
     <CrudPage
-      title="Fornecedores e vendedores"
-      description="Contatos usados para gerar links públicos de resposta."
+      title="Representantes"
+      description="Cadastre os representantes que receberão links de cotação. O WhatsApp é opcional no cadastro e necessário para envio automático."
     >
       <DemoCrudTable
         entity="suppliers"
         storageKey="cotafarma-demo-suppliers"
-        title="Fornecedor"
+        title="Representante"
         primaryKey="nome"
         initialRows={demoRows}
         fields={[
@@ -1544,7 +1490,7 @@ async function SuppliersPage({ tenantId }: { tenantId?: string }) {
           { key: "empresa", label: "Empresa" },
           { key: "whatsapp", label: "WhatsApp" },
           { key: "email", label: "E-mail", type: "email" },
-          { key: "tipoFornecedor", label: "Tipo fornecedor", type: "select", options: supplierTypeLabels },
+          { key: "tipoFornecedor", label: "Tipo de contato", type: "select", options: supplierTypeLabels },
           { key: "observacao", label: "Observação" },
         ]}
       />
@@ -2093,7 +2039,7 @@ async function CompanySettingsPage({ tenantId, isSuperAdmin = false }: { tenantI
                   <Link href="/cotacoes/configuracoes/whatsapp">Configurar WhatsApp Evolution</Link>
                 </Button>
                 <Button asChild variant="outline">
-                  <Link href="/admin/logs">Ver logs gerais</Link>
+                  <Link href="/cotacoes/gestao/logs">Ver logs do Cotações</Link>
                 </Button>
               </div>
             </CardContent>
@@ -2281,6 +2227,10 @@ async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotatio
       ? ["respostas", "analise", "pedidos"]
       : ["respostas", "analise", "mapa-comparativo", "saldo-pendente", "pedidos"];
 
+  const representativeProgress = getRepresentativeProgress(sessions, quotation.deadlineAt);
+  const distributorSuppliers = moduleType === "pharmacy" && !isQuotationClosed(quotation.status)
+    ? (await getCollections(tenantId)).suppliers
+    : [];
   const items = rawItems.map((item) => ({
     ...item,
     status: getQuotationItemStatusFromOrders(item, orders),
@@ -2300,6 +2250,22 @@ async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotatio
         />
       ) : null}
       <QuotationPageActions quotationId={quotation.id} moduleType={moduleType} status={quotation.status} currentPage="detail" />
+      {moduleType === "pharmacy" ? (
+        <Card>
+          <CardHeader><CardTitle>Cotação híbrida: representantes e distribuidoras</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p>Representantes: {representativeProgress.submitted} resposta(s) finalizada(s) de {representativeProgress.total} convite(s); {representativeProgress.pending} pendente(s).</p>
+            <p className="text-muted-foreground">
+              {isQuotationClosed(quotation.status)
+                ? "Cotação encerrada: resultado final disponível na análise."
+                : representativeProgress.canClose
+                  ? "Pronta para encerramento, após conferência das ofertas."
+                  : "Aguardando as respostas dos representantes ou o fim do prazo. O menor preço é provisório."}
+            </p>
+            <p className="text-muted-foreground">Ofertas diretas das distribuidoras serão consideradas em paralelo quando houver conectores ou fontes de preços homologadas para este CNPJ. Sem conexão, os representantes continuam participando normalmente.</p>
+          </CardContent>
+        </Card>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         {!isQuotationClosed(quotation.status) ? (
           <Button asChild variant="outline" size="sm">
@@ -2318,21 +2284,24 @@ async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotatio
           <ItemsTable items={items} />
         </CardContent>
       </Card>
+      {moduleType === "pharmacy" && !isQuotationClosed(quotation.status) ? (
+        <DistributorOffersImport quotationId={quotation.id} items={rawItems} suppliers={distributorSuppliers} />
+      ) : null}
       <Card>
         <CardHeader><CardTitle>Links dos fornecedores</CardTitle></CardHeader>
         <CardContent className="p-0">
           <SupplierLinksTable moduleType={moduleType} sessions={sessions} deadlineAt={quotation.deadlineAt} />
         </CardContent>
       </Card>
-      {canGenerateQuotationOrders(quotation.status) ? (
+      {canGenerateQuotationOrders(quotation.status) && orders.some((order) => quotation.moduleType !== "pharmacy" || order.buyerReviewStatus === "approved") ? (
         <Card>
-          <CardHeader><CardTitle>Links dos vendedores vencedores</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Links dos vendedores vencedores (pedidos aprovados)</CardTitle></CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2">
             {orders.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Nenhum pedido gerado ainda. Use Gerar pedido para criar os links dos vencedores.
               </p>
-            ) : orders.map((order) => (
+            ) : orders.filter((order) => moduleType !== "pharmacy" || order.buyerReviewStatus === "approved").map((order) => (
               <div key={order.id} className="rounded-md border border-slate-200 bg-white p-3">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
@@ -2493,11 +2462,14 @@ async function BiddingResponses({ quotationId, tenantId }: { quotationId: string
 }
 
 async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string; tenantId?: string }) {
-  const [analysis, { quotation, items, responses }, orders] = await Promise.all([
+  const [analysis, { quotation, items, responses }, orders, sessions] = await Promise.all([
     getPharmacyAnalysis(quotationId, tenantId),
     getQuotationBundle(quotationId, tenantId),
     getPurchaseOrdersByQuotation(quotationId, tenantId),
+    getSupplierSessions(quotationId, tenantId),
   ]);
+  const isProvisional = !canGenerateQuotationOrders(quotation.status);
+  const representativeProgress = getRepresentativeProgress(sessions, quotation.deadlineAt);
   const supplierDisplayName = buildSupplierNameResolver({ responses });
 
   const orderForAward = (award: QuotationAward) =>
@@ -2513,20 +2485,25 @@ async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string
     <PageStack>
       <HeaderBlock
         title="Análise da cotação farmácia"
-        description="Menor preço por produto, diferença entre ofertas e pedido mínimo por distribuidora."
+        description={isProvisional
+          ? "Classificação provisória: aguardando propostas dos representantes ou o fim do prazo antes de declarar vencedores."
+          : "Resultado da cotação encerrada, com preço por produto e condições dos fornecedores."}
         actionLabel={canGenerateQuotationOrders(quotation.status) ? "Gerar pedido" : undefined}
         actionHref={canGenerateQuotationOrders(quotation.status) ? `/cotacoes/cotacoes-farmacia/${quotationId}/pedidos` : undefined}
       />
       <QuotationPageActions quotationId={quotationId} moduleType="pharmacy" status={quotation.status} currentPage="analysis" />
       <Card>
-        <CardHeader><CardTitle>Vencedores e links de pedido</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{isProvisional ? "Líderes provisórios por item — ainda sem vencedores" : "Vencedores e links de pedido"}</CardTitle></CardHeader>
+        {isProvisional ? (
+          <CardContent className="text-sm text-amber-800">Respostas recebidas: {representativeProgress.submitted}/{representativeProgress.total}. Pendente(s): {representativeProgress.pending}. As ofertas podem mudar até o encerramento da cotação.</CardContent>
+        ) : null}
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Produto</TableHead>
                 <TableHead className="text-right">Quantidade</TableHead>
-                <TableHead>Fornecedor vencedor</TableHead>
+                <TableHead>{isProvisional ? "Fornecedor na liderança" : "Fornecedor vencedor"}</TableHead>
                 <TableHead className="text-right">Preco informado</TableHead>
                 <TableHead className="text-right">Total do item</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -2561,7 +2538,7 @@ async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string
                     <TableCell className="text-right">{formatCurrency(award.unitPrice)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(award.totalPrice)}</TableCell>
                     <TableCell className="text-right">
-                      <WinnerOrderLinks order={orderForAward(award)} />
+                      {!isProvisional && (!orderForAward(award) || orderForAward(award)?.buyerReviewStatus === "approved") ? <WinnerOrderLinks order={orderForAward(award)} /> : <span className="text-muted-foreground">Aguardando encerramento</span>}
                     </TableCell>
                   </TableRow>
                 );
@@ -2574,7 +2551,7 @@ async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string
         metrics={[
           { label: "Itens", value: String(analysis.totals.totalItems), hint: "Produtos cotados" },
           { label: "Respondidos", value: String(analysis.totals.answeredItems), hint: "Com preço válido", tone: "success" },
-          { label: "Total vencedor", value: formatCurrency(analysis.totals.estimatedTotal), hint: "Menor preço", tone: "default" },
+          { label: isProvisional ? "Menor total provisório" : "Total vencedor", value: formatCurrency(analysis.totals.estimatedTotal), hint: isProvisional ? "Sujeito a novas respostas" : "Menor preço", tone: "default" },
           { label: "Economia", value: formatCurrency(analysis.totals.estimatedSavings), hint: "Vs última compra", tone: "success" },
         ]}
       />
@@ -2834,6 +2811,10 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
     console.error("Erro ao buscar pedidos dos vencedores", { quotationId, error });
     ordersError = "Não foi possível carregar os pedidos dos vencedores. Tente novamente ou verifique o log do servidor.";
   }
+  const minimumRules = quotation.moduleType === "pharmacy"
+    ? await loadMinimumOrderRules(quotation.tenantId, orders, quotation.considerMinimumOrder)
+    : [];
+
   const emptyTitle = quotation.moduleType === "pharmacy"
     ? !canGenerateOrders
       ? "Finalize a cotação para gerar pedidos dos vencedores."
@@ -2855,7 +2836,7 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
   const billedItems = allOrderItems.filter((item) => getOrderItemMissingQuantity(item) <= 0 && getOrderItemBilledQuantity(item) > 0).length;
   const partialItems = allOrderItems.filter((item) => getOrderItemBilledQuantity(item) > 0 && getOrderItemMissingQuantity(item) > 0).length;
   const notBilledItems = quotation.moduleType === "pharmacy"
-    ? Math.max(items.length - totalItemsWithOrder, 0)
+    ? countConfirmedNotBilledItems(orders)
     : allOrderItems.filter((item) => getOrderItemBilledQuantity(item) <= 0 && getOrderItemMissingQuantity(item) > 0).length;
   const expectedAmount = orders.reduce((total, order) => total + order.totalAmount, 0);
   const confirmedAmount = allOrderItems.reduce((total, item) => total + getOrderItemBilledQuantity(item) * item.unitPrice, 0);
@@ -2883,7 +2864,7 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
           { label: "Pedidos finalizados", value: String(orders.filter((order) => ["finalizado_pelo_vendedor", "parcialmente_faturado", "nao_faturado", "confirmed"].includes(order.status)).length), hint: "Conferidos pelo vendedor", tone: "success" },
           { label: "Itens faturados", value: `${billedItems}/${billedItemsDenominator}`, hint: quotation.moduleType === "pharmacy" ? "Confirmados / com pedido" : "Confirmados" },
           { label: "Itens parciais", value: String(partialItems), hint: "Com falta parcial", tone: partialItems > 0 ? "warning" : "default" },
-          { label: "Itens não faturados", value: String(notBilledItems), hint: quotation.moduleType === "pharmacy" ? "Sem resposta válida" : "Com pendência", tone: notBilledItems > 0 ? "warning" : "default" },
+          { label: "Itens não faturados", value: String(notBilledItems), hint: quotation.moduleType === "pharmacy" ? "Informados pelo representante" : "Com pendência", tone: notBilledItems > 0 ? "warning" : "default" },
           { label: "Valor previsto", value: formatCurrency(expectedAmount), hint: "Pedido vencedor" },
           { label: "Valor confirmado", value: formatCurrency(confirmedAmount), hint: "Faturado" },
         ]}
@@ -2917,13 +2898,16 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
                         {order.items.length} itens ganhos · {formatCurrency(order.totalAmount)}
                       </p>
                     </div>
-                    <WinnerOrderLinks order={order} />
+                    {quotation.moduleType !== "pharmacy" || order.buyerReviewStatus === "approved" ? <WinnerOrderLinks order={order} /> : <span className="text-xs text-amber-800">Aguardando aprovação do comprador</span>}
                   </div>
                 </div>
               );
             })}
           </CardContent>
         </Card>
+      ) : null}
+      {quotation.moduleType === "pharmacy" && orders.length > 0 ? (
+        <BulkBuyerOrderReview quotationId={quotationId} orders={orders} minimumRules={minimumRules} minimumEnabled={quotation.considerMinimumOrder} />
       ) : null}
       <div className="grid gap-4 lg:grid-cols-2">
         {orders.map((order) => {
@@ -2946,6 +2930,7 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
+
               <div className="grid gap-3 rounded-md bg-slate-50 p-3 text-sm sm:grid-cols-3">
                 <SummaryCell label="Itens ganhos" value={String(order.items.length)} />
                 <SummaryCell label="Faturados" value={String(order.items.filter((item) => getOrderItemMissingQuantity(item) <= 0 && getOrderItemBilledQuantity(item) > 0).length)} />
@@ -2973,13 +2958,13 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
                   </div>
                 );
               })}
-              <Button asChild variant="outline" className="w-full">
+              {quotation.moduleType !== "pharmacy" || order.buyerReviewStatus === "approved" ? <Button asChild variant="outline" className="w-full">
                 <Link href={`/${order.moduleType === "bidding" ? "licitacao" : "cotacao"}/pedido/${order.publicToken}`}>
                   Ver link público
                   <ArrowRight className="h-4 w-4" />
                 </Link>
-              </Button>
-              <PublicOrderActions order={order} />
+              </Button> : null}
+              {quotation.moduleType !== "pharmacy" || order.buyerReviewStatus === "approved" ? <PublicOrderActions order={order} /> : null}
             </CardContent>
           </Card>
           );
@@ -3565,7 +3550,8 @@ function AdminUsersTable({
   }
 
   return (
-    <Table>
+    <div className="w-full max-w-full overflow-x-auto rounded-md border border-slate-200">
+    <Table className="min-w-[1180px]">
       <TableHeader>
         <TableRow>
           <TableHead>Nome</TableHead>
@@ -3582,8 +3568,8 @@ function AdminUsersTable({
 
           return (
             <TableRow key={user.id}>
-              <TableCell className="font-medium">{user.fullName}</TableCell>
-              <TableCell>{user.email}</TableCell>
+              <TableCell className="max-w-[220px] font-medium break-words">{user.fullName}</TableCell>
+              <TableCell className="max-w-[260px] break-all">{user.email}</TableCell>
               <TableCell>{labelFrom(userRoleLabels, user.role)}</TableCell>
               <TableCell>
                 {primaryTenant
@@ -3594,13 +3580,18 @@ function AdminUsersTable({
                 <StatusBadge status={user.status} label={labelFrom(statusLabels, user.status)} />
               </TableCell>
               <TableCell>
+                {user.role === "SUPER_ADMIN" ? (
+                  <p className="max-w-[340px] rounded-md bg-slate-50 p-3 text-xs text-slate-700">
+                    Administrador central do MBA Labs: acesso somente à gestão, sem vínculo com farmácia e sem alteração por esta tela.
+                  </p>
+                ) : (
+                <>
                 <form action={updateUserAccessAction} className="flex justify-end gap-2">
                   <input type="hidden" name="profileId" value={user.id} />
                   <Select name="role" defaultValue={user.role}>
                     <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="SUPER_ADMIN">{userRoleLabels.SUPER_ADMIN}</SelectItem>
-                      <SelectItem value="ADMIN_EMPRESA">{userRoleLabels.ADMIN_EMPRESA}</SelectItem>
+                                  <SelectItem value="ADMIN_EMPRESA">{userRoleLabels.ADMIN_EMPRESA}</SelectItem>
                       <SelectItem value="COMPRADOR">{userRoleLabels.COMPRADOR}</SelectItem>
                       <SelectItem value="CONFERENTE">{userRoleLabels.CONFERENTE}</SelectItem>
                       <SelectItem value="FINANCEIRO">{userRoleLabels.FINANCEIRO}</SelectItem>
@@ -3629,12 +3620,26 @@ function AdminUsersTable({
                     Salvar
                   </Button>
                 </form>
+                {primaryTenant ? (
+                  <form action={deactivateCotacoesUserAction}
+                    className="mt-2 flex justify-end">
+                    <input type="hidden" name="tenantId" value={primaryTenant.tenantId} />
+                    <input type="hidden" name="profileId" value={user.id} />
+                    <Button type="submit" size="sm" variant="destructive"
+                      disabled={primaryTenant.status !== "ativo"}>
+                      Desativar acesso Cotações
+                    </Button>
+                  </form>
+                ) : null}
+                </>
+                )}
               </TableCell>
             </TableRow>
           );
         })}
       </TableBody>
     </Table>
+    </div>
   );
 }
 
@@ -3648,7 +3653,6 @@ function UserInviteForm({ tenants = [] }: { tenants?: TenantOption[] }) {
         <Select name="role" defaultValue="COMPRADOR">
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="SUPER_ADMIN">{userRoleLabels.SUPER_ADMIN}</SelectItem>
             <SelectItem value="ADMIN_EMPRESA">{userRoleLabels.ADMIN_EMPRESA}</SelectItem>
             <SelectItem value="COMPRADOR">{userRoleLabels.COMPRADOR}</SelectItem>
             <SelectItem value="CONFERENTE">{userRoleLabels.CONFERENTE}</SelectItem>
@@ -3659,9 +3663,9 @@ function UserInviteForm({ tenants = [] }: { tenants?: TenantOption[] }) {
       <div className="space-y-2">
         <Label>Empresa</Label>
         <Select name="tenantId" defaultValue={tenants[0]?.id ?? "none"}>
-          <SelectTrigger><SelectValue placeholder="Sem vínculo" /></SelectTrigger>
+          <SelectTrigger><SelectValue placeholder="Selecione a farmácia" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">Sem vínculo</SelectItem>
+            {tenants.length === 0 ? <SelectItem value="none">Cadastre uma farmácia primeiro</SelectItem> : null}
             {tenants.map((tenant) => (
               <SelectItem key={tenant.id} value={tenant.id}>
                 {tenant.name} · {labelFrom(customerTypeLabels, tenant.type)}
@@ -3682,9 +3686,8 @@ function UserInviteForm({ tenants = [] }: { tenants?: TenantOption[] }) {
         </Select>
       </div>
       <LabeledInput
-        label="Senha temporária"
+        label="Senha temporária exclusiva (10+ caracteres)"
         name="temporaryPassword"
-        defaultValue="Alterar@123"
         required
       />
       <input type="hidden" name="mustChangePassword" value="true" />
@@ -3788,13 +3791,14 @@ export function getAdminRouteTitle(section?: string) {
   const titles: Record<string, string> = {
     empresas: "Empresas",
     planos: "Planos",
-    mensalidades: "Mensalidades",
-    pagamentos: "Pagamentos",
+    mensalidades: "Mensalidades e pagamentos",
+    pagamentos: "Mensalidades e pagamentos",
     usuarios: "Usuários",
     farmacias: "Farmácias",
     licitacoes: "Licitações",
     distribuidoras: "Distribuidoras",
-    vendedores: "Vendedores",
+    vendedores: "Representantes",
+    representantes: "Representantes",
     logs: "Logs",
     suporte: "Suporte",
     configuracoes: "Configurações",

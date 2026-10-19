@@ -73,7 +73,7 @@ export async function PATCH(request: NextRequest) {
     if (!session) return NextResponse.json({ error: "Link não encontrado." }, { status: 404 });
 
     const auth = await getCurrentAuthContext();
-    const access = await ensureQuotationAccess(auth, session.quotation_id);
+    const access = await ensureQuotationAccess(auth, session.quotation_id, undefined, "manage");
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
     const { data: quotation, error: quotationError } = await supabase

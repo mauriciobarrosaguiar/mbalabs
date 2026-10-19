@@ -1,7 +1,8 @@
 import "server-only";
 
-import { canAccessModule, type AuthContext } from "@/modules/cotacoes/lib/auth/session";
+import { canAccessModule, isTenantSuspended, type AuthContext } from "@/modules/cotacoes/lib/auth/session";
 import { createSupabaseAdminClient, hasSupabaseAdminConfig, hasSupabaseConfig } from "@/modules/cotacoes/lib/supabase/server";
+import { isQuotationDeleted } from "@/modules/cotacoes/lib/quotation-status";
 import type { CustomerType, ModuleType } from "@/modules/cotacoes/lib/types";
 
 type QuotationAccessRow = {
@@ -41,11 +42,15 @@ export function ensureCreateQuotationAccess(
   }
 
   if (auth.isSuperAdmin) {
-    return { ok: true, tenantId: requestedTenantId || undefined };
+    return { ok: false, status: 403, error: "O administrador MBA Labs gerencia farmácias e catálogos, mas não pode operar cotações." };
   }
 
   if (!auth.tenantAccess) {
     return { ok: false, status: 403, error: "Empresa nao vinculada ao usuario logado." };
+  }
+
+  if (!["ADMIN_EMPRESA", "COMPRADOR"].includes(auth.profile?.role ?? "")) {
+    return { ok: false, status: 403, error: "Apenas compradores e administradores podem criar cotações." };
   }
 
   if (!canAccessModule(auth.tenantAccess.tenantType, moduleType)) {
@@ -59,11 +64,17 @@ export async function ensureQuotationAccess(
   auth: AuthContext,
   quotationId: string,
   select = "id, tenant_id, module_type, status, deleted_at",
+  operation: "read" | "manage" = "read",
 ): Promise<QuotationAccess | AccessFailure> {
   const session = ensureActiveSession(auth);
   if (!session.ok) return session;
   if (!hasSupabaseConfig() || !hasSupabaseAdminConfig()) {
     return { ok: false, status: 409, error: "Supabase nao configurado." };
+  }
+
+  if (auth.isSuperAdmin) return { ok: false, status: 403, error: "Conta administrativa sem permissão para operar cotações de farmácias." };
+  if (operation === "manage" && !["ADMIN_EMPRESA", "COMPRADOR"].includes(auth.profile?.role ?? "")) {
+    return { ok: false, status: 403, error: "Apenas compradores e administradores podem alterar cotações e pedidos." };
   }
 
   const supabase = createSupabaseAdminClient();
@@ -77,6 +88,9 @@ export async function ensureQuotationAccess(
   if (!data) return { ok: false, status: 404, error: "Cotacao nao encontrada." };
 
   const quotation = data as QuotationAccessRow;
+  if (quotation.deleted_at || isQuotationDeleted(quotation.status)) {
+    return { ok: false, status: 404, error: "Cotacao nao encontrada." };
+  }
   if (!auth.isSuperAdmin) {
     if (!auth.tenantAccess) {
       return { ok: false, status: 403, error: "Empresa nao vinculada ao usuario logado." };
@@ -113,6 +127,14 @@ function ensureActiveSession(auth: AuthContext): { ok: true } | AccessFailure {
   }
   if (!auth.isActive) {
     return { ok: false, status: 401, error: "Sessao expirada." };
+  }
+  if (!auth.isSuperAdmin) {
+    if (auth.profile.role === "VENDEDOR_EXTERNO") {
+      return { ok: false, status: 403, error: "Representantes devem utilizar seus links de resposta." };
+    }
+    if (auth.tenantAccess && (auth.tenantAccess.status !== "ativo" || isTenantSuspended(auth.tenantAccess.tenantStatus))) {
+      return { ok: false, status: 403, error: "Acesso da empresa suspenso ou vínculo inativo." };
+    }
   }
   return { ok: true };
 }

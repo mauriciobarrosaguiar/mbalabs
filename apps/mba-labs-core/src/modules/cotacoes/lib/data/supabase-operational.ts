@@ -1,9 +1,8 @@
 // @ts-nocheck
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import "server-only";
 
 import { createSupabaseAdminClient, hasSupabaseAdminConfig, hasSupabaseConfig } from "@/modules/cotacoes/lib/supabase/server";
-import { createPurchaseOrderPublicToken } from "@/modules/cotacoes/lib/security/public-tokens";
-import { quotationDeadlineToIso } from "@/modules/cotacoes/lib/deadline";
 import {
   calculateBiddingResponseItem,
   buildBiddingAnalysis,
@@ -230,11 +229,82 @@ export async function getSupabaseQuotationBundle(id: string, tenantId?: string) 
       return null;
     }
 
+    // Consulta às distribuidoras acontece em paralelo: importar ofertas nunca
+    // remove links, respostas nem convites dos representantes.
+    const digitalResponses: SupplierQuoteResponse[] = [];
+    const digitalItems: SupplierQuoteResponseItem[] = [];
+    if (quotationRow.module_type === "pharmacy") {
+      const { data: offerRows, error: offersError } = await supabase
+        .from("cot_distributor_offers")
+        .select("id,tenant_id,quotation_id,quotation_item_id,supplier_id,ean,source,unit_price,available_quantity,collected_at")
+        .eq("tenant_id", quotationRow.tenant_id)
+        .eq("quotation_id", id);
+      if (offersError) {
+        // A leitura de ofertas digitais é complementar ao fluxo de representantes.
+        logSupabaseReadError("cot_distributor_offers (opcional)", offersError);
+      } else if (offerRows?.length) {
+        const supplierIds = [...new Set(offerRows.map((row) => String(row.supplier_id)))];
+        const { data: supplierRows, error: suppliersError } = await supabase
+          .from("suppliers")
+          .select("id,nome,empresa")
+          .eq("tenant_id", quotationRow.tenant_id)
+          .in("id", supplierIds);
+        if (suppliersError) throw suppliersError;
+        const supplierById = new Map((supplierRows ?? []).map((supplier) => [supplier.id, supplier]));
+        const itemById = new Map((itemRows ?? []).map((item) => [item.id, item]));
+        const digitalBySupplier = new Map<string, typeof offerRows>();
+        for (const offer of offerRows) {
+          const product = itemById.get(offer.quotation_item_id);
+          if (!product || !supplierById.has(offer.supplier_id)) continue;
+          const expectedEan = String(product.ean ?? "").replace(/\D/g, "");
+          if (!expectedEan || expectedEan !== String(offer.ean ?? "").replace(/\D/g, "")) continue;
+          const stock = Number(offer.available_quantity);
+          const price = Number(offer.unit_price);
+          if (!Number.isFinite(price) || price <= 0 ||
+              !Number.isFinite(stock) || stock < Number(product.requested_quantity)) continue;
+          const list = digitalBySupplier.get(offer.supplier_id) ?? [];
+          list.push(offer);
+          digitalBySupplier.set(offer.supplier_id, list);
+          digitalItems.push({
+            id: `digital-offer-${offer.id}`,
+            tenantId: offer.tenant_id,
+            quotationId: id,
+            quotationItemId: offer.quotation_item_id,
+            responseId: `digital-response-${offer.supplier_id}`,
+            supplierId: offer.supplier_id,
+            offeredProductName: product.product_name,
+            hasStock: true,
+            hasFullQuantity: true,
+            availableQuantity: stock,
+            packageQuantity: 1,
+            packagePrice: price,
+            unitPrice: price,
+            sellerObservation: "Preço importado de distribuidora; validar condições antes do pedido.",
+          });
+        }
+        for (const [supplierId, offers] of digitalBySupplier) {
+          const supplier = supplierById.get(supplierId);
+          digitalResponses.push({
+            id: `digital-response-${supplierId}`,
+            tenantId: quotationRow.tenant_id,
+            quotationId: id,
+            sessionId: `digital-session-${supplierId}`,
+            supplierId,
+            sellerName: `Oferta importada: ${supplier?.nome ?? "Distribuidora"}`,
+            sellerCompany: String(supplier?.empresa ?? supplier?.nome ?? "Distribuidora"),
+            sellerWhatsapp: "",
+            status: "submitted",
+            submittedAt: offers.reduce((latest, offer) => String(offer.collected_at) > latest ? String(offer.collected_at) : latest, ""),
+          });
+        }
+      }
+    }
+
     return {
       quotation: mapQuotation(quotationRow),
       items: (itemRows ?? []).map(mapQuotationItem),
-      responses: (responseRows ?? []).map(mapSupplierResponse),
-      responseItems: (responseItemRows ?? []).map(mapSupplierResponseItem),
+      responses: [...(responseRows ?? []).map(mapSupplierResponse), ...digitalResponses],
+      responseItems: [...(responseItemRows ?? []).map(mapSupplierResponseItem), ...digitalItems],
     };
   } catch (error) {
     logSupabaseReadError("quotation bundle", error);
@@ -412,7 +482,6 @@ export async function createSupabaseQuotation(input: {
   const pharmacy = moduleType === "pharmacy"
     ? await resolvePharmacy(supabase, tenant.id)
     : null;
-  const buyerDocument = await resolveBuyerDocument(supabase, tenant.id, pharmacy?.cnpj);
   const pharmacyProducts = moduleType === "pharmacy"
     ? await resolveQuotationProducts(supabase, tenant.id, input.items)
     : new Map<string, Record<string, any>>();
@@ -424,14 +493,13 @@ export async function createSupabaseQuotation(input: {
       module_type: moduleType,
       name: input.draft.name,
       pharmacy_id: pharmacy?.id ?? null,
-      buyer_document: buyerDocument,
       buyer_company_name: input.draft.buyerCompanyName,
       destination_client: input.draft.destinationClient,
       process_number: input.draft.processNumber,
       bid_number: input.draft.bidNumber,
       quotation_type: input.draft.quotationType,
       judgment_type: moduleType === "bidding" ? input.draft.judgmentType : null,
-      deadline_at: quotationDeadlineToIso(input.draft.deadlineAt),
+      deadline_at: input.draft.deadlineAt ? new Date(input.draft.deadlineAt).toISOString() : null,
       allow_partial_supply: input.draft.allowPartialSupply,
       allow_equivalent: input.draft.allowEquivalent,
       consider_minimum_order: input.draft.considerMinimumOrder,
@@ -460,7 +528,7 @@ export async function createSupabaseQuotation(input: {
       requested_laboratory: item.requestedLaboratory || "Qualquer",
       laboratory_required: Boolean(item.laboratoryRequired),
       product_type: product?.tipo_produto ?? item.productType ?? "generico",
-      accept_equivalent: item.acceptEquivalent ?? true,
+      accept_equivalent: Boolean(input.draft.allowEquivalent) && (item.acceptEquivalent ?? true),
       allow_partial_supply: input.draft.allowPartialSupply,
       minimum_validity: item.minimumValidity || null,
       ms_registration_required: Boolean(item.msRegistrationRequired),
@@ -476,23 +544,14 @@ export async function createSupabaseQuotation(input: {
     .insert(itemPayload)
     .select("*");
 
-  if (itemError) {
-    await rollbackIncompleteQuotation(supabase, quotationRow.id, tenant.id);
-    throw itemError;
-  }
+  if (itemError) throw itemError;
 
-  let resolvedSuppliers: Record<string, any>[];
-  try {
-    resolvedSuppliers = await Promise.all(
-      input.suppliers.map((supplier) => resolveSupplier(supabase, tenant.id, supplier)),
-    );
-  } catch (error) {
-    await rollbackIncompleteQuotation(supabase, quotationRow.id, tenant.id);
-    throw error;
-  }
+  const resolvedSuppliers = await Promise.all(
+    input.suppliers.map((supplier) => resolveSupplier(supabase, tenant.id, supplier)),
+  );
 
   const expiresAt = input.draft.deadlineAt
-    ? quotationDeadlineToIso(input.draft.deadlineAt)!
+    ? new Date(input.draft.deadlineAt).toISOString()
     : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const { data: sessionRows, error: sessionError } = await supabase
@@ -510,10 +569,7 @@ export async function createSupabaseQuotation(input: {
     })))
     .select("*");
 
-  if (sessionError) {
-    await rollbackIncompleteQuotation(supabase, quotationRow.id, tenant.id);
-    throw sessionError;
-  }
+  if (sessionError) throw sessionError;
 
   if (input.status === "waiting_responses" && (sessionRows ?? []).length > 0) {
     await recordOperationalAudit(supabase, {
@@ -526,7 +582,7 @@ export async function createSupabaseQuotation(input: {
         suppliers: (sessionRows ?? []).map((session) => ({
           supplierId: session.supplier_id,
           name: session.seller_name,
-          hasWhatsapp: Boolean(session.seller_whatsapp),
+          whatsapp: session.seller_whatsapp,
         })),
       },
     });
@@ -537,25 +593,6 @@ export async function createSupabaseQuotation(input: {
     items: (itemRows ?? []).map(mapQuotationItem),
     sessions: (sessionRows ?? []).map(mapSupplierSession),
   };
-}
-
-async function rollbackIncompleteQuotation(
-  supabase: SupabaseClient,
-  quotationId: string,
-  tenantId: string,
-) {
-  const { error } = await supabase
-    .from("quotations")
-    .delete()
-    .eq("id", quotationId)
-    .eq("tenant_id", tenantId);
-  if (error) {
-    console.error("[Supabase] Falha ao reverter cotação incompleta.", {
-      quotationId,
-      tenantId,
-      error,
-    });
-  }
 }
 
 export async function saveSupabasePublicResponse(token: string, input: {
@@ -1014,7 +1051,7 @@ export async function generateAndPersistSupabasePurchaseOrders(quotationId: stri
   if (persisted.length > 0) {
     await recordOperationalAudit(supabase, {
       tenantId: bundle.quotation.tenantId,
-      action: "WhatsApp: pedido vencedor enviado ao vendedor",
+      action: "Pedido vencedor gerado para revisão do comprador",
       entity: "purchase_orders",
       metadata: {
         quotationId,
@@ -1022,7 +1059,8 @@ export async function generateAndPersistSupabasePurchaseOrders(quotationId: stri
           orderId: order.id,
           supplierId: order.supplierId,
           supplierName: order.supplierContactName ?? order.supplierName,
-          hasSupplierWhatsapp: Boolean(order.supplierWhatsapp),
+          supplierWhatsapp: order.supplierWhatsapp,
+          publicToken: order.publicToken,
         })),
       },
     });
@@ -1061,6 +1099,23 @@ function isQuotationGeneratedStatusConstraintError(error: unknown) {
   );
 }
 
+function createPurchaseOrderPublicToken(order: PurchaseOrder) {
+  const quotationPart = normalizeTokenPart(order.quotationId).slice(0, 12);
+  const supplierPart = normalizeTokenPart(
+    order.supplierId ?? order.supplierCompany ?? order.supplierName ?? order.supplierContactName,
+  ).slice(0, 48);
+  return `pedido-${order.moduleType}-${quotationPart}-${supplierPart || "vendedor"}`;
+}
+
+function normalizeTokenPart(value: unknown) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 async function insertPurchaseOrderRow(
   supabase: SupabaseClient,
   order: PurchaseOrder,
@@ -1078,7 +1133,8 @@ async function insertPurchaseOrderRow(
     supplier_whatsapp: supplierRow?.whatsapp ?? supplierResponse?.sellerWhatsapp ?? order.supplierWhatsapp ?? null,
     total_amount: order.totalAmount,
     confirmed_amount: 0,
-    status: "enviado_ao_vendedor",
+    status: "gerado",
+    buyer_review_status: "pending",
   };
 
   const { data, error } = await supabase
@@ -1102,6 +1158,7 @@ async function insertPurchaseOrderRow(
       public_token: payload.public_token,
       total_amount: payload.total_amount,
       status: "draft",
+      buyer_review_status: "pending",
     })
     .select("*")
     .single();
@@ -1119,11 +1176,13 @@ async function insertPurchaseOrderItems(
     tenant_id: item.tenantId,
     purchase_order_id: purchaseOrderId,
     quotation_item_id: item.quotationItemId,
+    distributor_id: item.distributorId ?? null,
     product_name: item.productName,
     offered_product_name: item.offeredProductName,
     laboratory: item.laboratory,
     unit: item.unit,
     quantity_to_buy: item.quantityToBuy,
+    initial_quantity_to_buy: item.quantityToBuy,
     billed_quantity: item.billedQuantity ?? 0,
     missing_quantity: item.missingQuantity ?? item.quantityToBuy,
     packages_to_buy: item.packagesToBuy,
@@ -1315,6 +1374,9 @@ export async function getSupabasePurchaseOrderByToken(token: string) {
       return null;
     }
     if (!orderRow) return null;
+    // Link externo só poderá ser aberto depois da aprovação do comprador.
+    // Pedidos anteriores à funcionalidade foram marcados como approved na migração.
+    if (orderRow.module_type === "pharmacy" && orderRow.buyer_review_status !== "approved") return null;
 
     const { data: quotationRow, error: quotationError } = await supabase
       .from("quotations")
@@ -1379,17 +1441,18 @@ export async function saveSupabasePurchaseOrderReview(
 ) {
   const supabase = db();
   console.info("[PublicOrder] Iniciando salvamento no Supabase", {
-    tokenSuffix: token.slice(-6),
+    token,
     finalize,
     itemCount: itemUpdates.length,
+    payload: itemUpdates,
   });
   const order = await getSupabasePurchaseOrderByToken(token);
   if (!order) {
-    console.warn("[PublicOrder] Pedido não encontrado", { tokenSuffix: token.slice(-6) });
+    console.warn("[PublicOrder] Pedido não encontrado para token", { token });
     throw new Error("Pedido não encontrado ou link expirado.");
   }
   console.info("[PublicOrder] Pedido encontrado", {
-    tokenSuffix: token.slice(-6),
+    token,
     orderId: order.id,
     status: order.status,
     currentItemCount: order.items.length,
@@ -1901,7 +1964,6 @@ export async function createSupabaseQuotationFromWinnerPendingItems(quotationId:
       module_type: originalRow.module_type,
       name: `${originalRow.name} - itens pendentes`,
       pharmacy_id: originalRow.pharmacy_id,
-      buyer_document: originalRow.buyer_document,
       buyer_company_name: originalRow.buyer_company_name,
       destination_client: originalRow.destination_client,
       process_number: originalRow.process_number,
@@ -2064,36 +2126,6 @@ async function resolvePharmacy(supabase: SupabaseClient, tenantId: string) {
   return data;
 }
 
-async function resolveBuyerDocument(
-  supabase: SupabaseClient,
-  tenantId: string,
-  pharmacyDocument?: string | null,
-) {
-  const { data: tenantRow, error: tenantError } = await supabase
-    .from("tenants")
-    .select("cnpj,core_empresa_id")
-    .eq("id", tenantId)
-    .single();
-  if (tenantError) throw tenantError;
-
-  let document = tenantRow.cnpj ?? pharmacyDocument ?? "";
-  if (tenantRow.core_empresa_id) {
-    const { data: coreCompany, error: coreError } = await supabase
-      .from("core_empresas")
-      .select("cnpj")
-      .eq("id", tenantRow.core_empresa_id)
-      .maybeSingle();
-    if (coreError) throw coreError;
-    document = coreCompany?.cnpj ?? document;
-  }
-
-  const digits = String(document).replace(/\D/g, "");
-  if (digits.length !== 14) {
-    throw new Error("O CNPJ da empresa não está cadastrado corretamente.");
-  }
-  return digits;
-}
-
 async function resolveQuotationProducts(
   supabase: SupabaseClient,
   tenantId: string,
@@ -2175,7 +2207,6 @@ function mapQuotation(row: Record<string, any>): Quotation {
     moduleType: row.module_type,
     name: row.name,
     pharmacyId: row.pharmacy_id ?? undefined,
-    buyerDocument: row.buyer_document ?? undefined,
     buyerCompanyName: row.buyer_company_name ?? undefined,
     destinationClient: row.destination_client ?? undefined,
     orgaoDestino: row.orgao_destino ?? undefined,
@@ -2276,7 +2307,7 @@ function mapSupplierResponseItem(row: Record<string, any>): SupplierQuoteRespons
     packageQuantity: row.package_quantity ? Number(row.package_quantity) : undefined,
     packagePrice: row.package_price ? Number(row.package_price) : undefined,
     hasFullQuantity: row.has_full_quantity ?? undefined,
-    availableQuantity: row.available_quantity ? Number(row.available_quantity) : undefined,
+    availableQuantity: row.available_quantity != null ? Number(row.available_quantity) : undefined,
     deliveryDays: row.delivery_days ? Number(row.delivery_days) : undefined,
     deliveryTermText: row.delivery_term_text ?? undefined,
     sellerObservation: row.seller_observation ?? undefined,
@@ -2314,6 +2345,9 @@ function mapPurchaseOrder(row: Record<string, any>, itemRows: Record<string, any
     publicToken: row.public_token,
     totalAmount: Number(row.total_amount ?? 0),
     status: normalizePurchaseOrderStatus(row),
+    buyerReviewStatus: row.buyer_review_status ?? "approved",
+    buyerApprovedAt: row.buyer_approved_at ?? undefined,
+    buyerSentAt: row.buyer_sent_at ?? undefined,
     generatedAt: row.created_at ?? undefined,
     openedAt: row.opened_at ?? undefined,
     completedAt: row.completed_at ?? row.finalizado_em ?? row.conferido_em ?? (row.status === "confirmed" ? row.updated_at : undefined) ?? undefined,
@@ -2329,11 +2363,15 @@ function mapPurchaseOrderItem(item: Record<string, any>): PurchaseOrderItem {
     tenantId: item.tenant_id,
     purchaseOrderId: item.purchase_order_id,
     quotationItemId: item.quotation_item_id,
+    distributorId: item.distributor_id ?? undefined,
     productName: item.product_name,
     offeredProductName: item.offered_product_name ?? undefined,
     laboratory: item.laboratory ?? undefined,
     unit: item.unit,
     quantityToBuy: Number(item.quantity_to_buy ?? 0),
+    initialQuantityToBuy: item.initial_quantity_to_buy != null ? Number(item.initial_quantity_to_buy) : Number(item.quantity_to_buy ?? 0),
+    buyerChangeNote: item.buyer_change_note ?? undefined,
+    supplierConfirmationNote: item.supplier_confirmation_note ?? undefined,
     billedQuantity: item.billed_quantity != null ? Number(item.billed_quantity) : undefined,
     missingQuantity: item.missing_quantity != null ? Number(item.missing_quantity) : undefined,
     packagesToBuy: item.packages_to_buy ? Number(item.packages_to_buy) : undefined,

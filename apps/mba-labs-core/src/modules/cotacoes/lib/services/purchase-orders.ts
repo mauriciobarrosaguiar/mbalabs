@@ -15,10 +15,11 @@ export function generatePurchaseOrders(
   const usedPharmacyItems = new Set<string>();
 
   for (const award of awards) {
-    if (!isOrderableAward(award)) continue;
+    if (award.status !== "winner" && !(award.moduleType === "pharmacy" && award.status === "partial")) continue;
     if (award.moduleType === "pharmacy") {
-      if (usedPharmacyItems.has(award.quotationItemId)) continue;
-      usedPharmacyItems.add(award.quotationItemId);
+      const awardKey = `${award.quotationId}:${award.quotationItemId}:${award.supplierResponseItemId}`;
+      if (usedPharmacyItems.has(awardKey)) continue;
+      usedPharmacyItems.add(awardKey);
     }
 
     const key = award.supplierId ?? award.supplierName;
@@ -41,6 +42,7 @@ export function generatePurchaseOrders(
         tenantId: award.tenantId,
         purchaseOrderId: orderId,
         quotationItemId: award.quotationItemId,
+        distributorId: responseItem?.distributorId,
         productName: quotationItem?.productName ?? "Produto",
         offeredProductName: responseItem?.offeredProductName,
         laboratory: responseItem?.offeredLaboratory,
@@ -77,14 +79,6 @@ export function generatePurchaseOrders(
       items,
     } satisfies PurchaseOrder;
   });
-}
-
-function isOrderableAward(award: QuotationAward) {
-  return (
-    (award.status === "winner" || award.status === "partial") &&
-    award.awardedQuantity > 0 &&
-    award.totalPrice >= 0
-  );
 }
 
 function roundMoney(value: number) {

@@ -3,8 +3,6 @@
 import Link from "next/link";
 import {
   BarChart3,
-  Bell,
-  Building2,
   CheckCircle2,
   ClipboardCheck,
   ClipboardList,
@@ -48,21 +46,17 @@ type NavItem = {
 };
 
 const adminNav: NavItem[] = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/empresas", label: "Empresas", icon: Building2 },
-  { href: "/admin/farmacias", label: "Farmácias", icon: Store },
-  { href: "/admin/licitacoes", label: "Licitações", icon: BarChart3 },
-  { href: "/admin/distribuidoras", label: "Distribuidoras", icon: Truck },
-  { href: "/admin/vendedores", label: "Vendedores", icon: Users },
-  { href: "/admin/produtos", label: "Produtos", icon: Package },
-  { href: "/admin/usuarios", label: "Usuários", icon: Users },
-  { href: "/admin/planos", label: "Planos", icon: ClipboardCheck },
-  { href: "/admin/mensalidades", label: "Mensalidades", icon: ReceiptText },
-  { href: "/admin/pagamentos", label: "Pagamentos", icon: CreditCard },
-  { href: "/admin/configuracoes/pagamentos", label: "Config. pagamentos", icon: CreditCard },
-  { href: "/admin/configuracoes/whatsapp", label: "WhatsApp MBA", icon: MessageCircle },
-  { href: "/admin/configuracoes", label: "Configurações", icon: Settings },
-  { href: "/admin/logs", label: "Logs", icon: ShieldCheck },
+  { href: "/cotacoes/gestao", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/cotacoes/gestao/farmacias", label: "Farmácias / CNPJs", icon: Store },
+  { href: "/cotacoes/gestao/representantes", label: "Representantes", icon: Users },
+  { href: "/cotacoes/gestao/distribuidoras", label: "Distribuidoras", icon: Truck },
+  { href: "/cotacoes/gestao/produtos", label: "Catálogo de medicamentos", icon: Package },
+  { href: "/cotacoes/gestao/usuarios", label: "Usuários", icon: Users },
+  { href: "/cotacoes/gestao/planos", label: "Planos", icon: ClipboardCheck },
+  { href: "/cotacoes/gestao/mensalidades", label: "Mensalidades e pagamentos", icon: ReceiptText },
+  { href: "/cotacoes/gestao/configuracoes/pagamentos", label: "Config. pagamentos", icon: CreditCard },
+  { href: "/cotacoes/gestao/infra-whatsapp", label: "Infraestrutura WhatsApp", icon: MessageCircle },
+  { href: "/cotacoes/gestao/logs", label: "Logs", icon: ShieldCheck },
 ];
 
 const pharmacyNav: NavItem[] = [
@@ -72,9 +66,10 @@ const pharmacyNav: NavItem[] = [
   { href: "/cotacoes/lista-faltas", label: "Lista de faltas", icon: ClipboardList, group: "Farmácia" },
   { href: "/cotacoes/pedidos-gerados-farmacia", label: "Pedidos gerados", icon: ReceiptText, group: "Farmácia" },
   { href: "/cotacoes/produtos", label: "Produtos", icon: Package, group: "Cadastros" },
-  { href: "/cotacoes/fornecedores", label: "Fornecedores", icon: Truck, group: "Cadastros" },
+  { href: "/cotacoes/fornecedores", label: "Representantes", icon: Users, group: "Cadastros" },
   { href: "/cotacoes/distribuidoras", label: "Distribuidoras", icon: Store, group: "Cadastros" },
   { href: "/cotacoes/historico-compras", label: "Histórico de compras", icon: ReceiptText, group: "Gestão" },
+  { href: "/cotacoes/configuracoes/whatsapp", label: "WhatsApp próprio", icon: MessageCircle, group: "Gestão" },
   { href: "/cotacoes/configuracoes", label: "Configurações", icon: Settings, group: "Gestão" },
 ];
 
@@ -129,7 +124,7 @@ export function AppShell({
         </nav>
         <div className="border-t border-[#dce8e3] px-5 py-4">
           <p className="text-xs font-medium text-[#60756d]">
-            {mode === "admin" ? "MBA Labs · Admin" : "MBA Labs · v2"}
+            {mode === "admin" ? "MBA Cotações · Admin" : "MBA Cotações"}
           </p>
           {tenantName && mode === "admin" ? (
             <p className="mt-1 truncate text-xs text-muted-foreground">{tenantName}</p>
@@ -150,13 +145,6 @@ export function AppShell({
               </h1>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <button
-                type="button"
-                aria-label="Notificações"
-                className="grid size-9 place-items-center rounded-xl border border-[#dbe6e1] bg-white text-[#60756d] shadow-sm transition-colors hover:bg-[#f1f8f5] hover:text-[#0a6f5d]"
-              >
-                <Bell className="size-4" />
-              </button>
               {mode === "admin" ? <ModeBadge /> : null}
               <form action="/sair" method="post">
                 <Button variant="outline" size="lg" type="submit" className="h-9 gap-2 border-[#dbe6e1] bg-white px-3 text-[#274239] shadow-sm">
@@ -310,6 +298,15 @@ function GroupedNav({
     groups.set(group, [...(groups.get(group) ?? []), item]);
   }
 
+  // Um único menu ativo: ganha a rota mais específica. "Dashboard" não fica
+  // selecionado em todas as subpáginas de /cotacoes/gestao.
+  const activeHref = nav
+    .filter((item) => isActive(currentPath, item.href))
+    .reduce<string | undefined>(
+      (best, item) => !best || item.href.length > best.length ? item.href : best,
+      undefined,
+    );
+
   return (
     <>
       {Array.from(groups.entries()).map(([group, items]) => (
@@ -323,7 +320,7 @@ function GroupedNav({
             <NavLink
               key={item.href}
               item={item}
-              active={isActive(currentPath, item.href)}
+              active={activeHref === item.href}
               variant={variant}
             />
           ))}
@@ -334,17 +331,12 @@ function GroupedNav({
 }
 
 function isActive(currentPath: string, href: string) {
-  if (href === "/admin" || href === "/cotacoes") return currentPath === href;
+  if (href === "/admin" || href === "/cotacoes" || href === "/cotacoes/gestao") return currentPath === href;
   return currentPath === href || currentPath.startsWith(`${href}/`);
 }
 
 function getAppNav(role?: UserRole, tenantType?: CustomerType) {
-  if (role === "SUPER_ADMIN") {
-    return [
-      ...mergeNav(pharmacyNav, biddingNav),
-      { href: "/cotacoes/configuracoes/whatsapp", label: "WhatsApp MBA", icon: MessageCircle, group: "Gestão" },
-    ];
-  }
+  if (role === "SUPER_ADMIN") return adminNav;
   if (role === "VENDEDOR_EXTERNO") return supplierNav;
   if (tenantType === "pharmacy") return pharmacyNav;
   if (tenantType === "distributor_bidding") return biddingNav;

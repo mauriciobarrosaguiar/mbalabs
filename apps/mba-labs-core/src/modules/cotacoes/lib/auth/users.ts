@@ -94,7 +94,7 @@ export async function listTenantOptions(): Promise<TenantOption[]> {
   const supabase = createSupabaseAdminClient();
   const { data, error } = await supabase
     .from("tenants")
-    .select("id, nome_fantasia, tipo_cliente")
+    .select("id, nome_fantasia, tipo_cliente, cnpj")
     .order("nome_fantasia", { ascending: true });
 
   if (error || !data) {
@@ -102,7 +102,7 @@ export async function listTenantOptions(): Promise<TenantOption[]> {
     return [];
   }
 
-  return (data as TenantOptionRow[]).map((tenant) => ({
+  return (data as Array<TenantOptionRow & { cnpj?: string }>).filter(t=>!String(t.cnpj??"").startsWith("CORE-")).map((tenant) => ({
     id: tenant.id,
     name: tenant.nome_fantasia,
     type: tenant.tipo_cliente,

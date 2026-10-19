@@ -36,7 +36,6 @@ import {
 } from "@/modules/cotacoes/lib/labels";
 import { saveDemoQuotationToLocalStorage } from "@/modules/cotacoes/lib/data/demo-repository";
 import { formatDateBR, formatInteger } from "@/modules/cotacoes/lib/formatters";
-import { dateInputValue } from "@/modules/cotacoes/lib/deadline";
 import type { Laboratory, ModuleType, Product, Supplier } from "@/modules/cotacoes/lib/types";
 
 interface QuotationDraft {
@@ -212,7 +211,7 @@ export function NewQuotationForm({
       buyerObservation: item.notes,
     }));
   });
-  const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>(() => supplierOptions.map((supplier) => supplier.id));
+  const [selectedSupplierIds, setSelectedSupplierIds] = useState<string[]>([]);
   const [links, setLinks] = useState<GeneratedLink[]>([]);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -330,7 +329,7 @@ export function NewQuotationForm({
       return;
     }
     if (step === 3 && selectedSupplierIds.length === 0) {
-      toast.error("Selecione pelo menos 1 fornecedor.");
+      toast.error("Selecione pelo menos 1 representante.");
       return;
     }
     goToStep(step + 1);
@@ -355,7 +354,7 @@ export function NewQuotationForm({
       return;
     }
     if (selectedSuppliers.length === 0) {
-      toast.error("Selecione pelo menos 1 fornecedor antes de enviar a cotação.");
+      toast.error("Selecione pelo menos 1 representante antes de enviar a cotação.");
       return;
     }
 
@@ -564,7 +563,7 @@ function isLocalBrowser() {
 function getDefaultDeadline() {
   const date = new Date();
   date.setDate(date.getDate() + 7);
-  return dateInputValue(date);
+  return date.toISOString().slice(0, 10);
 }
 
 function isPastDeadline(value: string) {
@@ -1091,9 +1090,9 @@ function StepSuppliers({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Fornecedores</CardTitle>
+        <CardTitle>Representantes</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Selecione os vendedores/fornecedores que receberão esta cotação.
+          Selecione somente os representantes que devem receber esta cotação. Por segurança, ninguém vem selecionado.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -1102,6 +1101,10 @@ function StepSuppliers({
             Nenhum fornecedor ativo encontrado. Cadastre fornecedores antes de enviar uma cotação real.
           </div>
         ) : null}
+        <div role="status" aria-live="polite" className={`rounded-md border px-3 py-2 text-sm ${selectedSupplierIds.length ? "border-teal-200 bg-teal-50 text-teal-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+          <strong>{selectedSupplierIds.length} de {suppliers.length}</strong> representante(s) selecionado(s) para receber o link.
+          {selectedSupplierIds.length === 0 ? " Escolha pelo menos um antes de continuar." : " Confira os destinatários na próxima etapa."}
+        </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={() => setSelectedSupplierIds(suppliers.map((supplier) => supplier.id))}>Selecionar todos</Button>
           <Button type="button" variant="outline" onClick={() => setSelectedSupplierIds([])}>Limpar seleção</Button>
@@ -1114,10 +1117,13 @@ function StepSuppliers({
                 type="button"
                 key={supplier.id}
                 onClick={() => toggle(supplier.id)}
-                className={`rounded-lg border p-4 text-left transition ${
+                aria-pressed={checked}
+                aria-label={`${supplier.nome}: ${checked ? "selecionado" : "não selecionado"}`}
+                className={`rounded-lg border p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 ${
                   checked ? "border-teal-600 bg-teal-50" : "border-slate-200 bg-white hover:border-teal-300"
                 }`}
               >
+                <span className="mb-2 block text-xs font-semibold text-teal-800">{checked ? "✓ Selecionado para envio" : "Não selecionado"}</span>
                 <span className="block font-semibold text-slate-950">{supplier.nome}</span>
                 <span className="mt-1 block text-sm text-slate-600">{supplier.empresa}</span>
                 <span className="mt-1 block text-sm text-slate-500">{supplier.whatsapp} · {supplier.tipo}</span>

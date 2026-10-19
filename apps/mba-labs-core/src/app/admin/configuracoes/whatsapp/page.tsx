@@ -1,18 +1,6 @@
-import { WhatsappMbaCotacoesSettingsPage } from "@/modules/cotacoes/components/settings/whatsapp-settings-page";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
-export default async function AdminWhatsappMbaCotacoesPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | undefined>>;
-}) {
-  return (
-    <WhatsappMbaCotacoesSettingsPage
-      searchParams={searchParams}
-      currentPath="/admin/configuracoes/whatsapp"
-      subtitle="Configurações do Admin Master"
-    />
-  );
+// Compatibilidade com link antigo do admin master: conexão é feita no cliente.
+export default function AdminWhatsappMbaCotacoesPage() {
+  redirect("/cotacoes/gestao/infra-whatsapp");
 }

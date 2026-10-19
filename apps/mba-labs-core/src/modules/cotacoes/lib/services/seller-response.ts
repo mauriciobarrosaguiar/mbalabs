@@ -121,20 +121,26 @@ export function calculateSellerRow(
     extraDiscount: row.extraDiscount,
     manualNetPrice: row.netPrice,
   });
-  const hasStock = row.hasStock !== "nao";
-  const attendedQuantity = netPrice > 0 && hasStock ? item.requestedQuantity : 0;
+  // Campo vazio preserva a resposta legada "somente preço", que representa
+  // disponibilidade integral não confirmada. Quando preenchida, a quantidade
+  // informada é explícita e deve orientar o julgamento.
+  const noStock = row.hasStock === "nao";
+  const explicitQuantity = typeof row.attendedQuantity === "string" && row.attendedQuantity.trim() !== "";
+  const attendedQuantity = noStock || netPrice <= 0
+    ? 0
+    : explicitQuantity ? parseNumberInput(row.attendedQuantity) : item.requestedQuantity;
   const itemTotal = calculateItemTotal(netPrice, attendedQuantity);
 
   return {
     grossPrice,
     extraDiscount,
-    netPrice,
+    netPrice: noStock ? 0 : netPrice,
     attendedQuantity,
     itemTotal,
-    convertedUnitPrice: netPrice,
+    convertedUnitPrice: noStock ? 0 : netPrice,
     packagesToBuy: attendedQuantity > 0 ? Math.ceil(attendedQuantity) : 0,
     quantityShortage: Math.max(item.requestedQuantity - attendedQuantity, 0),
-    status: resolveStatus(netPrice, attendedQuantity, item.requestedQuantity, hasStock),
+    status: noStock ? "sem_estoque" : resolveStatus(netPrice, attendedQuantity, item.requestedQuantity, true),
   };
 }
 
@@ -176,10 +182,12 @@ export function validateSellerResponse({
   moduleType,
   items,
   rows,
+  allowEquivalent = true,
 }: {
   moduleType: ModuleType;
   items: QuotationItem[];
   rows: SellerResponseRowDraft[];
+  allowEquivalent?: boolean;
 }) {
   const errors: string[] = [];
   const respondedRows = rows.filter((row) => {
@@ -192,17 +200,36 @@ export function validateSellerResponse({
   }
 
   if (moduleType === "pharmacy") {
-    const validResponseRows = rows.filter((row) => {
+    const pricedRows = rows.filter((row) => {
       const item = items.find((candidate) => candidate.id === row.quotationItemId);
-      if (!item) return false;
-      const calculation = calculateSellerRow(moduleType, item, row);
-      return calculation.netPrice > 0 || calculation.status === "sem_estoque";
+      return item ? calculateSellerRow(moduleType, item, row).status !== "sem_resposta"
+        && calculateSellerRow(moduleType, item, row).status !== "sem_estoque" : false;
     });
+    const explicitNoStockRows = rows.filter((row) =>
+      row.hasStock === "nao" && items.some((item) => item.id === row.quotationItemId));
 
-    if (validResponseRows.length === 0) {
-      errors.push("Informe o preço ou marque sem estoque em pelo menos um item para enviar a resposta.");
+    if (pricedRows.length === 0 && explicitNoStockRows.length === 0) {
+      errors.push("Informe o preço de pelo menos um item ou marque um produto como sem estoque.");
     }
-
+    for (const row of rows) {
+      const item = items.find((candidate) => candidate.id === row.quotationItemId);
+      if (!item) continue;
+      const offer = row.offeredProductName?.trim();
+      if (offer && offer.toLocaleLowerCase("pt-BR") !== item.productName.trim().toLocaleLowerCase("pt-BR") &&
+        (!item.acceptEquivalent || !allowEquivalent)) {
+        errors.push(`${item.productName}: a farmácia não autorizou produto equivalente.`);
+      }
+      if (row.hasStock === "nao") continue;
+      const hasPrice = calculateSellerRow(moduleType, item, row).netPrice > 0;
+      if (row.attendedQuantity?.trim() && hasPrice) {
+        const quantity = parseNumberInput(row.attendedQuantity);
+        if (!Number.isFinite(quantity) || quantity <= 0 || quantity > item.requestedQuantity) {
+          errors.push(`${item.productName}: a quantidade deve ser maior que zero e não pode superar a quantidade solicitada.`);
+        } else if (!item.allowPartialSupply && quantity < item.requestedQuantity) {
+          errors.push(`${item.productName}: a farmácia não permite entrega parcial deste item.`);
+        }
+      }
+    }
     return errors;
   }
 

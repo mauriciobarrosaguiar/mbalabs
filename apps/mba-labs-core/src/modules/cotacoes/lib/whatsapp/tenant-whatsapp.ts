@@ -1,0 +1,261 @@
+import "server-only";
+import * as QRCode from "qrcode";
+
+import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/server";
+import { isTenantSuspended } from "@/modules/cotacoes/lib/auth/session";
+
+type EvolutionConfig = {
+  id: string;
+  api_url: string | null;
+  api_token: string | null;
+  provider: string;
+  ativo: boolean;
+};
+type SessionRow = { tenant_id: string; instance_name: string; status: string };
+type Result = { connected: boolean; status: string; instanceName: string; qr?: string; message?: string };
+
+function db() { return createSupabaseAdminClient(); }
+
+async function getInfrastructure() {
+  const supabase = db();
+  const { data, error } = await supabase.from("cot_whatsapp_global_config")
+    .select("id,provider,api_url,api_token,ativo")
+    .eq("ativo", true).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+  if (error) throw error;
+  const config = data as EvolutionConfig | null;
+  if (config?.provider !== "evolution_api" || !config.api_url || !config.api_token || !config.ativo) {
+    throw new Error("Infraestrutura Evolution API não configurada pelo administrador. Não será utilizado o WhatsApp central.");
+  }
+  const url = new URL(config.api_url.trim());
+  if (url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname))) {
+    throw new Error("A URL da infraestrutura WhatsApp precisa utilizar HTTPS.");
+  }
+  // A infraestrutura global é gerenciada apenas no servidor; clientes não podem trocar seu endereço nem ler a chave.
+  const cleanPath = url.pathname.replace(/\/message\/sendText.*$/, "").replace(/\/+$/, "");
+  // O portal já possuía uma chave de ambiente que não era utilizada por este
+  // módulo. Verificar apenas chaves destinadas ao MESMO host impede enviar um
+  // segredo de outro aplicativo a um serviço externo inesperado.
+  const environmentUrl = process.env.COTACOES_EVOLUTION_API_URL?.trim();
+  const environmentKey = process.env.COTACOES_EVOLUTION_API_KEY?.trim();
+  let verifiedAlternateKey: string | undefined;
+  if (environmentUrl && environmentKey && environmentKey !== config.api_token) {
+    try {
+      const candidateUrl = new URL(environmentUrl);
+      if (candidateUrl.origin === url.origin && candidateUrl.pathname.replace(/\/+$/, "") === cleanPath) {
+        verifiedAlternateKey = environmentKey;
+      }
+    } catch {
+      // URL inválida não autoriza teste de outra credencial.
+    }
+  }
+  return {
+    base: url.origin + cleanPath, key: config.api_token,
+    alternateKey: verifiedAlternateKey, configId: config.id,
+  };
+}
+
+class EvolutionHttpError extends Error {
+  constructor(readonly statusCode: number) {
+    super(`O servidor WhatsApp não concluiu a operação (HTTP ${statusCode}).`);
+  }
+}
+
+async function evolution(
+  path: string,
+  init: { method?: "GET" | "POST" | "DELETE"; body?: unknown; timeoutMs?: number } = {},
+) {
+  const config = await getInfrastructure();
+  const timeoutMs = init.timeoutMs ?? 15000;
+  // Não repetir requisições que criam instâncias nem mensagens. A tentativa
+  // alternativa ocorre exclusivamente quando o servidor respondeu 401: nesse
+  // caso, a primeira operação foi recusada antes de ser executada.
+  async function requestWithKey(key: string) {
+    try {
+      return await fetch(config.base + path, {
+        method: init.method ?? "GET",
+        headers: { apikey: key, "Content-Type": "application/json" },
+        body: init.body ? JSON.stringify(init.body) : undefined,
+        cache: "no-store",
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (error) {
+      const details = error instanceof Error ? error.message.toLowerCase() : "";
+      if (details.includes("timeout") || details.includes("timed out")) {
+        throw new Error("A Evolution API demorou a responder. Aguarde um minuto para o servidor iniciar e tente novamente.");
+      }
+      throw new Error("Não foi possível acessar a Evolution API. Verifique a disponibilidade do serviço no Render.");
+    }
+  }
+  let response = await requestWithKey(config.key);
+  if (response.status === 401 && config.alternateKey) {
+    response = await requestWithKey(config.alternateKey);
+    if (response.ok) {
+      // Credencial validada com sucesso no próprio host da Evolution API.
+      // Sincroniza o banco, usado pelo envio de cotações, para que conexão e
+      // disparos posteriores utilizem exatamente a mesma chave.
+      const { error } = await db().from("cot_whatsapp_global_config").update({
+        api_token: config.alternateKey,
+        updated_at: new Date().toISOString(),
+        last_error: null,
+      }).eq("id", config.configId);
+      if (error) console.error("[Cotacoes WhatsApp] Falha ao sincronizar credencial válida (sem expor segredo).");
+    }
+  }
+  if (response.status === 401) {
+    throw new Error("A Evolution API recusou a autenticação (HTTP 401). Verifique se AUTHENTICATION_API_KEY no Render é igual à credencial do MBA Cotações. Nenhum WhatsApp foi conectado.");
+  }
+  let payload: Record<string, any> = {};
+  try { payload = await response.json(); } catch {}
+  if (!response.ok) throw new EvolutionHttpError(response.status);
+  return payload;
+}
+
+async function extractConnectionQr(payload: Record<string, any> | undefined): Promise<string | undefined> {
+  if (!payload) return undefined;
+  const image = [payload.base64, payload.qrcode?.base64, payload.qrcode?.image]
+    .find((value) => typeof value === "string" && value.length > 100);
+  const directQr = typeof image === "string" &&
+    (image.startsWith("data:image/png;base64,") || /^[A-Za-z0-9+/=]+$/.test(image))
+      ? (image.startsWith("data:") ? image : `data:image/png;base64,${image}`)
+      : undefined;
+  const code = [payload.code, payload.qrcode?.code, payload.qrcode]
+    .find((value) => typeof value === "string" && value.startsWith("2@"));
+  return directQr ?? (code ? await QRCode.toDataURL(code, { width: 320, margin: 2 }) : undefined);
+}
+
+function connectionState(payload: any) {
+  return String(payload?.instance?.state ?? payload?.instance?.connectionStatus ??
+    payload?.state ?? payload?.status ?? payload?.connectionState ?? "desconectado").toLowerCase();
+}
+function connected(state: string) { return ["open", "connected", "online", "conectado"].includes(state); }
+
+async function getTenant(tenantId: string) {
+  const { data, error } = await db().from("tenants").select("id,status").eq("id", tenantId).maybeSingle();
+  if (error) throw error;
+  if (!data || isTenantSuspended(data.status)) throw new Error("Empresa inexistente ou suspensa.");
+}
+
+async function sessionFor(tenantId: string) {
+  const { data, error } = await db().from("cot_whatsapp_tenant_sessions")
+    .select("tenant_id,instance_name,status").eq("tenant_id", tenantId).maybeSingle();
+  if (error) throw error;
+  return data as SessionRow | null;
+}
+
+async function updateState(tenantId: string, status: string, message?: string | null) {
+  const now = new Date().toISOString();
+  const payload: Record<string, unknown> = {
+    status, last_checked_at: now, updated_at: now, last_error: message ?? null,
+  };
+  if (status === "conectado") payload.last_connected_at = now;
+  const { error } = await db().from("cot_whatsapp_tenant_sessions").update(payload).eq("tenant_id", tenantId);
+  if (error) throw error;
+}
+
+export async function getTenantWhatsAppStatus(tenantId: string): Promise<Result> {
+  await getTenant(tenantId);
+  const existing = await sessionFor(tenantId);
+  if (!existing) return { connected: false, status: "nao_configurado", instanceName: "" };
+  try {
+    const state = connectionState(await evolution(`/instance/connectionState/${encodeURIComponent(existing.instance_name)}`));
+    const ok = connected(state);
+    await updateState(tenantId, ok ? "conectado" : "desconectado");
+    return { connected: ok, status: ok ? "conectado" : "desconectado", instanceName: existing.instance_name };
+  } catch {
+    // Nunca transformar erros em "conectado"; não há fallback para o número central.
+    await updateState(tenantId, "erro", "Não foi possível verificar a instância.");
+    return { connected: false, status: "erro", instanceName: existing.instance_name, message: "Não foi possível confirmar a conexão com a Evolution API. Verifique a infraestrutura e tente novamente." };
+  }
+}
+
+/**
+ * Testa as credenciais e o estado da Evolution API sem criar ou listar sessões
+ * para o navegador. Somente informações booleanas são retornadas ao cliente.
+ */
+/**
+ * Verificação exclusiva da infraestrutura do administrador.
+ * Não conecta contas, não cria instâncias e não retorna dados das farmácias.
+ * A autorização é aplicada na server action que chama esta função.
+ */
+export async function verifyGlobalEvolutionInfrastructure() {
+  await evolution("/instance/fetchInstances", { timeoutMs: 85000 });
+  return true;
+}
+
+export async function diagnoseTenantWhatsAppInfrastructure(tenantId: string) {
+  await getTenant(tenantId);
+  await evolution("/instance/fetchInstances", { timeoutMs: 85000 });
+  return {
+    reachable: true,
+    message: "Evolution API respondeu com sucesso e a chave de infraestrutura foi aceita. Agora você pode conectar o WhatsApp desta farmácia.",
+  };
+}
+
+export async function connectTenantWhatsApp(tenantId: string): Promise<Result> {
+  await getTenant(tenantId);
+  const previous = await sessionFor(tenantId);
+  // Nome exclusivo derivado do UUID do tenant; nunca usar o número central ou o
+  // identificador de outra empresa.
+  const instanceName = previous?.instance_name ?? `mbacot_${tenantId.replace(/-/g, "").slice(0,28)}`;
+  let createdPayload: Record<string, any> | undefined;
+
+  if (!previous) {
+    try {
+      // A inicialização de uma instância Render gratuita pode exceder 1 minuto;
+      // 12s interrompia a primeira conexão antes de entregar o QR Code.
+      createdPayload = await evolution("/instance/create", {
+        method: "POST",
+        body: { instanceName, integration: "WHATSAPP-BAILEYS", qrcode: true },
+        timeoutMs: 95000,
+      });
+    } catch (error) {
+      // Uma chamada anterior pode ter criado a instância na Evolution API e
+      // expirado antes que a resposta fosse recebida. Somente para este nome
+      // derivado do tenant aceitamos 409 para recuperar o pareamento.
+      if (!(error instanceof EvolutionHttpError && error.statusCode === 409)) throw error;
+    }
+    const { error } = await db().from("cot_whatsapp_tenant_sessions").upsert({
+      tenant_id: tenantId, instance_name: instanceName, status: "aguardando_qr",
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "tenant_id" });
+    if (error) throw error;
+  }
+
+  if (previous?.status === "conectado") {
+    const status = await getTenantWhatsAppStatus(tenantId);
+    if (status.connected) return status;
+  }
+
+  // A resposta de /instance/create já pode trazer o QR; não fazer uma segunda
+  // requisição longa desnecessariamente quando ele estiver disponível.
+  const directQr = await extractConnectionQr(createdPayload);
+  const qr = directQr ?? await extractConnectionQr(
+    await evolution(`/instance/connect/${encodeURIComponent(instanceName)}`, { timeoutMs: 95000 }),
+  );
+  await updateState(tenantId, "aguardando_qr");
+  return {
+    connected: false, status: "aguardando_qr", instanceName,
+    qr,
+    message: qr
+      ? "Escaneie o QR Code no WhatsApp da empresa em Aparelhos conectados."
+      : "A instância respondeu, mas ainda não entregou QR Code. Aguarde alguns segundos e clique novamente em Conectar meu WhatsApp.",
+  };
+}
+
+export async function disconnectTenantWhatsApp(tenantId: string) {
+  await getTenant(tenantId);
+  const row = await sessionFor(tenantId);
+  if (!row) throw new Error("Nenhuma conexão WhatsApp cadastrada.");
+  await evolution(`/instance/logout/${encodeURIComponent(row.instance_name)}`, { method: "DELETE" });
+  await updateState(tenantId, "desconectado");
+  return { ok: true };
+}
+
+export async function getTenantWhatsAppSendingConfig(tenantId: string) {
+  const row = await sessionFor(tenantId);
+  if (!row) throw new Error("Conecte o WhatsApp desta empresa em Configurações. O número central não será utilizado.");
+  const status = await getTenantWhatsAppStatus(tenantId);
+  if (!status.connected) throw new Error("O WhatsApp da empresa está desconectado. Reconecte-o em Configurações.");
+  const config = await getInfrastructure();
+  return { base: config.base, key: config.key, instance: row.instance_name };
+}

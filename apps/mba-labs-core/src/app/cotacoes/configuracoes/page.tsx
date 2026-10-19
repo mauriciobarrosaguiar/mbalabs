@@ -45,8 +45,8 @@ export default async function CotacoesConfiguracoesPage() {
           <Card className="border-teal-200 bg-teal-50/50">
             <CardHeader><CardTitle className="flex items-center gap-2 text-teal-900"><MessageCircle className="h-5 w-5" />WhatsApp MBA</CardTitle></CardHeader>
             <CardContent className="space-y-3 text-sm text-teal-900">
-              <p>Configure o número central oficial do MBA Cotações para enviar links aos vendedores automaticamente.</p>
-              <Button asChild><Link href="/cotacoes/configuracoes/whatsapp">Abrir WhatsApp MBA</Link></Button>
+              <p>Conecte o WhatsApp da sua própria empresa via QR Code. As cotações sairão pelo número da farmácia, não pelo número central.</p>
+              <Button asChild><Link href="/cotacoes/configuracoes/whatsapp">Conectar meu WhatsApp</Link></Button>
             </CardContent>
           </Card>
         </div>

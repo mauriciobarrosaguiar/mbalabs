@@ -220,7 +220,6 @@ export interface Quotation {
   moduleType: ModuleType;
   name: string;
   pharmacyId?: string;
-  buyerDocument?: string;
   buyerCompanyName?: string;
   destinationClient?: string;
   orgaoDestino?: string;
@@ -383,6 +382,9 @@ export interface PurchaseOrder {
   publicToken: string;
   totalAmount: number;
   status: PurchaseOrderStatus;
+  buyerReviewStatus?: "pending" | "approved";
+  buyerApprovedAt?: string;
+  buyerSentAt?: string;
   generatedAt?: string;
   openedAt?: string;
   completedAt?: string;
@@ -395,11 +397,15 @@ export interface PurchaseOrderItem {
   tenantId: string;
   purchaseOrderId: string;
   quotationItemId: string;
+  distributorId?: string;
   productName: string;
   offeredProductName?: string;
   laboratory?: string;
   unit: UnitType | string;
   quantityToBuy: number;
+  initialQuantityToBuy?: number;
+  buyerChangeNote?: string;
+  supplierConfirmationNote?: string;
   billedQuantity?: number;
   missingQuantity?: number;
   packagesToBuy?: number;

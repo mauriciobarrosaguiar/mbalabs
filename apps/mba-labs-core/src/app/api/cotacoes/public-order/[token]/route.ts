@@ -31,9 +31,10 @@ export async function POST(
       : [];
 
     console.info("[PublicOrder] Payload recebido", {
-      tokenSuffix: token.slice(-6),
+      token,
       action,
       itemCount: items.length,
+      payload: body,
     });
 
     const useDemo = await shouldUseDemoForToken(token);
@@ -42,15 +43,12 @@ export async function POST(
       : await runSupabaseAction(token, action, items);
 
     if (!order) {
-      console.warn("[PublicOrder] Pedido não encontrado após ação", {
-        tokenSuffix: token.slice(-6),
-        action,
-      });
+      console.warn("[PublicOrder] Pedido não encontrado após ação", { token, action });
       return NextResponse.json({ error: notFoundMessage }, { status: 404 });
     }
 
     console.info("[PublicOrder] Pedido atualizado", {
-      tokenSuffix: token.slice(-6),
+      token,
       action,
       orderId: order.id,
       status: order.status,

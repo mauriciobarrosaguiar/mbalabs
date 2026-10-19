@@ -1,4 +1,5 @@
 // @ts-nocheck
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import "server-only";
 
 import { createSupabaseAdminClient, hasSupabaseAdminConfig, hasSupabaseConfig } from "@/modules/cotacoes/lib/supabase/server";
@@ -1053,7 +1054,6 @@ function mapQuotation(row: Record<string, any>): Quotation {
     moduleType: row.module_type,
     name: row.name,
     pharmacyId: row.pharmacy_id ?? undefined,
-    buyerDocument: row.buyer_document ?? undefined,
     buyerCompanyName: row.buyer_company_name ?? undefined,
     destinationClient: row.destination_client ?? undefined,
     orgaoDestino: row.orgao_destino ?? undefined,
@@ -1079,7 +1079,6 @@ function mapQuotationToDb(input: Partial<Quotation>) {
     module_type: input.moduleType,
     name: input.name,
     pharmacy_id: input.pharmacyId || null,
-    buyer_document: input.buyerDocument ? String(input.buyerDocument).replace(/\D/g, "") : null,
     buyer_company_name: input.buyerCompanyName || null,
     destination_client: input.destinationClient || null,
     orgao_destino: input.orgaoDestino || null,
@@ -1242,7 +1241,7 @@ function mapSupplierResponseItem(row: Record<string, any>): SupplierQuoteRespons
     packageQuantity: row.package_quantity ? Number(row.package_quantity) : undefined,
     packagePrice: row.package_price ? Number(row.package_price) : undefined,
     hasFullQuantity: row.has_full_quantity ?? undefined,
-    availableQuantity: row.available_quantity ? Number(row.available_quantity) : undefined,
+    availableQuantity: row.available_quantity != null ? Number(row.available_quantity) : undefined,
     deliveryDays: row.delivery_days ? Number(row.delivery_days) : undefined,
     deliveryTermText: row.delivery_term_text ?? undefined,
     sellerObservation: row.seller_observation ?? undefined,
@@ -1280,6 +1279,9 @@ function mapPurchaseOrder(row: Record<string, any>, itemRows: Record<string, any
     publicToken: row.public_token,
     totalAmount: Number(row.total_amount ?? 0),
     status: normalizePurchaseOrderStatus(row),
+    buyerReviewStatus: row.buyer_review_status ?? "approved",
+    buyerApprovedAt: row.buyer_approved_at ?? undefined,
+    buyerSentAt: row.buyer_sent_at ?? undefined,
     generatedAt: row.created_at ?? undefined,
     openedAt: row.opened_at ?? undefined,
     completedAt: row.completed_at ?? row.finalizado_em ?? row.conferido_em ?? (row.status === "confirmed" ? row.updated_at : undefined) ?? undefined,
@@ -1300,6 +1302,9 @@ function mapPurchaseOrderItem(item: Record<string, any>): PurchaseOrderItem {
     laboratory: item.laboratory ?? undefined,
     unit: item.unit ?? "UN",
     quantityToBuy: Number(item.quantity_to_buy ?? 0),
+    initialQuantityToBuy: item.initial_quantity_to_buy != null ? Number(item.initial_quantity_to_buy) : Number(item.quantity_to_buy ?? 0),
+    buyerChangeNote: item.buyer_change_note ?? undefined,
+    supplierConfirmationNote: item.supplier_confirmation_note ?? undefined,
     billedQuantity: item.billed_quantity != null ? Number(item.billed_quantity) : undefined,
     missingQuantity: item.missing_quantity != null ? Number(item.missing_quantity) : undefined,
     packagesToBuy: item.packages_to_buy ? Number(item.packages_to_buy) : undefined,

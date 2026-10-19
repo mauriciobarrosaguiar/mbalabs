@@ -30,6 +30,7 @@ import {
   formatCurrencyBRInput,
   formatCurrencyBRL,
   formatDateBR,
+  formatDeadlineDateBR,
   formatInteger,
 } from "@/modules/cotacoes/lib/formatters";
 import { productTypeLabels, unitLabels } from "@/modules/cotacoes/lib/labels";
@@ -337,7 +338,7 @@ export function SellerResponseForm({
         {!isBidding ? (
           <div className="mb-4 rounded-md bg-teal-50 p-3 text-sm text-teal-900">
             <p className="font-semibold">{buyerName ?? "Cliente"} · {quotationName ?? "Cotação"}</p>
-            <p className="mt-1">Informe os preços dos produtos abaixo{deadlineAt ? ` até ${formatDateBR(deadlineAt)}` : ""}.</p>
+            <p className="mt-1">Informe os preços dos produtos abaixo{deadlineAt ? ` até ${formatDeadlineDateBR(deadlineAt)}` : ""}.</p>
           </div>
         ) : null}
         <div className="grid gap-3 md:grid-cols-4">
@@ -392,7 +393,7 @@ export function SellerResponseForm({
         <p className="text-sm text-muted-foreground">
           {isBidding
             ? "Dados do comprador ficam travados. Você responde apenas sua oferta, preço, quantidade, prazo e observação."
-            : "Dados da farmácia ficam travados. Você informa disponibilidade, preço e observação opcional."}
+            : "Dados da farmácia ficam travados. Informe preço e, quando souber, estoque e quantidade disponível. Observação e equivalente autorizado são opcionais."}
         </p>
         <div className="flex flex-col gap-2 sm:flex-row">
           {!isBidding ? (
@@ -450,9 +451,9 @@ function PharmacyDesktopGrid({
           <TableHead className="min-w-56">Descrição</TableHead>
           <TableHead>Lab. solicitado</TableHead>
           <TableHead>Qtd</TableHead>
-          <TableHead>Estoque</TableHead>
           <TableHead>Preço</TableHead>
-          <TableHead className="min-w-52">Obs.</TableHead>
+          <TableHead className="min-w-52">Estoque / qtd. disponível</TableHead>
+          <TableHead className="min-w-52">Produto alternativo / obs.</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -467,30 +468,92 @@ function PharmacyDesktopGrid({
               <TableCell>{item.requestedLaboratory ?? "Qualquer"}</TableCell>
               <TableCell title={getUnitLabel(item.requestedUnit)}>{formatInteger(item.requestedQuantity)}</TableCell>
               <TableCell>
-                <StockSelect
-                  value={row.hasStock}
-                  disabled={locked}
-                  onChange={(value) => updateRow(item.id, {
-                    hasStock: value,
-                    ...(value === "nao" ? { netPrice: "" } : {}),
-                  })}
-                />
-              </TableCell>
-              <TableCell>
                 <PriceInput
                   value={row.netPrice}
-                  disabled={locked || row.hasStock === "nao"}
+                  disabled={locked}
                   onChange={(value) => updateRow(item.id, { netPrice: value })}
                 />
               </TableCell>
               <TableCell>
-                <CompactInput value={row.observation} disabled={locked} onChange={(value) => updateRow(item.id, { observation: value })} />
+                <PharmacyStockInputs item={item} row={row} locked={locked} onChange={(patch) => updateRow(item.id, patch)} />
+              </TableCell>
+              <TableCell>
+                {item.acceptEquivalent ? (
+                  <CompactInput
+                    value={row.offeredProductName === item.productName ? "" : row.offeredProductName}
+                    disabled={locked}
+                    placeholder="Outro produto (se equivalente)"
+                    onChange={(value) => updateRow(item.id, { offeredProductName: value || item.productName })}
+                  />
+                ) : (
+                  <p className="mb-1 text-xs text-slate-500">Equivalente não autorizado</p>
+                )}
+                <CompactInput value={row.observation} placeholder="Observação opcional" disabled={locked} onChange={(value) => updateRow(item.id, { observation: value })} />
               </TableCell>
             </TableRow>
           );
         })}
       </TableBody>
     </Table>
+  );
+}
+
+function PharmacyStockInputs({
+  item, row, locked, onChange,
+}: {
+  item: QuotationItem;
+  row: SellerResponseRowDraft;
+  locked: boolean;
+  onChange: (patch: Partial<SellerResponseRowDraft>) => void;
+}) {
+  const available = row.hasStock !== "nao";
+  return (
+    <div className="grid gap-2">
+      <label className="text-xs font-medium text-slate-700">
+        Disponibilidade
+        <select
+          className="mt-1 block h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+          aria-label={`Disponibilidade de ${item.productName}`}
+          value={row.hasStock ?? ""}
+          disabled={locked}
+          onChange={(event) => onChange({
+            hasStock: event.target.value === "sim" ? "sim" : event.target.value === "nao" ? "nao" : undefined,
+            ...(event.target.value === "nao" ? { attendedQuantity: "" } : {}),
+          })}
+        >
+          <option value="">Não informada</option>
+          <option value="sim">Disponível</option>
+          <option value="nao">Sem estoque</option>
+        </select>
+      </label>
+      {available ? (
+        <label className="text-xs font-medium text-slate-700">
+          Quantidade disponível (opcional)
+          <Input
+            type="number" min={1} max={item.requestedQuantity} step="1"
+            inputMode="numeric"
+            className="mt-1 h-9 bg-white text-sm"
+            value={row.attendedQuantity ?? ""}
+            disabled={locked}
+            placeholder={`Até ${item.requestedQuantity}`}
+            onChange={(event) => onChange({
+              attendedQuantity: event.target.value,
+              hasStock: event.target.value ? "sim" : row.hasStock,
+            })}
+          />
+        </label>
+      ) : null}
+      <p className="text-xs text-slate-500">
+        {row.hasStock === "nao"
+          ? "Este produto não participará do julgamento."
+          : row.attendedQuantity?.trim()
+            ? `Quantidade declarada: ${row.attendedQuantity} de ${item.requestedQuantity}.`
+            : "Se informar apenas preço, a quantidade integral será presumida, sem confirmação de estoque."}
+      </p>
+      {!item.allowPartialSupply ? (
+        <p className="text-xs text-amber-800">A farmácia não permite atendimento parcial deste item.</p>
+      ) : null}
+    </div>
   );
 }
 
@@ -609,24 +672,26 @@ function SellerResponseMobileCard({
           </details>
 
           <div className="grid gap-3">
-            <LabeledSelect label="Possui estoque?">
-              <StockSelect
-                value={row.hasStock}
-                disabled={locked}
-                onChange={(value) => updateRow(item.id, {
-                  hasStock: value,
-                  ...(value === "nao" ? { netPrice: "" } : {}),
-                })}
-              />
-            </LabeledSelect>
             <PriceField
               label="Preço"
               value={row.netPrice}
-              disabled={locked || row.hasStock === "nao"}
+              disabled={locked}
               onChange={(value) => updateRow(item.id, { netPrice: value })}
             />
+            <PharmacyStockInputs item={item} row={row} locked={locked} onChange={(patch) => updateRow(item.id, patch)} />
+            {item.acceptEquivalent ? (
+              <TextField
+                label="Produto equivalente ofertado (opcional)"
+                value={row.offeredProductName === item.productName ? "" : row.offeredProductName}
+                placeholder="Nome/apresentação do produto alternativo"
+                disabled={locked}
+                onChange={(value) => updateRow(item.id, { offeredProductName: value || item.productName })}
+              />
+            ) : (
+              <p className="text-xs text-slate-600">Esta cotação não permite produto equivalente para este item.</p>
+            )}
             <div className="space-y-2">
-              <Label>Obs.</Label>
+              <Label>Observação (opcional)</Label>
               <Textarea value={row.observation ?? ""} disabled={locked} onChange={(event) => updateRow(item.id, { observation: event.target.value })} />
             </div>
           </div>
@@ -888,28 +953,6 @@ function DeliverySelect({
   );
 }
 
-function StockSelect({
-  value,
-  disabled,
-  onChange,
-}: {
-  value?: "sim" | "nao";
-  disabled?: boolean;
-  onChange: (value: "sim" | "nao") => void;
-}) {
-  return (
-    <Select value={value ?? "sim"} disabled={disabled} onValueChange={(next) => onChange(next as "sim" | "nao")}>
-      <SelectTrigger className="h-8 min-w-28" aria-label="Possui estoque?">
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="sim">Sim</SelectItem>
-        <SelectItem value="nao">Não</SelectItem>
-      </SelectContent>
-    </Select>
-  );
-}
-
 function UnitSelectCompact({
   value,
   disabled,
@@ -1075,8 +1118,10 @@ function buildInitialRows(
       netPrice: (existing?.netPrice ?? existing?.unitPrice)
         ? formatCurrencyBRFromNumber(existing.netPrice ?? existing.unitPrice)
         : "",
-      attendedQuantity: existing?.availableQuantity ? String(existing.availableQuantity) : "",
-      hasStock: existing?.hasStock === false ? "nao" : "sim",
+      attendedQuantity: existing?.availableQuantity != null && existing.availableQuantity > 0 ? String(existing.availableQuantity) : "",
+      // Sem resposta explícita de estoque, não presumir confirmação física.
+      hasStock: existing?.hasStock === false ? "nao" :
+        existing?.availableQuantity != null ? "sim" : undefined,
       deliveryText: existing?.deliveryTermText ?? (existing?.deliveryDays ? `${existing.deliveryDays} dias` : ""),
       observation: existing?.sellerObservation ?? "",
     };
