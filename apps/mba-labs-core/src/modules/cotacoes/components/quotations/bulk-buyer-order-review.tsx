@@ -54,7 +54,8 @@ export function BulkBuyerOrderReview({
     ? calculateMinimumOrderShortfalls(pendingOrders, editableRules, quantityChanges)
     : [];
   const unlinkedItems = minimumEnabled
-    ? pendingOrders.flatMap((order) => order.items).filter((item) => !item.distributorId).length
+    ? pendingOrders.flatMap((order) => order.items).filter((item) =>
+      !item.distributorId && Number(String(quantityChanges[item.id] ?? item.quantityToBuy).replace(",", ".")) > 0).length
     : 0;
 
   const items = pendingOrders.flatMap((order) => order.items);
@@ -86,6 +87,10 @@ export function BulkBuyerOrderReview({
 
   async function submit(action: "save" | "approve_send") {
     if (busy || pendingOrders.length === 0) return;
+    if (action === "approve_send" && unlinkedItems > 0) {
+      toast.error("Identifique a distribuidora dos produtos antes de aprovar: o pedido mínimo está ativo.");
+      return;
+    }
     const payload = items.map((item) => {
       const edit = edits[item.id];
       return {
@@ -246,7 +251,8 @@ export function BulkBuyerOrderReview({
         <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           Atenção: {unlinkedItems} produto(s) ainda não possuem distribuidora identificada.
           Não é possível calcular automaticamente um pedido mínimo para esses itens.
-          Identifique a distribuidora no cadastro da resposta para validar essa condição comercial.
+          A aprovação está bloqueada até a identificação da distribuidora.
+          O representante deve informar uma distribuidora cadastrada na resposta.
         </p>
       ) : null}
       {minimumEnabled && minimumShortfalls.length > 0 ? (
@@ -320,7 +326,7 @@ export function BulkBuyerOrderReview({
             {busy === "save" && <Loader2 className="size-4 animate-spin" />}
             {busy === "save" ? "Salvando todos..." : "Salvar todas as quantidades"}
           </Button>
-          <Button type="button" disabled={Boolean(busy) || queued}
+          <Button type="button" disabled={Boolean(busy) || queued || unlinkedItems > 0}
             onClick={() => void submit("approve_send")}>
             {busy === "approve_send" ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
             {busy === "approve_send" ? "Aprovando..." : "Aprovar e enviar todos os pedidos"}

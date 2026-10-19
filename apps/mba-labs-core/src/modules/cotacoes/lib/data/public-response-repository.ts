@@ -195,6 +195,19 @@ export async function savePublicSellerResponse(token: string, input: SavePublicS
   }
 
   const supabase = db();
+  const distributorId = await resolveBillingDistributor(
+    supabase, session.tenantId, input.moduleType, input.seller?.billingCompany,
+  );
+  const hasAvailableOffer = publicQuote.items.some((item) => {
+    const row = input.rows.find((candidate) => candidate.quotationItemId === item.id);
+    if (!row) return false;
+    const calculation = calculateSellerRow(input.moduleType, item, row);
+    return calculation.netPrice > 0 && calculation.status !== "sem_estoque";
+  });
+  if (input.status === "submitted" && quotation.moduleType === "pharmacy" &&
+      quotation.considerMinimumOrder && hasAvailableOffer && !distributorId) {
+    throw new Error("Informe uma distribuidora de faturamento cadastrada na farmácia, com nome único, para validar o pedido mínimo. Confirme o nome com o comprador.");
+  }
   const submittedAt = input.status === "submitted" ? new Date().toISOString() : null;
   const responseId = await upsertResponse(supabase, session, input, submittedAt);
 
@@ -204,7 +217,7 @@ export async function savePublicSellerResponse(token: string, input: SavePublicS
     moduleType: input.moduleType,
     items: publicQuote.items,
     rows: input.rows,
-    billingCompanyName: input.seller?.billingCompany,
+    distributorId,
   });
 
   const { error: sessionError } = await supabase
@@ -294,6 +307,24 @@ async function upsertResponse(
   return data.id as string;
 }
 
+async function resolveBillingDistributor(
+  supabase: DbClient,
+  tenantId: string,
+  moduleType: ModuleType,
+  billingCompanyName?: string,
+) {
+  const entered = billingCompanyName?.trim().normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  if (moduleType !== "pharmacy" || !entered) return null;
+  const { data, error } = await supabase
+    .from("distributors").select("id,nome").eq("tenant_id", tenantId);
+  if (error) throw error;
+  const candidates = (data ?? []).filter((candidate) =>
+    String(candidate.nome ?? "").trim().normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR") === entered);
+  return candidates.length === 1 ? String(candidates[0].id) : null;
+}
+
 async function replaceResponseItems(
   supabase: DbClient,
   input: {
@@ -302,23 +333,10 @@ async function replaceResponseItems(
     moduleType: ModuleType;
     items: QuotationItem[];
     rows: SellerResponseRowDraft[];
-    billingCompanyName?: string;
+    distributorId: string | null;
   },
 ) {
-  // Vincular somente um nome de distribuidora que corresponda exatamente
-  // a um cadastro da MESMA farmácia; não interpretar texto livre ambiguamente.
-  let distributorId: string | null = null;
-  const entered = input.billingCompanyName?.trim().normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
-  if (input.moduleType === "pharmacy" && entered) {
-    const { data: distributorRows, error: distributorError } = await supabase
-      .from("distributors").select("id,nome").eq("tenant_id", input.session.tenantId);
-    if (distributorError) throw distributorError;
-    const candidates = (distributorRows ?? []).filter((candidate) =>
-      String(candidate.nome ?? "").trim().normalize("NFKD")
-        .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR") === entered);
-    if (candidates.length === 1) distributorId = String(candidates[0].id);
-  }
+  const distributorId = input.distributorId;
   const { error: deleteError } = await supabase
     .from("supplier_quote_response_items")
     .delete()

@@ -167,6 +167,7 @@ export async function VendorResponsePage({
               buyerName={buyerName}
               quotationName={quotation.name}
               deadlineAt={quotation.deadlineAt}
+              minimumEnabled={quotation.considerMinimumOrder}
             />
           </SafeFileUploadBoundary>
           <div className="flex items-start gap-3 rounded-md bg-slate-50 p-4 text-sm text-muted-foreground">

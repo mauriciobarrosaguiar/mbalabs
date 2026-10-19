@@ -72,6 +72,7 @@ interface SellerResponseFormProps {
   buyerName?: string;
   quotationName?: string;
   deadlineAt?: string;
+  minimumEnabled?: boolean;
 }
 
 const deliveryOptions = ["Imediato", "1 dia", "2 dias", "3 dias", "5 dias", "7 dias", "Outro"];
@@ -87,6 +88,7 @@ export function SellerResponseForm({
   buyerName,
   quotationName,
   deadlineAt,
+  minimumEnabled = false,
 }: SellerResponseFormProps) {
   const isBidding = moduleType === "bidding";
   const [seller, setSeller] = useState<SellerIdentity>(() =>
@@ -132,6 +134,15 @@ export function SellerResponseForm({
 
   async function submitFinal() {
     const validationErrors = validateSellerResponse({ moduleType, items, rows });
+    const hasAvailableOffer = items.some((item) => {
+      const row = rows.find((candidate) => candidate.quotationItemId === item.id);
+      if (!row) return false;
+      const calculation = calculateSellerRow(moduleType, item, row);
+      return calculation.netPrice > 0 && calculation.status !== "sem_estoque";
+    });
+    if (!isBidding && minimumEnabled && hasAvailableOffer && !seller.billingCompany?.trim()) {
+      validationErrors.push("Informe a distribuidora de faturamento cadastrada na farmácia para validar o pedido mínimo.");
+    }
     setErrors(validationErrors);
     if (validationErrors.length > 0) {
       toast.error(validationErrors[0] ?? "Revise os itens antes de enviar.");
@@ -353,11 +364,21 @@ export function SellerResponseForm({
             </>
           ) : null}
         </div>
+        {!isBidding && minimumEnabled ? (
+          <div className="mt-4 space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
+            <TextField label="Distribuidora de faturamento" value={seller.billingCompany} disabled={locked}
+              onChange={(value) => updateSeller({ billingCompany: value })} />
+            <p className="text-sm text-amber-950">
+              Obrigatória para produtos disponíveis. Informe o nome cadastrado na farmácia;
+              em caso de dúvida, confirme com o comprador. O pedido mínimo será conferido antes da aprovação.
+            </p>
+          </div>
+        ) : null}
         {!isBidding ? (
           <details className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3">
             <summary className="cursor-pointer text-sm font-medium text-teal-700">Informações adicionais opcionais</summary>
             <div className="mt-3 grid gap-3 md:grid-cols-3">
-              <TextField label="Faturamento/distribuidora" value={seller.billingCompany} disabled={locked} onChange={(value) => updateSeller({ billingCompany: value })} />
+              {!minimumEnabled ? <TextField label="Faturamento/distribuidora" value={seller.billingCompany} disabled={locked} onChange={(value) => updateSeller({ billingCompany: value })} /> : null}
               <TextField label="Condição de pagamento" value={seller.paymentTerms} disabled={locked} onChange={(value) => updateSeller({ paymentTerms: value })} />
               <TextField label="Observação geral" value={seller.generalObservation} disabled={locked} onChange={(value) => updateSeller({ generalObservation: value })} />
             </div>

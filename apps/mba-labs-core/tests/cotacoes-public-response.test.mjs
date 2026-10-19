@@ -96,3 +96,31 @@ test('não vincula distribuidora se houver nome ambíguo na mesma empresa', asyn
  await save('test-link-A',input({status:'submitted',seller:{billingCompany:'DISTRIBUIDORA TESTE'},rows:[{quotationItemId:'item-A',netPrice:'10,00'}]}));
  assert.equal(state.tables.supplier_quote_response_items[0].distributor_id,null);
 });
+
+for (const scenario of ['ausente','outra farmácia','ambígua']) {
+ test(`mínimo ativo recusa distribuidora ${scenario} antes de gravar a resposta`, async () => {
+  state.tables.quotations[0].consider_minimum_order=true;
+  state.tables.distributors=scenario==='ambígua'
+   ? [{id:'d1',tenant_id:'tenant-A',nome:'TESTE'},{id:'d2',tenant_id:'tenant-A',nome:'TESTE'}]
+   : [{id:'foreign',tenant_id:'tenant-B',nome:'TESTE'}];
+  await assert.rejects(()=>save('test-link-A',input({status:'submitted',
+   seller:{billingCompany:scenario==='ausente'?'':'TESTE'}})),/distribuidora.*cadastrada/i);
+  assert.equal(state.writes.length,0);
+  assert.equal(state.tables.supplier_quote_sessions[0].status,'opened');
+ });
+}
+
+test('mínimo ativo aceita distribuidora única da própria farmácia', async () => {
+ state.tables.quotations[0].consider_minimum_order=true;
+ state.tables.distributors=[{id:'d1',tenant_id:'tenant-A',nome:'TESTE ÁGUA'}];
+ await save('test-link-A',input({status:'submitted',seller:{billingCompany:' teste agua '}}));
+ assert.equal(state.tables.supplier_quote_response_items[0].distributor_id,'d1');
+ assert.equal(state.tables.supplier_quote_sessions[0].status,'submitted');
+});
+
+test('mínimo ativo preserva rascunho e resposta somente sem estoque sem distribuidora', async () => {
+ state.tables.quotations[0].consider_minimum_order=true;
+ await save('test-link-A',input());
+ await save('test-link-A',input({status:'submitted',rows:[{quotationItemId:'item-A',hasStock:'nao'}]}));
+ assert.equal(state.tables.supplier_quote_response_items[0].has_stock,false);
+});
