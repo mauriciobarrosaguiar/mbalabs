@@ -35,7 +35,7 @@ function csvRecords(s:string,delimiter:string):string[][] {
   row.push(field.trim());if(row.some(Boolean))out.push(row);return out;
 }
 function detectCsvDelimiter(sample:string) {
-  const counts:Record<string,number>={";":0,"\\t":0,",":0};
+  const counts:Record<string,number>={";":0,"\t":0,",":0};
   let quoted=false;
   for(let i=0;i<sample.length;i++){
     const c=sample[i];
@@ -46,7 +46,7 @@ function detectCsvDelimiter(sample:string) {
       counts[c]++;
     }
   }
-  return [";","\\t",","].sort((a,b)=>counts[b]-counts[a])[0];
+  return [";","\t",","].sort((a,b)=>counts[b]-counts[a])[0];
 }
 
 async function loadRows(file:File) {
