@@ -3045,7 +3045,7 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="space-y-3 p-3 md:hidden" aria-label="Produtos com falta">
+            <div className="grid grid-cols-1 gap-3 p-3 lg:grid-cols-2" aria-label="Produtos com falta">
               {pendencies.map((pending) => (
                 <article key={`mobile-${pending.id}`} className="min-w-0 space-y-3 rounded-lg border border-slate-200 bg-white p-3">
                   <div className="flex flex-wrap items-start justify-between gap-2">
@@ -3096,51 +3096,6 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
                   </div>
                 </article>
               ))}
-            </div>
-            <div className="hidden md:block">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>Solicitado</TableHead>
-                  <TableHead>Faturado</TableHead>
-                  <TableHead>Falta</TableHead>
-                  <TableHead>Vendedor original</TableHead>
-                  <TableHead className="text-right">Preço original</TableHead>
-                  <TableHead>Motivo</TableHead>
-                  <TableHead>Próximo vendedor</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pendencies.map((pending) => (
-                  <TableRow key={pending.id}>
-                    <TableCell className="font-medium">{pending.productName}</TableCell>
-                    <TableCell>{formatInteger(pending.requestedQuantity ?? pending.quantity)} {getUnitLabel(pending.unit)}</TableCell>
-                    <TableCell>{formatInteger(pending.billedQuantity ?? 0)} {getUnitLabel(pending.unit)}</TableCell>
-                    <TableCell>{formatInteger(pending.quantity)} {getUnitLabel(pending.unit)}</TableCell>
-                    <TableCell>{pending.originalSupplierName}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(pending.originalUnitPrice)}</TableCell>
-                    <TableCell>{pending.reason ?? "-"}</TableCell>
-                    <TableCell>
-                      {pending.nextSupplierName
-                        ? `${pending.nextSupplierName} · ${formatCurrency(pending.nextUnitPrice ?? 0)}`
-                        : "A calcular"}
-                    </TableCell>
-                    <TableCell><StatusBadge status={pending.status} label={labelFrom(statusLabels, pending.status)} /></TableCell>
-                    <TableCell>
-                      <WinnerPendingActions
-                        quotationId={quotationId}
-                        pendingId={pending.id}
-                        moduleType={quotation.moduleType}
-                        disabled={pending.status !== "pendente"}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
             </div>
           </CardContent>
         </Card>
