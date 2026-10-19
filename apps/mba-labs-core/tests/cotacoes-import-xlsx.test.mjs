@@ -21,7 +21,7 @@ test('XLSX lê EAN, descrição, laboratório e tipo na ordem original das colun
  assert.deepEqual(await readProductXlsxRows(await fakeFile(input)), input);
 });
 test('XLSX sem produtos produz erro explícito',async()=>{
- await assert.rejects(()=>readProductXlsxRows(await fakeFile([])),/sem registros/);
+ await assert.rejects(async()=>readProductXlsxRows(await fakeFile([])),/sem registros/);
 });
 test('XLSX em branco produz erro explícito',async()=>{
  await assert.rejects(()=>readProductXlsxRows({arrayBuffer:async()=>new ArrayBuffer(0)}),/vazio/);
