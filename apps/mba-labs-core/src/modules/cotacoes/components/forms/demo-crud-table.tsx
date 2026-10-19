@@ -63,6 +63,8 @@ export function DemoCrudTable({
     return saved ? (JSON.parse(saved) as DemoCrudRow[]) : initialRows;
   });
   const [query, setQuery] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState("todos");
   const [editing, setEditing] = useState<DemoCrudRow | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -97,6 +99,7 @@ export function DemoCrudTable({
   const draft = editing ?? buildEmptyRow(fields);
 
   async function save(formData: FormData) {
+    setSaveError(null);
     const row = fields.reduce<DemoCrudRow>(
       (acc, field) => {
         const raw = String(formData.get(field.key) ?? "");
@@ -115,12 +118,14 @@ export function DemoCrudTable({
       !String(row[field.key] ?? "").trim()
     ));
     if (missingRequired) {
+      setSaveError(`${missingRequired.label} é obrigatório.`);
       toast.error(`${missingRequired.label} é obrigatório.`);
       return;
     }
 
     const duplicateMessage = findDuplicateMessage(entity, row, rows);
     if (duplicateMessage) {
+      setSaveError(duplicateMessage);
       toast.error(duplicateMessage);
       return;
     }
@@ -146,7 +151,9 @@ export function DemoCrudTable({
         router.refresh();
         toast.success(`${title} salvo no Supabase`);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erro ao salvar registro.");
+        const message = error instanceof Error ? error.message : "Erro ao salvar registro.";
+        setSaveError(message);
+        toast.error(message);
       }
       return;
     }
@@ -296,7 +303,7 @@ export function DemoCrudTable({
               onChange={(event) => void handleImport(event.target.files?.[0])}
             />
           </label> : null}
-          <Button onClick={() => { setIsCreating(true); setEditing(null); }}>
+          <Button onClick={() => { setIsCreating(true); setEditing(null); setSaveError(null); }}>
             <Plus className="h-4 w-4" />
             Novo
           </Button>
@@ -345,7 +352,18 @@ export function DemoCrudTable({
       {(isCreating || editing) ? (
         <Card className="border-teal-100 bg-teal-50/40">
           <CardContent className="p-4">
-            <form key={draft.id || "new"} action={save} className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
+            <form key={draft.id || "new"} onSubmit={async (event) => {
+              event.preventDefault();
+              if (isSaving) return;
+              const formData = new FormData(event.currentTarget);
+              setIsSaving(true);
+              try {
+                await save(formData);
+              } finally {
+                setIsSaving(false);
+              }
+            }} className="grid gap-4 md:grid-cols-3 xl:grid-cols-4">
+              {saveError ? <p role="alert" className="text-sm text-red-700 md:col-span-3 xl:col-span-4">{saveError}</p> : null}
               {fields.map((field) => (
                 <div key={field.key} className="space-y-2">
                   {field.type === "hidden" ? (
@@ -398,7 +416,7 @@ export function DemoCrudTable({
                 <input type="hidden" name="status" defaultValue={String(draft.status ?? "ativo")} />
               )}
               <div className="flex items-end gap-2">
-                <Button type="submit">Salvar</Button>
+                <Button type="submit" disabled={isSaving}>{isSaving ? "Salvando..." : "Salvar"}</Button>
                 <Button type="button" variant="outline" onClick={() => { setEditing(null); setIsCreating(false); }}>
                   Cancelar
                 </Button>
@@ -437,7 +455,7 @@ export function DemoCrudTable({
                   {showStatus ? <TableCell><StatusBadge status={row.status ?? "ativo"} /></TableCell> : null}
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setEditing(row)}>
+                      <Button variant="outline" size="sm" onClick={() => { setEditing(row); setSaveError(null); }}>
                         <Edit className="h-4 w-4" />
                         Editar
                       </Button>
