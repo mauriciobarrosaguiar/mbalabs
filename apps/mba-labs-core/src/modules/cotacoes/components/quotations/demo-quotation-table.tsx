@@ -214,8 +214,85 @@ export function DemoQuotationTable({
     setLocalRows(nextRows);
   }
 
+  function renderQuotationActions(quotation: QuotationRow) {
+    return (
+<DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button variant="outline" size="sm" aria-label="Abrir ações da cotação">
+      <MoreHorizontal className="h-4 w-4" />
+    </Button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent align="end" className="w-52">
+    <DropdownMenuItem asChild>
+      <Link href={`${base}/${quotation.id}`}><Eye className="h-4 w-4" />Abrir cotação</Link>
+    </DropdownMenuItem>
+    {!isQuotationClosed(quotation.status) ? (
+      <DropdownMenuItem asChild>
+        <Link href={`${base}/${quotation.id}/editar`}><Pencil className="h-4 w-4" />Editar</Link>
+      </DropdownMenuItem>
+    ) : null}
+    <DropdownMenuItem onSelect={(event) => { event.preventDefault(); void duplicate(quotation); }}>
+      <Copy className="h-4 w-4" />Duplicar
+    </DropdownMenuItem>
+    <DropdownMenuSeparator />
+    {canFinish(quotation.status) ? (
+      <DropdownMenuItem onSelect={(event) => { event.preventDefault(); setPendingFinish(quotation); }}>
+        <CheckCircle2 className="h-4 w-4" />Finalizar
+      </DropdownMenuItem>
+    ) : null}
+    {canFinish(quotation.status) ? (
+      <DropdownMenuItem onSelect={(event) => { event.preventDefault(); void cancel(quotation); }}>
+        <XCircle className="h-4 w-4" />Cancelar
+      </DropdownMenuItem>
+    ) : null}
+    <DropdownMenuItem
+      onSelect={(event) => { event.preventDefault(); setPendingDelete(quotation); }}
+      className="text-red-700 focus:text-red-700"
+    >
+      <Trash2 className="h-4 w-4" />Excluir
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
+    );
+  }
+
   return (
     <>
+    <div className="space-y-3 md:hidden" aria-label="Cotações">
+      {rows.length === 0 ? (
+        <p className="rounded-xl border bg-white p-4 text-sm text-slate-600">
+          Nenhuma cotação encontrada. Use Nova cotação para criar a primeira.
+        </p>
+      ) : rows.map((quotation) => (
+        <article key={`mobile-${quotation.source}-${quotation.id}`}
+          className="min-w-0 space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <h3 className="break-words text-base font-semibold leading-snug text-slate-950">
+                {quotation.name}
+              </h3>
+              <p className="mt-1 text-sm text-slate-600">Prazo: {formatDate(quotation.deadlineAt)}</p>
+            </div>
+            <div className="shrink-0">{renderQuotationActions(quotation)}</div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={quotation.status} label={labelFrom(quotationStatusLabels, quotation.status)} />
+            <Badge variant="outline">
+              {quotation.source === "localStorage" ? "Rascunho local" : "Cotação salva"}
+            </Badge>
+          </div>
+          <p className="text-sm text-slate-700">
+            Fornecedores: {quotation.supplierCount || quotation.responseCount || "-"}
+          </p>
+          <Link href={`${base}/${quotation.id}`}
+            className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-teal-700 bg-teal-700 px-3 text-sm font-medium text-white hover:bg-teal-800">
+            <Eye className="size-4" aria-hidden="true" />
+            Abrir cotação
+          </Link>
+        </article>
+      ))}
+    </div>
+    <div className="hidden md:block">
     <Table>
       <TableHeader>
         <TableRow>
@@ -248,48 +325,13 @@ export function DemoQuotationTable({
               </Badge>
             </TableCell>
             <TableCell className="text-right">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" aria-label="Abrir ações da cotação">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuItem asChild>
-                    <Link href={`${base}/${quotation.id}`}><Eye className="h-4 w-4" />Abrir cotação</Link>
-                  </DropdownMenuItem>
-                  {!isQuotationClosed(quotation.status) ? (
-                    <DropdownMenuItem asChild>
-                      <Link href={`${base}/${quotation.id}/editar`}><Pencil className="h-4 w-4" />Editar</Link>
-                    </DropdownMenuItem>
-                  ) : null}
-                  <DropdownMenuItem onSelect={(event) => { event.preventDefault(); void duplicate(quotation); }}>
-                    <Copy className="h-4 w-4" />Duplicar
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {canFinish(quotation.status) ? (
-                    <DropdownMenuItem onSelect={(event) => { event.preventDefault(); setPendingFinish(quotation); }}>
-                      <CheckCircle2 className="h-4 w-4" />Finalizar
-                    </DropdownMenuItem>
-                  ) : null}
-                  {canFinish(quotation.status) ? (
-                    <DropdownMenuItem onSelect={(event) => { event.preventDefault(); void cancel(quotation); }}>
-                      <XCircle className="h-4 w-4" />Cancelar
-                    </DropdownMenuItem>
-                  ) : null}
-                  <DropdownMenuItem
-                    onSelect={(event) => { event.preventDefault(); setPendingDelete(quotation); }}
-                    className="text-red-700 focus:text-red-700"
-                  >
-                    <Trash2 className="h-4 w-4" />Excluir
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {renderQuotationActions(quotation)}
             </TableCell>
           </TableRow>
         ))}
       </TableBody>
     </Table>
+    </div>
     <AlertDialog open={Boolean(pendingFinish)} onOpenChange={(open) => !open && setPendingFinish(null)}>
       <AlertDialogContent>
         <AlertDialogHeader>
