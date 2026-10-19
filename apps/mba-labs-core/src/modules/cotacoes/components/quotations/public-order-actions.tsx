@@ -27,22 +27,22 @@ export function PublicOrderActions({ order }: { order: PurchaseOrder }) {
   }
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row">
-      <Button type="button" variant="outline" onClick={() => window.print()}>
+    <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+      <Button type="button" variant="outline" className="min-w-0 w-full" onClick={() => window.print()}>
         <Printer className="h-4 w-4" />
         Imprimir/PDF
       </Button>
-      <Button asChild type="button" variant="outline">
+      <Button asChild type="button" variant="outline" className="min-w-0 w-full">
         <a href={`/api/cotacoes/export/pedido/${order.publicToken}`}>
           <Download className="h-4 w-4" />
           Baixar Excel
         </a>
       </Button>
-      <Button type="button" variant="outline" onClick={() => void copy()}>
+      <Button type="button" variant="outline" className="min-w-0 w-full" onClick={() => void copy()}>
         <Copy className="h-4 w-4" />
         Copiar pedido
       </Button>
-      <Button type="button" onClick={openWhatsapp}>
+      <Button type="button" className="min-w-0 w-full" onClick={openWhatsapp}>
         <MessageCircle className="h-4 w-4" />
         Abrir WhatsApp
       </Button>
