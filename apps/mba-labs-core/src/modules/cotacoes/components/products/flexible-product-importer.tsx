@@ -220,7 +220,6 @@ export function FlexibleProductImporter({mode}:{mode:Mode}) {
           setFileReadError(null);
           setFileSelectionStatus("Seletor aberto. Aguarde a seleção de um arquivo no seu dispositivo.");
         }}
-        onCancel={()=>setFileSelectionStatus("Seleção cancelada. Nenhum arquivo foi recebido.")}
         onChange={event=>void chooseFile(event.currentTarget.files?.[0])}
       />
     </label>
