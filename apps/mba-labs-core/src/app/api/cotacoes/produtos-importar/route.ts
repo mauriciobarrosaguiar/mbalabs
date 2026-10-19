@@ -7,17 +7,26 @@ type ProductInput = { ean: string; nome: string; laboratorio?: string; tipoProdu
 const normalize = (value: unknown) => String(value ?? "").trim();
 const key = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
+class ImportAccessError extends Error {
+  readonly status: 401 | 403;
+
+  constructor(message: string, status: 401 | 403) {
+    super(message);
+    this.status = status;
+  }
+}
+
 async function access(mode: string) {
   const auth = await getCurrentAuthContext();
-  if (!auth.isAuthenticated || !auth.isActive) throw new Error("Acesso não autorizado.");
+  if (!auth.isAuthenticated || !auth.isActive) throw new ImportAccessError("Acesso não autorizado.", 401);
   if (mode === "catalog") {
-    if (!auth.isSuperAdmin) throw new Error("Catálogo central exclusivo do administrador MBA Cotações.");
+    if (!auth.isSuperAdmin) throw new ImportAccessError("Catálogo central exclusivo do administrador MBA Cotações.", 403);
     return { mode, tenantId: null, actor: auth.user?.id };
   }
   if (auth.isSuperAdmin || !auth.tenantAccess || isTenantSuspended(auth.tenantAccess.tenantStatus)) {
-    throw new Error("Selecione uma farmácia ativa; a conta administrativa não pode cadastrar produtos em nome de clientes.");
+    throw new ImportAccessError("Selecione uma farmácia ativa; a conta administrativa não pode cadastrar produtos em nome de clientes.", 403);
   }
-  if (!["ADMIN_EMPRESA","COMPRADOR"].includes(auth.tenantAccess.role)) throw new Error("Sem permissão para importar produtos.");
+  if (!["ADMIN_EMPRESA","COMPRADOR"].includes(auth.tenantAccess.role)) throw new ImportAccessError("Sem permissão para importar produtos.", 403);
   return { mode, tenantId: auth.tenantAccess.tenantId, actor: auth.user?.id };
 }
 
@@ -103,6 +112,9 @@ export async function POST(request: NextRequest) {
     const result=await importProducts(supabase,authorized.tenantId,cleaned,true);
     return NextResponse.json({ok:true,...result});
   } catch(error) {
+    if (error instanceof ImportAccessError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error("[Cotações produtos] Importação falhou",error);
     return NextResponse.json({error:error instanceof Error?error.message:"Erro ao importar."},{status:500});
   }
