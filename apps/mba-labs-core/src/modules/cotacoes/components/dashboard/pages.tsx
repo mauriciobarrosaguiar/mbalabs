@@ -3384,32 +3384,66 @@ function ItemsTable({
   items: QuotationItem[];
 }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>#</TableHead>
-          <TableHead>Produto</TableHead>
-          <TableHead>Quantidade</TableHead>
-          <TableHead>Unidade</TableHead>
-          <TableHead>Laboratório</TableHead>
-          <TableHead>Tipo</TableHead>
-          <TableHead>Status</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <>
+      <div className="space-y-3 p-3 md:hidden" aria-label="Itens solicitados da cotação">
         {items.map((item) => (
-          <TableRow key={item.id}>
-            <TableCell>{item.itemNumber}</TableCell>
-            <TableCell className="font-medium">{item.productName}</TableCell>
-            <TableCell>{formatInteger(item.requestedQuantity)}</TableCell>
-            <TableCell>{getUnitLabel(item.requestedUnit)}</TableCell>
-            <TableCell>{item.requestedLaboratory ?? "-"}</TableCell>
-            <TableCell>{productTypeLabels[item.productType]}</TableCell>
-            <TableCell><StatusBadge status={item.status} label={labelFrom(statusLabels, item.status)} /></TableCell>
-          </TableRow>
+          <article key={item.id} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <p className="min-w-0 flex-1 break-words font-semibold text-slate-950">
+                {item.itemNumber}. {item.productName}
+              </p>
+              <StatusBadge status={item.status} label={labelFrom(statusLabels, item.status)} />
+            </div>
+            <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+              <div>
+                <dt className="text-slate-500">Quantidade</dt>
+                <dd className="font-medium text-slate-950">{formatInteger(item.requestedQuantity)}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Unidade</dt>
+                <dd className="font-medium text-slate-950">{getUnitLabel(item.requestedUnit)}</dd>
+              </div>
+              <div className="col-span-2">
+                <dt className="text-slate-500">Laboratório</dt>
+                <dd className="break-words text-slate-950">{item.requestedLaboratory ?? "-"}</dd>
+              </div>
+              <div className="col-span-2">
+                <dt className="text-slate-500">Tipo de produto</dt>
+                <dd className="text-slate-950">{productTypeLabels[item.productType] || "Não informado"}</dd>
+              </div>
+            </dl>
+          </article>
         ))}
-      </TableBody>
-    </Table>
+      </div>
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>#</TableHead>
+              <TableHead>Produto</TableHead>
+              <TableHead>Quantidade</TableHead>
+              <TableHead>Unidade</TableHead>
+              <TableHead>Laboratório</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell>{item.itemNumber}</TableCell>
+                <TableCell className="font-medium">{item.productName}</TableCell>
+                <TableCell>{formatInteger(item.requestedQuantity)}</TableCell>
+                <TableCell>{getUnitLabel(item.requestedUnit)}</TableCell>
+                <TableCell>{item.requestedLaboratory ?? "-"}</TableCell>
+                <TableCell>{productTypeLabels[item.productType]}</TableCell>
+                <TableCell><StatusBadge status={item.status} label={labelFrom(statusLabels, item.status)} /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   );
 }
 
