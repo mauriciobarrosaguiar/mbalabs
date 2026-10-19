@@ -46,20 +46,20 @@ export function WinnerPendingActions({
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <Button type="button" size="sm" variant="outline" disabled={disabled || Boolean(loading)} onClick={() => void run("send_next")}>
+    <div className="flex min-w-0 flex-wrap gap-2">
+      <Button type="button" size="sm" variant="outline" className="min-h-9 max-w-full whitespace-normal text-left" disabled={disabled || Boolean(loading)} onClick={() => void run("send_next")}>
         <ArrowRight className="h-4 w-4" />
         Enviar faltante para próximo vendedor
       </Button>
-      <Button type="button" size="sm" variant="outline" disabled={disabled || Boolean(loading)} onClick={() => void run("new_quotation")}>
+      <Button type="button" size="sm" variant="outline" className="min-h-9 max-w-full whitespace-normal text-left" disabled={disabled || Boolean(loading)} onClick={() => void run("new_quotation")}>
         <FilePlus2 className="h-4 w-4" />
         Gerar nova cotação com falta
       </Button>
-      <Button type="button" size="sm" variant="outline" disabled={disabled || Boolean(loading)} onClick={() => void run("resolve")}>
+      <Button type="button" size="sm" variant="outline" className="min-h-9 max-w-full whitespace-normal text-left" disabled={disabled || Boolean(loading)} onClick={() => void run("resolve")}>
         <CheckCircle2 className="h-4 w-4" />
         Resolver
       </Button>
-      <Button type="button" size="sm" variant="outline" disabled={disabled || Boolean(loading)} onClick={() => void run("cancel")}>
+      <Button type="button" size="sm" variant="outline" className="min-h-9 max-w-full whitespace-normal text-left" disabled={disabled || Boolean(loading)} onClick={() => void run("cancel")}>
         <XCircle className="h-4 w-4" />
         Cancelar
       </Button>
@@ -105,7 +105,7 @@ export function CreateMissingQuotationButton({
   }
 
   return (
-    <Button type="button" size="sm" variant="outline" disabled={disabled || loading} onClick={() => void createQuotation()}>
+    <Button type="button" size="sm" variant="outline" className="min-h-9 max-w-full whitespace-normal text-left" disabled={disabled || loading} onClick={() => void createQuotation()}>
       <FilePlus2 className="h-4 w-4" />
       Gerar nova cotação com faltas
     </Button>
