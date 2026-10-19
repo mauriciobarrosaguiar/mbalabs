@@ -3045,6 +3045,59 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
             </div>
           </CardHeader>
           <CardContent className="p-0">
+            <div className="space-y-3 p-3 md:hidden" aria-label="Produtos com falta">
+              {pendencies.map((pending) => (
+                <article key={`mobile-${pending.id}`} className="min-w-0 space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <h3 className="min-w-0 flex-1 break-words font-semibold text-slate-950">{pending.productName}</h3>
+                    <StatusBadge status={pending.status} label={labelFrom(statusLabels, pending.status)} />
+                  </div>
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
+                    <div>
+                      <dt className="text-slate-500">Solicitado</dt>
+                      <dd className="font-medium">{formatInteger(pending.requestedQuantity ?? pending.quantity)} {getUnitLabel(pending.unit)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500">Faturado</dt>
+                      <dd className="font-medium">{formatInteger(pending.billedQuantity ?? 0)} {getUnitLabel(pending.unit)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500">Faltante</dt>
+                      <dd className="font-semibold text-slate-950">{formatInteger(pending.quantity)} {getUnitLabel(pending.unit)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500">Preço unitário original</dt>
+                      <dd className="font-medium">{formatCurrency(pending.originalUnitPrice)}</dd>
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <dt className="text-slate-500">Vendedor original</dt>
+                      <dd className="break-words">{pending.originalSupplierName}</dd>
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <dt className="text-slate-500">Motivo</dt>
+                      <dd className="break-words">{pending.reason ?? "-"}</dd>
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <dt className="text-slate-500">Próximo vendedor</dt>
+                      <dd className="break-words">
+                        {pending.nextSupplierName
+                          ? `${pending.nextSupplierName} · ${formatCurrency(pending.nextUnitPrice ?? 0)}`
+                          : "A calcular"}
+                      </dd>
+                    </div>
+                  </dl>
+                  <div className="border-t border-slate-100 pt-3">
+                    <WinnerPendingActions
+                      quotationId={quotationId}
+                      pendingId={pending.id}
+                      moduleType={quotation.moduleType}
+                      disabled={pending.status !== "pendente"}
+                    />
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -3088,6 +3141,7 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       ) : null}
