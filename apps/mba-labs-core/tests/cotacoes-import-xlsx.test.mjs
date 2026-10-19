@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {Workbook} from 'exceljs';
+import ExcelJS from 'exceljs';
+const {Workbook}=ExcelJS;
 import {readProductXlsxRows} from '../src/modules/cotacoes/lib/product-xlsx-reader.ts';
 
 async function fakeFile(rows) {
