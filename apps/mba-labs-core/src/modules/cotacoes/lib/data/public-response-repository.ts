@@ -186,6 +186,7 @@ export async function savePublicSellerResponse(token: string, input: SavePublicS
       moduleType: input.moduleType,
       items: publicQuote.items,
       rows: input.rows,
+      allowEquivalent: quotation.allowEquivalent,
     });
 
     if (validationErrors.length > 0) {
@@ -194,6 +195,19 @@ export async function savePublicSellerResponse(token: string, input: SavePublicS
   }
 
   const supabase = db();
+  const distributorId = await resolveBillingDistributor(
+    supabase, session.tenantId, input.moduleType, input.seller?.billingCompany,
+  );
+  const hasAvailableOffer = publicQuote.items.some((item) => {
+    const row = input.rows.find((candidate) => candidate.quotationItemId === item.id);
+    if (!row) return false;
+    const calculation = calculateSellerRow(input.moduleType, item, row);
+    return calculation.netPrice > 0 && calculation.status !== "sem_estoque";
+  });
+  if (input.status === "submitted" && quotation.moduleType === "pharmacy" &&
+      quotation.considerMinimumOrder && hasAvailableOffer && !distributorId) {
+    throw new Error("Informe uma distribuidora de faturamento cadastrada na farmácia, com nome único, para validar o pedido mínimo. Confirme o nome com o comprador.");
+  }
   const submittedAt = input.status === "submitted" ? new Date().toISOString() : null;
   const responseId = await upsertResponse(supabase, session, input, submittedAt);
 
@@ -203,6 +217,7 @@ export async function savePublicSellerResponse(token: string, input: SavePublicS
     moduleType: input.moduleType,
     items: publicQuote.items,
     rows: input.rows,
+    distributorId,
   });
 
   const { error: sessionError } = await supabase
@@ -292,6 +307,24 @@ async function upsertResponse(
   return data.id as string;
 }
 
+async function resolveBillingDistributor(
+  supabase: DbClient,
+  tenantId: string,
+  moduleType: ModuleType,
+  billingCompanyName?: string,
+) {
+  const entered = billingCompanyName?.trim().normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  if (moduleType !== "pharmacy" || !entered) return null;
+  const { data, error } = await supabase
+    .from("distributors").select("id,nome").eq("tenant_id", tenantId);
+  if (error) throw error;
+  const candidates = (data ?? []).filter((candidate) =>
+    String(candidate.nome ?? "").trim().normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR") === entered);
+  return candidates.length === 1 ? String(candidates[0].id) : null;
+}
+
 async function replaceResponseItems(
   supabase: DbClient,
   input: {
@@ -300,8 +333,10 @@ async function replaceResponseItems(
     moduleType: ModuleType;
     items: QuotationItem[];
     rows: SellerResponseRowDraft[];
+    distributorId: string | null;
   },
 ) {
+  const distributorId = input.distributorId;
   const { error: deleteError } = await supabase
     .from("supplier_quote_response_items")
     .delete()
@@ -319,9 +354,11 @@ async function replaceResponseItems(
     }
 
     const calculation = calculateSellerRow("pharmacy", item, row);
-    if (calculation.netPrice <= 0) return [];
+    // Guardar declaração explícita "sem estoque", mesmo sem preço.
+    // Não criar registros para campos inteiramente em branco.
+    if (calculation.netPrice <= 0 && row.hasStock !== "nao") return [];
 
-    return [buildPharmacyResponseItemPayload(input.responseId, input.session, item, row)];
+    return [buildPharmacyResponseItemPayload(input.responseId, input.session, item, row, distributorId)];
   });
 
   if (payloads.length === 0) return;
@@ -335,11 +372,12 @@ function buildPharmacyResponseItemPayload(
   session: SupplierQuoteSession,
   item: QuotationItem,
   row: SellerResponseRowDraft,
+  distributorId: string | null,
 ) {
   const calculation = calculateSellerRow("pharmacy", item, row);
   const grossPrice = parseNumberInput(row.grossPrice);
   const extraDiscount = parseNumberInput(row.extraDiscount);
-  const netPrice = calculation.netPrice || parseNumberInput(row.netPrice);
+  const netPrice = calculation.netPrice;
 
   return {
     tenant_id: session.tenantId,
@@ -347,15 +385,19 @@ function buildPharmacyResponseItemPayload(
     quotation_item_id: item.id,
     response_id: responseId,
     supplier_id: session.supplierId ?? null,
+    distributor_id: distributorId,
     offered_product_name: clean(row.offeredProductName) ?? item.productName,
     offered_laboratory: clean(row.offeredLaboratory) ?? item.requestedLaboratory ?? null,
     package_price: null,
     gross_price: grossPrice || null,
     discount_extra: extraDiscount || null,
-    net_price: netPrice || null,
-    unit_price: netPrice || null,
+    net_price: netPrice > 0 ? netPrice : null,
+    unit_price: netPrice > 0 ? netPrice : null,
     has_stock: row.hasStock !== "nao",
-    available_quantity: calculation.attendedQuantity || null,
+    // Zero é indisponibilidade explícita. NULL sinaliza resposta só com preço.
+    available_quantity: row.hasStock === "nao"
+      ? 0
+      : row.attendedQuantity?.trim() ? calculation.attendedQuantity : null,
     delivery_term_text: clean(row.deliveryText) ?? null,
     delivery_days: parseDeliveryDays(row.deliveryText),
     seller_observation: clean(row.observation) ?? null,

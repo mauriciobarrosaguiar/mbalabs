@@ -33,18 +33,17 @@ export function generatePharmacyAwards(
     .filter(
       (item) =>
         item.quotationItemId === quotationItem.id &&
-        item.unitPrice != null &&
-        item.unitPrice > 0,
+        isEligibleOffer(quotationItem, item),
     )
     .sort((a, b) => comparePharmacyResponseItems(a, b, responses));
 
-  const winner = validResponses[0];
-  if (!winner) return [];
-
-  const awardedQuantity = quotationItem.requestedQuantity;
-
-  return [
-    {
+  let remaining = quotationItem.requestedQuantity;
+  const awards: QuotationAward[] = [];
+  for (const [index, winner] of validResponses.entries()) {
+    if (remaining <= 0) break;
+    const awardedQuantity = Math.min(remaining, offeredQuantity(quotationItem, winner));
+    remaining -= awardedQuantity;
+    awards.push({
       id: `award-${quotationItem.id}-${winner.id}`,
       tenantId: quotationItem.tenantId,
       quotationId: quotationItem.quotationId,
@@ -58,15 +57,33 @@ export function generatePharmacyAwards(
           ?.sellerCompany ??
         "Fornecedor",
       moduleType: "pharmacy",
-      rankingPosition: 1,
+      rankingPosition: index + 1,
       awardedQuantity,
       awardedPackages: awardedQuantity,
       unitPrice: winner.unitPrice ?? 0,
       totalPrice: roundMoney(awardedQuantity * (winner.unitPrice ?? 0)),
-      remainingBalanceAfter: 0,
-      status: "winner",
-    } satisfies QuotationAward,
-  ];
+      remainingBalanceAfter: remaining,
+      status: remaining > 0 ? "partial" : "winner",
+    });
+  }
+  return awards;
+}
+
+// Legacy price-only responses retain their previous full-quantity meaning.
+// Explicit stock/quantity answers always take precedence over that fallback.
+function offeredQuantity(item: QuotationItem, offer: SupplierQuoteResponseItem) {
+  if (offer.availableQuantity != null) {
+    return Number.isFinite(offer.availableQuantity) ? Math.max(0, offer.availableQuantity) : 0;
+  }
+  return offer.hasFullQuantity === false ? 0 : item.requestedQuantity;
+}
+
+function isEligibleOffer(item: QuotationItem, offer: SupplierQuoteResponseItem) {
+  const quantity = offeredQuantity(item, offer);
+  return Number.isFinite(item.requestedQuantity) && item.requestedQuantity > 0 &&
+    Number.isFinite(offer.unitPrice) && (offer.unitPrice ?? 0) > 0 &&
+    offer.hasStock !== false && quantity > 0 &&
+    (item.allowPartialSupply || quantity >= item.requestedQuantity);
 }
 
 export function buildPharmacyAnalysis(
@@ -83,11 +100,11 @@ export function buildPharmacyAnalysis(
   const validResponseItems = responseItems.filter(
     (responseItem) =>
       submittedResponseIds.has(responseItem.responseId) &&
-      (responseItem.unitPrice ?? 0) > 0,
+      Number.isFinite(responseItem.unitPrice) && (responseItem.unitPrice ?? 0) > 0,
   );
   const ranking = quotationItems.flatMap((item) =>
     validResponseItems
-      .filter((responseItem) => responseItem.quotationItemId === item.id)
+      .filter((responseItem) => responseItem.quotationItemId === item.id && isEligibleOffer(item, responseItem))
       .sort((a, b) => comparePharmacyResponseItems(a, b, responses))
       .map((responseItem, index) => ({
         ...responseItem,
@@ -162,6 +179,11 @@ function comparePharmacyResponseItems(
 ) {
   const priceDiff = (a.unitPrice ?? Infinity) - (b.unitPrice ?? Infinity);
   if (priceDiff !== 0) return priceDiff;
+
+  // Confirmed quantities break price ties; missing stock does not imply unlimited stock.
+  const confirmedA = Number.isFinite(a.availableQuantity) ? Math.max(0, a.availableQuantity ?? 0) : 0;
+  const confirmedB = Number.isFinite(b.availableQuantity) ? Math.max(0, b.availableQuantity ?? 0) : 0;
+  if (confirmedA !== confirmedB) return confirmedB - confirmedA;
 
   const responseById = new Map(responses.map((response) => [response.id, response]));
   const submittedA = new Date(

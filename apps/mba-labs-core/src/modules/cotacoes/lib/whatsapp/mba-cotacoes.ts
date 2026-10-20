@@ -188,6 +188,7 @@ export async function listWhatsappEnvios(input: { quotationId: string; tipoEnvio
 }
 
 export async function sendWhatsAppMbaCotacoes(input: SendInput): Promise<SendWhatsAppResult> {
+  const simulation = qaWhatsAppSimulation();
   const telefone = normalizeWhatsappPhone(input.telefone);
   if (!ready()) return { vendedorId: input.vendedorId, telefone, status: "falhou", erro: "Supabase não configurado." };
   const supabase = db();
@@ -217,6 +218,11 @@ export async function sendWhatsAppMbaCotacoes(input: SendInput): Promise<SendWha
   }
 
   const envioId = await upsertEnvio(supabase, input, telefone, "pendente");
+  if (simulation) {
+    const erro = "TESTE_QA: solicitação simulada; nenhuma mensagem enviada ou entregue.";
+    await updateEnvio(supabase, input, envioId, "pendente", erro, "qa_simulator");
+    return { vendedorId: input.vendedorId, telefone, status: "pendente", erro, enviadoPor: "qa_simulator" };
+  }
   let provider: WhatsappProvider | undefined;
   try {
     if (!validPhone(telefone)) throw new Error("Vendedor sem WhatsApp válido cadastrado.");
@@ -283,6 +289,7 @@ export async function sendWinnerOrderLinksByQuotation(input: { quotationId: stri
 }
 
 async function callProvider(config: Config, phone: string, message: string): Promise<ProviderSendReceipt> {
+  if (qaWhatsAppSimulation()) throw new Error("TESTE_QA: chamada externa de WhatsApp bloqueada pelo simulador.");
   const base = String(config.api_url ?? "").replace(/\/$/, "");
   if (!base) throw new Error("API URL do WhatsApp não configurada.");
   const instance = getProviderInstance(config);
@@ -416,3 +423,15 @@ async function buyerName(supabase: Db, quotation: any) { const { data: tenant } 
 function vendorId(order: PurchaseOrder) { return order.supplierId || order.id; }
 function summarize(results: SendWhatsAppResult[]): WhatsappBatchResult { return { total: results.length, enviado: results.filter((r) => r.status === "enviado").length, falhou: results.filter((r) => r.status === "falhou").length, pendente: results.filter((r) => r.status === "pendente").length, ignorado: results.filter((r) => r.skipped).length, results }; }
 function emptyBatch() { return summarize([]); }
+
+// Fail closed: test flags must never allow external sends outside the isolated QA project.
+function qaWhatsAppSimulation() {
+  const enabled = [process.env.WHATSAPP_TEST_MODE, process.env.WHATSAPP_MOCK].some((value) => value === "true" || value === "1");
+  if (!enabled) return false;
+  let hostname = "";
+  try { hostname = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").hostname; } catch { /* reject below */ }
+  if (process.env.VERCEL_ENV === "production" || hostname !== "ulabbmjxdvxxiybhtgnn.supabase.co") {
+    throw new Error("Simulador WhatsApp permitido somente no Supabase QA e fora de produção.");
+  }
+  return true;
+}

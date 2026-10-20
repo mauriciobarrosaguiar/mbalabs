@@ -3,8 +3,6 @@
 import Link from "next/link";
 import {
   BarChart3,
-  Bell,
-  Building2,
   CheckCircle2,
   ClipboardCheck,
   ClipboardList,
@@ -147,13 +145,6 @@ export function AppShell({
               </h1>
             </div>
             <div className="ml-auto flex items-center gap-2">
-              <button
-                type="button"
-                aria-label="Notificações"
-                className="grid size-9 place-items-center rounded-xl border border-[#dbe6e1] bg-white text-[#60756d] shadow-sm transition-colors hover:bg-[#f1f8f5] hover:text-[#0a6f5d]"
-              >
-                <Bell className="size-4" />
-              </button>
               {mode === "admin" ? <ModeBadge /> : null}
               <form action="/sair" method="post">
                 <Button variant="outline" size="lg" type="submit" className="h-9 gap-2 border-[#dbe6e1] bg-white px-3 text-[#274239] shadow-sm">

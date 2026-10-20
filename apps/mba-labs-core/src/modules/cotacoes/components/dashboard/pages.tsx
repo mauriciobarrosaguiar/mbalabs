@@ -21,6 +21,8 @@ import { ImportWizard } from "@/modules/cotacoes/components/imports/import-wizar
 import { DemoQuotationTable } from "@/modules/cotacoes/components/quotations/demo-quotation-table";
 import { GeneratePurchaseOrdersButton } from "@/modules/cotacoes/components/quotations/generate-purchase-orders-button";
 import { BulkBuyerOrderReview } from "@/modules/cotacoes/components/quotations/bulk-buyer-order-review";
+import { loadMinimumOrderRules } from "@/modules/cotacoes/lib/services/minimum-order-server";
+import { buildBilledPurchaseHistory } from "@/modules/cotacoes/lib/services/purchase-history";
 import { NewQuotationForm } from "@/modules/cotacoes/components/quotations/new-quotation-form";
 import { DistributorOffersImport } from "@/modules/cotacoes/components/quotations/distributor-offers-import";
 import { PublicOrderActions } from "@/modules/cotacoes/components/quotations/public-order-actions";
@@ -66,6 +68,7 @@ import {
   userRoleLabels,
 } from "@/modules/cotacoes/lib/labels";
 import {
+  countConfirmedNotBilledItems,
   getPurchaseOrderSupplierCompany,
   getPurchaseOrderSupplierContact,
   getPurchaseOrderSupplierDisplay,
@@ -1473,13 +1476,13 @@ async function SuppliersPage({ tenantId }: { tenantId?: string }) {
   })) as DemoCrudRow[];
   return (
     <CrudPage
-      title="Fornecedores e vendedores"
-      description="Contatos usados para gerar links públicos de resposta."
+      title="Representantes"
+      description="Cadastre os representantes que receberão links de cotação. O WhatsApp é opcional no cadastro e necessário para envio automático."
     >
       <DemoCrudTable
         entity="suppliers"
         storageKey="cotafarma-demo-suppliers"
-        title="Fornecedor"
+        title="Representante"
         primaryKey="nome"
         initialRows={demoRows}
         fields={[
@@ -1488,7 +1491,7 @@ async function SuppliersPage({ tenantId }: { tenantId?: string }) {
           { key: "empresa", label: "Empresa" },
           { key: "whatsapp", label: "WhatsApp" },
           { key: "email", label: "E-mail", type: "email" },
-          { key: "tipoFornecedor", label: "Tipo fornecedor", type: "select", options: supplierTypeLabels },
+          { key: "tipoFornecedor", label: "Tipo de contato", type: "select", options: supplierTypeLabels },
           { key: "observacao", label: "Observação" },
         ]}
       />
@@ -1626,6 +1629,39 @@ function ImportsPage() {
 
 async function ReportsPage({ section, tenantId }: { section: string; tenantId?: string }) {
   const collections = await getCollections(tenantId);
+  if (section === "historico-compras") {
+    const orders = (await Promise.all(collections.quotations.map((quotation) =>
+      getPurchaseOrdersByQuotation(quotation.id, tenantId),
+    ))).flat();
+    const rows = buildBilledPurchaseHistory(orders, tenantId);
+    return (
+      <PageStack>
+        <HeaderBlock title="Histórico de compras" description="Conferência dos pedidos finalizados, com quantidades faturadas e faltas." />
+        <Card>
+          <CardHeader><CardTitle>Total faturado: {formatCurrency(rows.reduce((sum, row) => sum + row.billedAmount, 0))}</CardTitle></CardHeader>
+          <CardContent className="overflow-x-auto p-0">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>Produto</TableHead><TableHead>Representante</TableHead><TableHead>Data</TableHead>
+                <TableHead>Pedido</TableHead><TableHead>Faturado</TableHead><TableHead>Falta</TableHead>
+                <TableHead>Valor faturado</TableHead><TableHead>Situação</TableHead>
+              </TableRow></TableHeader>
+              <TableBody>
+                {rows.length === 0 ? <TableRow><TableCell colSpan={8} className="py-8 text-center text-slate-500">Nenhum pedido com conferência finalizada.</TableCell></TableRow> : rows.map((row) => (
+                  <TableRow key={`${row.orderId}-${row.id}`}>
+                    <TableCell className="font-medium">{row.productName}</TableCell><TableCell>{row.supplierName}</TableCell>
+                    <TableCell>{row.date ? formatDate(row.date) : "-"}</TableCell><TableCell>{formatNumber(row.requested)}</TableCell>
+                    <TableCell>{formatNumber(row.billed)}</TableCell><TableCell>{formatNumber(row.missing)}</TableCell>
+                    <TableCell>{formatCurrency(row.billedAmount)}</TableCell><TableCell><StatusBadge status={row.status} /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </PageStack>
+    );
+  }
   const titleMap: Record<string, string> = {
     "historico-precos": "Histórico de preços",
     "historico-compras": "Histórico de compras",
@@ -2809,6 +2845,10 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
     console.error("Erro ao buscar pedidos dos vencedores", { quotationId, error });
     ordersError = "Não foi possível carregar os pedidos dos vencedores. Tente novamente ou verifique o log do servidor.";
   }
+  const minimumRules = quotation.moduleType === "pharmacy"
+    ? await loadMinimumOrderRules(quotation.tenantId, orders, quotation.considerMinimumOrder)
+    : [];
+
   const emptyTitle = quotation.moduleType === "pharmacy"
     ? !canGenerateOrders
       ? "Finalize a cotação para gerar pedidos dos vencedores."
@@ -2830,7 +2870,7 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
   const billedItems = allOrderItems.filter((item) => getOrderItemMissingQuantity(item) <= 0 && getOrderItemBilledQuantity(item) > 0).length;
   const partialItems = allOrderItems.filter((item) => getOrderItemBilledQuantity(item) > 0 && getOrderItemMissingQuantity(item) > 0).length;
   const notBilledItems = quotation.moduleType === "pharmacy"
-    ? Math.max(items.length - totalItemsWithOrder, 0)
+    ? countConfirmedNotBilledItems(orders)
     : allOrderItems.filter((item) => getOrderItemBilledQuantity(item) <= 0 && getOrderItemMissingQuantity(item) > 0).length;
   const expectedAmount = orders.reduce((total, order) => total + order.totalAmount, 0);
   const confirmedAmount = allOrderItems.reduce((total, item) => total + getOrderItemBilledQuantity(item) * item.unitPrice, 0);
@@ -2858,7 +2898,7 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
           { label: "Pedidos finalizados", value: String(orders.filter((order) => ["finalizado_pelo_vendedor", "parcialmente_faturado", "nao_faturado", "confirmed"].includes(order.status)).length), hint: "Conferidos pelo vendedor", tone: "success" },
           { label: "Itens faturados", value: `${billedItems}/${billedItemsDenominator}`, hint: quotation.moduleType === "pharmacy" ? "Confirmados / com pedido" : "Confirmados" },
           { label: "Itens parciais", value: String(partialItems), hint: "Com falta parcial", tone: partialItems > 0 ? "warning" : "default" },
-          { label: "Itens não faturados", value: String(notBilledItems), hint: quotation.moduleType === "pharmacy" ? "Sem resposta válida" : "Com pendência", tone: notBilledItems > 0 ? "warning" : "default" },
+          { label: "Itens não faturados", value: String(notBilledItems), hint: quotation.moduleType === "pharmacy" ? "Informados pelo representante" : "Com pendência", tone: notBilledItems > 0 ? "warning" : "default" },
           { label: "Valor previsto", value: formatCurrency(expectedAmount), hint: "Pedido vencedor" },
           { label: "Valor confirmado", value: formatCurrency(confirmedAmount), hint: "Faturado" },
         ]}
@@ -2901,7 +2941,7 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
         </Card>
       ) : null}
       {quotation.moduleType === "pharmacy" && orders.length > 0 ? (
-        <BulkBuyerOrderReview quotationId={quotationId} orders={orders} />
+        <BulkBuyerOrderReview quotationId={quotationId} orders={orders} minimumRules={minimumRules} minimumEnabled={quotation.considerMinimumOrder} />
       ) : null}
       <div className="grid gap-4 lg:grid-cols-2">
         {orders.map((order) => {
@@ -3005,49 +3045,58 @@ async function OrdersPage({ quotationId, tenantId }: { quotationId: string; tena
             </div>
           </CardHeader>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>Solicitado</TableHead>
-                  <TableHead>Faturado</TableHead>
-                  <TableHead>Falta</TableHead>
-                  <TableHead>Vendedor original</TableHead>
-                  <TableHead className="text-right">Preço original</TableHead>
-                  <TableHead>Motivo</TableHead>
-                  <TableHead>Próximo vendedor</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pendencies.map((pending) => (
-                  <TableRow key={pending.id}>
-                    <TableCell className="font-medium">{pending.productName}</TableCell>
-                    <TableCell>{formatInteger(pending.requestedQuantity ?? pending.quantity)} {getUnitLabel(pending.unit)}</TableCell>
-                    <TableCell>{formatInteger(pending.billedQuantity ?? 0)} {getUnitLabel(pending.unit)}</TableCell>
-                    <TableCell>{formatInteger(pending.quantity)} {getUnitLabel(pending.unit)}</TableCell>
-                    <TableCell>{pending.originalSupplierName}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(pending.originalUnitPrice)}</TableCell>
-                    <TableCell>{pending.reason ?? "-"}</TableCell>
-                    <TableCell>
-                      {pending.nextSupplierName
-                        ? `${pending.nextSupplierName} · ${formatCurrency(pending.nextUnitPrice ?? 0)}`
-                        : "A calcular"}
-                    </TableCell>
-                    <TableCell><StatusBadge status={pending.status} label={labelFrom(statusLabels, pending.status)} /></TableCell>
-                    <TableCell>
-                      <WinnerPendingActions
-                        quotationId={quotationId}
-                        pendingId={pending.id}
-                        moduleType={quotation.moduleType}
-                        disabled={pending.status !== "pendente"}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="grid grid-cols-1 gap-3 p-3 lg:grid-cols-2" aria-label="Produtos com falta">
+              {pendencies.map((pending) => (
+                <article key={`mobile-${pending.id}`} className="min-w-0 space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <h3 className="min-w-0 flex-1 break-words font-semibold text-slate-950">{pending.productName}</h3>
+                    <StatusBadge status={pending.status} label={labelFrom(statusLabels, pending.status)} />
+                  </div>
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-3 text-sm">
+                    <div>
+                      <dt className="text-slate-500">Solicitado</dt>
+                      <dd className="font-medium">{formatInteger(pending.requestedQuantity ?? pending.quantity)} {getUnitLabel(pending.unit)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500">Faturado</dt>
+                      <dd className="font-medium">{formatInteger(pending.billedQuantity ?? 0)} {getUnitLabel(pending.unit)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500">Faltante</dt>
+                      <dd className="font-semibold text-slate-950">{formatInteger(pending.quantity)} {getUnitLabel(pending.unit)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-slate-500">Preço unitário original</dt>
+                      <dd className="font-medium">{formatCurrency(pending.originalUnitPrice)}</dd>
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <dt className="text-slate-500">Vendedor original</dt>
+                      <dd className="break-words">{pending.originalSupplierName}</dd>
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <dt className="text-slate-500">Motivo</dt>
+                      <dd className="break-words">{pending.reason ?? "-"}</dd>
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <dt className="text-slate-500">Próximo vendedor</dt>
+                      <dd className="break-words">
+                        {pending.nextSupplierName
+                          ? `${pending.nextSupplierName} · ${formatCurrency(pending.nextUnitPrice ?? 0)}`
+                          : "A calcular"}
+                      </dd>
+                    </div>
+                  </dl>
+                  <div className="border-t border-slate-100 pt-3">
+                    <WinnerPendingActions
+                      quotationId={quotationId}
+                      pendingId={pending.id}
+                      moduleType={quotation.moduleType}
+                      disabled={pending.status !== "pendente"}
+                    />
+                  </div>
+                </article>
+              ))}
+            </div>
           </CardContent>
         </Card>
       ) : null}
@@ -3344,32 +3393,66 @@ function ItemsTable({
   items: QuotationItem[];
 }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>#</TableHead>
-          <TableHead>Produto</TableHead>
-          <TableHead>Quantidade</TableHead>
-          <TableHead>Unidade</TableHead>
-          <TableHead>Laboratório</TableHead>
-          <TableHead>Tipo</TableHead>
-          <TableHead>Status</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <>
+      <div className="space-y-3 p-3 md:hidden" aria-label="Itens solicitados da cotação">
         {items.map((item) => (
-          <TableRow key={item.id}>
-            <TableCell>{item.itemNumber}</TableCell>
-            <TableCell className="font-medium">{item.productName}</TableCell>
-            <TableCell>{formatInteger(item.requestedQuantity)}</TableCell>
-            <TableCell>{getUnitLabel(item.requestedUnit)}</TableCell>
-            <TableCell>{item.requestedLaboratory ?? "-"}</TableCell>
-            <TableCell>{productTypeLabels[item.productType]}</TableCell>
-            <TableCell><StatusBadge status={item.status} label={labelFrom(statusLabels, item.status)} /></TableCell>
-          </TableRow>
+          <article key={item.id} className="min-w-0 rounded-lg border border-slate-200 bg-white p-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <p className="min-w-0 flex-1 break-words font-semibold text-slate-950">
+                {item.itemNumber}. {item.productName}
+              </p>
+              <StatusBadge status={item.status} label={labelFrom(statusLabels, item.status)} />
+            </div>
+            <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+              <div>
+                <dt className="text-slate-500">Quantidade</dt>
+                <dd className="font-medium text-slate-950">{formatInteger(item.requestedQuantity)}</dd>
+              </div>
+              <div>
+                <dt className="text-slate-500">Unidade</dt>
+                <dd className="font-medium text-slate-950">{getUnitLabel(item.requestedUnit)}</dd>
+              </div>
+              <div className="col-span-2">
+                <dt className="text-slate-500">Laboratório</dt>
+                <dd className="break-words text-slate-950">{item.requestedLaboratory ?? "-"}</dd>
+              </div>
+              <div className="col-span-2">
+                <dt className="text-slate-500">Tipo de produto</dt>
+                <dd className="text-slate-950">{productTypeLabels[item.productType] || "Não informado"}</dd>
+              </div>
+            </dl>
+          </article>
         ))}
-      </TableBody>
-    </Table>
+      </div>
+      <div className="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>#</TableHead>
+              <TableHead>Produto</TableHead>
+              <TableHead>Quantidade</TableHead>
+              <TableHead>Unidade</TableHead>
+              <TableHead>Laboratório</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell>{item.itemNumber}</TableCell>
+                <TableCell className="font-medium">{item.productName}</TableCell>
+                <TableCell>{formatInteger(item.requestedQuantity)}</TableCell>
+                <TableCell>{getUnitLabel(item.requestedUnit)}</TableCell>
+                <TableCell>{item.requestedLaboratory ?? "-"}</TableCell>
+                <TableCell>{productTypeLabels[item.productType]}</TableCell>
+                <TableCell><StatusBadge status={item.status} label={labelFrom(statusLabels, item.status)} /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   );
 }
 

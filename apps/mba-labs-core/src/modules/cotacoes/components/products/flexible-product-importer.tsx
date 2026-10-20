@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { detectProductImportDelimiter } from "@/modules/cotacoes/lib/csv-delimiter";
+import { readProductXlsxRows } from "@/modules/cotacoes/lib/product-xlsx-reader";
 import { Check, FileSpreadsheet, Loader2, Upload } from "lucide-react";
 import { Button } from "@/modules/cotacoes/components/ui/button";
 
@@ -37,22 +39,10 @@ function csvRecords(s:string,delimiter:string):string[][] {
 async function loadRows(file:File) {
   if(file.size>15*1024*1024)throw new Error("Arquivo acima de 15 MB. Divida a planilha em partes menores.");
   const ext=file.name.toLowerCase().split(".").pop();
-  if(ext==="xlsx"){
-    const ExcelJS=await import("exceljs");
-    const book=new ExcelJS.Workbook();await book.xlsx.load(await file.arrayBuffer());
-    const sheet=book.worksheets.find(s=>s.actualRowCount>0);
-    if(!sheet)throw new Error("Planilha sem registros.");
-    const rows:string[][]=[];
-    sheet.eachRow({includeEmpty:false},row=>{
-      const count=Math.min(row.cellCount,45);
-      rows.push(Array.from({length:count},(_,i)=>String(row.getCell(i+1).text??"").trim()));
-    });
-    return rows;
-  }
+  if(ext==="xlsx") return readProductXlsxRows(file);
   if(!["csv","txt","tsv"].includes(ext??""))throw new Error("Use Excel .xlsx, CSV, TXT ou TSV. Arquivos .xls antigos devem ser salvos como .xlsx.");
-  const text=await file.text(); const sample=text.split(/\r?\n/,4).join("\n");
-  const delimiter=ext==="tsv"?"\t":
-   [";","\t",","].sort((a,b)=>sample.split(b).length-sample.split(a).length)[0];
+  const text=await file.text();
+  const delimiter=ext==="tsv"?"\t":detectProductImportDelimiter(text);
   return csvRecords(text.replace(/^\uFEFF/,""),delimiter);
 }
 function findHeader(lines:Row[]) {
@@ -74,6 +64,8 @@ export function FlexibleProductImporter({mode}:{mode:Mode}) {
  const [map,setMap]=useState<Mapping>({ean:-1,nome:-1,laboratorio:-1,tipoProduto:-1});
  const [filename,setFilename]=useState("");
  const [pending,setPending]=useState(false);
+ const [fileReadError,setFileReadError]=useState<string|null>(null);
+ const [fileSelectionStatus,setFileSelectionStatus]=useState<string|null>(null);
  const [progress,setProgress]=useState(0);
  const [accepted,setAccepted]=useState<boolean|null>(null);
  useEffect(()=>{
@@ -97,7 +89,13 @@ export function FlexibleProductImporter({mode}:{mode:Mode}) {
  const bad=mapped.filter(p=>!/^\d{8,14}$/.test(p.ean)||!p.nome);
 
  async function chooseFile(file?:File){
-   if(!file)return;setPending(true);
+   if(!file){
+     setFileSelectionStatus("Nenhum arquivo selecionado. Toque em Selecionar para tentar novamente.");
+     return;
+   }
+   setFileSelectionStatus(`Arquivo recebido: ${file.name}. Lendo conteúdo...`);
+   setPending(true);
+   setFileReadError(null);
    try{
      const values=await loadRows(file);
      if(values.length<2)throw new Error("A base precisa ter cabeçalho e ao menos um produto.");
@@ -106,9 +104,15 @@ export function FlexibleProductImporter({mode}:{mode:Mode}) {
      const head=values[headerIndex].map((n,i)=>n.trim()||`Coluna ${i+1}`);
      setFilename(file.name);setHeaders(head);setRows(values.slice(headerIndex+1));
      setMap(inferred(head));setProgress(0);
+     setFileSelectionStatus(`${file.name}: ${values.length-headerIndex-1} linhas reconhecidas. Confira a prévia.`);
      toast.success(`${values.length-headerIndex-1} linhas lidas. Confira a associação de colunas.`);
-   }catch(error){toast.error(error instanceof Error?error.message:"Erro ao abrir arquivo.");}
-   finally{setPending(false);}
+   }catch(error){
+     const detail=error instanceof Error?error.message:"Formato de arquivo não reconhecido.";
+     setFilename("");setHeaders([]);setRows([]);
+     setFileReadError(`Não foi possível ler "${file.name}": ${detail}`);
+     setFileSelectionStatus(`A leitura de ${file.name} falhou. Veja a mensagem abaixo.`);
+     toast.error("Não foi possível ler o arquivo. Veja os detalhes abaixo.");
+   }finally{setPending(false);}
  }
 
  async function send(action:"import"|"copy"="import"){
@@ -203,9 +207,21 @@ export function FlexibleProductImporter({mode}:{mode:Mode}) {
    </div>
    <div className="flex flex-wrap gap-2">
     <Button variant="outline" onClick={()=>void downloadModel()}><FileSpreadsheet className="size-4"/>Modelo 4 colunas</Button>
-    <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-teal-400 bg-teal-50 px-3 text-sm font-medium hover:bg-teal-100">
-      <Upload className="size-4"/>{pending?"Aguarde...":"Selecionar Excel, CSV ou TXT"}
-      <input type="file" className="hidden" accept=".xlsx,.csv,.tsv,.txt" disabled={pending} onChange={e=>void chooseFile(e.target.files?.[0])}/>
+    <label className="relative inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-teal-400 bg-teal-50 px-3 text-sm font-medium hover:bg-teal-100">
+      <Upload className="size-4"/>{pending?"Lendo arquivo...":"Selecionar Excel, CSV ou TXT"}
+      <input
+        type="file"
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        aria-label="Selecionar arquivo de produtos Excel CSV ou TXT"
+        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.csv,text/csv,.tsv,text/tab-separated-values,.txt,text/plain"
+        disabled={pending}
+        onClick={event=>{
+          event.currentTarget.value="";
+          setFileReadError(null);
+          setFileSelectionStatus("Seletor aberto. Aguarde a seleção de um arquivo no seu dispositivo.");
+        }}
+        onChange={event=>void chooseFile(event.currentTarget.files?.[0])}
+      />
     </label>
    </div>
   </div>
@@ -217,6 +233,8 @@ export function FlexibleProductImporter({mode}:{mode:Mode}) {
    {accepted?<Button disabled={pending} onClick={()=>void send("copy")}>Copiar catálogo para meus produtos</Button>:null}
    <p className="w-full text-xs text-slate-500">O catálogo só é copiado mediante autorização. Produtos próprios não são removidos nem compartilhados.</p>
   </div>:null}
+  {fileSelectionStatus?<p role="status" aria-live="polite" className="rounded-md border border-teal-200 bg-teal-50 p-3 text-sm text-teal-950">{fileSelectionStatus}</p>:null}
+  {fileReadError?<p role="alert" className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800">{fileReadError}</p>:null}
   {headers.length>0?<>
     <p className="text-sm font-medium">{filename} — {rows.length.toLocaleString("pt-BR")} linhas</p>
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

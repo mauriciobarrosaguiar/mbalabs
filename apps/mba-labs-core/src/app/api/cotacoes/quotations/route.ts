@@ -118,7 +118,7 @@ export async function PATCH(request: NextRequest) {
 
     const supabase = createSupabaseAdminClient();
     const auth = await getCurrentAuthContext();
-    const access = await ensureQuotationAccess(auth, body.id, "*");
+    const access = await ensureQuotationAccess(auth, body.id, "*", "manage");
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
     const quotation = access.quotation as Record<string, any>;
 
@@ -312,7 +312,7 @@ export async function DELETE(request: NextRequest) {
     const supabase = createSupabaseAdminClient();
     const now = new Date().toISOString();
     const auth = await getCurrentAuthContext();
-    const access = await ensureQuotationAccess(auth, body.id, "id,status,tenant_id,module_type,deleted_at");
+    const access = await ensureQuotationAccess(auth, body.id, "id,status,tenant_id,module_type,deleted_at", "manage");
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
     await softDeleteQuotation(supabase, body.id, now);

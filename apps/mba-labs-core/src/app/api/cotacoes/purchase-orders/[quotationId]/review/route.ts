@@ -9,7 +9,6 @@ type ReviewBody = {
   quantity?: number;
   note?: string;
   supplierConfirmationNote?: string;
-  minimumOrderChecked?: boolean;
 };
 
 function isBuyer(role?: string) {
@@ -103,40 +102,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 }
 
-/** Aprovação explícita libera o pedido para posterior envio, sem disparar WhatsApp. */
-export async function POST(request: NextRequest, { params }: { params: Promise<{ quotationId: string }> }) {
-  try {
-    const { quotationId } = await params;
-    const body = await request.json() as ReviewBody;
-    const ctx = await orderContext(request, quotationId, body);
-    if (ctx.failure) return ctx.failure;
-    const { supabase, order, auth } = ctx;
-    const { data: items, error } = await supabase.from("purchase_order_items")
-      .select("id,quantity_to_buy,initial_quantity_to_buy,supplier_confirmation_note")
-      .eq("tenant_id", order!.tenant_id).eq("purchase_order_id", order!.id);
-    if (error) throw error;
-    type ItemReviewRow = { quantity_to_buy: number | string; initial_quantity_to_buy: number | string | null; supplier_confirmation_note: string | null };
-    if (!items?.some((item: ItemReviewRow) => Number(item.quantity_to_buy) > 0)) {
-      return NextResponse.json({ error: "O pedido está sem produtos. Mantenha pelo menos um item com quantidade maior que zero." }, { status: 409 });
-    }
-    const reducedItems = items.filter((item: ItemReviewRow) => Number(item.quantity_to_buy) < Number(item.initial_quantity_to_buy));
-    if (reducedItems.length > 0 && body.minimumOrderChecked !== true) {
-      return NextResponse.json({ error: "Confirme que verificou o pedido mínimo e as condições comerciais após reduzir quantidades." }, { status: 409 });
-    }
-    const now = new Date().toISOString();
-    const result = await supabase.from("purchase_orders").update({
-      buyer_review_status: "approved",
-      buyer_approved_at: now,
-      buyer_approved_by: auth!.user?.id ?? "comprador",
-      buyer_minimum_checked_at: reducedItems.length > 0 ? now : null,
-      updated_at: now,
-    }).eq("tenant_id", order!.tenant_id).eq("id", order!.id)
-      .eq("buyer_review_status", "pending").select("id").maybeSingle();
-    if (result.error) throw result.error;
-    if (!result.data) return NextResponse.json({ error: "Este pedido já foi aprovado ou modificado." }, { status: 409 });
-    return NextResponse.json({ ok: true, message: "Pedido aprovado. Agora você pode enviar ao representante ou distribuidora." });
-  } catch (error) {
-    console.error("[Cotacoes] Falha ao aprovar pedido", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível aprovar o pedido." }, { status: 500 });
-  }
+/**
+ * A aprovação individual foi substituída pela revisão atômica conjunta.
+ * Uma rota antiga não pode contornar pedido mínimo nem auditoria.
+ */
+export async function POST() {
+  return NextResponse.json({
+    error: "Aprovação individual desativada. Revise todos os pedidos na tela de vencedores, confirme eventuais exceções de pedido mínimo e aprove em conjunto.",
+  }, { status: 409 });
 }
