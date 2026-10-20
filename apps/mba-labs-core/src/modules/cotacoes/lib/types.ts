@@ -174,6 +174,8 @@ export interface Supplier {
     | "outro";
   observacao?: string;
   status: "ativo" | "inativo";
+  /** Oculto do catálogo futuro; vínculos históricos permanecem preservados. */
+  deletedAt?: string | null;
 }
 
 export interface Distributor {
@@ -187,6 +189,8 @@ export interface Distributor {
   portal?: string;
   observacao?: string;
   status: "ativo" | "inativo";
+  /** Oculto do catálogo futuro; vínculos históricos permanecem preservados. */
+  deletedAt?: string | null;
 }
 
 export interface Laboratory {
@@ -212,6 +216,8 @@ export interface Product {
   apresentacao: string;
   quantidadePorEmbalagem: number;
   status: "ativo" | "inativo";
+  /** Oculto do catálogo futuro; vínculos históricos permanecem preservados. */
+  deletedAt?: string | null;
 }
 
 export interface Quotation {
