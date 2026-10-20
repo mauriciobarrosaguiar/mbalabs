@@ -294,14 +294,17 @@ async function assertEntityOwnership(entity: Entity, id: string, tenantId: strin
   if (!table) throw new RouteError("Operacao restrita ao ADMIN MBA.", 403);
 
   const supabase = createSupabaseAdminClient();
+  const hasHistoryTombstone = entity === "products" || entity === "suppliers" || entity === "distributors";
   const { data, error } = await supabase
     .from(table)
-    .select("id,tenant_id")
+    .select(hasHistoryTombstone ? "id,tenant_id,deleted_at" : "id,tenant_id")
     .eq("id", id)
     .maybeSingle();
 
   if (error) throw error;
-  if (!data) throw new RouteError("Registro nao encontrado.", 404);
+  if (!data || (hasHistoryTombstone && data.deleted_at)) {
+    throw new RouteError("Cadastro excluído ou não encontrado.", 404);
+  }
   if (!data.tenant_id || data.tenant_id !== tenantId) {
     throw new RouteError("Registro pertence a outra empresa ou ao catalogo global.", 403);
   }
