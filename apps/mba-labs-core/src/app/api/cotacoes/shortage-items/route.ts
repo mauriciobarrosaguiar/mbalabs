@@ -36,6 +36,7 @@ export async function GET() {
         .select("id,nome,ean,unidade_base,status")
         .eq("tenant_id", tenantId)
         .eq("status", "ativo")
+        .is("deleted_at", null)
         .order("nome", { ascending: true }),
     ]);
 
