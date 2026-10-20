@@ -85,7 +85,7 @@ async function permanentlyDeleteCatalogRecords(
   // Ninguém pode apagar cadastros de outra empresa, nem registros globais de uma farmácia.
   if (existing?.length !== ids.length) throw new RouteError("Há registros inexistentes na seleção. Atualize a lista.", 404);
   if (!auth.isSuperAdmin && (!auth.tenantId ||
-      existing.some((row) => row.tenant_id !== auth.tenantId))) {
+      existing.some((row: { tenant_id: string | null }) => row.tenant_id !== auth.tenantId))) {
     throw new RouteError("A seleção contém cadastro de outra empresa ou do catálogo global.", 403);
   }
 
@@ -117,7 +117,7 @@ async function permanentlyDeleteCatalogRecords(
   if (!auth.isSuperAdmin && auth.tenantId) remove = remove.eq("tenant_id", auth.tenantId);
   const { data: removed, error: deleteError } = await remove.select("id");
   if (deleteError) throw deleteError;
-  const deletedIds = (removed ?? []).map((row) => String(row.id));
+  const deletedIds = (removed ?? []).map((row: { id: string }) => String(row.id));
   if (deletedIds.length !== deletable.length) {
     throw new RouteError("Nem todos os registros foram encontrados na exclusão. Recarregue a lista.", 409);
   }
