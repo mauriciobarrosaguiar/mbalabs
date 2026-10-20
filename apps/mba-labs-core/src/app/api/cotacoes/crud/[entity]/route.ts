@@ -172,7 +172,7 @@ export async function DELETE(
     if (entity === "products" || entity === "suppliers" || entity === "distributors") {
       const ids = body.ids ?? (body.id ? [body.id] : []);
       const result = await permanentlyDeleteCatalogRecords(entity, ids, auth);
-      if (ids.length === 1 && result.blocked.length > 0) {
+      if (!body.ids && ids.length === 1 && result.blocked.length > 0) {
         return NextResponse.json({ error: result.blocked[0].reason, blocked: result.blocked }, { status: 409 });
       }
       return NextResponse.json({ ok: true, deleted: true, ...result });
