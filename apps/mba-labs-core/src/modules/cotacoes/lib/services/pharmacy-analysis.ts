@@ -10,6 +10,7 @@ export interface PharmacyAnalysisResult {
   ranking: SupplierQuoteResponseItem[];
   awards: QuotationAward[];
   distributorMinimums: Array<{
+    distributorId: string;
     distributorName: string;
     sellerName: string;
     totalWon: number;
@@ -141,6 +142,7 @@ export function buildPharmacyAnalysis(
           : "não atingiu";
 
     return {
+      distributorId: distributor.id,
       distributorName: `${distributor.nome} ${distributor.uf}`,
       sellerName,
       totalWon,
