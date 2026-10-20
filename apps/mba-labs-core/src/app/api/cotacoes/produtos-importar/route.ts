@@ -36,11 +36,16 @@ export async function GET(request: NextRequest) {
     const authorized = await access(mode);
     const supabase = createSupabaseAdminClient();
     if (mode === "catalog") {
-      const { data, error, count } = await supabase.from("cot_product_catalog")
-        .select("id,ean,produto,laboratorio,tipo_produto,ativo",{count:"exact"})
-        .order("updated_at",{ascending:false}).range(0,199);
+      const page = Math.max(0, Math.min(100000, Number(request.nextUrl.searchParams.get("page") ?? 0) || 0));
+      const search = String(request.nextUrl.searchParams.get("q") ?? "")
+        .replace(/[^\\p{L}\\p{N} \\-]/gu, "").trim().slice(0, 90);
+      let query = supabase.from("cot_product_catalog")
+        .select("id,ean,produto,laboratorio,tipo_produto,ativo",{count:"exact"});
+      if (search) query = query.or(`produto.ilike.%${search}%,ean.ilike.%${search}%`);
+      const {data,error,count} = await query.order("updated_at",{ascending:false})
+        .range(page*200,page*200+199);
       if(error)throw error;
-      return NextResponse.json({rows:data??[],count:count??0});
+      return NextResponse.json({rows:data??[],count:count??0,page});
     }
     const {data,error}=await supabase.from("cot_catalog_preferences").select("accepted")
       .eq("tenant_id",authorized.tenantId!).maybeSingle();
@@ -117,6 +122,38 @@ export async function POST(request: NextRequest) {
     }
     console.error("[Cotações produtos] Importação falhou",error);
     return NextResponse.json({error:error instanceof Error?error.message:"Erro ao importar."},{status:500});
+  }
+}
+
+
+/** Exclusão EXCLUSIVA do catálogo central. Não acessa public.products nem
+ * registros copiados pelas farmácias, inclusive suas cotações históricas. */
+export async function DELETE(request: NextRequest) {
+  try {
+    await access("catalog");
+    const body = await request.json() as { ids?: string[]; all?: boolean; confirmation?: string };
+    const supabase = createSupabaseAdminClient();
+    if (body.all === true) {
+      if (body.confirmation !== "EXCLUIR CATÁLOGO CENTRAL") {
+        return NextResponse.json({error:"Confirmação de exclusão do catálogo incorreta."},{status:400});
+      }
+      const {error} = await supabase.from("cot_product_catalog")
+        .delete().gte("created_at","1970-01-01T00:00:00Z");
+      if(error) throw error;
+      return NextResponse.json({ok:true,deletedAll:true});
+    }
+    const ids = [...new Set(body.ids ?? [])];
+    if (!ids.length || ids.length>200 || ids.some(id=> !/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(id))) {
+      return NextResponse.json({error:"Selecione de 1 a 200 produtos válidos."},{status:400});
+    }
+    const {data,error} = await supabase.from("cot_product_catalog")
+      .delete().in("id",ids).select("id");
+    if(error) throw error;
+    return NextResponse.json({ok:true,deletedIds:(data??[]).map(row=>row.id)});
+  } catch(error) {
+    if(error instanceof ImportAccessError) return NextResponse.json({error:error.message},{status:error.status});
+    console.error("[Cotações catálogo] Exclusão do catálogo central falhou",error);
+    return NextResponse.json({error:"Não foi possível excluir itens do catálogo central."},{status:500});
   }
 }
 
