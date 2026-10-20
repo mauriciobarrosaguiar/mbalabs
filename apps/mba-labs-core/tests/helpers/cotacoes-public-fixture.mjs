@@ -14,11 +14,12 @@ export function createSupabaseAdminClient(){return {from(table){return new Query
 class Query {
  constructor(table){this.table=table;this.filters=[];this.operation='select';}
  select(){return this;}eq(key,value){this.filters.push([key,value]);return this;}
+ is(key,value){this.filters.push([key,value]);return this;}
  order(){return this;}limit(){return this;}
  insert(payload){this.operation='insert';this.payload=payload;return this;}
  update(payload){this.operation='update';this.payload=payload;return this;}
  delete(){this.operation='delete';return this;}
- matches(row){return this.filters.every(([k,v])=>row[k]===v);}
+ matches(row){return this.filters.every(([k,v])=>(k==="status" && row[k]===undefined ? "ativo" : (row[k]??null))===v);}
  async execute(single=false){
   let rows=state.tables[this.table]??[];
   if(this.operation!=='select')state.writes.push({table:this.table,operation:this.operation,payload:this.payload,filters:this.filters});
