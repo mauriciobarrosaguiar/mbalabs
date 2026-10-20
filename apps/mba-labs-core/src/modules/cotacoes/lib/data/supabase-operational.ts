@@ -1957,6 +1957,29 @@ export async function createSupabaseQuotationFromWinnerPendingItems(quotationId:
   if (pendingError) throw pendingError;
   if (!pendingRows?.length) throw new Error("Não há itens pendentes para nova cotação.");
 
+  // Copiar itens pendentes também é criar uma NOVA cotação. Produtos já
+  // excluídos do catálogo não podem ser reutilizados por esse atalho.
+  const { data: originalItems, error: itemError } = await supabase
+    .from("quotation_items")
+    .select("*")
+    .in("id", pendingRows.map((pending) => pending.quotation_item_id));
+  if (itemError) throw itemError;
+  const productIds = [...new Set((originalItems ?? []).map((item) => item.product_id).filter(Boolean))];
+  if (productIds.length) {
+    const { data: activeProducts, error: productsError } = await supabase
+      .from("products")
+      .select("id")
+      .eq("tenant_id", originalRow.tenant_id)
+      .eq("status", "ativo")
+      .is("deleted_at", null)
+      .in("id", productIds);
+    if (productsError) throw productsError;
+    if ((activeProducts ?? []).length !== productIds.length) {
+      throw new Error("Esta nova cotação contém produto excluído do catálogo. Retire o item excluído antes de continuar.");
+    }
+  }
+
+
   const { data: newQuotationRow, error: newQuotationError } = await supabase
     .from("quotations")
     .insert({
@@ -1985,11 +2008,7 @@ export async function createSupabaseQuotationFromWinnerPendingItems(quotationId:
     .single();
   if (newQuotationError) throw newQuotationError;
 
-  const { data: originalItems, error: itemError } = await supabase
-    .from("quotation_items")
-    .select("*")
-    .in("id", pendingRows.map((pending) => pending.quotation_item_id));
-  if (itemError) throw itemError;
+
 
   const itemsToInsert = pendingRows
     .map((pending, index) => {
