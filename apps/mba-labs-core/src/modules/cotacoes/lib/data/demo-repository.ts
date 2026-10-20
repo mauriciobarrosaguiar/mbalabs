@@ -128,7 +128,10 @@ export function updateProduct(id: string, patch: Partial<Product>) {
 }
 
 export function deleteProduct(id: string) {
-  return updateProduct(id, { status: "inativo" });
+  const list = getDemoStore().products;
+  const index = list.findIndex((product) => product.id === id);
+  if (index < 0) throw new Error("Produto não encontrado.");
+  return list.splice(index, 1)[0];
 }
 
 export function getSuppliers() {
@@ -169,7 +172,10 @@ export function updateDistributor(id: string, patch: Partial<Distributor>) {
 }
 
 export function deleteDistributor(id: string) {
-  return updateDistributor(id, { status: "inativo" });
+  const list = getDemoStore().distributors;
+  const index = list.findIndex((distributor) => distributor.id === id);
+  if (index < 0) throw new Error("Distribuidora não encontrada.");
+  return list.splice(index, 1)[0];
 }
 
 export function getLaboratories() {
