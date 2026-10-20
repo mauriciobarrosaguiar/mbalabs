@@ -493,7 +493,7 @@ export async function AdminSectionPage({
     return (
       <CrudPage
         title="Distribuidoras"
-        description="Distribuidoras cadastradas por empresa, com filtro, importação, edição e inativação."
+        description="Distribuidoras cadastradas por empresa, com filtro, importação, edição e exclusão."
       >
         <DemoCrudTable
           entity="distributors"
@@ -501,7 +501,7 @@ export async function AdminSectionPage({
           title="Distribuidora"
           primaryKey="nome"
           emptyMessage="Nenhuma distribuidora cadastrada."
-          initialRows={collections.distributors.filter((distributor) => clientTenantIds.has(distributor.tenantId)).map((distributor) => ({
+          initialRows={collections.distributors.filter((distributor) => !distributor.deletedAt && clientTenantIds.has(distributor.tenantId)).map((distributor) => ({
             id: distributor.id,
             tenantId: distributor.tenantId,
             nome: distributor.nome,
@@ -529,7 +529,7 @@ export async function AdminSectionPage({
   }
 
   if (section === "representantes" || section === "vendedores") {
-    const sellers = collections.suppliers.filter((supplier) => supplier.tipoFornecedor === "vendedor" && clientTenantIds.has(supplier.tenantId));
+    const sellers = collections.suppliers.filter((supplier) => !supplier.deletedAt && supplier.tipoFornecedor === "vendedor" && clientTenantIds.has(supplier.tenantId));
 
     return (
       <CrudPage
@@ -977,9 +977,9 @@ async function CompanyDetailsPage({ tenantId }: { tenantId: string }) {
 
   const plan = collections.subscriptionPlans.find((item) => item.id === tenant.planoId);
   const pharmacies = collections.pharmacies.filter((item) => item.tenantId === tenant.id);
-  const sellers = collections.suppliers.filter((item) => item.tenantId === tenant.id && item.tipoFornecedor === "vendedor");
-  const distributors = collections.distributors.filter((item) => item.tenantId === tenant.id);
-  const products = collections.products.filter((item) => item.tenantId === tenant.id);
+  const sellers = collections.suppliers.filter((item) => !item.deletedAt && item.tenantId === tenant.id && item.tipoFornecedor === "vendedor");
+  const distributors = collections.distributors.filter((item) => !item.deletedAt && item.tenantId === tenant.id);
+  const products = collections.products.filter((item) => !item.deletedAt && item.tenantId === tenant.id);
   const pharmacyQuotations = collections.quotations.filter((item) => item.tenantId === tenant.id && item.moduleType === "pharmacy");
   const biddingQuotations = collections.quotations.filter((item) => item.tenantId === tenant.id && item.moduleType === "bidding");
   const subscriptions = collections.monthlySubscriptions.filter((item) => item.tenantId === tenant.id);
@@ -1114,7 +1114,7 @@ async function CompanyDetailsPage({ tenantId }: { tenantId: string }) {
               primaryKey="nome"
               statusOptions={activeInactiveOptions}
               emptyMessage="Nenhuma distribuidora cadastrada."
-              initialRows={distributors.map((distributor) => ({
+              initialRows={distributors.filter((distributor) => !distributor.deletedAt).map((distributor) => ({
                 id: distributor.id,
                 tenantId: distributor.tenantId,
                 nome: distributor.nome,
@@ -1428,7 +1428,7 @@ async function getPaymentSettings(): Promise<PaymentSettingsRow | null> {
 
 async function ProductsPage({ tenantId }: { tenantId?: string }) {
   const { products, laboratories } = await getCollections(tenantId);
-  const demoRows = products.map((product) => ({
+  const demoRows = products.filter((product) => !product.deletedAt).map((product) => ({
     id: product.id,
     tenantId: product.tenantId,
     ean: product.ean ?? "",
@@ -1463,7 +1463,7 @@ async function ProductsPage({ tenantId }: { tenantId?: string }) {
 
 async function SuppliersPage({ tenantId }: { tenantId?: string }) {
   const { suppliers } = await getCollections(tenantId);
-  const demoRows = suppliers.map((supplier) => ({
+  const demoRows = suppliers.filter((supplier) => !supplier.deletedAt).map((supplier) => ({
     id: supplier.id,
     tenantId: supplier.tenantId,
     nome: supplier.nome,
@@ -1501,7 +1501,7 @@ async function SuppliersPage({ tenantId }: { tenantId?: string }) {
 
 async function DistributorsPage({ tenantId }: { tenantId?: string }) {
   const { distributors } = await getCollections(tenantId);
-  const demoRows = distributors.map((distributor) => ({
+  const demoRows = distributors.filter((distributor) => !distributor.deletedAt).map((distributor) => ({
     id: distributor.id,
     nome: distributor.nome,
     unidadeCd: distributor.unidadeCd,
@@ -1546,7 +1546,7 @@ async function DistributorsPage({ tenantId }: { tenantId?: string }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {distributors.map((distributor) => (
+          {distributors.filter((distributor) => !distributor.deletedAt).map((distributor) => (
             <TableRow key={distributor.id}>
               <TableCell className="font-medium">{distributor.nome}</TableCell>
               <TableCell>{distributor.unidadeCd}</TableCell>
