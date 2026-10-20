@@ -217,7 +217,7 @@ export async function deletePharmacy(id: string) {
 
 export async function getProducts() {
   const supabase = readDb("products");
-  return supabase ? selectAll(supabase, "products", mapProduct) : [];
+  return supabase ? (await selectAll(supabase, "products", mapProduct)).filter((product) => !product.deletedAt) : [];
 }
 
 export async function createProduct(input: Omit<Product, "id"> & { id?: string }) {
@@ -252,7 +252,7 @@ export async function deleteProduct(id: string) {
 
 export async function getSuppliers() {
   const supabase = readDb("suppliers");
-  return supabase ? selectAll(supabase, "suppliers", mapSupplier) : [];
+  return supabase ? (await selectAll(supabase, "suppliers", mapSupplier)).filter((supplier) => !supplier.deletedAt) : [];
 }
 
 export async function createSupplier(input: Omit<Supplier, "id"> & { id?: string }) {
@@ -939,7 +939,7 @@ function mapTenantToDb(input: Partial<Tenant>) {
   });
 }
 
-function mapSupplier(row: Record<string, any>): Supplier {
+function mapSupplier(row: Record<string, any>): Supplier & { deletedAt: string | null } {
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -950,6 +950,7 @@ function mapSupplier(row: Record<string, any>): Supplier {
     tipoFornecedor: row.tipo_fornecedor,
     observacao: row.observacao ?? undefined,
     status: row.status,
+    deletedAt: row.deleted_at ?? null,
   };
 }
 
@@ -966,7 +967,7 @@ function mapSupplierToDb(input: Partial<Supplier>) {
   });
 }
 
-function mapDistributor(row: Record<string, any>): Distributor {
+function mapDistributor(row: Record<string, any>): Distributor & { deletedAt: string | null } {
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -978,6 +979,7 @@ function mapDistributor(row: Record<string, any>): Distributor {
     portal: row.portal ?? undefined,
     observacao: row.observacao ?? undefined,
     status: row.status,
+    deletedAt: row.deleted_at ?? null,
   };
 }
 
@@ -1016,7 +1018,7 @@ function mapLaboratoryToDb(input: Partial<Laboratory>) {
   });
 }
 
-function mapProduct(row: Record<string, any>): Product {
+function mapProduct(row: Record<string, any>): Product & { deletedAt: string | null } {
   return {
     id: row.id,
     tenantId: row.tenant_id,
@@ -1031,6 +1033,7 @@ function mapProduct(row: Record<string, any>): Product {
     apresentacao: row.apresentacao ?? "",
     quantidadePorEmbalagem: Number(row.quantidade_por_embalagem ?? 1),
     status: row.status,
+    deletedAt: row.deleted_at ?? null,
   };
 }
 

@@ -124,3 +124,13 @@ test('mínimo ativo preserva rascunho e resposta somente sem estoque sem distrib
  await save('test-link-A',input({status:'submitted',rows:[{quotationItemId:'item-A',hasStock:'nao'}]}));
  assert.equal(state.tables.supplier_quote_response_items[0].has_stock,false);
 });
+
+test('distribuidora excluída não pode ser utilizada para nova resposta com pedido mínimo', async () => {
+  state.tables.quotations[0].consider_minimum_order=true;
+  state.tables.distributors=[{id:'dist-removed',tenant_id:'tenant-A',nome:'EMPRESA ANTIGA',status:'inativo',deleted_at:'2026-10-20T19:00:00Z'}];
+  await assert.rejects(()=>save('test-link-A',input({status:'submitted',
+    seller:{billingCompany:'EMPRESA ANTIGA'}})),/distribuidora.*cadastrada/i);
+  assert.equal(state.writes.length,0);
+  // A exclusão não altera a referência nem remove a linha histórica do banco.
+  assert.equal(state.tables.distributors[0].id,'dist-removed');
+});

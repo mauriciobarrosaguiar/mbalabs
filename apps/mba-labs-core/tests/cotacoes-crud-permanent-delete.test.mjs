@@ -37,19 +37,24 @@ test('exclui 10 produtos livres, preservando produto usado em cotação',async()
   state.db.quotation_items=[{product_id:id(2)}];
   const result=await DELETE(request({ids:state.db.products.map(x=>x.id)}),params('products'));
   assert.equal(result.status,200);
-  assert.equal(result.body.deletedIds.length,9);
-  assert.equal(result.body.blocked.length,1);
-  assert.equal(result.body.blocked[0].id,id(2));
+  assert.equal(result.body.deletedIds.length,10);
+  assert.equal(result.body.blocked.length,0);
   assert.deepEqual(state.db.products.map(x=>x.id),[id(2)]);
+  assert.equal(state.db.products[0].status,'inativo');
+  assert.ok(state.db.products[0].deleted_at);
+  assert.equal(state.db.quotation_items[0].product_id,id(2));
 });
 
-test('impede exclusão individual de produto com histórico de preços',async()=>{
+test('exclusão individual remove do catálogo mas mantém histórico de preços',async()=>{
   state.db.products=[row(1)];
   state.db.price_history=[{product_id:id(1)}];
   const result=await DELETE(request({id:id(1)}),params('products'));
-  assert.equal(result.status,409);
+  assert.equal(result.status,200);
+  assert.deepEqual(result.body.deletedIds,[id(1)]);
   assert.equal(state.deleted.length,0);
   assert.equal(state.db.products.length,1);
+  assert.ok(state.db.products[0].deleted_at);
+  assert.equal(state.db.products[0].status,'inativo');
 });
 
 test('representante sem histórico é excluído, mas fornecedor com pedido permanece',async()=>{
@@ -57,9 +62,10 @@ test('representante sem histórico é excluído, mas fornecedor com pedido perma
   state.db.purchase_orders=[{supplier_id:id(2)}];
   const result=await DELETE(request({ids:[id(1),id(2)]}),params('suppliers'));
   assert.equal(result.status,200);
-  assert.deepEqual(result.body.deletedIds,[id(1)]);
-  assert.equal(result.body.blocked[0].id,id(2));
+  assert.deepEqual(new Set(result.body.deletedIds),new Set([id(1),id(2)]));
   assert.deepEqual(state.db.suppliers.map(x=>x.id),[id(2)]);
+  assert.ok(state.db.suppliers[0].deleted_at);
+  assert.equal(state.db.purchase_orders[0].supplier_id,id(2));
 });
 
 test('distribuidora vinculada à aprovação de pedido mínimo permanece',async()=>{
@@ -67,9 +73,10 @@ test('distribuidora vinculada à aprovação de pedido mínimo permanece',async(
   state.db.cot_minimum_order_exceptions=[{distributor_id:id(2)}];
   const result=await DELETE(request({ids:[id(1),id(2)]}),params('distributors'));
   assert.equal(result.status,200);
-  assert.deepEqual(result.body.deletedIds,[id(1)]);
+  assert.deepEqual(new Set(result.body.deletedIds),new Set([id(1),id(2)]));
   assert.deepEqual(state.db.distributors.map(x=>x.id),[id(2)]);
-  assert.match(result.body.blocked[0].reason,/aprovações excepcionais/);
+  assert.ok(state.db.distributors[0].deleted_at);
+  assert.equal(state.db.cot_minimum_order_exceptions[0].distributor_id,id(2));
 });
 
 test('não exclui nada se a seleção contiver cadastro de outra empresa',async()=>{
@@ -121,4 +128,28 @@ test('edição de produto da própria empresa permanece disponível',async()=>{
   const result=await PATCH(request({id:id(1),data:{status:'ativo'}}),params('products'));
   assert.equal(result.status,200);
   assert.equal(result.body.row.status,'ativo');
+});
+
+test('não é possível excluir novamente um cadastro já removido do catálogo',async()=>{
+  state.db.products=[{...row(3),status:'inativo',deleted_at:'2026-10-20T12:00:00Z'}];
+  const response=await DELETE(request({id:id(3)}),params('products'));
+  assert.equal(response.status,404);
+  assert.equal(state.deleted.length,0);
+});
+
+test('exclusão em massa mistura livres e históricos de três classes sem perder vínculos',async()=>{
+  for(const [entity,history,col] of [
+    ['products','quotation_items','product_id'],
+    ['suppliers','supplier_quote_sessions','supplier_id'],
+    ['distributors','purchase_order_items','distributor_id']
+  ]) {
+    state.db[entity]=[row(101),row(102),row(103)];
+    state.db[history]=[{[col]:id(102)}];
+    const response=await DELETE(request({ids:[id(101),id(102),id(103)]}),params(entity));
+    assert.equal(response.status,200);
+    assert.equal(response.body.deletedIds.length,3);
+    assert.deepEqual(state.db[entity].map(x=>x.id),[id(102)]);
+    assert.ok(state.db[entity][0].deleted_at);
+    assert.equal(state.db[history][0][col],id(102));
+  }
 });

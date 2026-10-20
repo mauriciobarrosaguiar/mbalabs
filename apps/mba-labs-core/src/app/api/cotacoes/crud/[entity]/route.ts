@@ -80,10 +80,10 @@ async function permanentlyDeleteCatalogRecords(
 
   const supabase = createSupabaseAdminClient();
   const { data: existing, error: lookupError } = await supabase
-    .from(entity).select("id,tenant_id").in("id", ids);
+    .from(entity).select("id,tenant_id,deleted_at").in("id", ids);
   if (lookupError) throw lookupError;
   // Ninguém pode apagar cadastros de outra empresa, nem registros globais de uma farmácia.
-  if (existing?.length !== ids.length) throw new RouteError("Há registros inexistentes na seleção. Atualize a lista.", 404);
+  if (existing?.length !== ids.length || existing.some((row: { deleted_at: string | null }) => Boolean(row.deleted_at))) throw new RouteError("Há registros inexistentes ou já excluídos na seleção. Atualize a lista.", 404);
   if (!auth.isSuperAdmin && (!auth.tenantId ||
       existing.some((row: { tenant_id: string | null }) => row.tenant_id !== auth.tenantId))) {
     throw new RouteError("A seleção contém cadastro de outra empresa ou do catálogo global.", 403);
@@ -106,22 +106,44 @@ async function permanentlyDeleteCatalogRecords(
     }
   }));
 
-  const blocked = ids.filter((id) => reasons.has(id)).map((id) => ({
-    id, reason: `Não é possível excluir: possui ${[...reasons.get(id)!].join(", ")}. O histórico foi preservado.`,
-  }));
-  const deletable = ids.filter((id) => !reasons.has(id));
-  if (deletable.length === 0) return { deletedIds: [], blocked };
-  // Um único DELETE por lote elegível; o banco impede exclusões com FKs
-  // não previstas, sem transformar em inativação.
-  let remove = supabase.from(entity).delete().in("id", deletable);
-  if (!auth.isSuperAdmin && auth.tenantId) remove = remove.eq("tenant_id", auth.tenantId);
-  const { data: removed, error: deleteError } = await remove.select("id");
-  if (deleteError) throw deleteError;
-  const deletedIds = (removed ?? []).map((row: { id: string }) => String(row.id));
-  if (deletedIds.length !== deletable.length) {
-    throw new RouteError("Nem todos os registros foram encontrados na exclusão. Recarregue a lista.", 409);
+  const historicalIds = ids.filter((id) => reasons.has(id));
+  const removableIds = ids.filter((id) => !reasons.has(id));
+  const deletedIds: string[] = [];
+
+  // Registros referenciados ficam preservados SOMENTE no histórico:
+  // deleted_at os retira do catálogo e status inativo impede uso operacional.
+  async function hideFromFuture(idsToHide: string[]) {
+    if (!idsToHide.length) return [];
+    let query = supabase.from(entity)
+      .update({ deleted_at: new Date().toISOString(), status: "inativo" })
+      .in("id", idsToHide).is("deleted_at", null);
+    if (!auth.isSuperAdmin && auth.tenantId) query = query.eq("tenant_id", auth.tenantId);
+    const { data, error } = await query.select("id");
+    if (error) throw error;
+    const hidden = (data ?? []).map((row: { id: string }) => String(row.id));
+    if (hidden.length !== idsToHide.length) throw new RouteError("Não foi possível concluir a exclusão de todos os cadastros.", 409);
+    return hidden;
   }
-  return { deletedIds, blocked };
+
+  // Preserva histórico ANTES de apagar fisicamente os registros sem vínculos.
+  deletedIds.push(...await hideFromFuture(historicalIds));
+  if (removableIds.length) {
+    let remove = supabase.from(entity).delete().in("id", removableIds);
+    if (!auth.isSuperAdmin && auth.tenantId) remove = remove.eq("tenant_id", auth.tenantId);
+    const { data: removed, error } = await remove.select("id");
+    if (error) {
+      if (errorCode(error) !== "23503") throw error;
+      // Uma FK não mapeada ou incluída concorrentemente não pode impedir
+      // excluir do catálogo. Usa preservação histórica em vez de perder dados.
+      deletedIds.push(...await hideFromFuture(removableIds));
+    } else {
+      const physicallyDeleted = (removed ?? []).map((row: { id: string }) => String(row.id));
+      if (physicallyDeleted.length !== removableIds.length) throw new RouteError("Exclusão incompleta. Recarregue o cadastro.", 409);
+      deletedIds.push(...physicallyDeleted);
+    }
+  }
+  return { deletedIds, blocked: [] };
+
 }
 
 
@@ -172,9 +194,6 @@ export async function DELETE(
     if (entity === "products" || entity === "suppliers" || entity === "distributors") {
       const ids = body.ids ?? (body.id ? [body.id] : []);
       const result = await permanentlyDeleteCatalogRecords(entity, ids, auth);
-      if (!body.ids && ids.length === 1 && result.blocked.length > 0) {
-        return NextResponse.json({ error: result.blocked[0].reason, blocked: result.blocked }, { status: 409 });
-      }
       return NextResponse.json({ ok: true, deleted: true, ...result });
     }
     // Outras entidades continuam com a regra atual. Não incluir em exclusão em massa.
@@ -275,14 +294,17 @@ async function assertEntityOwnership(entity: Entity, id: string, tenantId: strin
   if (!table) throw new RouteError("Operacao restrita ao ADMIN MBA.", 403);
 
   const supabase = createSupabaseAdminClient();
+  const hasHistoryTombstone = entity === "products" || entity === "suppliers" || entity === "distributors";
   const { data, error } = await supabase
     .from(table)
-    .select("id,tenant_id")
+    .select(hasHistoryTombstone ? "id,tenant_id,deleted_at" : "id,tenant_id")
     .eq("id", id)
     .maybeSingle();
 
   if (error) throw error;
-  if (!data) throw new RouteError("Registro nao encontrado.", 404);
+  if (!data || (hasHistoryTombstone && data.deleted_at)) {
+    throw new RouteError("Cadastro excluído ou não encontrado.", 404);
+  }
   if (!data.tenant_id || data.tenant_id !== tenantId) {
     throw new RouteError("Registro pertence a outra empresa ou ao catalogo global.", 403);
   }
