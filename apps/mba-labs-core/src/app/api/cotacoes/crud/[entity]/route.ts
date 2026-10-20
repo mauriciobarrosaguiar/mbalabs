@@ -40,7 +40,6 @@ type Row = Record<string, unknown> & { id?: string };
 type CrudAuth = { isSuperAdmin: boolean; tenantId?: string };
 
 const adminOnlyEntities = new Set<Entity>(["tenants", "plans", "monthly_subscriptions"]);
-const permanentDeletionEntities = new Set<Entity>(["products", "suppliers", "distributors"]);
 const deletionReferences: Record<"products" | "suppliers" | "distributors", { table: string; column: string; label: string }[]> = {
   products: [
     { table: "quotation_items", column: "product_id", label: "cotações" },
@@ -170,7 +169,7 @@ export async function DELETE(
     entity = parseEntity((await params).entity);
     const auth = await authorizeCrud(entity);
     const body = await request.json() as { id?: string; ids?: string[] };
-    if (permanentDeletionEntities.has(entity)) {
+    if (entity === "products" || entity === "suppliers" || entity === "distributors") {
       const ids = body.ids ?? (body.id ? [body.id] : []);
       const result = await permanentlyDeleteCatalogRecords(entity, ids, auth);
       if (ids.length === 1 && result.blocked.length > 0) {
