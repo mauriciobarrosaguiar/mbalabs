@@ -2139,6 +2139,7 @@ async function resolveQuotationProducts(
     .select("*")
     .eq("tenant_id", tenantId)
     .eq("status", "ativo")
+    .is("deleted_at", null)
     .in("id", productIds);
 
   if (error) throw error;
@@ -2152,7 +2153,7 @@ async function resolveSupplier(
 ) {
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(supplier.id);
   if (isUuid) {
-    const { data } = await supabase.from("suppliers").select("*").eq("id", supplier.id).maybeSingle();
+    const { data } = await supabase.from("suppliers").select("*").eq("id", supplier.id).eq("tenant_id", tenantId).eq("status", "ativo").is("deleted_at", null).maybeSingle();
     if (data) return data;
   }
 
@@ -2161,6 +2162,8 @@ async function resolveSupplier(
     .select("*")
     .eq("tenant_id", tenantId)
     .eq("empresa", supplier.empresa)
+    .eq("status", "ativo")
+    .is("deleted_at", null)
     .maybeSingle();
   if (existing) return existing;
 
