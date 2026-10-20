@@ -483,7 +483,7 @@ export function DemoCrudTable({
                   )}
                 </div>
               ))}
-              {showStatus ? (
+              {showStatus && !supportsPermanentDeletion ? (
                 <div className="space-y-2">
                   <Label>Status</Label>
                   <select
