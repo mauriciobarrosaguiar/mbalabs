@@ -245,7 +245,9 @@ export async function updateProduct(id: string, patch: Partial<Product>) {
 }
 
 export async function deleteProduct(id: string) {
-  return updateProduct(id, { status: "inativo" });
+  const { data, error } = await requireDb().from("products").delete().eq("id", id).select("id").single();
+  if (error) throw error;
+  return data;
 }
 
 export async function getSuppliers() {
@@ -321,7 +323,9 @@ export async function updateDistributor(id: string, patch: Partial<Distributor>)
 }
 
 export async function deleteDistributor(id: string) {
-  return updateDistributor(id, { status: "inativo" });
+  const { data, error } = await requireDb().from("distributors").delete().eq("id", id).select("id").single();
+  if (error) throw error;
+  return data;
 }
 
 export async function getLaboratories() {

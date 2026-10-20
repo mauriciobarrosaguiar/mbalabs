@@ -40,6 +40,91 @@ type Row = Record<string, unknown> & { id?: string };
 type CrudAuth = { isSuperAdmin: boolean; tenantId?: string };
 
 const adminOnlyEntities = new Set<Entity>(["tenants", "plans", "monthly_subscriptions"]);
+const deletionReferences: Record<"products" | "suppliers" | "distributors", { table: string; column: string; label: string }[]> = {
+  products: [
+    { table: "quotation_items", column: "product_id", label: "cotações" },
+    { table: "purchase_history", column: "product_id", label: "compras anteriores" },
+    { table: "price_history", column: "product_id", label: "histórico de preços" },
+  ],
+  suppliers: [
+    { table: "quotation_invites", column: "supplier_id", label: "convites de cotação" },
+    { table: "quotation_awards", column: "supplier_id", label: "resultados de cotação" },
+    { table: "supplier_quote_sessions", column: "supplier_id", label: "sessões de cotação" },
+    { table: "supplier_quote_responses", column: "supplier_id", label: "respostas de cotação" },
+    { table: "supplier_quote_response_items", column: "supplier_id", label: "itens de propostas" },
+    { table: "purchase_orders", column: "supplier_id", label: "pedidos" },
+    { table: "purchase_order_items", column: "original_supplier_id", label: "itens de pedidos" },
+    { table: "price_history", column: "supplier_id", label: "histórico de preços" },
+    { table: "purchase_history", column: "supplier_id", label: "compras anteriores" },
+    { table: "cot_distributor_offers", column: "supplier_id", label: "ofertas de distribuidoras" },
+    { table: "winner_order_pending_items", column: "original_supplier_id", label: "itens pendentes de pedido" },
+    { table: "winner_order_pending_items", column: "next_supplier_id", label: "substituições de fornecedor" },
+  ],
+  distributors: [
+    { table: "supplier_quote_response_items", column: "distributor_id", label: "propostas respondidas" },
+    { table: "purchase_order_items", column: "distributor_id", label: "itens de pedidos" },
+    { table: "cot_minimum_order_exceptions", column: "distributor_id", label: "aprovações excepcionais" },
+  ],
+};
+
+async function permanentlyDeleteCatalogRecords(
+  entity: "products" | "suppliers" | "distributors",
+  rawIds: string[],
+  auth: CrudAuth,
+): Promise<{ deletedIds: string[]; blocked: { id: string; reason: string }[] }> {
+  if (!Array.isArray(rawIds) || rawIds.length === 0 || rawIds.length > 100) {
+    throw new RouteError("Selecione de 1 a 100 registros por operação.", 400);
+  }
+  const ids = [...new Set(rawIds)];
+  if (ids.some((id) => !uuid(id))) throw new RouteError("Identificador de cadastro inválido.", 400);
+
+  const supabase = createSupabaseAdminClient();
+  const { data: existing, error: lookupError } = await supabase
+    .from(entity).select("id,tenant_id").in("id", ids);
+  if (lookupError) throw lookupError;
+  // Ninguém pode apagar cadastros de outra empresa, nem registros globais de uma farmácia.
+  if (existing?.length !== ids.length) throw new RouteError("Há registros inexistentes na seleção. Atualize a lista.", 404);
+  if (!auth.isSuperAdmin && (!auth.tenantId ||
+      existing.some((row: { tenant_id: string | null }) => row.tenant_id !== auth.tenantId))) {
+    throw new RouteError("A seleção contém cadastro de outra empresa ou do catálogo global.", 403);
+  }
+
+  const reasons = new Map<string, Set<string>>();
+  await Promise.all(deletionReferences[entity].map(async (reference) => {
+    // Paginar: Supabase pode limitar uma consulta a 1.000 linhas por padrão.
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await supabase.from(reference.table)
+        .select(reference.column).in(reference.column, ids).range(offset, offset + 999);
+      if (error) throw error; // Em caso de dúvida, não excluir.
+      for (const row of data ?? []) {
+        const id = String(row[reference.column] ?? "");
+        const labels = reasons.get(id) ?? new Set<string>();
+        labels.add(reference.label);
+        reasons.set(id, labels);
+      }
+      if ((data?.length ?? 0) < 1000) break;
+    }
+  }));
+
+  const blocked = ids.filter((id) => reasons.has(id)).map((id) => ({
+    id, reason: `Não é possível excluir: possui ${[...reasons.get(id)!].join(", ")}. O histórico foi preservado.`,
+  }));
+  const deletable = ids.filter((id) => !reasons.has(id));
+  if (deletable.length === 0) return { deletedIds: [], blocked };
+  // Um único DELETE por lote elegível; o banco impede exclusões com FKs
+  // não previstas, sem transformar em inativação.
+  let remove = supabase.from(entity).delete().in("id", deletable);
+  if (!auth.isSuperAdmin && auth.tenantId) remove = remove.eq("tenant_id", auth.tenantId);
+  const { data: removed, error: deleteError } = await remove.select("id");
+  if (deleteError) throw deleteError;
+  const deletedIds = (removed ?? []).map((row: { id: string }) => String(row.id));
+  if (deletedIds.length !== deletable.length) {
+    throw new RouteError("Nem todos os registros foram encontrados na exclusão. Recarregue a lista.", 409);
+  }
+  return { deletedIds, blocked };
+}
+
+
 const tenantTables: Partial<Record<Entity, string>> = {
   products: "products",
   suppliers: "suppliers",
@@ -83,28 +168,26 @@ export async function DELETE(
   try {
     entity = parseEntity((await params).entity);
     const auth = await authorizeCrud(entity);
-    const { id } = await request.json() as { id?: string };
-    if (!id) throw new RouteError("ID obrigatorio.", 400);
-    if (!auth.isSuperAdmin && auth.tenantId) {
-      await assertEntityOwnership(entity, id, auth.tenantId);
+    const body = await request.json() as { id?: string; ids?: string[] };
+    if (entity === "products" || entity === "suppliers" || entity === "distributors") {
+      const ids = body.ids ?? (body.id ? [body.id] : []);
+      const result = await permanentlyDeleteCatalogRecords(entity, ids, auth);
+      if (!body.ids && ids.length === 1 && result.blocked.length > 0) {
+        return NextResponse.json({ error: result.blocked[0].reason, blocked: result.blocked }, { status: 409 });
+      }
+      return NextResponse.json({ ok: true, deleted: true, ...result });
     }
-    await deleteByEntity(entity, id, auth.tenantId);
-    const deleted = entity === "suppliers";
-    return NextResponse.json({
-      ok: true,
-      deleted,
-      row: deleted ? { id } : { id, status: "inativo" },
-    });
+    // Outras entidades continuam com a regra atual. Não incluir em exclusão em massa.
+    if (body.ids) throw new RouteError("Exclusão em massa indisponível para este cadastro.", 400);
+    if (!body.id) throw new RouteError("ID obrigatorio.", 400);
+    if (!auth.isSuperAdmin && auth.tenantId) await assertEntityOwnership(entity, body.id, auth.tenantId);
+    await deleteByEntity(entity, body.id, auth.tenantId);
+    return NextResponse.json({ ok: true, deleted: false, row: { id: body.id, status: "inativo" } });
   } catch (error) {
-    if (entity === "suppliers" && errorCode(error) === "23503") {
-      return NextResponse.json(
-        {
-          error: "Este fornecedor possui um vínculo que impede a exclusão. Nenhum dado foi alterado.",
-        },
-        { status: 409 },
-      );
+    if (errorCode(error) === "23503") {
+      return NextResponse.json({ error: "Exclusão impedida por vínculos existentes com cotações, pedidos ou histórico. Nenhum registro do lote foi excluído." }, { status: 409 });
     }
-    return errorResponse(error, entity === "suppliers" ? "Erro ao excluir fornecedor." : "Erro ao inativar registro.");
+    return errorResponse(error, "Erro ao excluir registro.");
   }
 }
 

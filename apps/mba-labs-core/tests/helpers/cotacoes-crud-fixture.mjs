@@ -1,4 +1,5 @@
-export const state={writes:[],labs:[],role:'COMPRADOR',memberStatus:'ativo',authenticated:true};
+import { buildFakeSupabase } from './cotacoes-crud-fake-db.mjs';
+export const state={writes:[],labs:[],role:'COMPRADOR',memberStatus:'ativo',authenticated:true,dbEnabled:false,db:{},deleted:[]};
 const tenant='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 export const NextResponse={json:(body,options={})=>({body,status:options.status??200})};
 export class NextRequest {}
@@ -7,7 +8,7 @@ export const getSessionProfile=async()=>({user:{id:'test-user'},profile:{tipo:'u
 export const getCurrentAuthContext=async()=>({user:{id:'test-user'},isAuthenticated:state.authenticated,isActive:true,isSuperAdmin:false,profile:{role:state.role},tenantAccess:{tenantId:tenant,role:state.role,status:state.memberStatus,tenantStatus:'teste'}});
 export const isTenantSuspended=s=>s==='suspenso';
 export const syncCotacoesCompanyAccess=async()=>{};
-export const createSupabaseAdminClient=()=>({from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:{id:'product-own',tenant_id:tenant},error:null})})})})});
+export const createSupabaseAdminClient=()=>state.dbEnabled ? buildFakeSupabase(state) : ({from:()=>({select:()=>({eq:()=>({maybeSingle:async()=>({data:{id:'product-own',tenant_id:tenant},error:null})})})})});
 export const createDistributor=async()=>null;
 export const createLaboratory=async row=>{state.writes.push('laboratory');const lab={...row,id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'};state.labs.push(lab);return lab;};
 export const createMonthlySubscription=async()=>null;

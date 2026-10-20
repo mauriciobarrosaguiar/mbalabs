@@ -66,11 +66,15 @@ export function DemoCrudTable({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState("todos");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteFeedback, setDeleteFeedback] = useState<{ message: string; blocked: string[]; error: boolean } | null>(null);
   const [editing, setEditing] = useState<DemoCrudRow | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [importPreview, setImportPreview] = useState<DemoCrudRow[]>([]);
   const [importErrors, setImportErrors] = useState<string[]>([]);
   const visibleFields = fields.filter((field) => field.type !== "hidden");
+  const supportsPermanentDeletion = entity === "products" || entity === "suppliers" || entity === "distributors";
 
   useEffect(() => {
     if (remoteCrudEnabled(entity)) {
@@ -196,6 +200,7 @@ export function DemoCrudTable({
   }
 
   async function remove(id: string) {
+    setDeleteFeedback(null);
     if (remoteCrudEnabled(entity)) {
       try {
         const response = await fetch(`/api/cotacoes/crud/${entity}`, {
@@ -204,23 +209,90 @@ export function DemoCrudTable({
           body: JSON.stringify({ id }),
         });
         const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error ?? "Nao foi possivel remover no Supabase.");
+        if (!response.ok) throw new Error(payload.error ?? "Não foi possível excluir este registro.");
         if (payload.deleted === true) {
           setRows((current) => current.filter((row) => row.id !== id));
-          toast.success("Fornecedor excluído do Supabase");
+          setSelectedIds((current) => current.filter((value) => value !== id));
+          setDeleteFeedback({ message: "Registro excluído definitivamente.", blocked: [], error: false });
         } else {
-          setRows((current) => current.map((row) => (row.id === id ? { ...row, status: "inativo" } : row)));
-          toast.success("Registro inativado no Supabase");
+          setRows((current) => current.map((row) => row.id === id ? { ...row, status: "inativo" } : row));
+          setDeleteFeedback({ message: "Registro inativado.", blocked: [], error: false });
         }
         router.refresh();
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Erro ao remover registro.");
+        setDeleteFeedback({ message: error instanceof Error ? error.message : "Falha ao excluir registro.", blocked: [], error: true });
       }
       return;
     }
-
     setRows((current) => current.filter((row) => row.id !== id));
-    toast.success("Registro removido do demo local");
+    setSelectedIds((current) => current.filter((value) => value !== id));
+    setDeleteFeedback({ message: "Registro excluído do modo demo.", blocked: [], error: false });
+  }
+
+  function toggleSelected(id: string, checked: boolean) {
+    setSelectedIds((current) => checked ? [...new Set([...current, id])] : current.filter((value) => value !== id));
+  }
+
+  function toggleAllVisible(checked: boolean) {
+    const visible = new Set(visibleRows.map((row) => row.id));
+    setSelectedIds((current) => checked ? [...new Set([...current, ...visible])] : current.filter((id) => !visible.has(id)));
+  }
+
+  async function removeSelected() {
+    if (!supportsPermanentDeletion || !entity || selectedIds.length === 0 || isDeleting) return;
+    setIsDeleting(true);
+    setDeleteFeedback(null);
+    const deletedIds: string[] = [];
+    const blocked: string[] = [];
+    let failure: string | null = null;
+    try {
+      if (remoteCrudEnabled(entity)) {
+        // 100 IDs por requisição para evitar URLs grandes e respeitar o limite do servidor.
+        for (let offset = 0; offset < selectedIds.length; offset += 100) {
+          const batch = selectedIds.slice(offset, offset + 100);
+          const response = await fetch(`/api/cotacoes/crud/${entity}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: batch }),
+          });
+          const payload = await response.json();
+          if (!response.ok) {
+            failure = payload.error ?? "Falha na exclusão em massa.";
+            break;
+          }
+          deletedIds.push(...(payload.deletedIds as string[] ?? []));
+          blocked.push(...((payload.blocked ?? []) as { id: string; reason: string }[])
+            .map((item) => `${String(rows.find((row) => row.id === item.id)?.[primaryKey] ?? item.id)}: ${item.reason}`));
+        }
+      } else {
+        deletedIds.push(...selectedIds);
+      }
+      if (deletedIds.length > 0) {
+        const removed = new Set(deletedIds);
+        setRows((current) => current.filter((row) => !removed.has(row.id)));
+        setSelectedIds((current) => current.filter((id) => !removed.has(id)));
+        router.refresh();
+      }
+      setDeleteFeedback({
+        message: `${deletedIds.length} registro(s) excluído(s) definitivamente.${blocked.length ? ` ${blocked.length} protegido(s) por histórico.` : ""}${failure ? ` Operação interrompida: ${failure}` : ""}`,
+        blocked,
+        error: Boolean(failure),
+      });
+    } catch (error) {
+      setDeleteFeedback({
+        message: `Operação interrompida após ${deletedIds.length} exclusão(ões): ${error instanceof Error ? error.message : "erro inesperado"}.`,
+        blocked,
+        error: true,
+      });
+      if (deletedIds.length > 0) {
+        const removed = new Set(deletedIds);
+        setRows((current) => current.filter((row) => !removed.has(row.id)));
+        setSelectedIds((current) => current.filter((id) => !removed.has(id)));
+        router.refresh();
+      }
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
   async function handleImport(file?: File) {
@@ -285,6 +357,18 @@ export function DemoCrudTable({
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
+          {supportsPermanentDeletion && selectedIds.length > 0 ? (
+            <>
+              <ConfirmDialog
+                title={`Excluir definitivamente ${selectedIds.length} registro(s)?`}
+                description="Esta ação remove os cadastros selecionados do Supabase e não pode ser desfeita. Itens ligados a cotações, pedidos ou histórico não serão excluídos. Os demais serão apagados."
+                confirmLabel={`Excluir ${selectedIds.length} registro(s)`}
+                onConfirm={() => void removeSelected()}
+                trigger={<Button variant="destructive" disabled={isDeleting}><Trash2 className="h-4 w-4" />{isDeleting ? "Excluindo..." : `Excluir selecionados (${selectedIds.length})`}</Button>}
+              />
+              <Button variant="outline" disabled={isDeleting} onClick={() => setSelectedIds([])}>Limpar seleção</Button>
+            </>
+          ) : null}
           {entity !== "products" ? <Button variant="outline" onClick={() => void downloadModel()}>
             <FileSpreadsheet className="h-4 w-4" />
             Baixar modelo Excel
@@ -399,7 +483,7 @@ export function DemoCrudTable({
                   )}
                 </div>
               ))}
-              {showStatus ? (
+              {showStatus && !supportsPermanentDeletion ? (
                 <div className="space-y-2">
                   <Label>Status</Label>
                   <select
@@ -426,10 +510,31 @@ export function DemoCrudTable({
         </Card>
       ) : null}
 
+      {deleteFeedback ? (
+        <div role={deleteFeedback.error ? "alert" : "status"}
+          className={`rounded-md border p-3 text-sm ${deleteFeedback.error ? "border-red-300 bg-red-50 text-red-900" : "border-slate-300 bg-slate-50 text-slate-900"}`}>
+          <p className="font-medium">{deleteFeedback.message}</p>
+          {deleteFeedback.blocked.length > 0 ? (
+            <details className="mt-2">
+              <summary>Ver os {deleteFeedback.blocked.length} registro(s) não excluído(s)</summary>
+              <ul className="mt-1 max-h-44 list-disc overflow-auto pl-5">
+                {deleteFeedback.blocked.map((reason, index) => <li key={index}>{reason}</li>)}
+              </ul>
+            </details>
+          ) : null}
+        </div>
+      ) : null}
       <div className="overflow-x-auto rounded-md border border-slate-200">
         <Table>
           <TableHeader>
             <TableRow>
+              {supportsPermanentDeletion ? (
+                <TableHead className="w-10">
+                  <input type="checkbox" aria-label="Selecionar todos os registros da lista filtrada"
+                    checked={visibleRows.length > 0 && visibleRows.every((row) => selectedIds.includes(row.id))}
+                    onChange={(event) => toggleAllVisible(event.target.checked)} disabled={isDeleting} />
+                </TableHead>
+              ) : null}
               {visibleFields.slice(0, 5).map((field) => (
                 <TableHead key={field.key}>{field.label}</TableHead>
               ))}
@@ -440,13 +545,20 @@ export function DemoCrudTable({
           <TableBody>
             {visibleRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={visibleFields.slice(0, 5).length + (showStatus ? 2 : 1)} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={visibleFields.slice(0, 5).length + (showStatus ? 2 : 1) + (supportsPermanentDeletion ? 1 : 0)} className="h-24 text-center text-muted-foreground">
                   {emptyMessage}
                 </TableCell>
               </TableRow>
             ) : (
               visibleRows.map((row) => (
                 <TableRow key={row.id}>
+                  {supportsPermanentDeletion ? (
+                    <TableCell>
+                      <input type="checkbox" aria-label={`Selecionar ${String(row[primaryKey] ?? "registro")}`}
+                        checked={selectedIds.includes(row.id)}
+                        onChange={(event) => toggleSelected(row.id, event.target.checked)} disabled={isDeleting} />
+                    </TableCell>
+                  ) : null}
                   {visibleFields.slice(0, 5).map((field, index) => (
                     <TableCell key={field.key} className={index === 0 ? "font-medium" : undefined}>
                       {formatCell(field, row[field.key])}
@@ -459,7 +571,7 @@ export function DemoCrudTable({
                         <Edit className="h-4 w-4" />
                         Editar
                       </Button>
-                      {entity !== "suppliers" ? (
+                      {!supportsPermanentDeletion ? (
                         <Button variant="outline" size="sm" onClick={() => inactivate(row.id)}>
                           Inativar
                         </Button>
@@ -467,13 +579,13 @@ export function DemoCrudTable({
                       <ConfirmDialog
                         title="Excluir registro?"
                         description={
-                          remoteCrudEnabled(entity) && entity === "suppliers"
-                            ? "O fornecedor será excluído definitivamente se ainda não possuir histórico de cotações ou pedidos."
+                          supportsPermanentDeletion
+                            ? "O cadastro será excluído definitivamente, se não possuir vínculo com cotações, pedidos ou histórico. Esta ação não pode ser desfeita."
                             : remoteCrudEnabled(entity)
                               ? "O registro será inativado no Supabase."
                               : "No modo demo, isso remove apenas do armazenamento local deste navegador."
                         }
-                        confirmLabel={remoteCrudEnabled(entity) && entity === "suppliers" ? "Excluir" : remoteCrudEnabled(entity) ? "Inativar" : "Excluir"}
+                        confirmLabel={supportsPermanentDeletion ? "Excluir" : remoteCrudEnabled(entity) ? "Inativar" : "Excluir"}
                         onConfirm={() => remove(row.id)}
                         trigger={
                           <Button variant="outline" size="icon" aria-label={`Excluir ${row[primaryKey] ?? "registro"}`}>
