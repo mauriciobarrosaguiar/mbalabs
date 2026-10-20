@@ -137,7 +137,7 @@ async function importProducts(supabase:Client,tenantId:string,items:ProductInput
   }
   const eans=[...new Set(items.map(x=>x.ean))];
   const {data:existing,error:existingError}=await supabase.from("products")
-    .select("id,ean,laboratorio_id").eq("tenant_id",tenantId).in("ean",eans);
+    .select("id,ean,laboratorio_id").eq("tenant_id",tenantId).is("deleted_at",null).in("ean",eans);
   if(existingError)throw existingError;
   const existingByKey:Map<string,string>=new Map((existing??[]).map((p:{ean:string;laboratorio_id:string|null;id:string})=>[p.ean+"|"+(p.laboratorio_id??""),p.id]));
   const rows=new Map<string,{id?:string;tenant_id:string;nome:string;ean:string;laboratorio_id:string|null;tipo_produto:string|null;status:string}>();
