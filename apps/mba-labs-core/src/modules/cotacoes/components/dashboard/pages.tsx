@@ -2620,7 +2620,7 @@ async function PharmacyAnalysis({ quotationId, tenantId }: { quotationId: string
                   <TableRow key={item.id}>
                     <TableCell>{product?.productName ?? item.quotationItemId}</TableCell>
                     <TableCell>{supplierDisplayName(item.supplierId)}</TableCell>
-                    <TableCell>{distributorName(item.distributorId)}</TableCell>
+                    <TableCell>{analysis.distributorMinimums.find((distributor) => distributor.distributorId === item.distributorId)?.distributorName ?? "-"}</TableCell>
                     <TableCell className="text-right">{formatCurrency(item.unitPrice)}</TableCell>
                     <TableCell className="text-right">{formatCurrency((item.unitPrice ?? 0) * (product?.requestedQuantity ?? 0))}</TableCell>
                     <TableCell className="text-right">{second ? formatCurrency(second.unitPrice) : "-"}</TableCell>
@@ -3816,10 +3816,6 @@ export function getCompanyRouteTitle(slug: string[]) {
 
 function supplierName(supplierId?: string, fallback = "Fornecedor") {
   return fallbackName(fallback, supplierId);
-}
-
-function distributorName(distributorId?: string) {
-  return distributorId ?? "-";
 }
 
 function buildSupplierNameResolver({
