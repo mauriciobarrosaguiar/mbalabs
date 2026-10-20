@@ -571,7 +571,7 @@ export function DemoCrudTable({
                         <Edit className="h-4 w-4" />
                         Editar
                       </Button>
-                      {!supportsPermanentDeletion && entity !== "suppliers" ? (
+                      {!supportsPermanentDeletion ? (
                         <Button variant="outline" size="sm" onClick={() => inactivate(row.id)}>
                           Inativar
                         </Button>
