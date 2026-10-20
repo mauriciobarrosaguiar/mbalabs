@@ -317,7 +317,7 @@ async function resolveBillingDistributor(
     .replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
   if (moduleType !== "pharmacy" || !entered) return null;
   const { data, error } = await supabase
-    .from("distributors").select("id,nome").eq("tenant_id", tenantId);
+    .from("distributors").select("id,nome").eq("tenant_id", tenantId).eq("status", "ativo").is("deleted_at", null);
   if (error) throw error;
   const candidates = (data ?? []).filter((candidate) =>
     String(candidate.nome ?? "").trim().normalize("NFKD")
