@@ -17,6 +17,7 @@ export function TenantWhatsappConnect({ canManage }: { canManage: boolean }) {
   const [connection, setConnection] = useState<Connection | null>(null);
   const [busy, setBusy] = useState<"connect" | "disconnect" | "refresh" | null>(null);
   const [error, setError] = useState("");
+  const [checkFeedback, setCheckFeedback] = useState<{ connected: boolean; checkedAt: string } | null>(null);
 
   const refresh = useCallback(async () => {
     const response = await fetch("/api/cotacoes/whatsapp-conexao", { cache: "no-store" });
@@ -41,6 +42,7 @@ export function TenantWhatsappConnect({ canManage }: { canManage: boolean }) {
         !window.confirm("Desconectar o WhatsApp desta empresa? Os próximos envios automáticos serão interrompidos.")) return;
     setBusy(action);
     setError("");
+    setCheckFeedback(null);
     try {
       const response = await fetch("/api/cotacoes/whatsapp-conexao", {
         method: "POST",
@@ -90,6 +92,17 @@ export function TenantWhatsappConnect({ canManage }: { canManage: boolean }) {
         </div>
       ) : null}
       {error ? <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</p> : null}
+      {!error && checkFeedback && connection?.connected === checkFeedback.connected ? (
+        <div role="status" aria-live="polite"
+          className={checkFeedback.connected
+            ? "rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900"
+            : "rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"}>
+          <p className="font-medium">{checkFeedback.connected
+            ? "Conexão confirmada com sucesso! WhatsApp conectado à Evolution API."
+            : "Conexão não confirmada. Verifique a conexão do WhatsApp."}</p>
+          <p className="mt-1 text-xs">Última verificação: {checkFeedback.checkedAt}</p>
+        </div>
+      ) : null}
       {!error && connection?.message && !connection.connected ? (
         <p className="rounded-md bg-amber-50 p-3 text-sm text-amber-900">{connection.message}</p>
       ) : null}
@@ -107,8 +120,15 @@ export function TenantWhatsappConnect({ canManage }: { canManage: boolean }) {
         </Button>
         <Button type="button" variant="outline" disabled={busy !== null} onClick={() => {
           setBusy("refresh");
-          void refresh().then((state) => toast.info(state.connected ? "Conexão confirmada." : "Ainda não conectado."))
-            .catch((err) => setError(String(err.message ?? err))).finally(() => setBusy(null));
+          setError("");
+          setCheckFeedback(null);
+          void refresh()
+            .then((state) => setCheckFeedback({
+              connected: state.connected,
+              checkedAt: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+            }))
+            .catch((err) => setError(String(err.message ?? err)))
+            .finally(() => setBusy(null));
         }}>
           {busy === "refresh" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           Verificar conexão
