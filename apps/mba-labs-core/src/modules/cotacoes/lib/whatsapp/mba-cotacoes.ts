@@ -1,6 +1,7 @@
 import { createSupabaseAdminClient, hasSupabaseAdminConfig, hasSupabaseConfig } from "@/modules/cotacoes/lib/supabase/server";
 import type { PurchaseOrder } from "@/modules/cotacoes/lib/types";
 import { getTenantWhatsAppSendingConfig, verifyGlobalEvolutionInfrastructure } from "@/modules/cotacoes/lib/whatsapp/tenant-whatsapp";
+import { buildQuotationWhatsappMessage, buildWinnerOrderWhatsappMessage } from "@/modules/cotacoes/lib/whatsapp/message-templates";
 
 export type WhatsappTipoEnvio = "link_cotacao" | "resultado_cotacao";
 export type WhatsappStatus = "pendente" | "enviado" | "falhou";
@@ -266,7 +267,7 @@ export async function sendQuotationLinksByQuotation(input: { quotationId: string
   const results = await Promise.all((sessions ?? []).map((session: any) => {
     const link = `${input.origin}/${prefix}/responder/${session.public_token}`;
     const name = session.seller_name || session.seller_company || "vendedor";
-    const mensagem = `Olá ${name}, a farmácia ${companyName} enviou uma nova cotação pelo MBA Cotações.\n\nPara responder, acesse:\n${link}`;
+    const mensagem = buildQuotationWhatsappMessage({ contactName: name, companyName, quotationName: quotation.name, link });
     return sendWhatsAppMbaCotacoes({ empresaId: quotation.tenant_id, cotacaoId: quotation.id, vendedorId: session.supplier_id || session.id, telefone: session.seller_whatsapp, mensagem, tipoEnvio: "link_cotacao", linkEnviado: link, forceResend: input.forceResend });
   }));
   return summarize(results);
@@ -282,7 +283,7 @@ export async function sendWinnerOrderLinksByQuotation(input: { quotationId: stri
   const results = await Promise.all(orders.map((order) => {
     const link = `${input.origin}/${order.moduleType === "bidding" ? "licitacao" : "cotacao"}/pedido/${order.publicToken}`;
     const name = order.supplierContactName || order.supplierName || order.supplierCompany || "vendedor";
-    const mensagem = `Olá ${name}, a cotação da farmácia ${companyName} foi finalizada pelo MBA Cotações.\n\nVocê possui itens vencedores.\n\nAcesse:\n${link}`;
+    const mensagem = buildWinnerOrderWhatsappMessage({ contactName: name, companyName, quotationName: quotation.name, link });
     return sendWhatsAppMbaCotacoes({ empresaId: order.tenantId, cotacaoId: order.quotationId, vendedorId: vendorId(order), telefone: order.supplierWhatsapp, mensagem, tipoEnvio: "resultado_cotacao", linkEnviado: link, forceResend: input.forceResend });
   }));
   return summarize(results);
@@ -418,7 +419,7 @@ function mapEnvio(row: any): WhatsappEnvio { return { id: row.id, empresaId: row
 async function existingEnvio(supabase: Db, input: SendInput) { const { data } = await supabase.from("cot_whatsapp_envios").select("*").eq("empresa_id", input.empresaId).eq("cotacao_id", input.cotacaoId).eq("vendedor_id", input.vendedorId).eq("tipo_envio", input.tipoEnvio).maybeSingle(); return data ? mapEnvio(data) : null; }
 async function upsertEnvio(supabase: Db, input: SendInput, telefone: string, status: WhatsappStatus) { const existing = await existingEnvio(supabase, input); const payload = { empresa_id: input.empresaId, cotacao_id: input.cotacaoId, vendedor_id: input.vendedorId, telefone, tipo_envio: input.tipoEnvio, mensagem: input.mensagem, link_enviado: input.linkEnviado, status, erro: null, enviado_por: "mba_cotacoes" }; if (existing?.id) { await supabase.from("cot_whatsapp_envios").update(payload).eq("id", existing.id); return existing.id; } const { data } = await supabase.from("cot_whatsapp_envios").insert(payload).select("id").single(); return data?.id as string | undefined; }
 async function updateEnvio(supabase: Db, input: SendInput, envioId: string | undefined, status: WhatsappStatus, erro: string | null, enviadoPor?: string, enviadoEm?: string) { const payload: Record<string, unknown> = { status, erro, enviado_em: status === "enviado" ? (enviadoEm ?? new Date().toISOString()) : null }; if (enviadoPor) payload.enviado_por = enviadoPor; if (envioId) await supabase.from("cot_whatsapp_envios").update(payload).eq("id", envioId); else await supabase.from("cot_whatsapp_envios").update(payload).eq("empresa_id", input.empresaId).eq("cotacao_id", input.cotacaoId).eq("vendedor_id", input.vendedorId).eq("tipo_envio", input.tipoEnvio); }
-async function quotationRow(supabase: Db, quotationId: string) { const { data } = await supabase.from("quotations").select("id, tenant_id, module_type, pharmacy_id, buyer_company_name").eq("id", quotationId).maybeSingle(); return data as any; }
+async function quotationRow(supabase: Db, quotationId: string) { const { data } = await supabase.from("quotations").select("id, name, tenant_id, module_type, pharmacy_id, buyer_company_name").eq("id", quotationId).maybeSingle(); return data as any; }
 async function buyerName(supabase: Db, quotation: any) { const { data: tenant } = await supabase.from("tenants").select("nome_fantasia, razao_social").eq("id", quotation.tenant_id).maybeSingle(); return quotation.buyer_company_name || tenant?.nome_fantasia || tenant?.razao_social || "Farmácia"; }
 function vendorId(order: PurchaseOrder) { return order.supplierId || order.id; }
 function summarize(results: SendWhatsAppResult[]): WhatsappBatchResult { return { total: results.length, enviado: results.filter((r) => r.status === "enviado").length, falhou: results.filter((r) => r.status === "falhou").length, pendente: results.filter((r) => r.status === "pendente").length, ignorado: results.filter((r) => r.skipped).length, results }; }
