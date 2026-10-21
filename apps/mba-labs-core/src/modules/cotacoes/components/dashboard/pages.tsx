@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { FlexibleProductImporter } from "@/modules/cotacoes/components/products/flexible-product-importer";
 import { CatalogAdminPanel } from "@/modules/cotacoes/components/products/catalog-admin-panel";
+import { AdminQuotationReports } from "@/modules/cotacoes/components/admin/quotation-reports";
 import { TenantManagementTable } from "@/modules/cotacoes/components/admin/tenant-management-table";
 import { KpiCard } from "@/modules/cotacoes/components/dashboard/kpi-card";
 import { StatusBadge } from "@/modules/cotacoes/components/dashboard/status-badge";
@@ -292,7 +293,7 @@ export async function AdminSectionPage({
     return (
       <CrudPage
         title="Planos"
-        description="CRUD de planos comerciais. Alterações de valor valem apenas para próximas mensalidades geradas."
+        description="Limites mensais de cotações validados no banco na criação; alterações de valores não afetam mensalidades já geradas."
       >
         <DemoCrudTable
           entity="plans"
@@ -426,6 +427,7 @@ export async function AdminSectionPage({
   }
 
   if (section === "produtos") return <CatalogAdminPanel />;
+  if (section === "relatorios") return <AdminQuotationReports />;
 
   if (section === "licitacoes") {
     const biddingQuotations = collections.quotations.filter((quotation) => quotation.moduleType === "bidding");
@@ -1352,7 +1354,7 @@ async function PaymentSettingsPage() {
   return (
     <CrudPage
       title="Configurações de pagamento"
-      description="Configuração preparada para Efí Bank, com segredo gravado apenas pelo servidor e nunca exibido completo na interface."
+      description="Cadastro de parâmetros Efí em preparação. Ainda NÃO emite Pix, não realiza testes de conexão nem confirma pagamentos automaticamente."
     >
       <form action={savePaymentSettingsAction} className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">
         <div className="space-y-2">
@@ -1392,11 +1394,16 @@ async function PaymentSettingsPage() {
         />
         <LabeledInput name="webhookUrl" label="Webhook URL" defaultValue={settings?.webhook_url ?? ""} />
         <LabeledInput name="receiverAccount" label="Conta/identificação recebedora" defaultValue={settings?.receiver_account ?? ""} />
+        {settings?.client_id?.includes("@") ? (
+          <p role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-medium text-amber-950 md:col-span-2 xl:col-span-3">
+            O Client ID está preenchido como e-mail. A Efí exige um Client ID oficial da aplicação, além de Client Secret e certificado válidos. Não utilize esses dados para cobrar clientes.
+          </p>
+        ) : null}
         <div className="md:col-span-2 xl:col-span-3">
           <div className="grid gap-3 md:grid-cols-3">
             <ConfigStatus label="Client Secret" value={hasClientSecret ? "configurado" : "não configurado"} ok={hasClientSecret} />
             <ConfigStatus label="Certificado" value={hasCertificate ? "configurado" : "não configurado"} ok={hasCertificate} />
-            <ConfigStatus label="Status da conexão" value="Em desenvolvimento" ok={false} />
+            <ConfigStatus label="Status da conexão" value="Não integrada: falta implementar autenticação, certificados, teste e webhook" ok={false} />
           </div>
         </div>
         <div className="flex flex-wrap gap-2 md:col-span-2 xl:col-span-3">

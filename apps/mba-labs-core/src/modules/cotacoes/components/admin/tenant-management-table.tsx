@@ -317,7 +317,7 @@ export function TenantManagementTable({
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto !bg-white !text-slate-900 sm:max-w-4xl [&_label]:!text-slate-900 [&_input:not([type=checkbox])]:!bg-white [&_input:not([type=checkbox])]:!text-slate-900 [&_input]:!border-slate-300 [&_input]:placeholder:!text-slate-400 [&_textarea]:!bg-white [&_textarea]:!text-slate-900 [&_select]:!bg-white [&_select]:!text-slate-900 [&_[data-slot=select-trigger]]:!bg-white [&_[data-slot=select-trigger]]:!text-slate-900">
+        <DialogContent className="w-[calc(100vw-2rem)] max-h-[92dvh] overflow-y-auto !bg-white !text-slate-900 sm:max-w-4xl [&_label]:!text-slate-900 [&_input:not([type=checkbox])]:!bg-white [&_input:not([type=checkbox])]:!text-slate-900 [&_input]:!border-slate-300 [&_input]:placeholder:!text-slate-400 [&_textarea]:!bg-white [&_textarea]:!text-slate-900 [&_select]:!bg-white [&_select]:!text-slate-900 [&_[data-slot=select-trigger]]:!bg-white [&_[data-slot=select-trigger]]:!text-slate-900">
           <DialogHeader>
             <DialogTitle>{editing?.nomeFantasia ? "Editar farmácia / cliente" : "Nova farmácia / cliente"}</DialogTitle>
             <DialogDescription>
@@ -376,11 +376,11 @@ export function TenantManagementTable({
                   />
                 </div>
               </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              <DialogFooter className="gap-2 border-t border-slate-200 bg-white pt-4 sm:flex-row sm:justify-end">
+                <Button type="button" variant="outline" className="!border-slate-300 !bg-white !text-slate-900 hover:!bg-slate-100" onClick={() => setOpen(false)}>
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={saving}>{saving ? "Salvando..." : "Salvar farmácia"}</Button>
+                <Button type="submit" className="!bg-emerald-500 !text-slate-950 hover:!bg-emerald-400 disabled:!text-slate-700" disabled={saving}>{saving ? "Salvando..." : "Salvar farmácia"}</Button>
               </DialogFooter>
             </form>
           ) : null}

@@ -361,7 +361,7 @@ export function DemoCrudTable({
             <>
               <ConfirmDialog
                 title={`Excluir definitivamente ${selectedIds.length} registro(s)?`}
-                description="Esta ação remove os cadastros selecionados do Supabase e não pode ser desfeita. Itens ligados a cotações, pedidos ou histórico não serão excluídos. Os demais serão apagados."
+                description="Os registros selecionados serão excluídos do cadastro. Cotações e pedidos antigos permanecerão preservados."
                 confirmLabel={`Excluir ${selectedIds.length} registro(s)`}
                 onConfirm={() => void removeSelected()}
                 trigger={<Button variant="destructive" disabled={isDeleting}><Trash2 className="h-4 w-4" />{isDeleting ? "Excluindo..." : `Excluir selecionados (${selectedIds.length})`}</Button>}
@@ -580,7 +580,7 @@ export function DemoCrudTable({
                         title="Excluir registro?"
                         description={
                           supportsPermanentDeletion
-                            ? "O cadastro será excluído definitivamente, se não possuir vínculo com cotações, pedidos ou histórico. Esta ação não pode ser desfeita."
+                            ? "O cadastro deixará de aparecer e não poderá ser usado nas próximas cotações. Histórico de pedidos e cotações será preservado."
                             : remoteCrudEnabled(entity)
                               ? "O registro será inativado no Supabase."
                               : "No modo demo, isso remove apenas do armazenamento local deste navegador."

@@ -55,9 +55,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Erro ao criar cotação", error);
+    const message = resolveErrorMessage(error, "Erro ao criar cotação.");
     return NextResponse.json(
-      { error: resolveErrorMessage(error, "Erro ao criar cotação.") },
-      { status: 500 },
+      { error: message },
+      { status: message.includes("Limite mensal de cotações atingido") ? 409 : 500 },
     );
   }
 }

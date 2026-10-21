@@ -51,6 +51,7 @@ const adminNav: NavItem[] = [
   { href: "/cotacoes/gestao/representantes", label: "Representantes", icon: Users },
   { href: "/cotacoes/gestao/distribuidoras", label: "Distribuidoras", icon: Truck },
   { href: "/cotacoes/gestao/produtos", label: "Catálogo de medicamentos", icon: Package },
+  { href: "/cotacoes/gestao/relatorios", label: "Relatórios de cotações", icon: FileSpreadsheet },
   { href: "/cotacoes/gestao/usuarios", label: "Usuários", icon: Users },
   { href: "/cotacoes/gestao/planos", label: "Planos", icon: ClipboardCheck },
   { href: "/cotacoes/gestao/mensalidades", label: "Mensalidades e pagamentos", icon: ReceiptText },
@@ -116,7 +117,7 @@ export function AppShell({
     : "/cotacoes/cotacoes-farmacia/nova";
 
   return (
-    <div className="cotacoes-module min-h-screen bg-[#f7fbf9] text-[#0c211b]">
+    <div className={cn("cotacoes-module min-h-screen bg-[#f7fbf9] text-[#0c211b]", mode === "admin" && "cotacoes-admin")}>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[268px] border-r border-[#dce8e3] bg-[#fbfdfc] lg:flex lg:flex-col">
         <Brand mode={mode} />
         <nav className="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4">
@@ -157,13 +158,13 @@ export function AppShell({
         </header>
 
         <main
-          className="min-h-[calc(100vh-68px)] px-4 py-6 sm:px-8 sm:py-8"
+          className="min-w-0 min-h-[calc(100vh-68px)] px-3 py-4 sm:px-6 sm:py-8 xl:px-8"
           style={{
             backgroundImage:
               "radial-gradient(circle at 8% 0%, rgba(198, 241, 226, 0.56), transparent 32rem), radial-gradient(circle at 88% 4%, rgba(215, 241, 244, 0.60), transparent 34rem), linear-gradient(180deg, #f7fcfa 0%, #f8fbfa 100%)",
           }}
         >
-          <div className="mx-auto w-full max-w-[1180px] space-y-6">
+          <div className="mx-auto min-w-0 w-full max-w-[1180px] space-y-6">
             {isCompanyDashboard ? (
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div className="max-w-2xl space-y-1.5">
