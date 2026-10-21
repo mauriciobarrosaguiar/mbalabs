@@ -747,7 +747,10 @@ export async function getTenant(tenantId?: string) {
 
 export async function getAdminMetrics(): Promise<DashboardMetric[]> {
   if (!canUseSupabaseRepository()) return [];
-  const collections = await getCollections();
+  const [collections, activeUsers] = await Promise.all([
+    getCollections(),
+    db().from("users_profile").select("id", { count: "exact", head: true }).eq("status", "ativo"),
+  ]);
   const clientTenants = collections.tenants.filter((tenant) => !String(tenant.cnpj ?? "").startsWith("CORE-"));
   const clientTenantIds = new Set(clientTenants.map((tenant) => tenant.id));
   const subscriptions = collections.monthlySubscriptions.filter((sub) => clientTenantIds.has(sub.tenantId));
@@ -777,7 +780,7 @@ export async function getAdminMetrics(): Promise<DashboardMetric[]> {
     { label: "Mensalidades atrasadas", value: String(overdue), hint: "Ação financeira", tone: "danger" },
     { label: "Receita mensal estimada", value: formatCurrency(revenue), hint: "MRR bruto previsto", tone: "default" },
     { label: "Cotações no mês", value: String(quotationsThisMonth), hint: "Farmácia + licitação", tone: "info" },
-    { label: "Usuários ativos", value: "-", hint: "Supabase Auth", tone: "default" },
+    { label: "Usuários ativos", value: activeUsers.error ? "-" : String(activeUsers.count ?? 0), hint: "Perfis ativos do MBA Cotações", tone: "default" },
     { label: "Erros recentes", value: String(recentErrors), hint: "Logs de erro nos últimos 30 dias", tone: recentErrors ? "danger" : "success" },
   ];
 }
