@@ -85,6 +85,7 @@ test('pendentes e itens sem oferta preservam produto e quantidade solicitados',a
  assert.equal(result.body.rows[0].produtoSolicitado,'PRODUTO A');
  assert.equal(result.body.rows[0].quantidadeSolicitada,20);
  assert.equal(result.body.rows[0].precoUnitario,'');
+ assert.equal(result.body.rows[0].produto,'');
  assert.equal(result.body.rows[0].situacaoResposta,'pending');
 });
 

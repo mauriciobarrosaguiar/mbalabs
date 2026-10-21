@@ -106,7 +106,7 @@ export async function GET(request:NextRequest) {
           distribuidoraId:associatedDistributor?.id??"",
           situacaoResposta:response?.status??session?.status??"sem convite",
           dataResposta:response?.submitted_at??session?.submitted_at??"",
-          produto:item?.offered_product_name??quoteItem?.product_name??"",
+          produto:item?(item.offered_product_name??quoteItem?.product_name??""):"",
           produtoSolicitado:quoteItem?.product_name??"",resultado:item?.award_status??"",
           quantidadeSolicitada:quoteItem?.requested_quantity??"",
           quantidadeDisponivel:item?.available_quantity??"",
