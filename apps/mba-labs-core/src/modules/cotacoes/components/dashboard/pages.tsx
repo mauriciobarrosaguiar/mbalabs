@@ -1394,6 +1394,11 @@ async function PaymentSettingsPage() {
         />
         <LabeledInput name="webhookUrl" label="Webhook URL" defaultValue={settings?.webhook_url ?? ""} />
         <LabeledInput name="receiverAccount" label="Conta/identificação recebedora" defaultValue={settings?.receiver_account ?? ""} />
+        {settings?.client_id?.includes("@") ? (
+          <p role="alert" className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm font-medium text-amber-950 md:col-span-2 xl:col-span-3">
+            O Client ID está preenchido como e-mail. A Efí exige um Client ID oficial da aplicação, além de Client Secret e certificado válidos. Não utilize esses dados para cobrar clientes.
+          </p>
+        ) : null}
         <div className="md:col-span-2 xl:col-span-3">
           <div className="grid gap-3 md:grid-cols-3">
             <ConfigStatus label="Client Secret" value={hasClientSecret ? "configurado" : "não configurado"} ok={hasClientSecret} />
