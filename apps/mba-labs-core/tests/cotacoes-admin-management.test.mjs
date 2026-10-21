@@ -76,3 +76,57 @@ test('migração protege limite por tenant e mês contra criação concorrente',
  assert.match(sql,/America\/Sao_Paulo/);
  assert.match(sql,/v_used >= v_limit/);
 });
+
+test('pendentes e itens sem oferta preservam produto e quantidade solicitados',async()=>{
+ state.tables.supplier_quote_responses=[];
+ state.tables.supplier_quote_response_items=[];
+ state.tables.supplier_quote_sessions[0].status='pending';
+ const result=await GET(report());
+ assert.equal(result.body.rows[0].produtoSolicitado,'PRODUTO A');
+ assert.equal(result.body.rows[0].quantidadeSolicitada,20);
+ assert.equal(result.body.rows[0].precoUnitario,'');
+ assert.equal(result.body.rows[0].produto,'');
+ assert.equal(result.body.rows[0].situacaoResposta,'pending');
+});
+
+test('CSV respeita filtros de representante, distribuidora e período brasileiro',async()=>{
+ for(const query of ['?representante=outro','?distribuidora=inexistente','?inicio=2026-10-21','?fim=2026-10-18']) {
+  assert.equal((await GET(report(query))).body.total,0);
+ }
+ const response=await GET(report('?representante=supplier-a&distribuidora=dist-a&inicio=2026-10-19&fim=2026-10-19&formato=csv'));
+ assert.match(response.body,/PRODUTO A/);
+ assert.match(response.body,/Quantidade solicitada/);
+ assert.match(response.body,/Resultado do item/);
+ assert.equal((await GET(report('?inicio=2026-10-21&fim=2026-10-19'))).status,400);
+});
+
+test('respostas antigas permanecem sem transformar novo convite em respondido',async()=>{
+ state.tables.supplier_quote_sessions.push({...state.tables.supplier_quote_sessions[0],id:'session-new',status:'pending',submitted_at:null});
+ const result=await GET(report());
+ assert.equal(result.body.total,2);
+ assert.equal(result.body.rows.filter(r=>r.situacaoResposta==='pending').length,1);
+ assert.equal(result.body.rows.filter(r=>r.situacaoResposta==='submitted').length,1);
+});
+
+test('referências inconsistentes não misturam dados de empresas',async()=>{
+ state.tables.supplier_quote_responses[0].tenant_id='tenant-b';
+ state.tables.supplier_quote_response_items[0].tenant_id='tenant-b';
+ const result=await GET(report());
+ assert.equal(result.body.rows[0].precoUnitario,'');
+ assert.equal(result.body.rows[0].distribuidora,'');
+});
+
+test('filtro por distribuidora de outra empresa não inclui homônimos históricos',async()=>{
+ state.tables.supplier_quote_response_items[0].distributor_id=null;
+ state.tables.distributors.push({id:'dist-b',tenant_id:'tenant-b',nome:'Distribuidora A'});
+ assert.equal((await GET(report('?distribuidora=dist-b'))).body.total,0);
+ assert.equal((await GET(report('?distribuidora=dist-a'))).body.total,1);
+});
+
+test('CSV neutraliza fórmulas e preserva preço zero',async()=>{
+ state.tables.quotations[0].name='=HYPERLINK("bad")';
+ state.tables.supplier_quote_response_items[0].net_price=0;
+ const result=await GET(report('?formato=csv'));
+ assert.match(result.body,/'=HYPERLINK/);
+ assert.equal((await GET(report())).body.rows[0].precoUnitario,0);
+});

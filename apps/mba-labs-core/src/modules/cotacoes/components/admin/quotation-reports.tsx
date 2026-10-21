@@ -9,7 +9,7 @@ type ReportRow={
  modulo:string;data:string;prazo:string;situacaoCotacao:string;
  representante:string;representanteId:string;empresaRepresentante:string;
  distribuidora:string;distribuidoraId:string;situacaoResposta:string;dataResposta:string;
- produto:string;quantidadeSolicitada:string|number;quantidadeDisponivel:string|number;precoUnitario:string|number;
+ produtoSolicitado:string;resultado:string;produto:string;quantidadeSolicitada:string|number;quantidadeDisponivel:string|number;precoUnitario:string|number;
 };
 type Payload={rows:ReportRow[];total:number;quotations:number;companies:Choice[];representatives:Choice[];distributors:Choice[];page:number};
 
@@ -41,6 +41,8 @@ export function AdminQuotationReports(){
   finally{setLoading(false);}
  }
  useEffect(()=>{void load(0);},[]);
+ const csvParams=params(0);
+ csvParams.set("formato","csv");
  const field="h-10 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900";
  return <div className="min-w-0 space-y-5">
   <div>
@@ -71,9 +73,8 @@ export function AdminQuotationReports(){
    </label>
    <div className="flex flex-wrap items-center gap-2 sm:col-span-2 xl:col-span-5">
     <Button type="submit" disabled={loading} className="bg-teal-700 text-white hover:bg-teal-800">{loading?"Consultando...":"Filtrar cotações"}</Button>
-    <Button type="button" variant="outline" disabled={loading} onClick={()=>{const u=new URLSearchParams(params(0));u.set("formato","csv");window.location.assign(`/api/cotacoes/admin/relatorios?${u}`);}}>
-     Exportar todas as linhas em CSV
-    </Button>
+    {loading?<Button type="button" variant="outline" disabled>Exportar todas as linhas em CSV</Button>:
+     <Button asChild variant="outline"><a href={`/api/cotacoes/admin/relatorios?${csvParams}`} download="mba-cotacoes-relatorio-administrativo.csv">Exportar todas as linhas em CSV</a></Button>}
    </div>
   </form>
   {error?<p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">{error}</p>:null}
@@ -85,16 +86,16 @@ export function AdminQuotationReports(){
   <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-3 sm:p-4">
    <p className="mb-3 text-sm text-slate-600">Cada linha identifica a cotação, o vendedor e a oferta de um produto; vendedores pendentes também aparecem, sem valores inventados.</p>
    <div className="w-full overflow-x-auto rounded-lg border border-slate-200">
-    <table className="w-full min-w-[1100px] text-left text-xs">
+    <table className="w-full min-w-[1600px] text-left text-xs">
      <thead className="bg-slate-100 text-slate-700"><tr>
-      {["Empresa","Cotação","Data","Situação","Representante","Distribuidora","Resposta","Produto ofertado","Qtd disponível","Preço unitário"].map(k=><th key={k} className="p-3">{k}</th>)}
+      {["Empresa / CNPJ","Cotação / ID","Data","Situação","Representante","Distribuidora","Resposta","Produto solicitado / ofertado","Qtd solicitada","Qtd disponível","Preço unitário","Resultado"].map(k=><th key={k} className="p-3">{k}</th>)}
      </tr></thead>
      <tbody>{rows.map((x,i)=><tr key={x.cotacaoId+"-"+x.representanteId+"-"+i} className="border-t border-slate-200 align-top text-slate-800">
-       <td className="p-3 font-semibold">{x.empresa}</td><td className="p-3">{x.cotacao}</td><td className="p-3">{x.data}</td>
+       <td className="min-w-[170px] p-3 font-semibold">{x.empresa}<p className="mt-1 font-normal">{x.cnpj}</p></td><td className="min-w-[220px] p-3">{x.cotacao}<p className="mt-1 break-all text-slate-500">{x.cotacaoId}</p></td><td className="whitespace-nowrap p-3">{x.data}</td>
        <td className="p-3">{x.situacaoCotacao}</td><td className="p-3">{x.representante||"Sem convite"}</td>
        <td className="p-3">{x.distribuidora||"—"}</td><td className="p-3">{x.situacaoResposta}</td>
-       <td className="p-3">{x.produto||"—"}</td><td className="p-3">{x.quantidadeDisponivel||"—"}</td>
-       <td className="p-3">{x.precoUnitario!==""&&x.precoUnitario!=null?Number(x.precoUnitario).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"—"}</td>
+       <td className="min-w-[230px] p-3">{x.produtoSolicitado||"—"}<p className="mt-1 text-slate-500">Oferta: {x.produto||"—"}</p></td><td className="p-3">{x.quantidadeSolicitada===""?"—":x.quantidadeSolicitada??"—"}</td><td className="p-3">{x.quantidadeDisponivel===""?"—":x.quantidadeDisponivel??"—"}</td>
+       <td className="p-3">{x.precoUnitario!==""&&x.precoUnitario!=null?Number(x.precoUnitario).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"—"}</td><td className="p-3">{x.resultado||"—"}</td>
      </tr>)}</tbody>
     </table>
     {!loading&&!rows.length?<p className="p-6 text-center text-slate-600">Nenhuma cotação ou resposta corresponde aos filtros.</p>:null}

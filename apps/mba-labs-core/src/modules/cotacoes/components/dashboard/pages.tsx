@@ -225,7 +225,7 @@ export async function AdminDashboardPage() {
             <CardTitle>Eventos do sistema</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {auditLogs.map((log) => (
+            {[...auditLogs].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((log) => (
               <div key={log.id} className="flex items-start gap-3">
                 <span className="mt-1 rounded-md bg-slate-100 p-2 text-slate-600">
                   <ReceiptText className="h-4 w-4" />
@@ -398,7 +398,7 @@ export async function AdminSectionPage({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {collections.auditLogs.map((log) => (
+            {[...collections.auditLogs].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((log) => (
               <TableRow key={log.id}>
                 <TableCell>{formatDate(log.createdAt)}</TableCell>
                 <TableCell>{log.actor}</TableCell>
@@ -952,9 +952,9 @@ function FeatureStageNote({
 
 function ConfigStatus({ label, value, ok }: { label: string; value: string; ok: boolean }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-white p-3">
+    <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white p-3 [&_[data-slot=badge]]:max-w-full [&_[data-slot=badge]]:whitespace-normal [&_[data-slot=badge]]:break-words">
       <span className="text-sm font-medium text-slate-800">{label}</span>
-      <Badge variant={ok ? "default" : "outline"}>{value}</Badge>
+      <Badge className="h-auto min-h-5 max-w-full whitespace-normal break-words" variant={ok ? "default" : "outline"}>{value}</Badge>
     </div>
   );
 }
@@ -1356,7 +1356,7 @@ async function PaymentSettingsPage() {
       title="Configurações de pagamento"
       description="Cadastro de parâmetros Efí em preparação. Ainda NÃO emite Pix, não realiza testes de conexão nem confirma pagamentos automaticamente."
     >
-      <form action={savePaymentSettingsAction} className="grid gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">
+      <form action={savePaymentSettingsAction} autoComplete="off" className="grid min-w-0 gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">
         <div className="space-y-2">
           <Label>Provedor</Label>
           <select
@@ -1379,11 +1379,12 @@ async function PaymentSettingsPage() {
           </select>
         </div>
         <LabeledInput name="pixKey" label="Chave Pix" defaultValue={settings?.pix_key ?? ""} />
-        <LabeledInput name="clientId" label="Client ID" defaultValue={settings?.client_id ?? ""} />
+        <LabeledInput name="clientId" label="Client ID" autoComplete="off" defaultValue={settings?.client_id ?? ""} />
         <LabeledInput
           name="clientSecret"
           label="Client Secret"
           type="password"
+          autoComplete="new-password"
           placeholder={hasClientSecret ? "configurado" : "não configurado"}
         />
         <LabeledInput
@@ -3592,6 +3593,7 @@ function LabeledInput({
   type = "text",
   required,
   placeholder,
+  autoComplete,
 }: {
   label: string;
   defaultValue?: string;
@@ -3599,6 +3601,7 @@ function LabeledInput({
   type?: string;
   required?: boolean;
   placeholder?: string;
+  autoComplete?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -3609,6 +3612,7 @@ function LabeledInput({
         defaultValue={defaultValue}
         required={required}
         placeholder={placeholder}
+        autoComplete={autoComplete}
       />
     </div>
   );

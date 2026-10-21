@@ -139,6 +139,9 @@ const encodingFixScript = `
 
   function fixNode(node) {
     if (!node) return;
+    // O admin já fornece texto UTF-8. Alterar o DOM antes da hidratação
+    // diverge do conteúdo React; preserve o corretor nas demais áreas.
+    if (window.location.pathname === "/cotacoes/gestao" || window.location.pathname.indexOf("/cotacoes/gestao/") === 0) return;
 
     if (node.nodeType === Node.TEXT_NODE) {
       var fixedText = fixText(node.nodeValue || "");

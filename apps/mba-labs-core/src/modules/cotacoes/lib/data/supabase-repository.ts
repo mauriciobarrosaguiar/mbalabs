@@ -747,31 +747,41 @@ export async function getTenant(tenantId?: string) {
 
 export async function getAdminMetrics(): Promise<DashboardMetric[]> {
   if (!canUseSupabaseRepository()) return [];
-  const collections = await getCollections();
-  const active = collections.tenants.filter((tenant) => tenant.status === "ativo").length;
-  const trial = collections.tenants.filter((tenant) => tenant.status === "teste").length;
-  const suspended = collections.tenants.filter((tenant) => tenant.status === "suspenso").length;
-  const paid = collections.monthlySubscriptions.filter((sub) => sub.status === "paid").length;
-  const overdue = collections.monthlySubscriptions.filter((sub) => sub.status === "overdue").length;
-  const revenue = collections.tenants
+  const [collections, activeUsers] = await Promise.all([
+    getCollections(),
+    db().from("users_profile").select("id", { count: "exact", head: true }).eq("status", "ativo"),
+  ]);
+  const clientTenants = collections.tenants.filter((tenant) => !String(tenant.cnpj ?? "").startsWith("CORE-"));
+  const clientTenantIds = new Set(clientTenants.map((tenant) => tenant.id));
+  const subscriptions = collections.monthlySubscriptions.filter((sub) => clientTenantIds.has(sub.tenantId));
+  const active = clientTenants.filter((tenant) => tenant.status === "ativo").length;
+  const trial = clientTenants.filter((tenant) => tenant.status === "teste").length;
+  const suspended = clientTenants.filter((tenant) => tenant.status === "suspenso").length;
+  const paid = subscriptions.filter((sub) => sub.status === "paid").length;
+  const overdue = subscriptions.filter((sub) => sub.status === "overdue").length;
+  const revenue = clientTenants
     .filter((tenant) => tenant.status === "ativo" || tenant.status === "teste")
     .reduce((total, tenant) => total + tenant.valorMensal, 0);
   const quotationsThisMonth = collections.quotations.filter((quotation) => {
+    if (!clientTenantIds.has(quotation.tenantId)) return false;
     const created = new Date(quotation.createdAt);
     const now = new Date();
     return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
   }).length;
 
+  const recentErrors = collections.auditLogs.filter((log) => log.severity === "error" &&
+    new Date(log.createdAt).getTime() >= Date.now() - 30 * 24 * 60 * 60 * 1000).length;
+
   return [
     { label: "Empresas ativas", value: String(active), hint: "Clientes operando", tone: "success" },
     { label: "Empresas em teste", value: String(trial), hint: "Avaliação comercial", tone: "info" },
     { label: "Suspensas", value: String(suspended), hint: "Bloqueio por status", tone: "warning" },
-    { label: "Mensalidades pagas", value: String(paid), hint: "Referência atual", tone: "success" },
+    { label: "Mensalidades pagas", value: String(paid), hint: "Mensalidades registradas", tone: "success" },
     { label: "Mensalidades atrasadas", value: String(overdue), hint: "Ação financeira", tone: "danger" },
     { label: "Receita mensal estimada", value: formatCurrency(revenue), hint: "MRR bruto previsto", tone: "default" },
     { label: "Cotações no mês", value: String(quotationsThisMonth), hint: "Farmácia + licitação", tone: "info" },
-    { label: "Usuários ativos", value: "-", hint: "Supabase Auth", tone: "default" },
-    { label: "Erros recentes", value: "0", hint: "Auditoria sem erro crítico", tone: "success" },
+    { label: "Usuários ativos", value: activeUsers.error ? "-" : String(activeUsers.count ?? 0), hint: "Perfis ativos do MBA Cotações", tone: "default" },
+    { label: "Erros recentes", value: String(recentErrors), hint: "Logs de erro nos últimos 30 dias", tone: recentErrors ? "danger" : "success" },
   ];
 }
 

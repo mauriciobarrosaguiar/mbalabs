@@ -1432,6 +1432,11 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
 .cotacoes-admin [data-slot="button"][data-variant="default"]:disabled {
   opacity: .75;
 }
+.cotacoes-admin [data-slot="button"][data-variant="destructive"]:disabled {
+  color: #991b1b;
+  background-color: #fef2f2;
+  opacity: .85;
+}
 .cotacoes-admin [data-slot="card"],
 .cotacoes-admin [data-slot="card-content"],
 .cotacoes-admin [data-slot="table-container"] {
