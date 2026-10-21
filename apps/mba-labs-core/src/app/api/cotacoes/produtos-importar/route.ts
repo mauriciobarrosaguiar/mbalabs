@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     if (mode === "catalog") {
       const page = Math.max(0, Math.min(100000, Number(request.nextUrl.searchParams.get("page") ?? 0) || 0));
       const search = String(request.nextUrl.searchParams.get("q") ?? "")
-        .replace(/[^\\p{L}\\p{N} \\-]/gu, "").trim().slice(0, 90);
+        .replace(/[^a-zA-Z0-9À-ÿ -]/g, "").trim().slice(0, 90);
       let query = supabase.from("cot_product_catalog")
         .select("id,ean,produto,laboratorio,tipo_produto,ativo",{count:"exact"});
       if (search) query = query.or(`produto.ilike.%${search}%,ean.ilike.%${search}%`);
