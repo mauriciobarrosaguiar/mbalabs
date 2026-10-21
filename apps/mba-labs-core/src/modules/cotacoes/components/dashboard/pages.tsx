@@ -954,7 +954,7 @@ function ConfigStatus({ label, value, ok }: { label: string; value: string; ok: 
   return (
     <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-white p-3 [&_[data-slot=badge]]:max-w-full [&_[data-slot=badge]]:whitespace-normal [&_[data-slot=badge]]:break-words">
       <span className="text-sm font-medium text-slate-800">{label}</span>
-      <Badge variant={ok ? "default" : "outline"}>{value}</Badge>
+      <Badge className="h-auto min-h-5 max-w-full whitespace-normal break-words" variant={ok ? "default" : "outline"}>{value}</Badge>
     </div>
   );
 }
