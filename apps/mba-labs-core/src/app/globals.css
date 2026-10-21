@@ -1413,3 +1413,35 @@ body:not(:has(.cotacoes-module)):not(:has(.lavagestor-module)):not(:has(.portal-
   }
 }
 /* END MBA LOGO UPLOAD */
+
+
+/* Exclusivo do painel de gestão MBA Cotações: sem atingir a visão do cliente. */
+.cotacoes-admin [data-slot="button"][data-variant="outline"] {
+  color: #0f172a;
+  background-color: #fff;
+  border-color: #cbd5e1;
+}
+.cotacoes-admin [data-slot="button"][data-variant="outline"]:disabled {
+  color: #475569;
+  opacity: .8;
+}
+.cotacoes-admin [data-slot="button"][data-variant="default"] {
+  color: #fff;
+  background-color: #0f766e;
+}
+.cotacoes-admin [data-slot="button"][data-variant="default"]:disabled {
+  opacity: .75;
+}
+.cotacoes-admin [data-slot="card"],
+.cotacoes-admin [data-slot="card-content"],
+.cotacoes-admin [data-slot="table-container"] {
+  min-width: 0;
+  max-width: 100%;
+}
+.cotacoes-admin [data-slot="table-container"] {
+  overflow-x: auto;
+}
+@media (max-width: 639px) {
+  .cotacoes-admin [data-slot="card-content"] { padding-inline: .75rem; }
+  .cotacoes-admin [data-slot="button"] { white-space: normal; text-align: center; }
+}
