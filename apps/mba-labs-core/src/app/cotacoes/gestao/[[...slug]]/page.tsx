@@ -12,6 +12,13 @@ const sections = new Set([
   "produtos", "relatorios", "configuracoes", "logs",
 ]);
 
+const sectionTitles: Record<string, string> = {
+  farmacias: "Farmácias", usuarios: "Usuários", planos: "Planos",
+  mensalidades: "Mensalidades", distribuidoras: "Distribuidoras",
+  representantes: "Representantes", produtos: "Catálogo", relatorios: "Relatórios",
+  configuracoes: "Configurações", logs: "Logs",
+};
+
 export default async function CotacoesGestao({
   params,
 }: {
@@ -31,7 +38,7 @@ export default async function CotacoesGestao({
     <AppShell
       mode="admin"
       currentPath={path}
-      title={section === "dashboard" ? "Gestão MBA Cotações" : "MBA Cotações · " + section}
+      title={section === "dashboard" ? "Gestão MBA Cotações" : "MBA Cotações · " + (sectionTitles[section] ?? section)}
       subtitle="Administração exclusiva do MBA Cotações"
       profileRole={auth.profile.role}
       tenantType={auth.tenantAccess?.tenantType}
