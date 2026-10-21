@@ -149,7 +149,7 @@ export async function DELETE(request: NextRequest) {
     const {data,error} = await supabase.from("cot_product_catalog")
       .delete().in("id",ids).select("id");
     if(error) throw error;
-    return NextResponse.json({ok:true,deletedIds:(data??[]).map(row=>row.id)});
+    return NextResponse.json({ok:true,deletedIds:(data??[]).map((row:{id:string})=>row.id)});
   } catch(error) {
     if(error instanceof ImportAccessError) return NextResponse.json({error:error.message},{status:error.status});
     console.error("[Cotações catálogo] Exclusão do catálogo central falhou",error);
