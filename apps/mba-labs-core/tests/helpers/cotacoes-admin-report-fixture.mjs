@@ -12,8 +12,8 @@ export function reset(){
   quotations:[{id:'quote-a',tenant_id:'tenant-a',name:'COT A',module_type:'pharmacy',status:'finished',created_at:'2026-10-20T00:00:00Z',deadline_at:'2026-10-22'}],
   supplier_quote_sessions:[{id:'session-a',tenant_id:'tenant-a',quotation_id:'quote-a',supplier_id:'supplier-a',seller_name:'Vendedor A',seller_company:'Fornecedor A',status:'submitted',submitted_at:'2026-10-20'}],
   supplier_quote_responses:[{id:'response-a',tenant_id:'tenant-a',quotation_id:'quote-a',session_id:'session-a',supplier_id:'supplier-a',seller_name:'Vendedor A',seller_company:'Fornecedor A',billing_company:'Distribuidora A',status:'submitted',submitted_at:'2026-10-20'}],
-  supplier_quote_response_items:[{id:'offer-a',quotation_id:'quote-a',quotation_item_id:'item-a',response_id:'response-a',supplier_id:'supplier-a',distributor_id:'dist-a',offered_product_name:'PRODUTO A',available_quantity:10,net_price:12.3}],
-  quotation_items:[{id:'item-a',product_name:'PRODUTO A',requested_quantity:20}],
+  supplier_quote_response_items:[{id:'offer-a',tenant_id:'tenant-a',quotation_id:'quote-a',quotation_item_id:'item-a',response_id:'response-a',supplier_id:'supplier-a',distributor_id:'dist-a',offered_product_name:'PRODUTO A',available_quantity:10,net_price:12.3}],
+  quotation_items:[{id:'item-a',tenant_id:'tenant-a',quotation_id:'quote-a',product_name:'PRODUTO A',requested_quantity:20}],
   distributors:[{id:'dist-a',tenant_id:'tenant-a',nome:'Distribuidora A'}]
  };
 }

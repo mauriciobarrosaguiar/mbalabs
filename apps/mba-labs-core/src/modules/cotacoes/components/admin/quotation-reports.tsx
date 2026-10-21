@@ -9,7 +9,7 @@ type ReportRow={
  modulo:string;data:string;prazo:string;situacaoCotacao:string;
  representante:string;representanteId:string;empresaRepresentante:string;
  distribuidora:string;distribuidoraId:string;situacaoResposta:string;dataResposta:string;
- produto:string;quantidadeSolicitada:string|number;quantidadeDisponivel:string|number;precoUnitario:string|number;
+ produtoSolicitado:string;resultado:string;produto:string;quantidadeSolicitada:string|number;quantidadeDisponivel:string|number;precoUnitario:string|number;
 };
 type Payload={rows:ReportRow[];total:number;quotations:number;companies:Choice[];representatives:Choice[];distributors:Choice[];page:number};
 
@@ -87,14 +87,14 @@ export function AdminQuotationReports(){
    <div className="w-full overflow-x-auto rounded-lg border border-slate-200">
     <table className="w-full min-w-[1100px] text-left text-xs">
      <thead className="bg-slate-100 text-slate-700"><tr>
-      {["Empresa","Cotação","Data","Situação","Representante","Distribuidora","Resposta","Produto ofertado","Qtd disponível","Preço unitário"].map(k=><th key={k} className="p-3">{k}</th>)}
+      {["Empresa / CNPJ","Cotação / ID","Data","Situação","Representante","Distribuidora","Resposta","Produto solicitado / ofertado","Qtd solicitada","Qtd disponível","Preço unitário","Resultado"].map(k=><th key={k} className="p-3">{k}</th>)}
      </tr></thead>
      <tbody>{rows.map((x,i)=><tr key={x.cotacaoId+"-"+x.representanteId+"-"+i} className="border-t border-slate-200 align-top text-slate-800">
-       <td className="p-3 font-semibold">{x.empresa}</td><td className="p-3">{x.cotacao}</td><td className="p-3">{x.data}</td>
+       <td className="p-3 font-semibold">{x.empresa}<p className="mt-1 font-normal">{x.cnpj}</p></td><td className="p-3">{x.cotacao}<p className="mt-1 break-all text-slate-500">{x.cotacaoId}</p></td><td className="p-3">{x.data}</td>
        <td className="p-3">{x.situacaoCotacao}</td><td className="p-3">{x.representante||"Sem convite"}</td>
        <td className="p-3">{x.distribuidora||"—"}</td><td className="p-3">{x.situacaoResposta}</td>
-       <td className="p-3">{x.produto||"—"}</td><td className="p-3">{x.quantidadeDisponivel||"—"}</td>
-       <td className="p-3">{x.precoUnitario!==""&&x.precoUnitario!=null?Number(x.precoUnitario).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"—"}</td>
+       <td className="p-3">{x.produtoSolicitado||"—"}<p className="mt-1 text-slate-500">Oferta: {x.produto||"—"}</p></td><td className="p-3">{x.quantidadeSolicitada??"—"}</td><td className="p-3">{x.quantidadeDisponivel??"—"}</td>
+       <td className="p-3">{x.precoUnitario!==""&&x.precoUnitario!=null?Number(x.precoUnitario).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}):"—"}</td><td className="p-3">{x.resultado||"—"}</td>
      </tr>)}</tbody>
     </table>
     {!loading&&!rows.length?<p className="p-6 text-center text-slate-600">Nenhuma cotação ou resposta corresponde aos filtros.</p>:null}

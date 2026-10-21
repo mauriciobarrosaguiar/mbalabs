@@ -37,50 +37,65 @@ export async function GET(request:NextRequest) {
     const repFilter=clean(p.get("representante"));
     const start=clean(p.get("inicio")), end=clean(p.get("fim"));
     const exportCsv=p.get("formato")==="csv";
-    const page=Math.max(0,Math.min(100000,Number(p.get("page"))||0));
+    const page=Math.max(0,Math.min(100000,Math.floor(Number(p.get("page"))||0)));
+    if ((start && !/^\d{4}-\d{2}-\d{2}$/.test(start)) || (end && !/^\d{4}-\d{2}-\d{2}$/.test(end)) || (start && end && start > end))
+      return NextResponse.json({error:"Informe um período válido: a data inicial deve ser anterior à final."},{status:400});
 
     const [tenants,quotations,sessions,responses,items,quoteItems,distributors]=await Promise.all([
       allRows("tenants","id,nome_fantasia,razao_social,cnpj"),
       allRows("quotations","id,tenant_id,name,module_type,status,created_at,deadline_at,deleted_at"),
       allRows("supplier_quote_sessions","id,tenant_id,quotation_id,supplier_id,seller_name,seller_company,status,submitted_at"),
       allRows("supplier_quote_responses","id,tenant_id,quotation_id,session_id,supplier_id,seller_name,seller_company,billing_company,status,submitted_at"),
-      allRows("supplier_quote_response_items","id,quotation_id,quotation_item_id,response_id,supplier_id,distributor_id,offered_product_name,available_quantity,unit_price,net_price"),
-      allRows("quotation_items","id,product_name,requested_quantity"),
+      allRows("supplier_quote_response_items","id,tenant_id,quotation_id,quotation_item_id,response_id,supplier_id,distributor_id,offered_product_name,available_quantity,unit_price,net_price,award_status"),
+      allRows("quotation_items","id,tenant_id,quotation_id,product_name,requested_quantity"),
       allRows("distributors","id,tenant_id,nome")
     ]);
 
     const tenantsById=new Map(tenants.map(x=>[x.id,x]));
     const quoteItemsById=new Map(quoteItems.map(x=>[x.id,x]));
     const distributorsById=new Map(distributors.map(x=>[x.id,x]));
+    const quoteItemsByQuotation=new Map<string,Row[]>();
+    for(const item of quoteItems){
+      const list=quoteItemsByQuotation.get(item.quotation_id)??[];list.push(item);quoteItemsByQuotation.set(item.quotation_id,list);
+    }
     const sessionsByQuotation=new Map<string,Row[]>();
     const responsesBySession=new Map<string,Row>();
     const responsesByQuotation=new Map<string,Row[]>();
     const itemsByResponse=new Map<string,Row[]>();
+    const quotesById=new Map(quotations.map(q=>[q.id,q]));
     for(const s of sessions){
+      if(quotesById.get(s.quotation_id)?.tenant_id!==s.tenant_id)continue;
       const list=sessionsByQuotation.get(s.quotation_id)??[];list.push(s);sessionsByQuotation.set(s.quotation_id,list);
     }
     for(const r of responses){
+      if(quotesById.get(r.quotation_id)?.tenant_id!==r.tenant_id)continue;
       if(r.session_id)responsesBySession.set(r.session_id,r);
       const list=responsesByQuotation.get(r.quotation_id)??[];list.push(r);responsesByQuotation.set(r.quotation_id,list);
     }
+    const responsesById=new Map(responses.map(r=>[r.id,r]));
     for(const item of items){
+      const response=responsesById.get(item.response_id);
+      if(!response||item.tenant_id!==response.tenant_id||item.quotation_id!==response.quotation_id)continue;
       const list=itemsByResponse.get(item.response_id)??[];list.push(item);itemsByResponse.set(item.response_id,list);
     }
     const all:Row[]=[];
     for(const quote of quotations){
       const tenant=tenantsById.get(quote.tenant_id);
       if(tenantFilter&&tenantFilter!==quote.tenant_id)continue;
-      const date=String(quote.created_at??"").slice(0,10);
+      const date=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(quote.created_at));
       if(start&&date<start||end&&date>end)continue;
       const invitees=sessionsByQuotation.get(quote.id)??[];
       const seenResponses=new Set<string>();
-      const makeRecord=(session?:Row,response?:Row,item?:Row)=>{
-        const associatedDistributor=item?.distributor_id?distributorsById.get(item.distributor_id):undefined;
+      const requestedItems=(quoteItemsByQuotation.get(quote.id)??[]).filter(x=>x.tenant_id===quote.tenant_id);
+      const makeRecord=(session?:Row,response?:Row,item?:Row,requestedItem?:Row)=>{
+        const candidate=item?.distributor_id?distributorsById.get(item.distributor_id):undefined;
+        const associatedDistributor=candidate?.tenant_id===quote.tenant_id?candidate:undefined;
         const distributor=associatedDistributor?.nome??response?.billing_company??"";
         const supplierId=response?.supplier_id??session?.supplier_id??item?.supplier_id??"";
         const representative=response?.seller_name??session?.seller_name??"";
         const company=response?.seller_company??session?.seller_company??"";
-        const quoteItem=item?quoteItemsById.get(item.quotation_item_id):undefined;
+        const candidateItem=item?quoteItemsById.get(item.quotation_item_id):requestedItem;
+        const quoteItem=candidateItem?.tenant_id===quote.tenant_id && candidateItem?.quotation_id===quote.id?candidateItem:undefined;
         return {
           empresa:tenant?.nome_fantasia??"Empresa não identificada",
           empresaId:quote.tenant_id,cnpj:tenant?.cnpj??"",
@@ -88,31 +103,36 @@ export async function GET(request:NextRequest) {
           data:date,prazo:quote.deadline_at??"",situacaoCotacao:quote.deleted_at?"excluida":quote.status,
           representante:representative,representanteId:supplierId,
           empresaRepresentante:company,distribuidora:distributor,
-          distribuidoraId:item?.distributor_id??"",
+          distribuidoraId:associatedDistributor?.id??"",
           situacaoResposta:response?.status??session?.status??"sem convite",
           dataResposta:response?.submitted_at??session?.submitted_at??"",
           produto:item?.offered_product_name??quoteItem?.product_name??"",
+          produtoSolicitado:quoteItem?.product_name??"",resultado:item?.award_status??"",
           quantidadeSolicitada:quoteItem?.requested_quantity??"",
           quantidadeDisponivel:item?.available_quantity??"",
           precoUnitario:item?.net_price??item?.unit_price??"",
         };
       };
-      if(!invitees.length && !(responsesByQuotation.get(quote.id)??[]).length)all.push(makeRecord());
-      for(const s of invitees){
-        const response=responsesBySession.get(s.id)??(responsesByQuotation.get(quote.id)??[]).find(r=>r.supplier_id&&r.supplier_id===s.supplier_id);
-        if(response)seenResponses.add(response.id);
+      const addRecords=(session?:Row,response?:Row)=>{
         const offers=response?(itemsByResponse.get(response.id)??[]):[];
-        if(offers.length)for(const item of offers)all.push(makeRecord(s,response,item));
-        else all.push(makeRecord(s,response));
+        for(const item of offers)all.push(makeRecord(session,response,item));
+        const offeredIds=new Set(offers.map(item=>item.quotation_item_id));
+        const missing=requestedItems.filter(item=>!offeredIds.has(item.id));
+        for(const item of missing)all.push(makeRecord(session,response,undefined,item));
+        if(!offers.length&&!missing.length)all.push(makeRecord(session,response));
+      };
+      if(!invitees.length && !(responsesByQuotation.get(quote.id)??[]).length)addRecords();
+      for(const s of invitees){
+        const response=responsesBySession.get(s.id)??(responsesByQuotation.get(quote.id)??[]).find(r=>!r.session_id&&r.supplier_id&&r.supplier_id===s.supplier_id&&!seenResponses.has(r.id));
+        if(response)seenResponses.add(response.id);
+        addRecords(s,response);
       }
       for(const r of responsesByQuotation.get(quote.id)??[]){
         if(seenResponses.has(r.id))continue;
-        const offers=itemsByResponse.get(r.id)??[];
-        if(offers.length)for(const item of offers)all.push(makeRecord(undefined,r,item));
-        else all.push(makeRecord(undefined,r));
+        addRecords(undefined,r);
       }
     }
-    const companies=tenants.filter(t=>!String(t.cnpj??"").startsWith("CORE-"))
+    const companies=tenants
       .map(t=>({value:t.id,label:t.nome_fantasia??t.razao_social})).sort((a,b)=>a.label.localeCompare(b.label,"pt-BR"));
     const representatives=[...new Map(all.filter(r=>r.representanteId).map(r=>[r.representanteId,{value:r.representanteId,label:r.representante||r.empresaRepresentante||"Representante"}])).values()]
       .sort((a,b)=>a.label.localeCompare(b.label,"pt-BR"));
@@ -122,7 +142,8 @@ export async function GET(request:NextRequest) {
     const results=all.filter(r=>
       (!repFilter||r.representanteId===repFilter)&&
       (!distributorFilter||r.distribuidoraId===distributorFilter||
-        key(r.distribuidora)===key(distributorsById.get(distributorFilter)?.nome))
+        (!r.distribuidoraId&&!!r.distribuidora&&!!distributorsById.get(distributorFilter)&&
+          r.empresaId===distributorsById.get(distributorFilter)?.tenant_id&&key(r.distribuidora)===key(distributorsById.get(distributorFilter)?.nome)))
     ).sort((a,b)=>b.data.localeCompare(a.data)||a.empresa.localeCompare(b.empresa));
     if(exportCsv){
       const columns:[string,string][]=[
@@ -131,7 +152,8 @@ export async function GET(request:NextRequest) {
         ["Prazo","prazo"],["Situação da cotação","situacaoCotacao"],
         ["Representante","representante"],["Empresa do representante","empresaRepresentante"],
         ["Distribuidora","distribuidora"],["Situação da resposta","situacaoResposta"],
-        ["Data da resposta","dataResposta"],["Produto ofertado","produto"],
+        ["Data da resposta","dataResposta"],["Produto solicitado","produtoSolicitado"],["Produto ofertado","produto"],
+        ["Resultado do item","resultado"],
         ["Quantidade solicitada","quantidadeSolicitada"],["Quantidade disponível","quantidadeDisponivel"],
         ["Preço unitário","precoUnitario"]
       ];

@@ -9,7 +9,7 @@ export const revalidate = 0;
 const sections = new Set([
   "dashboard", "farmacias", "usuarios", "planos",
   "mensalidades", "distribuidoras", "representantes",
-  "produtos", "configuracoes", "logs",
+  "produtos", "relatorios", "configuracoes", "logs",
 ]);
 
 export default async function CotacoesGestao({
