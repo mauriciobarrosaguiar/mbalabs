@@ -1,3 +1,4 @@
+import { matchesPharmacyFilter, resolvePharmacyFilter } from "@/modules/cotacoes/lib/pharmacy-filter";
 import { getCurrentAuthContext } from "@/modules/cotacoes/lib/auth/session";
 import { formatBuyerCnpj } from "@/modules/cotacoes/lib/buyer-cnpj";
 import Link from "next/link";
@@ -1610,7 +1611,8 @@ function PharmacyFilterSelect({ pharmacies, pharmacyId }: { pharmacies: Collecti
   return (
     <label className="block space-y-2 text-sm">
       <span>Farmácia compradora</span>
-      <select name="pharmacyId" defaultValue={pharmacyId} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+      {pharmacyId && !pharmacies.some((unit) => unit.id === pharmacyId) ? <p role="alert" className="text-rose-700">Farmácia compradora indisponível. Selecione uma unidade ou limpe o filtro.</p> : null}
+      <select name="pharmacyId" defaultValue={pharmacies.some((unit) => unit.id === pharmacyId) ? pharmacyId : ""} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
         <option value="">Todas as unidades</option>
         {pharmacies.map((unit) => <option key={unit.id} value={unit.id}>{unit.nomeFantasia} · {formatBuyerCnpj(unit.cnpj) || unit.cnpj}{unit.status === "inativo" ? " (inativa)" : ""}</option>)}
       </select>
@@ -1619,7 +1621,7 @@ function PharmacyFilterSelect({ pharmacies, pharmacyId }: { pharmacies: Collecti
 }
 
 function PharmacyFilter({ pharmacies, pharmacyId, action }: { pharmacies: Collections["pharmacies"]; pharmacyId: string; action: string }) {
-  if (pharmacies.length === 0) return null;
+  if (pharmacies.length === 0 && !pharmacyId) return null;
   return (
     <form action={action} className="flex flex-wrap items-end gap-2">
       <PharmacyFilterSelect pharmacies={pharmacies} pharmacyId={pharmacyId} />
@@ -1630,7 +1632,7 @@ function PharmacyFilter({ pharmacies, pharmacyId, action }: { pharmacies: Collec
 
 function quotationBuyerLabel(quotation: Collections["quotations"][number] | undefined, pharmacies: Collections["pharmacies"]) {
   if (quotation?.moduleType !== "pharmacy") return "—";
-  const unit = pharmacies.find((entry) => entry.id === quotation.pharmacyId);
+  const unit = pharmacies.find((entry) => entry.id === quotation.pharmacyId && entry.tenantId === quotation.tenantId);
   const cnpj = quotation.buyerCnpj ?? unit?.cnpj;
   return [quotation.buyerCnpj ? quotation.buyerCompanyName : unit?.nomeFantasia, cnpj && (formatBuyerCnpj(cnpj) || cnpj)]
     .filter(Boolean).join(" · ") || "—";
@@ -1639,7 +1641,8 @@ function quotationBuyerLabel(quotation: Collections["quotations"][number] | unde
 async function ReportsPage({ section, tenantId, searchParams }: { section: string; tenantId?: string; searchParams?: AppSearchParams }) {
   const collections = await getCollections(tenantId);
   const pharmacyId = getSearchParam(searchParams, "pharmacyId") ?? "";
-  const quotations = collections.quotations.filter((quotation) => !pharmacyId || quotation.pharmacyId === pharmacyId);
+  const unitFilter = resolvePharmacyFilter(pharmacyId, collections.pharmacies, tenantId);
+  const quotations = collections.quotations.filter((quotation) => matchesPharmacyFilter(quotation, unitFilter));
   const filter = <PharmacyFilter pharmacies={collections.pharmacies} pharmacyId={pharmacyId} action={`/cotacoes/${section}`} />;
   if (section === "historico-compras") {
     const orders = (await Promise.all(quotations.map((quotation) =>
@@ -1787,9 +1790,10 @@ async function GeneratedOrdersPage({
   const vendorParam = getSearchParam(searchParams, "vendor") ?? "";
   const vendorFilter = vendorParam.trim().toLowerCase();
   const pharmacyId = getSearchParam(searchParams, "pharmacyId") ?? "";
+  const unitFilter = resolvePharmacyFilter(pharmacyId, collections.pharmacies, tenantId);
   const quotations = collections.quotations.filter((quotation) =>
     allowedModules.includes(quotation.moduleType) &&
-    (!pharmacyId || quotation.pharmacyId === pharmacyId) &&
+    matchesPharmacyFilter(quotation, unitFilter) &&
     (effectiveModuleFilter === "all" || quotation.moduleType === effectiveModuleFilter),
   );
 
@@ -2259,7 +2263,11 @@ async function QuotationList({ moduleType, tenantId, searchParams }: { moduleTyp
   ]);
   const pharmacyId = getSearchParam(searchParams, "pharmacyId") ?? "";
   const pharmacies = collections?.pharmacies ?? [];
-  const list = all.filter((quotation) => !pharmacyId || quotation.pharmacyId === pharmacyId);
+  const unitFilter = resolvePharmacyFilter(pharmacyId, pharmacies, tenantId);
+  const list = all.filter((quotation) => matchesPharmacyFilter(quotation, unitFilter));
+  const buyerLabels = moduleType === "pharmacy" ? Object.fromEntries(
+    list.map((quotation) => [quotation.id, quotationBuyerLabel(quotation, pharmacies)]),
+  ) : undefined;
   console.info("[QuotationList] listagem carregada", {
     moduleType,
     count: list.length,
@@ -2278,7 +2286,7 @@ async function QuotationList({ moduleType, tenantId, searchParams }: { moduleTyp
       {moduleType === "pharmacy" ? <PharmacyFilter pharmacies={pharmacies} pharmacyId={pharmacyId} action={base} /> : null}
       <Card>
         <CardContent className="p-0">
-          <DemoQuotationTable key={pharmacyId} moduleType={moduleType} initialQuotations={list} />
+          <DemoQuotationTable key={pharmacyId} moduleType={moduleType} initialQuotations={list} buyerLabels={buyerLabels} showLocalDrafts={!pharmacyId} />
         </CardContent>
       </Card>
     </PageStack>

@@ -293,15 +293,22 @@ export async function PATCH(request: NextRequest) {
         if (itemInsertError) throw itemInsertError;
       }
 
-      return NextResponse.json({ ok: true, id: duplicate.id, status: "draft" });
+      return NextResponse.json({
+        ok: true,
+        id: duplicate.id,
+        status: "draft",
+        buyerCnpj: duplicate.buyer_cnpj,
+        buyerCompanyName: duplicate.buyer_pharmacy_name,
+      });
     }
 
     return NextResponse.json({ error: "Ação não suportada." }, { status: 400 });
   } catch (error) {
     console.error("Erro ao atualizar cotação", error);
+    const invalidBuyer = typeof error === "object" && error !== null && "code" in error && error.code === "P7101";
     return NextResponse.json(
       { error: resolveErrorMessage(error, "Erro ao atualizar cotação.") },
-      { status: 500 },
+      { status: invalidBuyer ? 409 : 500 },
     );
   }
 }

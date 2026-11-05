@@ -1,3 +1,4 @@
+import { matchesPharmacyFilter, resolvePharmacyFilter } from "@/modules/cotacoes/lib/pharmacy-filter";
 import { NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import {
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
   }
 
   const tenantId = auth.isSuperAdmin ? undefined : auth.tenantAccess?.tenantId;
-  if (!auth.isSuperAdmin && (!auth.tenantAccess || isTenantSuspended(auth.tenantAccess.tenantStatus))) {
+  if (!auth.isSuperAdmin && (auth.tenantAccess?.status !== "ativo" || isTenantSuspended(auth.tenantAccess.tenantStatus))) {
     return NextResponse.json({ error: "Empresa sem acesso ativo ao MBA Cotações." }, { status: 403 });
   }
 
@@ -37,8 +38,13 @@ export async function GET(request: Request) {
   const vendorFilter = (url.searchParams.get("vendor") ?? "").trim().toLowerCase();
   const collections = await getCollections(tenantId);
 
+  const unitFilter = resolvePharmacyFilter(pharmacyId, collections.pharmacies, tenantId);
+  if (unitFilter.kind === "invalid") {
+    return NextResponse.json({ error: "Farmácia compradora indisponível." }, { status: 404 });
+  }
+
   const quotations = collections.quotations.filter((quotation) =>
-    (!pharmacyId || quotation.pharmacyId === pharmacyId) && (moduleFilter === "all" || quotation.moduleType === moduleFilter),
+    matchesPharmacyFilter(quotation, unitFilter) && (moduleFilter === "all" || quotation.moduleType === moduleFilter),
   );
   const orderGroups = await Promise.all(quotations.map(async (quotation) => ({
     quotation,

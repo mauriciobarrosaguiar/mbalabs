@@ -108,6 +108,7 @@ BEGIN
       NEW.pharmacy_id IS DISTINCT FROM OLD.pharmacy_id OR
       NEW.tenant_id IS DISTINCT FROM OLD.tenant_id OR
       NEW.module_type IS DISTINCT FROM OLD.module_type OR
+      NEW.source_quotation_id IS DISTINCT FROM OLD.source_quotation_id OR
       NEW.buyer_cnpj IS DISTINCT FROM OLD.buyer_cnpj OR
       NEW.buyer_pharmacy_name IS DISTINCT FROM OLD.buyer_pharmacy_name OR
       NEW.buyer_pharmacy_legal_name IS DISTINCT FROM OLD.buyer_pharmacy_legal_name
@@ -127,9 +128,15 @@ BEGIN
   END IF;
 
   SELECT * INTO unit FROM public.pharmacies
-    WHERE id = NEW.pharmacy_id AND tenant_id = NEW.tenant_id AND status = 'ativo'
+    WHERE id = NEW.pharmacy_id AND tenant_id = NEW.tenant_id
     FOR SHARE;
-  IF NOT FOUND OR NOT public.cot_valid_pharmacy_cnpj(translate(upper(btrim(unit.cnpj)), './-', '')) THEN
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Selecione uma farmácia ativa com CNPJ válido da sua empresa.' USING ERRCODE = 'P7101';
+  END IF;
+  IF unit.status IS DISTINCT FROM 'ativo' AND NEW.source_quotation_id IS NOT NULL THEN
+    RAISE EXCEPTION 'A unidade da cotação original está inativa. Reative a mesma unidade para criar o complemento. A pendência continua aberta.' USING ERRCODE = 'P7101';
+  END IF;
+  IF unit.status IS DISTINCT FROM 'ativo' OR NOT coalesce(public.cot_valid_pharmacy_cnpj(translate(upper(btrim(unit.cnpj)), './-', '')), false) THEN
     RAISE EXCEPTION 'Selecione uma farmácia ativa com CNPJ válido da sua empresa.' USING ERRCODE = 'P7101';
   END IF;
 
@@ -143,6 +150,11 @@ BEGIN
     IF NOT FOUND THEN
       RAISE EXCEPTION 'A cotação complementar deve usar a farmácia da cotação original.' USING ERRCODE = 'P7101';
     END IF;
+    -- A rename can retain the original fiscal snapshot. A document change
+    -- requires a separate quotation for the current buyer.
+    IF original.buyer_cnpj IS NOT NULL AND original.buyer_cnpj <> NEW.buyer_cnpj THEN
+      RAISE EXCEPTION 'O CNPJ da unidade mudou. Crie uma cotação independente para o CNPJ atual. A pendência original continua aberta.' USING ERRCODE = 'P7101';
+    END IF;
     NEW.buyer_cnpj := coalesce(original.buyer_cnpj, NEW.buyer_cnpj);
     NEW.buyer_pharmacy_name := coalesce(original.buyer_pharmacy_name, NEW.buyer_pharmacy_name);
     NEW.buyer_pharmacy_legal_name := coalesce(original.buyer_pharmacy_legal_name, NEW.buyer_pharmacy_legal_name);
@@ -153,7 +165,7 @@ END;
 $$;
 
 CREATE TRIGGER cot_quotation_buyer
-BEFORE INSERT OR UPDATE OF tenant_id, module_type, pharmacy_id, buyer_cnpj, buyer_pharmacy_name, buyer_pharmacy_legal_name
+BEFORE INSERT OR UPDATE OF tenant_id, module_type, pharmacy_id, source_quotation_id, buyer_cnpj, buyer_pharmacy_name, buyer_pharmacy_legal_name
 ON public.quotations
 FOR EACH ROW EXECUTE FUNCTION public.cot_set_quotation_buyer();
 
