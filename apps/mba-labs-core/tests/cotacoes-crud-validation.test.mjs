@@ -4,6 +4,9 @@ import test,{beforeEach} from 'node:test';
 import {state} from './helpers/cotacoes-crud-fixture.mjs';
 const fixture=new URL('./helpers/cotacoes-crud-fixture.mjs',import.meta.url).href;
 const hook=registerHooks({resolve(s,c,n){
+  if (s === '@/modules/cotacoes/lib/buyer-cnpj') {
+    return { url: new URL('../src/modules/cotacoes/lib/buyer-cnpj.ts', import.meta.url).href, shortCircuit: true };
+  }
   if(s==='next/server'||s.startsWith('@/'))return {url:fixture,shortCircuit:true};
   return n(s,c);
 }});
@@ -38,4 +41,16 @@ test('vínculo inativo não altera cadastro mesmo com perfil ativo',async()=>{
 });
 test('inativar produto próprio não exige reenviar EAN ou laboratório',async()=>{
  const r=await PATCH(req({id:'product-own',data:{status:'inativo'}}),params);assert.equal(r.status,200);assert.equal(r.body.row.status,'inativo');
+});
+
+test('comprador não pode cadastrar unidades da rede', async () => {
+  const response = await POST(req({ data: { cnpj: '11222333000181' } }), { params: Promise.resolve({ entity: 'pharmacies' }) });
+  assert.equal(response.status, 403);
+});
+
+test('administrador da rede recebe erro claro ao cadastrar CNPJ inválido', async () => {
+  state.role = 'ADMIN_EMPRESA';
+  const response = await POST(req({ data: { cnpj: '11222333000182' } }), { params: Promise.resolve({ entity: 'pharmacies' }) });
+  assert.equal(response.status, 400);
+  assert.match(response.body.error, /CNPJ de farmácia válido/);
 });

@@ -5,6 +5,9 @@ import {state} from './helpers/cotacoes-crud-fixture.mjs';
 
 const fakeUrl=new URL('./helpers/cotacoes-crud-fixture.mjs',import.meta.url).href;
 const hooks=registerHooks({resolve(spec,ctx,next){
+  if (spec === '@/modules/cotacoes/lib/buyer-cnpj') {
+    return { url: new URL('../src/modules/cotacoes/lib/buyer-cnpj.ts', import.meta.url).href, shortCircuit: true };
+  }
   if (spec==='next/server'||spec.startsWith('@/')) return {url:fakeUrl,shortCircuit:true};
   return next(spec,ctx);
 }});

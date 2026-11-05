@@ -1942,7 +1942,7 @@ export async function redirectSupabaseWinnerPendingItemToNextSupplier(pendingId:
   };
 }
 
-export async function createSupabaseQuotationFromWinnerPendingItems(quotationId: string, pendingIds?: string[]) {
+export async function createSupabaseQuotationFromWinnerPendingItems(quotationId: string, pendingIds?: string[], createdBy?: string) {
   const supabase = db();
   const { data: originalRow, error: quotationError } = await supabase
     .from("quotations")
@@ -2006,7 +2006,7 @@ export async function createSupabaseQuotationFromWinnerPendingItems(quotationId:
       // TODO: preparar integração futura com Gemini para análise de falteiro/estoque e WhatsApp para envio automático ao vendedor.
       notes: originalRow.notes,
       status: "draft",
-      created_by: originalRow.created_by,
+      created_by: createdBy ?? originalRow.created_by,
       source_quotation_id: originalRow.id,
       source_purchase_order_id: pendingRows[0]?.purchase_order_id,
     })
