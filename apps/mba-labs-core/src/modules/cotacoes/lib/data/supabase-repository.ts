@@ -1075,6 +1075,7 @@ function mapQuotation(row: Record<string, any>): Quotation {
     pharmacyId: row.pharmacy_id ?? undefined,
     buyerCompanyName: row.buyer_pharmacy_name ?? row.buyer_company_name ?? undefined,
     buyerCnpj: row.buyer_cnpj ?? undefined,
+    buyerLegalName: row.buyer_pharmacy_legal_name ?? undefined,
     destinationClient: row.destination_client ?? undefined,
     orgaoDestino: row.orgao_destino ?? undefined,
     processNumber: row.process_number ?? undefined,

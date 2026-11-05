@@ -227,6 +227,7 @@ export interface Quotation {
   name: string;
   pharmacyId?: string;
   buyerCnpj?: string;
+  buyerLegalName?: string;
   buyerCompanyName?: string;
   destinationClient?: string;
   orgaoDestino?: string;

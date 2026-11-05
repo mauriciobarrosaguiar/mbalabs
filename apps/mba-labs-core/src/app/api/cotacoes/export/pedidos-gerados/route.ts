@@ -73,6 +73,7 @@ export async function GET(request: Request) {
   }
 
   const quotationItemsById = new Map(collections.quotationItems.map((item) => [item.id, item]));
+  const distributorsById = new Map(collections.distributors.map((distributor) => [distributor.id, distributor]));
   const generatedAt = new Date();
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "MBA Cotacoes";
@@ -84,6 +85,7 @@ export async function GET(request: Request) {
     { header: "Cotacao", key: "cotacao", width: 32 },
     { header: "Farmácia compradora", key: "farmacia", width: 28 },
     { header: "CNPJ comprador", key: "cnpj", width: 20 },
+    { header: "Razão social compradora", key: "razaoSocial", width: 34 },
     { header: "Empresa vencedora", key: "empresaVencedora", width: 28 },
     { header: "Vendedor", key: "vendedor", width: 24 },
     { header: "WhatsApp", key: "whatsapp", width: 18 },
@@ -92,6 +94,7 @@ export async function GET(request: Request) {
     { header: "Produto", key: "produto", width: 38 },
     { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
     { header: "Laboratorio", key: "laboratorio", width: 22 },
+    { header: "Distribuidora", key: "distribuidora", width: 30 },
     { header: "Unidade", key: "unidade", width: 12 },
     { header: "Quantidade solicitada", key: "quantidade", width: 20 },
     { header: "Quantidade faturada", key: "quantidadeFaturada", width: 20 },
@@ -114,6 +117,7 @@ export async function GET(request: Request) {
 
     for (const item of order.items) {
       const quotationItem = quotationItemsById.get(item.quotationItemId);
+      const distributor = item.distributorId ? distributorsById.get(item.distributorId) : undefined;
       const billedQuantity = getBilledQuantity(item);
       const missingQuantity = getMissingQuantity(item);
 
@@ -122,6 +126,7 @@ export async function GET(request: Request) {
         cotacao: quotation.name,
         farmacia: (quotation.buyerCnpj ? quotation.buyerCompanyName : pharmacy?.nomeFantasia) ?? "",
         cnpj: quotation.buyerCnpj ?? pharmacy?.cnpj ?? "",
+        razaoSocial: quotation.buyerLegalName ?? (quotation.buyerCnpj ? "" : pharmacy?.razaoSocial ?? ""),
         empresaVencedora: supplierCompany,
         vendedor: supplierContact,
         whatsapp: order.supplierWhatsapp ?? "",
@@ -130,6 +135,7 @@ export async function GET(request: Request) {
         produto: item.offeredProductName ?? item.productName,
         ean: quotationItem?.ean ? String(quotationItem.ean) : "",
         laboratorio: item.laboratory ?? quotationItem?.requestedLaboratory ?? "",
+        distribuidora: distributor?.tenantId === order.tenantId ? distributor?.nome ?? "" : "",
         unidade: item.unit,
         quantidade: item.quantityToBuy,
         quantidadeFaturada: billedQuantity,

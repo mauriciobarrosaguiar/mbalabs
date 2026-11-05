@@ -1415,14 +1415,16 @@ export async function markSupabasePurchaseOrderOpened(token: string) {
   const supabase = db();
   const order = await getSupabasePurchaseOrderByToken(token);
   if (!order) throw new Error("Pedido não encontrado.");
-  if (!["gerado", "enviado", "draft", "sent"].includes(order.status)) return order;
+  if (order.openedAt || !["gerado", "enviado", "enviado_ao_vendedor", "draft", "sent"].includes(order.status)) return order;
 
   const { data, error } = await supabase
     .from("purchase_orders")
     .update({ status: "aberto_pelo_vendedor", opened_at: new Date().toISOString() })
     .eq("public_token", token)
+    .eq("status", order.status)
+    .is("opened_at", null)
     .select("*")
-    .single();
+    .maybeSingle();
   if (error) {
     if (shouldRetryLegacyPurchaseOrderUpdate(error)) {
       console.error("[Supabase] Falha ao marcar pedido como aberto; mantendo status atual.", error);
@@ -1430,14 +1432,8 @@ export async function markSupabasePurchaseOrderOpened(token: string) {
     }
     throw error;
   }
-  return enrichPurchaseOrderWithSupplier(
-    mapPurchaseOrder(data, order.items.map(mapPurchaseOrderItemToDbShape)),
-    {
-      nome: order.supplierContactName,
-      empresa: order.supplierCompany,
-      whatsapp: order.supplierWhatsapp,
-    },
-  );
+  if (!data) return await getSupabasePurchaseOrderByToken(token) ?? order;
+  return { ...order, status: normalizePurchaseOrderStatus(data), openedAt: data.opened_at };
 }
 
 export async function saveSupabasePurchaseOrderReview(
@@ -2246,6 +2242,7 @@ function mapQuotation(row: Record<string, any>): Quotation {
     pharmacyId: row.pharmacy_id ?? undefined,
     buyerCompanyName: row.buyer_pharmacy_name ?? row.buyer_company_name ?? undefined,
     buyerCnpj: row.buyer_cnpj ?? undefined,
+    buyerLegalName: row.buyer_pharmacy_legal_name ?? undefined,
     destinationClient: row.destination_client ?? undefined,
     orgaoDestino: row.orgao_destino ?? undefined,
     processNumber: row.process_number ?? undefined,

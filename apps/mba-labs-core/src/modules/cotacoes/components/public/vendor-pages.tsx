@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/modules/cotacoes/com
 import { SellerResponseForm } from "@/modules/cotacoes/components/quotations/seller-response-form";
 import { WinnerOrderForm } from "@/modules/cotacoes/components/quotations/winner-order-form";
 import { SafeFileUploadBoundary } from "@/modules/cotacoes/components/security/safe-file-upload-boundary";
+import { formatBuyerCnpj } from "@/modules/cotacoes/lib/buyer-cnpj";
 import { formatCurrency, formatDate, formatDateTime } from "@/modules/cotacoes/lib/formatters";
 import {
   canUsePublicResponseRepository,
@@ -225,7 +226,7 @@ export async function PublicOrderPage({
     : await getQuotationById(order.quotationId);
   const collections = useDemoOrder
     ? await demoRepository.getCollections()
-    : await getCollections();
+    : await getCollections(order.tenantId);
   const tenant = collections.tenants.find((item) => item.id === order.tenantId);
   const pharmacy = collections.pharmacies.find((item) => item.id === quotation?.pharmacyId && item.tenantId === quotation?.tenantId);
   const quoteItemsById = Object.fromEntries(
@@ -235,6 +236,8 @@ export async function PublicOrderPage({
   );
   const supplierCompany = getPurchaseOrderSupplierCompany(order);
   const supplierContact = getPurchaseOrderSupplierContact(order);
+  const buyerCnpj = quotation?.buyerCnpj ?? pharmacy?.cnpj;
+  const buyerLegalName = quotation?.buyerLegalName ?? (quotation?.buyerCnpj ? undefined : pharmacy?.razaoSocial);
 
   return (
     <PublicShell>
@@ -247,7 +250,8 @@ export async function PublicOrderPage({
                 Pedido vencedor
               </Badge>
               <CardTitle className="mt-4 text-2xl">{(quotation?.buyerCnpj ? quotation.buyerCompanyName : pharmacy?.nomeFantasia) ?? tenant?.nomeFantasia ?? "MBA Cotações"}</CardTitle>
-              {quotation?.moduleType === "pharmacy" && (quotation.buyerCnpj || pharmacy?.cnpj) ? <p className="text-sm">CNPJ comprador · {quotation.buyerCnpj ?? pharmacy?.cnpj}</p> : null}
+              {quotation?.moduleType === "pharmacy" && buyerCnpj ? <p className="text-sm">CNPJ comprador · {formatBuyerCnpj(buyerCnpj) || buyerCnpj}</p> : null}
+              {quotation?.moduleType === "pharmacy" && buyerLegalName ? <p className="text-sm">Razão social · {buyerLegalName}</p> : null}
               <div className="mt-2 grid gap-1 text-sm text-muted-foreground">
                 <p>Cotação: {quotation?.name ?? "-"}</p>
                 <p>Empresa vencedora: {supplierCompany}</p>
