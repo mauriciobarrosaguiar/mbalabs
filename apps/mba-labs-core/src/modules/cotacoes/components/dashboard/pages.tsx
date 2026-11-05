@@ -2253,11 +2253,12 @@ async function BiddingQuotationPage({ id, subpage, tenantId }: { id?: string; su
 }
 
 async function QuotationList({ moduleType, tenantId, searchParams }: { moduleType: "pharmacy" | "bidding"; tenantId?: string; searchParams?: AppSearchParams }) {
-  const [all, pharmacies] = await Promise.all([
+  const [all, collections] = await Promise.all([
     listQuotationsByModule(moduleType, tenantId),
-    moduleType === "pharmacy" ? getCollections(tenantId).then((collections) => collections.pharmacies) : [],
+    moduleType === "pharmacy" ? getCollections(tenantId) : null,
   ]);
   const pharmacyId = getSearchParam(searchParams, "pharmacyId") ?? "";
+  const pharmacies = collections?.pharmacies ?? [];
   const list = all.filter((quotation) => !pharmacyId || quotation.pharmacyId === pharmacyId);
   console.info("[QuotationList] listagem carregada", {
     moduleType,

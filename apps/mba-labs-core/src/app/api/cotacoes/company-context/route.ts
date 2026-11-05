@@ -57,7 +57,7 @@ export async function GET() {
       .order("nome_fantasia");
     if (unitsError) throw unitsError;
 
-    const pharmacies: BuyerPharmacyOption[] = (units ?? []).flatMap((unit) => {
+    const pharmacies: BuyerPharmacyOption[] = (units ?? []).flatMap((unit: { id: string; nome_fantasia: string; razao_social: string; cnpj: string }) => {
       const formattedCnpj = formatBuyerCnpj(unit.cnpj);
       return formattedCnpj ? [{
         id: unit.id, name: unit.nome_fantasia, legalName: unit.razao_social,

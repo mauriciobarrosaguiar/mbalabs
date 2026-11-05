@@ -52,7 +52,7 @@ export async function GET(
     ? await demoRepository.getCollections()
     : await getCollections(tenantId);
   const tenant = collections.tenants.find((item) => item.id === quotation?.tenantId);
-  const pharmacy = collections.pharmacies.find((item) => item.id === quotation?.pharmacyId);
+  const pharmacy = collections.pharmacies.find((item) => item.id === quotation?.pharmacyId && item.tenantId === quotation?.tenantId);
   const generatedAt = new Date();
 
   const workbook = new ExcelJS.Workbook();

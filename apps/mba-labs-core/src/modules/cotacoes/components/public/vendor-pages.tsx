@@ -227,7 +227,7 @@ export async function PublicOrderPage({
     ? await demoRepository.getCollections()
     : await getCollections();
   const tenant = collections.tenants.find((item) => item.id === order.tenantId);
-  const pharmacy = collections.pharmacies.find((item) => item.id === quotation?.pharmacyId);
+  const pharmacy = collections.pharmacies.find((item) => item.id === quotation?.pharmacyId && item.tenantId === quotation?.tenantId);
   const quoteItemsById = Object.fromEntries(
     collections.quotationItems
       .filter((item) => item.quotationId === quotation?.id)

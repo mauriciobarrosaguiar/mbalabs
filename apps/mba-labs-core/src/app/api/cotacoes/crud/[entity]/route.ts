@@ -618,7 +618,7 @@ async function syncPrimaryPharmacy(tenant: Tenant) {
     const { error: createError } = await supabase.from("pharmacies").insert(payload);
     if (createError) throw createError;
   } else {
-    const primary = units.find((unit) => normalizeBuyerCnpj(unit.cnpj) === payload.cnpj);
+    const primary = units.find((unit: { id: string; cnpj: string }) => normalizeBuyerCnpj(unit.cnpj) === payload.cnpj);
     if (!primary) return;
     const { status: _status, ...details } = payload;
     const { error: updateError } = await supabase.from("pharmacies")

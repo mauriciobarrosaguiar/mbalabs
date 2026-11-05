@@ -11,7 +11,7 @@ SET search_path = ''
 AS $$
 DECLARE
   digit_count integer;
-  position integer;
+  character_index integer;
   total integer;
   remainder integer;
 BEGIN
@@ -21,9 +21,9 @@ BEGIN
   END IF;
   FOR digit_count IN 12..13 LOOP
     total := 0;
-    FOR position IN 1..digit_count LOOP
-      total := total + (ascii(substr(document, position, 1)) - 48) *
-        (2 + (digit_count - position) % 8);
+    FOR character_index IN 1..digit_count LOOP
+      total := total + (ascii(substr(document, character_index, 1)) - 48) *
+        (2 + (digit_count - character_index) % 8);
     END LOOP;
     remainder := total % 11;
     IF substr(document, digit_count + 1, 1)::integer <>
@@ -96,7 +96,7 @@ FOR EACH ROW EXECUTE FUNCTION public.cot_check_pharmacy_registration();
 
 CREATE FUNCTION public.cot_set_quotation_buyer()
 RETURNS trigger
-LANGUAGE plpgsql
+LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
@@ -118,6 +118,13 @@ BEGIN
   END IF;
 
   IF NEW.module_type <> 'pharmacy' THEN RETURN NEW; END IF;
+
+  IF auth.uid() IS NOT NULL THEN
+    IF NOT public.can_manage_cotacoes_catalog(NEW.tenant_id) THEN
+      RAISE EXCEPTION 'Sem permissão para criar cotações desta empresa.' USING ERRCODE = '42501';
+    END IF;
+    NEW.created_by := public.current_user_profile_id();
+  END IF;
 
   SELECT * INTO unit FROM public.pharmacies
     WHERE id = NEW.pharmacy_id AND tenant_id = NEW.tenant_id AND status = 'ativo'
@@ -152,3 +159,31 @@ FOR EACH ROW EXECUTE FUNCTION public.cot_set_quotation_buyer();
 
 REVOKE ALL ON FUNCTION public.cot_check_pharmacy_registration() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.cot_set_quotation_buyer() FROM PUBLIC, anon, authenticated;
+
+-- Keep tenant reads available to buyers, with unit management limited to administrators.
+CREATE FUNCTION public.cot_can_manage_pharmacies(company_id uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.tenant_users membership
+    JOIN public.tenants tenant ON tenant.id = membership.tenant_id
+    WHERE membership.tenant_id = company_id
+      AND membership.user_profile_id = public.current_user_profile_id()
+      AND membership.status = 'ativo'
+      AND membership.role = 'ADMIN_EMPRESA'
+      AND tenant.status IN ('ativo', 'teste')
+      AND tenant.tipo_cliente IN ('pharmacy', 'both')
+  );
+$$;
+
+REVOKE ALL ON FUNCTION public.cot_can_manage_pharmacies(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.cot_can_manage_pharmacies(uuid) TO authenticated;
+
+ALTER POLICY pharmacies_tenant_insert ON public.pharmacies
+  WITH CHECK (public.is_super_admin() OR public.cot_can_manage_pharmacies(tenant_id));
+ALTER POLICY pharmacies_tenant_update ON public.pharmacies
+  USING (public.is_super_admin() OR public.cot_can_manage_pharmacies(tenant_id))
+  WITH CHECK (public.is_super_admin() OR public.cot_can_manage_pharmacies(tenant_id));
+DROP POLICY pharmacies_tenant_delete ON public.pharmacies;

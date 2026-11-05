@@ -37,7 +37,7 @@ export async function GET(
     ? await demoRepository.getCollections()
     : await getCollections();
   const tenant = collections.tenants.find((item) => item.id === order.tenantId);
-  const pharmacy = collections.pharmacies.find((item) => item.id === quotation?.pharmacyId);
+  const pharmacy = collections.pharmacies.find((item) => item.id === quotation?.pharmacyId && item.tenantId === quotation?.tenantId);
   const distributor = collections.distributors[0];
   const generatedAt = new Date();
 
