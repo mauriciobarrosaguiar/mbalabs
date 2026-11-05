@@ -50,6 +50,7 @@ import type { ModuleType, Quotation, QuotationStatus } from "@/modules/cotacoes/
 type QuotationRow = {
   id: string;
   name: string;
+  buyerLabel?: string;
   deadlineAt: string;
   status: QuotationStatus;
   responseCount: number;
@@ -82,6 +83,7 @@ export function DemoQuotationTable({
     const remoteRows = serverRows.map((quotation) => ({
       id: quotation.id,
       name: quotation.name,
+      buyerLabel: quotation.buyerCnpj ? [quotation.buyerCompanyName, quotation.buyerCnpj].filter(Boolean).join(" · ") : undefined,
       deadlineAt: quotation.deadlineAt,
       status: quotation.status,
       responseCount: 0,

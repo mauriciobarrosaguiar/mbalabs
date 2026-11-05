@@ -246,7 +246,8 @@ export async function PublicOrderPage({
                 <CheckCircle2 className="h-3 w-3" />
                 Pedido vencedor
               </Badge>
-              <CardTitle className="mt-4 text-2xl">{pharmacy?.nomeFantasia ?? tenant?.nomeFantasia ?? "MBA Cotações"}</CardTitle>
+              <CardTitle className="mt-4 text-2xl">{(quotation?.buyerCnpj ? quotation.buyerCompanyName : pharmacy?.nomeFantasia) ?? tenant?.nomeFantasia ?? "MBA Cotações"}</CardTitle>
+              {quotation?.moduleType === "pharmacy" && (quotation.buyerCnpj || pharmacy?.cnpj) ? <p className="text-sm">CNPJ comprador · {quotation.buyerCnpj ?? pharmacy?.cnpj}</p> : null}
               <div className="mt-2 grid gap-1 text-sm text-muted-foreground">
                 <p>Cotação: {quotation?.name ?? "-"}</p>
                 <p>Empresa vencedora: {supplierCompany}</p>

@@ -132,7 +132,8 @@ export async function GET(
     { header: "Valor", key: "valor", width: 48 },
   ];
   [
-    ["Empresa", pharmacy?.nomeFantasia ?? tenant?.nomeFantasia ?? "-"],
+    ["Empresa", (quotation?.buyerCnpj ? quotation.buyerCompanyName : pharmacy?.nomeFantasia) ?? tenant?.nomeFantasia ?? "-"],
+    ...(quotation?.moduleType === "pharmacy" ? [["CNPJ comprador", quotation.buyerCnpj ?? pharmacy?.cnpj ?? "-"]] : []),
     ["Cotacao", quotation?.name ?? "-"],
     ["Modulo", quotation?.moduleType === "bidding" ? "Licitacao" : "Farmacia"],
     ["Data", formatDateBR(generatedAt.toISOString())],

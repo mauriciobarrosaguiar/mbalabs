@@ -93,7 +93,8 @@ export async function GET(
   const supplierCompany = getPurchaseOrderSupplierCompany(order);
   const supplierContact = getPurchaseOrderSupplierContact(order);
   const summaryRows = [
-    ["Farmácia", pharmacy?.nomeFantasia ?? tenant?.nomeFantasia ?? "-"],
+    ["Farmácia", (quotation?.buyerCnpj ? quotation.buyerCompanyName : pharmacy?.nomeFantasia) ?? tenant?.nomeFantasia ?? "-"],
+    ...(quotation?.moduleType === "pharmacy" ? [["CNPJ comprador", quotation.buyerCnpj ?? pharmacy?.cnpj ?? "-"]] : []),
     ["Cotação", quotation?.name ?? "-"],
     ["Empresa vencedora", supplierCompany],
     ["Vendedor", supplierContact ?? "-"],

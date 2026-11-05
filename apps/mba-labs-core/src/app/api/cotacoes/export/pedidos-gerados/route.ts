@@ -33,11 +33,12 @@ export async function GET(request: Request) {
   const moduleFilter = parseModuleFilter(url.searchParams.get("module"));
   const statusFilter = url.searchParams.get("status") ?? "all";
   const dateFilter = url.searchParams.get("date") ?? "";
+  const pharmacyId = url.searchParams.get("pharmacyId") ?? "";
   const vendorFilter = (url.searchParams.get("vendor") ?? "").trim().toLowerCase();
   const collections = await getCollections(tenantId);
 
   const quotations = collections.quotations.filter((quotation) =>
-    moduleFilter === "all" || quotation.moduleType === moduleFilter,
+    (!pharmacyId || quotation.pharmacyId === pharmacyId) && (moduleFilter === "all" || quotation.moduleType === moduleFilter),
   );
   const orderGroups = await Promise.all(quotations.map(async (quotation) => ({
     quotation,
@@ -75,6 +76,8 @@ export async function GET(request: Request) {
   orderSheet.columns = [
     { header: "Modulo", key: "modulo", width: 14 },
     { header: "Cotacao", key: "cotacao", width: 32 },
+    { header: "Farmácia compradora", key: "farmacia", width: 28 },
+    { header: "CNPJ comprador", key: "cnpj", width: 20 },
     { header: "Empresa vencedora", key: "empresaVencedora", width: 28 },
     { header: "Vendedor", key: "vendedor", width: 24 },
     { header: "WhatsApp", key: "whatsapp", width: 18 },
@@ -97,6 +100,7 @@ export async function GET(request: Request) {
   ];
 
   for (const { quotation, order } of rows) {
+    const pharmacy = collections.pharmacies.find((unit) => unit.id === quotation.pharmacyId && unit.tenantId === quotation.tenantId);
     const supplierCompany = getPurchaseOrderSupplierCompany(order);
     const supplierContact = getPurchaseOrderSupplierContact(order) ?? order.supplierName;
     const publicOrderPath = `/${order.moduleType === "bidding" ? "licitacao" : "cotacao"}/pedido/${order.publicToken}`;
@@ -110,6 +114,8 @@ export async function GET(request: Request) {
       orderSheet.addRow({
         modulo: getModuleLabel(order.moduleType),
         cotacao: quotation.name,
+        farmacia: (quotation.buyerCnpj ? quotation.buyerCompanyName : pharmacy?.nomeFantasia) ?? "",
+        cnpj: quotation.buyerCnpj ?? pharmacy?.cnpj ?? "",
         empresaVencedora: supplierCompany,
         vendedor: supplierContact,
         whatsapp: order.supplierWhatsapp ?? "",

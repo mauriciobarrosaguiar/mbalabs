@@ -38,6 +38,8 @@ import { saveDemoQuotationToLocalStorage } from "@/modules/cotacoes/lib/data/dem
 import { formatDateBR, formatInteger } from "@/modules/cotacoes/lib/formatters";
 import type { Laboratory, ModuleType, Product, Supplier } from "@/modules/cotacoes/lib/types";
 
+import { normalizeBuyerCnpj, type BuyerPharmacyOption } from "@/modules/cotacoes/lib/buyer-cnpj";
+
 interface QuotationDraft {
   name: string;
   buyerDocument: string;
@@ -198,6 +200,13 @@ export function NewQuotationForm({
     allowEquivalent: true,
     considerMinimumOrder: true,
   });
+  const [pharmacies, setPharmacies] = useState<BuyerPharmacyOption[]>([]);
+  const [pharmacyId, setPharmacyId] = useState("");
+  const [pharmacySearch, setPharmacySearch] = useState("");
+  const [buyerError, setBuyerError] = useState("");
+  const [buyerLoading, setBuyerLoading] = useState(!isBidding && hasSupabaseBrowserConfig());
+  const selectedPharmacy = pharmacies.find((unit) => unit.id === pharmacyId);
+
   const [items, setItems] = useState<DraftItem[]>(() => {
     if (isBidding) return [buildDefaultItem(true)];
     return initialItems.map((item, index) => ({
@@ -264,8 +273,8 @@ export function NewQuotationForm({
       try {
         const response = await fetch("/api/cotacoes/company-context", { cache: "no-store" });
         const payload = await response.json() as {
-          companyName?: string;
-          formattedCnpj?: string;
+          pharmacies?: BuyerPharmacyOption[];
+          defaultPharmacyId?: string | null;
           error?: string;
         };
 
@@ -274,15 +283,16 @@ export function NewQuotationForm({
         }
         if (cancelled) return;
 
-        setDraft((current) => ({
-          ...current,
-          buyerDocument: payload.formattedCnpj ?? "",
-          buyerCompanyName: payload.companyName ?? current.buyerCompanyName,
-        }));
+        const units = payload.pharmacies ?? [];
+        setPharmacies(units);
+        setPharmacyId(payload.defaultPharmacyId ?? "");
+        if (units.length === 0) setBuyerError("Cadastre ou regularize uma farmácia ativa com CNPJ válido para cotar.");
       } catch (error) {
         if (!cancelled) {
-          toast.error(error instanceof Error ? error.message : "Não foi possível carregar o CNPJ da empresa.");
+          setBuyerError(error instanceof Error ? error.message : "Não foi possível carregar as farmácias.");
         }
+      } finally {
+        if (!cancelled) setBuyerLoading(false);
       }
     }
 
@@ -320,8 +330,8 @@ export function NewQuotationForm({
   }
 
   function next() {
-    if (step === 1 && !isBidding && hasSupabaseBrowserConfig() && !draft.buyerDocument) {
-      toast.error("Aguarde o CNPJ da empresa ser carregado antes de continuar.");
+    if (step === 1 && !isBidding && hasSupabaseBrowserConfig() && !selectedPharmacy) {
+      toast.error("Selecione a farmácia compradora para continuar.");
       return;
     }
     if (step === 2 && items.length === 0) {
@@ -337,8 +347,8 @@ export function NewQuotationForm({
 
   async function createAndSendQuotation() {
     if (submissionLockRef.current || submitting || saving) return;
-    if (!isBidding && hasSupabaseBrowserConfig() && !draft.buyerDocument) {
-      toast.error("O CNPJ da empresa não foi carregado. Atualize a página e tente novamente.");
+    if (!isBidding && hasSupabaseBrowserConfig() && !selectedPharmacy) {
+      toast.error("Volte à primeira etapa e selecione a farmácia compradora.");
       return;
     }
     if (!draft.deadlineAt) {
@@ -439,6 +449,7 @@ export function NewQuotationForm({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             moduleType,
+            pharmacyId: selectedPharmacy?.id,
             status,
             draft,
             items,
@@ -483,7 +494,33 @@ export function NewQuotationForm({
       <StepHeader step={step} isBidding={isBidding} />
 
       {step === 1 ? (
-        <StepData draft={draft} isBidding={isBidding} updateDraft={updateDraft} />
+        <StepData draft={draft} isBidding={isBidding} updateDraft={updateDraft} buyerField={
+          !isBidding && hasSupabaseBrowserConfig() ? (
+            <div className="space-y-2">
+              <Label htmlFor="buyer-pharmacy">Farmácia/CNPJ comprador</Label>
+              {buyerLoading ? <p role="status">Carregando farmácias…</p> : null}
+              {buyerError ? <p role="alert" className="text-sm text-red-700">{buyerError}</p> : null}
+              {pharmacies.length === 1 && selectedPharmacy ? (
+                <Input id="buyer-pharmacy" readOnly value={`${selectedPharmacy.name} · ${selectedPharmacy.formattedCnpj}`} />
+              ) : null}
+              {pharmacies.length > 1 ? (
+                <>
+                  <Input aria-label="Buscar farmácia por nome ou CNPJ" placeholder="Buscar por nome ou CNPJ" value={pharmacySearch} onChange={(event) => setPharmacySearch(event.target.value)} />
+                  <select id="buyer-pharmacy" className="h-10 w-full rounded-md border bg-white px-3 text-sm" value={pharmacyId} onChange={(event) => setPharmacyId(event.target.value)}>
+                    <option value="">Selecione a farmácia</option>
+                    {pharmacies.filter((unit) => {
+                      const search = pharmacySearch.trim();
+                      const document = normalizeBuyerCnpj(search);
+                      return unit.id === pharmacyId ||
+                        `${unit.name} ${unit.legalName}`.toLowerCase().includes(search.toLowerCase()) ||
+                        (document !== "" && normalizeBuyerCnpj(unit.formattedCnpj).includes(document));
+                    }).map((unit) => <option key={unit.id} value={unit.id}>{unit.name} · {unit.formattedCnpj}</option>)}
+                  </select>
+                </>
+              ) : null}
+            </div>
+          ) : undefined
+        } />
       ) : null}
       {step === 2 ? (
         <StepItems
@@ -517,7 +554,7 @@ export function NewQuotationForm({
       ) : null}
       {step === 4 ? (
         <StepReview
-          draft={draft}
+          draft={selectedPharmacy ? { ...draft, buyerDocument: selectedPharmacy.formattedCnpj, buyerCompanyName: selectedPharmacy.name } : draft}
           items={items}
           suppliers={selectedSuppliers}
           links={links}
@@ -609,12 +646,14 @@ function StepHeader({ step, isBidding }: { step: number; isBidding: boolean }) {
 }
 
 function StepData({
+  buyerField,
   draft,
   isBidding,
   updateDraft,
 }: {
   draft: QuotationDraft;
   isBidding: boolean;
+  buyerField?: React.ReactNode;
   updateDraft: <K extends keyof QuotationDraft>(key: K, value: QuotationDraft[K]) => void;
 }) {
   return (
@@ -633,12 +672,12 @@ function StepData({
           </>
         ) : (
           <>
-            <Field
+            {buyerField ?? <Field
               label="Farmácia/CNPJ comprador"
               value={draft.buyerDocument}
               onChange={(value) => updateDraft("buyerDocument", value)}
               readOnly
-            />
+            />}
             <ProductTypeSelect label="Tipo da cotação" value={draft.quotationType} onValueChange={(value) => updateDraft("quotationType", value)} />
           </>
         )}
@@ -1159,6 +1198,7 @@ function StepReview({
       <CardContent className="space-y-5">
         <div className="grid gap-3 md:grid-cols-4">
           <Summary label="Cotação" value={draft.name} />
+          {!isBidding ? <Summary label="Farmácia compradora" value={[draft.buyerCompanyName, draft.buyerDocument].filter(Boolean).join(" · ")} /> : null}
           <Summary label="Data limite" value={formatDateBR(draft.deadlineAt)} />
           <Summary label="Tipo" value={isBidding ? labelFrom(judgmentTypeLabels, draft.judgmentType) : labelFrom(productTypeLabels, draft.quotationType)} />
           <Summary label="Itens" value={String(items.length)} />

@@ -226,6 +226,7 @@ export interface Quotation {
   moduleType: ModuleType;
   name: string;
   pharmacyId?: string;
+  buyerCnpj?: string;
   buyerCompanyName?: string;
   destinationClient?: string;
   orgaoDestino?: string;
