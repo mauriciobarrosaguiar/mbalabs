@@ -245,7 +245,7 @@ export async function PublicOrderPage({
   const buyerLegalName = quotation?.buyerLegalName ?? (quotation?.buyerCnpj ? undefined : pharmacy?.razaoSocial);
 
   return (
-    <PublicShell>
+    <PublicShell printOrder>
       <Card className="border-slate-200 shadow-sm">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -286,9 +286,11 @@ export async function PublicOrderPage({
   );
 }
 
-function PublicShell({ children }: { children: ReactNode }) {
+function PublicShell({ children, printOrder = false }: { children: ReactNode; printOrder?: boolean }) {
   return (
-    <main className="cotacoes-module min-h-screen bg-slate-50 px-3 py-5 sm:px-6 lg:px-8">
+    <main
+      className={`cotacoes-module min-h-screen bg-slate-50 px-3 py-5 sm:px-6 lg:px-8 ${printOrder ? "print:min-h-0 print:bg-white print:p-0" : ""}`}
+    >
       <div className="mx-auto max-w-7xl space-y-5">
         <div className="flex items-center justify-between rounded-md border border-slate-200 bg-white p-4">
           <Link href="/" className="flex items-center gap-3">
