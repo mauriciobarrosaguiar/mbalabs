@@ -125,8 +125,8 @@ export function BulkBuyerOrderReview({
         };
       }) : [];
     if (action === "approve_send" && minimumExceptions.some((exception) =>
-      !exception.confirmed || exception.reason.length < 10 || exception.reason.length > 500)) {
-      toast.error("Confirme cada pedido abaixo do mínimo e explique a exceção (10 a 500 caracteres).");
+      !exception.confirmed || !exception.reason)) {
+      toast.error("Confirme cada pedido abaixo do mínimo e informe uma justificativa.");
       return;
     }
     if (action === "approve_send" && !window.confirm(
@@ -290,9 +290,9 @@ export function BulkBuyerOrderReview({
                   Confirmo excepcionalmente o pedido abaixo do mínimo desta distribuidora
                 </label>
                 <label className="block space-y-1 text-sm font-medium text-slate-900">
-                  <span>Justificativa obrigatória (10 a 500 caracteres)</span>
+                  <span>Justificativa obrigatória</span>
                   <Input
-                    value={confirmation.reason} maxLength={500} disabled={Boolean(busy)}
+                    value={confirmation.reason} disabled={Boolean(busy)}
                     placeholder="Ex.: distribuidora autorizou exceção comercial por telefone"
                     onChange={(event) => setMinimumConfirmations((current) => ({
                       ...current, [key]: { ...confirmation, reason: event.target.value },

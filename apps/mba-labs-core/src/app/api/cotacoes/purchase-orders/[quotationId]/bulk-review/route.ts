@@ -61,10 +61,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       minimumExceptions.some((exception) =>
         !uuid.test(exception.orderId) || !uuid.test(exception.distributorId) ||
         exception.confirmed !== true || typeof exception.reason !== "string" ||
-        exception.reason.trim().length < 10 || exception.reason.trim().length > 500) ||
+        !exception.reason.trim()) ||
       (body.action === "save" && minimumExceptions.length > 0)) {
       return NextResponse.json({
-        error: "Confirme cada exceção de pedido mínimo e informe justificativa de 10 a 500 caracteres.",
+        error: "Confirme cada exceção de pedido mínimo e informe uma justificativa.",
       }, { status: 400 });
     }
 
