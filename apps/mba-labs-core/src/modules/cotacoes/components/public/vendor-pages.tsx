@@ -289,6 +289,7 @@ export async function PublicOrderPage({
 function PublicShell({ children, printOrder = false }: { children: ReactNode; printOrder?: boolean }) {
   return (
     <main
+      data-print-public-order={printOrder || undefined}
       className={`cotacoes-module min-h-screen bg-slate-50 px-3 py-5 sm:px-6 lg:px-8 ${printOrder ? "print:min-h-0 print:bg-white print:p-0" : ""}`}
     >
       <div className="mx-auto max-w-7xl space-y-5">
