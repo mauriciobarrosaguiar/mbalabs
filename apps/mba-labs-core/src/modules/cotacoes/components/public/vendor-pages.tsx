@@ -2,7 +2,6 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { AlertCircle, CheckCircle2, Clock, LockKeyhole } from "lucide-react";
-import { StatusBadge } from "@/modules/cotacoes/components/dashboard/status-badge";
 import { Badge } from "@/modules/cotacoes/components/ui/badge";
 import { Button } from "@/modules/cotacoes/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/modules/cotacoes/components/ui/card";
@@ -236,6 +235,12 @@ export async function PublicOrderPage({
   );
   const supplierCompany = getPurchaseOrderSupplierCompany(order);
   const supplierContact = getPurchaseOrderSupplierContact(order);
+  const distributorIds = new Set(order.items.map((item) => item.distributorId));
+  const distributorNamesById = Object.fromEntries(
+    collections.distributors
+      .filter((distributor) => distributor.tenantId === order.tenantId && distributorIds.has(distributor.id))
+      .map((distributor) => [distributor.id, distributor.nome]),
+  );
   const buyerCnpj = quotation?.buyerCnpj ?? pharmacy?.cnpj;
   const buyerLegalName = quotation?.buyerLegalName ?? (quotation?.buyerCnpj ? undefined : pharmacy?.razaoSocial);
 
@@ -262,12 +267,15 @@ export async function PublicOrderPage({
                 {quotation?.notes ? <p>Observação da farmácia: {quotation.notes}</p> : null}
               </div>
             </div>
-            <StatusBadge status={order.status} />
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
-          <WinnerOrderForm initialOrder={order} quotationItemsById={quoteItemsById} />
-          <Button asChild variant="outline">
+          <WinnerOrderForm
+            initialOrder={order}
+            quotationItemsById={quoteItemsById}
+            distributorNamesById={distributorNamesById}
+          />
+          <Button asChild variant="outline" className="print:hidden">
             <Link href="/">
               Sair
             </Link>
