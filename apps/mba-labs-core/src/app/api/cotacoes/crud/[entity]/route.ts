@@ -1,3 +1,4 @@
+import { formatBuyerCnpj, normalizeBuyerCnpj } from "@/modules/cotacoes/lib/buyer-cnpj";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import {
@@ -234,6 +235,12 @@ async function mutate(
       await assertEntityOwnership(entity, id, auth.tenantId);
     }
 
+    if (entity === "pharmacies") {
+      if (operation === "create" && !text(scopedData.tenantId)) throw new RouteError("Informe a empresa da farmácia.", 400);
+      if ((operation === "create" || scopedData.cnpj !== undefined) && !formatBuyerCnpj(text(scopedData.cnpj))) {
+        throw new RouteError("Informe um CNPJ de farmácia válido.", 400);
+      }
+    }
     if (entity === "products") validateProductFields(scopedData);
     await assertNoDuplicateEntity(entity, scopedData, operation === "update" ? id : undefined);
 
@@ -286,6 +293,9 @@ async function authorizeCrud(entity: Entity): Promise<CrudAuth> {
     throw new RouteError("Sem permissão para alterar os cadastros desta empresa.", 403);
   }
 
+  if (entity === "pharmacies" && (auth.tenantAccess.role !== "ADMIN_EMPRESA" || auth.tenantAccess.tenantType === "distributor_bidding")) {
+    throw new RouteError("Apenas administradores da rede podem gerenciar farmácias.", 403);
+  }
   return { isSuperAdmin: false, tenantId: auth.tenantAccess.tenantId };
 }
 
@@ -316,6 +326,9 @@ function errorCode(error: unknown) {
 }
 
 function errorResponse(error: unknown, fallback: string) {
+  if (["P7102", "P7103"].includes(errorCode(error)) && typeof error === "object" && error !== null && "message" in error) {
+    return NextResponse.json({ error: error.message }, { status: errorCode(error) === "P7103" ? 409 : 400 });
+  }
   const status = error instanceof RouteError ? error.status : 500;
   return NextResponse.json(
     { error: error instanceof Error ? error.message : fallback },
@@ -558,7 +571,7 @@ function tenantPayload(row: Row): Partial<Tenant> {
 }
 
 async function createTenantSideEffects(tenant: Tenant, row: Row) {
-  if (text(row.autoCreatePharmacy) === "on" && tenant.tipoCliente === "pharmacy") {
+  if (text(row.autoCreatePharmacy) === "on" && tenant.tipoCliente === "pharmacy" && formatBuyerCnpj(tenant.cnpj)) {
     await createPharmacy({
       tenantId: tenant.id,
       nomeFantasia: `${tenant.nomeFantasia} - Matriz`,
@@ -589,14 +602,14 @@ async function createTenantSideEffects(tenant: Tenant, row: Row) {
 async function syncPrimaryPharmacy(tenant: Tenant) {
   // A empresa (tenant) é o cadastro comercial e a farmácia é sua unidade operacional.
   // Mantemos unidades adicionais existentes intactas: não há segundo cadastro no menu.
-  if (tenant.tipoCliente === "distributor_bidding" || !/^\d{14}$/.test(onlyDigits(tenant.cnpj))) return;
+  if (tenant.tipoCliente === "distributor_bidding" || !formatBuyerCnpj(tenant.cnpj)) return;
   const supabase = createSupabaseAdminClient();
   const { data: units, error } = await supabase.from("pharmacies")
-    .select("id,cnpj").eq("tenant_id", tenant.id).order("created_at").limit(2);
+    .select("id,cnpj").eq("tenant_id", tenant.id);
   if (error) throw error;
   const payload = {
     tenant_id: tenant.id, nome_fantasia: tenant.nomeFantasia,
-    razao_social: tenant.razaoSocial, cnpj: onlyDigits(tenant.cnpj),
+    razao_social: tenant.razaoSocial, cnpj: normalizeBuyerCnpj(tenant.cnpj),
     responsavel: tenant.responsavelNome, whatsapp: tenant.responsavelWhatsapp,
     email: tenant.responsavelEmail, status: tenant.status === "ativo" || tenant.status === "teste" ? "ativo" : "inativo",
     updated_at: new Date().toISOString(),
@@ -604,9 +617,12 @@ async function syncPrimaryPharmacy(tenant: Tenant) {
   if (!units?.length) {
     const { error: createError } = await supabase.from("pharmacies").insert(payload);
     if (createError) throw createError;
-  } else if (units.length === 1) {
+  } else {
+    const primary = units.find((unit: { id: string; cnpj: string }) => normalizeBuyerCnpj(unit.cnpj) === payload.cnpj);
+    if (!primary) return;
+    const { status: _status, ...details } = payload;
     const { error: updateError } = await supabase.from("pharmacies")
-      .update(payload).eq("tenant_id", tenant.id).eq("id", units[0].id);
+      .update(details).eq("tenant_id", tenant.id).eq("id", primary.id);
     if (updateError) throw updateError;
   }
 }
@@ -616,13 +632,13 @@ function pharmacyPayload(row: Row): Partial<Pharmacy> {
     tenantId: text(row.tenantId) || undefined,
     nomeFantasia: text(row.nomeFantasia) || text(row.nome),
     razaoSocial: text(row.razaoSocial) || text(row.nomeFantasia) || text(row.nome),
-    cnpj: onlyDigits(text(row.cnpj)),
+    cnpj: row.cnpj === undefined ? undefined : normalizeBuyerCnpj(text(row.cnpj)),
     cidade: text(row.cidade),
     uf: text(row.uf),
     responsavel: text(row.responsavel),
     whatsapp: text(row.whatsapp),
     email: text(row.email),
-    status: (text(row.status) || "ativo") as Pharmacy["status"],
+    status: (text(row.status) || undefined) as Pharmacy["status"] | undefined,
   };
 }
 

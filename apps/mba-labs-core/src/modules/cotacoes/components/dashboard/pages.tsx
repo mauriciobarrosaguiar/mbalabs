@@ -1,3 +1,6 @@
+import { matchesPharmacyFilter, resolvePharmacyFilter } from "@/modules/cotacoes/lib/pharmacy-filter";
+import { getCurrentAuthContext } from "@/modules/cotacoes/lib/auth/session";
+import { formatBuyerCnpj } from "@/modules/cotacoes/lib/buyer-cnpj";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -637,7 +640,7 @@ export async function CompanyRoutePage({
   if (section === "lista-faltas") return <ShortageListPage />;
   if (section === "importar") return <ImportsPage />;
   if (section === "historico-precos" || section === "historico-compras" || section === "relatorios") {
-    return <ReportsPage section={section} tenantId={tenantId} />;
+    return <ReportsPage section={section} tenantId={tenantId} searchParams={searchParams} />;
   }
   if (section === "pedidos-gerados" || section === "pedidos-gerados-farmacia" || section === "pedidos-gerados-licitacao") {
     const forcedModule =
@@ -1035,38 +1038,7 @@ async function CompanyDetailsPage({ tenantId }: { tenantId: string }) {
 
         <TabsContent value="farmacias" className="mt-4">
           <Card><CardContent className="p-4">
-            <DemoCrudTable
-              entity="pharmacies"
-              storageKey={`mba-company-${tenant.id}-pharmacies`}
-              title="Farmácia/CNPJ"
-              primaryKey="nomeFantasia"
-              statusOptions={activeInactiveOptions}
-              emptyMessage="Nenhuma farmácia cadastrada. Cadastre uma empresa do tipo Farmácia ou adicione uma unidade dentro da empresa."
-              initialRows={pharmacies.map((pharmacy) => ({
-                id: pharmacy.id,
-                tenantId: pharmacy.tenantId,
-                nomeFantasia: pharmacy.nomeFantasia,
-                razaoSocial: pharmacy.razaoSocial,
-                cnpj: pharmacy.cnpj,
-                cidade: pharmacy.cidade,
-                uf: pharmacy.uf,
-                responsavel: pharmacy.responsavel,
-                whatsapp: pharmacy.whatsapp,
-                email: pharmacy.email,
-                status: pharmacy.status,
-              }))}
-              fields={[
-                { key: "tenantId", label: "Empresa", type: "hidden", defaultValue: tenant.id },
-                { key: "nomeFantasia", label: "Farmácia" },
-                { key: "razaoSocial", label: "Razão social" },
-                { key: "cnpj", label: "CNPJ" },
-                { key: "cidade", label: "Cidade" },
-                { key: "uf", label: "UF", type: "select", options: ufLabels },
-                { key: "responsavel", label: "Responsável" },
-                { key: "whatsapp", label: "WhatsApp" },
-                { key: "email", label: "E-mail", type: "email" },
-              ]}
-            />
+            <PharmacyUnitsTable tenantId={tenant.id} pharmacies={pharmacies} />
           </CardContent></Card>
         </TabsContent>
 
@@ -1635,28 +1607,66 @@ function ImportsPage() {
   );
 }
 
-async function ReportsPage({ section, tenantId }: { section: string; tenantId?: string }) {
+function PharmacyFilterSelect({ pharmacies, pharmacyId }: { pharmacies: Collections["pharmacies"]; pharmacyId: string }) {
+  return (
+    <label className="block space-y-2 text-sm">
+      <span>Farmácia compradora</span>
+      {pharmacyId && !pharmacies.some((unit) => unit.id === pharmacyId) ? <p role="alert" className="text-rose-700">Farmácia compradora indisponível. Selecione uma unidade ou limpe o filtro.</p> : null}
+      <select name="pharmacyId" defaultValue={pharmacies.some((unit) => unit.id === pharmacyId) ? pharmacyId : ""} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+        <option value="">Todas as unidades</option>
+        {pharmacies.map((unit) => <option key={unit.id} value={unit.id}>{unit.nomeFantasia} · {formatBuyerCnpj(unit.cnpj) || unit.cnpj}{unit.status === "inativo" ? " (inativa)" : ""}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function PharmacyFilter({ pharmacies, pharmacyId, action }: { pharmacies: Collections["pharmacies"]; pharmacyId: string; action: string }) {
+  if (pharmacies.length === 0 && !pharmacyId) return null;
+  return (
+    <form action={action} className="flex flex-wrap items-end gap-2">
+      <PharmacyFilterSelect pharmacies={pharmacies} pharmacyId={pharmacyId} />
+      <Button type="submit" variant="outline">Filtrar</Button>
+    </form>
+  );
+}
+
+function quotationBuyerLabel(quotation: Collections["quotations"][number] | undefined, pharmacies: Collections["pharmacies"]) {
+  if (quotation?.moduleType !== "pharmacy") return "—";
+  const unit = pharmacies.find((entry) => entry.id === quotation.pharmacyId && entry.tenantId === quotation.tenantId);
+  const cnpj = quotation.buyerCnpj ?? unit?.cnpj;
+  return [quotation.buyerCnpj ? quotation.buyerCompanyName : unit?.nomeFantasia, cnpj && (formatBuyerCnpj(cnpj) || cnpj)]
+    .filter(Boolean).join(" · ") || "—";
+}
+
+async function ReportsPage({ section, tenantId, searchParams }: { section: string; tenantId?: string; searchParams?: AppSearchParams }) {
   const collections = await getCollections(tenantId);
+  const pharmacyId = getSearchParam(searchParams, "pharmacyId") ?? "";
+  const unitFilter = resolvePharmacyFilter(pharmacyId, collections.pharmacies, tenantId);
+  const quotations = collections.quotations.filter((quotation) => matchesPharmacyFilter(quotation, unitFilter));
+  const filter = <PharmacyFilter pharmacies={collections.pharmacies} pharmacyId={pharmacyId} action={`/cotacoes/${section}`} />;
   if (section === "historico-compras") {
-    const orders = (await Promise.all(collections.quotations.map((quotation) =>
+    const orders = (await Promise.all(quotations.map((quotation) =>
       getPurchaseOrdersByQuotation(quotation.id, tenantId),
     ))).flat();
     const rows = buildBilledPurchaseHistory(orders, tenantId);
+    const buyerByOrder = new Map(orders.map((order) => [order.id, quotations.find((quotation) => quotation.id === order.quotationId)]));
     return (
       <PageStack>
         <HeaderBlock title="Histórico de compras" description="Conferência dos pedidos finalizados, com quantidades faturadas e faltas." />
+        {filter}
         <Card>
           <CardHeader><CardTitle>Total faturado: {formatCurrency(rows.reduce((sum, row) => sum + row.billedAmount, 0))}</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto p-0">
             <Table>
               <TableHeader><TableRow>
-                <TableHead>Produto</TableHead><TableHead>Representante</TableHead><TableHead>Data</TableHead>
+                <TableHead>Farmácia compradora</TableHead><TableHead>Produto</TableHead><TableHead>Representante</TableHead><TableHead>Data</TableHead>
                 <TableHead>Pedido</TableHead><TableHead>Faturado</TableHead><TableHead>Falta</TableHead>
                 <TableHead>Valor faturado</TableHead><TableHead>Situação</TableHead>
               </TableRow></TableHeader>
               <TableBody>
-                {rows.length === 0 ? <TableRow><TableCell colSpan={8} className="py-8 text-center text-slate-500">Nenhum pedido com conferência finalizada.</TableCell></TableRow> : rows.map((row) => (
+                {rows.length === 0 ? <TableRow><TableCell colSpan={9} className="py-8 text-center text-slate-500">Nenhum pedido com conferência finalizada.</TableCell></TableRow> : rows.map((row) => (
                   <TableRow key={`${row.orderId}-${row.id}`}>
+                    <TableCell>{quotationBuyerLabel(buyerByOrder.get(row.orderId), collections.pharmacies)}</TableCell>
                     <TableCell className="font-medium">{row.productName}</TableCell><TableCell>{row.supplierName}</TableCell>
                     <TableCell>{row.date ? formatDate(row.date) : "-"}</TableCell><TableCell>{formatNumber(row.requested)}</TableCell>
                     <TableCell>{formatNumber(row.billed)}</TableCell><TableCell>{formatNumber(row.missing)}</TableCell>
@@ -1682,6 +1692,7 @@ async function ReportsPage({ section, tenantId }: { section: string; tenantId?: 
         title={titleMap[section]}
         description="Consulta operacional com dados gravados no Supabase."
       />
+      {filter}
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -1697,7 +1708,8 @@ async function ReportsPage({ section, tenantId }: { section: string; tenantId?: 
             <TableBody>
               {collections.supplierQuoteResponseItems.map((item) => {
                 const response = collections.supplierQuoteResponses.find((entry) => entry.id === item.responseId);
-                const quotation = collections.quotations.find((entry) => entry.id === response?.quotationId);
+                const quotation = quotations.find((entry) => entry.id === response?.quotationId);
+                if (pharmacyId && !quotation) return null;
                 const quotationItem = collections.quotationItems.find((entry) => entry.id === item.quotationItemId);
 
                 return (
@@ -1706,7 +1718,7 @@ async function ReportsPage({ section, tenantId }: { section: string; tenantId?: 
                     <TableCell>{response?.sellerName ?? "-"}</TableCell>
                     <TableCell>{formatDate(response?.submittedAt ?? quotation?.updatedAt ?? new Date().toISOString())}</TableCell>
                     <TableCell className="text-right">{formatCurrency(item.netPrice ?? item.unitPrice ?? 0)}</TableCell>
-                    <TableCell>{quotation?.moduleType === "bidding" ? "Licitação" : "Farmácia"}</TableCell>
+                    <TableCell>{quotation?.moduleType === "bidding" ? "Licitação" : quotationBuyerLabel(quotation, collections.pharmacies)}</TableCell>
                   </TableRow>
                 );
               })}
@@ -1777,8 +1789,11 @@ async function GeneratedOrdersPage({
   const dateFilter = getSearchParam(searchParams, "date") ?? "";
   const vendorParam = getSearchParam(searchParams, "vendor") ?? "";
   const vendorFilter = vendorParam.trim().toLowerCase();
+  const pharmacyId = getSearchParam(searchParams, "pharmacyId") ?? "";
+  const unitFilter = resolvePharmacyFilter(pharmacyId, collections.pharmacies, tenantId);
   const quotations = collections.quotations.filter((quotation) =>
     allowedModules.includes(quotation.moduleType) &&
+    matchesPharmacyFilter(quotation, unitFilter) &&
     (effectiveModuleFilter === "all" || quotation.moduleType === effectiveModuleFilter),
   );
 
@@ -1818,6 +1833,7 @@ async function GeneratedOrdersPage({
   const exportSearchParams = new URLSearchParams();
   if (effectiveModuleFilter !== "all") exportSearchParams.set("module", effectiveModuleFilter);
   if (dateFilter) exportSearchParams.set("date", dateFilter);
+  if (pharmacyId) exportSearchParams.set("pharmacyId", pharmacyId);
   if (vendorParam.trim()) exportSearchParams.set("vendor", vendorParam.trim());
   if (statusFilter !== "all") exportSearchParams.set("status", statusFilter);
   const exportHref = `/api/cotacoes/export/pedidos-gerados${exportSearchParams.size > 0 ? `?${exportSearchParams.toString()}` : ""}`;
@@ -1839,6 +1855,7 @@ async function GeneratedOrdersPage({
       <Card>
         <CardContent className="p-4">
           <form className="grid gap-3 md:grid-cols-5" action={pageHref}>
+            {forcedModule !== "bidding" ? <PharmacyFilterSelect pharmacies={collections.pharmacies} pharmacyId={pharmacyId} /> : null}
             <div className="space-y-2">
               <Label>Módulo</Label>
               {forcedModule ? (
@@ -1936,7 +1953,7 @@ async function GeneratedOrdersPage({
                   return (
                     <TableRow key={order.id}>
                       <TableCell>{order.moduleType === "bidding" ? "Licitação" : "Farmácia"}</TableCell>
-                      <TableCell className="min-w-52 font-medium">{quotation.name}</TableCell>
+                      <TableCell className="min-w-52 font-medium">{quotation.name}{quotation.moduleType === "pharmacy" ? <p className="text-xs font-normal">{quotationBuyerLabel(quotation, collections.pharmacies)}</p> : null}</TableCell>
                       <TableCell className="min-w-48">{getPurchaseOrderSupplierDisplay(order)}</TableCell>
                       <TableCell>{order.generatedAt ? formatDate(order.generatedAt) : "-"}</TableCell>
                       <TableCell><StatusBadge status={order.status} label={labelFrom(statusLabels, order.status)} /></TableCell>
@@ -2036,10 +2053,52 @@ function CompanyUsersPage() {
   );
 }
 
+function PharmacyUnitsTable({ tenantId, pharmacies }: { tenantId: string; pharmacies: Collections["pharmacies"] }) {
+  return (
+    <DemoCrudTable
+      entity="pharmacies"
+      storageKey={`mba-company-${tenantId}-pharmacies`}
+      title="Farmácia/CNPJ"
+      primaryKey="nomeFantasia"
+      statusOptions={activeInactiveOptions}
+      emptyMessage="Nenhuma farmácia cadastrada. Cadastre uma empresa do tipo Farmácia ou adicione uma unidade dentro da empresa."
+      initialRows={pharmacies.map((pharmacy) => ({
+        id: pharmacy.id,
+        tenantId: pharmacy.tenantId,
+        nomeFantasia: pharmacy.nomeFantasia,
+        razaoSocial: pharmacy.razaoSocial,
+        cnpj: pharmacy.cnpj,
+        cidade: pharmacy.cidade,
+        uf: pharmacy.uf,
+        responsavel: pharmacy.responsavel,
+        whatsapp: pharmacy.whatsapp,
+        email: pharmacy.email,
+        status: pharmacy.status,
+      }))}
+      fields={[
+        { key: "tenantId", label: "Empresa", type: "hidden", defaultValue: tenantId },
+        { key: "nomeFantasia", label: "Farmácia" },
+        { key: "razaoSocial", label: "Razão social" },
+        { key: "cnpj", label: "CNPJ" },
+        { key: "cidade", label: "Cidade" },
+        { key: "uf", label: "UF", type: "select", options: ufLabels },
+        { key: "responsavel", label: "Responsável" },
+        { key: "whatsapp", label: "WhatsApp" },
+        { key: "email", label: "E-mail", type: "email" },
+      ]}
+    />
+  );
+}
+
 async function CompanySettingsPage({ tenantId, isSuperAdmin = false }: { tenantId?: string; isSuperAdmin?: boolean }) {
   let auditLogs: Collections["auditLogs"] = [];
+  let pharmacies: Collections["pharmacies"] = [];
+  const auth = await getCurrentAuthContext();
+  const canManageUnits = tenantId && !isSuperAdmin && auth.tenantAccess?.tenantId === tenantId && auth.tenantAccess.role === "ADMIN_EMPRESA" && auth.tenantAccess.tenantType !== "distributor_bidding";
   try {
-    auditLogs = (await getCollections(isSuperAdmin ? undefined : tenantId)).auditLogs;
+    const collections = await getCollections(isSuperAdmin ? undefined : tenantId);
+    auditLogs = collections.auditLogs;
+    if (canManageUnits) pharmacies = collections.pharmacies.filter((unit) => unit.tenantId === tenantId);
   } catch (error) {
     console.error("Erro ao carregar logs de configuracoes", error);
   }
@@ -2054,6 +2113,7 @@ async function CompanySettingsPage({ tenantId, isSuperAdmin = false }: { tenantI
         title="Configurações da empresa"
         description="Preferências, acessos e histórico de envios da empresa."
       />
+      {canManageUnits && tenantId ? <PharmacyUnitsTable tenantId={tenantId} pharmacies={pharmacies} /> : null}
       <TwoColumn>
         <Card>
           <CardHeader><CardTitle>Perfil e tenant</CardTitle></CardHeader>
@@ -2175,7 +2235,7 @@ async function PharmacyQuotationPage({
   tenantId?: string;
   searchParams?: AppSearchParams;
 }) {
-  if (!id) return <QuotationList moduleType="pharmacy" tenantId={tenantId} />;
+  if (!id) return <QuotationList moduleType="pharmacy" tenantId={tenantId} searchParams={searchParams} />;
   if (id === "nova") return <NewQuotationPage moduleType="pharmacy" tenantId={tenantId} searchParams={searchParams} />;
   if (subpage === "editar") return <QuotationEditPage quotationId={id} moduleType="pharmacy" tenantId={tenantId} />;
   if (subpage === "respostas") return <PharmacyResponses quotationId={id} tenantId={tenantId} />;
@@ -2196,8 +2256,18 @@ async function BiddingQuotationPage({ id, subpage, tenantId }: { id?: string; su
   return <QuotationDetail quotationId={id} moduleType="bidding" tenantId={tenantId} />;
 }
 
-async function QuotationList({ moduleType, tenantId }: { moduleType: "pharmacy" | "bidding"; tenantId?: string }) {
-  const list = await listQuotationsByModule(moduleType, tenantId);
+async function QuotationList({ moduleType, tenantId, searchParams }: { moduleType: "pharmacy" | "bidding"; tenantId?: string; searchParams?: AppSearchParams }) {
+  const [all, collections] = await Promise.all([
+    listQuotationsByModule(moduleType, tenantId),
+    moduleType === "pharmacy" ? getCollections(tenantId) : null,
+  ]);
+  const pharmacyId = getSearchParam(searchParams, "pharmacyId") ?? "";
+  const pharmacies = collections?.pharmacies ?? [];
+  const unitFilter = resolvePharmacyFilter(pharmacyId, pharmacies, tenantId);
+  const list = all.filter((quotation) => matchesPharmacyFilter(quotation, unitFilter));
+  const buyerLabels = moduleType === "pharmacy" ? Object.fromEntries(
+    list.map((quotation) => [quotation.id, quotationBuyerLabel(quotation, pharmacies)]),
+  ) : undefined;
   console.info("[QuotationList] listagem carregada", {
     moduleType,
     count: list.length,
@@ -2213,9 +2283,10 @@ async function QuotationList({ moduleType, tenantId }: { moduleType: "pharmacy" 
         actionLabel="Nova cotação"
         actionHref={`${base}/nova`}
       />
+      {moduleType === "pharmacy" ? <PharmacyFilter pharmacies={pharmacies} pharmacyId={pharmacyId} action={base} /> : null}
       <Card>
         <CardContent className="p-0">
-          <DemoQuotationTable moduleType={moduleType} initialQuotations={list} />
+          <DemoQuotationTable key={pharmacyId} moduleType={moduleType} initialQuotations={list} buyerLabels={buyerLabels} showLocalDrafts={!pharmacyId} />
         </CardContent>
       </Card>
     </PageStack>
@@ -2291,6 +2362,7 @@ async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotatio
           badge="Demo"
         />
       ) : null}
+      {quotation.moduleType === "pharmacy" && quotation.buyerCnpj ? <p>Farmácia compradora · {quotationBuyerLabel(quotation, [])}</p> : null}
       <QuotationPageActions quotationId={quotation.id} moduleType={moduleType} status={quotation.status} currentPage="detail" />
       {moduleType === "pharmacy" ? (
         <Card>

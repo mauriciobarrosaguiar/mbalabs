@@ -1,6 +1,7 @@
 // @ts-nocheck
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import "server-only";
+import { formatBuyerCnpj } from "@/modules/cotacoes/lib/buyer-cnpj";
 
 import { createSupabaseAdminClient, hasSupabaseAdminConfig, hasSupabaseConfig } from "@/modules/cotacoes/lib/supabase/server";
 import {
@@ -348,7 +349,7 @@ export async function getSupabasePublicSession(token: string, moduleType: Module
         supabase.from("quotation_items").select("*").eq("quotation_id", quotationRow.id).order("item_number"),
         supabase.from("tenants").select("*").eq("id", quotationRow.tenant_id).maybeSingle(),
         quotationRow.pharmacy_id
-          ? supabase.from("pharmacies").select("*").eq("id", quotationRow.pharmacy_id).maybeSingle()
+          ? supabase.from("pharmacies").select("*").eq("id", quotationRow.pharmacy_id).eq("tenant_id", quotationRow.tenant_id).maybeSingle()
           : Promise.resolve({ data: null }),
       ]);
 
@@ -391,9 +392,9 @@ export async function getSupabasePublicSession(token: string, moduleType: Module
         ? {
             id: pharmacyRow.id,
             tenantId: pharmacyRow.tenant_id,
-            nomeFantasia: pharmacyRow.nome_fantasia,
-            razaoSocial: pharmacyRow.razao_social,
-            cnpj: pharmacyRow.cnpj,
+            nomeFantasia: quotationRow.buyer_pharmacy_name ?? pharmacyRow.nome_fantasia,
+            razaoSocial: quotationRow.buyer_pharmacy_legal_name ?? pharmacyRow.razao_social,
+            cnpj: quotationRow.buyer_cnpj ?? pharmacyRow.cnpj,
             cidade: pharmacyRow.cidade ?? "",
             uf: pharmacyRow.uf ?? "",
             responsavel: pharmacyRow.responsavel ?? "",
@@ -411,9 +412,13 @@ export async function getSupabasePublicSession(token: string, moduleType: Module
   }
 }
 
+export class BuyerPharmacyError extends Error {}
+
 export async function createSupabaseQuotation(input: {
   moduleType: ModuleType;
   tenantId?: string;
+  pharmacyId?: unknown;
+  createdBy?: string;
   status: "draft" | "open" | "waiting_responses";
   draft: {
     name: string;
@@ -478,10 +483,10 @@ export async function createSupabaseQuotation(input: {
     tenantName: tenant.nomeFantasia,
     tenantType: tenant.tipoCliente,
   });
-  await ensureUnitTypes(supabase);
   const pharmacy = moduleType === "pharmacy"
-    ? await resolvePharmacy(supabase, tenant.id)
+    ? await resolvePharmacy(supabase, tenant.id, input.pharmacyId)
     : null;
+  await ensureUnitTypes(supabase);
   const pharmacyProducts = moduleType === "pharmacy"
     ? await resolveQuotationProducts(supabase, tenant.id, input.items)
     : new Map<string, Record<string, any>>();
@@ -493,7 +498,8 @@ export async function createSupabaseQuotation(input: {
       module_type: moduleType,
       name: input.draft.name,
       pharmacy_id: pharmacy?.id ?? null,
-      buyer_company_name: input.draft.buyerCompanyName,
+      buyer_company_name: pharmacy?.nome_fantasia ?? input.draft.buyerCompanyName,
+      created_by: moduleType === "pharmacy" ? input.createdBy : undefined,
       destination_client: input.draft.destinationClient,
       process_number: input.draft.processNumber,
       bid_number: input.draft.bidNumber,
@@ -1409,14 +1415,16 @@ export async function markSupabasePurchaseOrderOpened(token: string) {
   const supabase = db();
   const order = await getSupabasePurchaseOrderByToken(token);
   if (!order) throw new Error("Pedido não encontrado.");
-  if (!["gerado", "enviado", "draft", "sent"].includes(order.status)) return order;
+  if (order.openedAt || !["gerado", "enviado", "enviado_ao_vendedor", "draft", "sent"].includes(order.status)) return order;
 
   const { data, error } = await supabase
     .from("purchase_orders")
     .update({ status: "aberto_pelo_vendedor", opened_at: new Date().toISOString() })
     .eq("public_token", token)
+    .eq("status", order.status)
+    .is("opened_at", null)
     .select("*")
-    .single();
+    .maybeSingle();
   if (error) {
     if (shouldRetryLegacyPurchaseOrderUpdate(error)) {
       console.error("[Supabase] Falha ao marcar pedido como aberto; mantendo status atual.", error);
@@ -1424,14 +1432,8 @@ export async function markSupabasePurchaseOrderOpened(token: string) {
     }
     throw error;
   }
-  return enrichPurchaseOrderWithSupplier(
-    mapPurchaseOrder(data, order.items.map(mapPurchaseOrderItemToDbShape)),
-    {
-      nome: order.supplierContactName,
-      empresa: order.supplierCompany,
-      whatsapp: order.supplierWhatsapp,
-    },
-  );
+  if (!data) return await getSupabasePurchaseOrderByToken(token) ?? order;
+  return { ...order, status: normalizePurchaseOrderStatus(data), openedAt: data.opened_at };
 }
 
 export async function saveSupabasePurchaseOrderReview(
@@ -1936,7 +1938,7 @@ export async function redirectSupabaseWinnerPendingItemToNextSupplier(pendingId:
   };
 }
 
-export async function createSupabaseQuotationFromWinnerPendingItems(quotationId: string, pendingIds?: string[]) {
+export async function createSupabaseQuotationFromWinnerPendingItems(quotationId: string, pendingIds?: string[], createdBy?: string) {
   const supabase = db();
   const { data: originalRow, error: quotationError } = await supabase
     .from("quotations")
@@ -2000,7 +2002,7 @@ export async function createSupabaseQuotationFromWinnerPendingItems(quotationId:
       // TODO: preparar integração futura com Gemini para análise de falteiro/estoque e WhatsApp para envio automático ao vendedor.
       notes: originalRow.notes,
       status: "draft",
-      created_by: originalRow.created_by,
+      created_by: createdBy ?? originalRow.created_by,
       source_quotation_id: originalRow.id,
       source_purchase_order_id: pendingRows[0]?.purchase_order_id,
     })
@@ -2133,16 +2135,25 @@ async function ensureUnitTypes(supabase: SupabaseClient) {
   if (error) throw error;
 }
 
-async function resolvePharmacy(supabase: SupabaseClient, tenantId: string) {
-  const { data, error } = await supabase
-    .from("pharmacies")
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .limit(1)
-    .maybeSingle();
+async function resolvePharmacy(supabase: SupabaseClient, tenantId: string, pharmacyId: unknown) {
+  let query = supabase.from("pharmacies").select("id,nome_fantasia,cnpj")
+    .eq("tenant_id", tenantId).eq("status", "ativo");
+  if (pharmacyId !== undefined) {
+    if (typeof pharmacyId !== "string" || !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(pharmacyId)) {
+      throw new BuyerPharmacyError("Selecione uma farmácia compradora válida.");
+    }
+    query = query.eq("id", pharmacyId);
+  }
 
+  const { data, error } = await query;
   if (error) throw error;
-  return data;
+  const valid = (data ?? []).filter((unit) => formatBuyerCnpj(unit.cnpj));
+  if (valid.length !== 1) {
+    throw new BuyerPharmacyError(pharmacyId === undefined && valid.length > 1
+      ? "Selecione o CNPJ comprador."
+      : "Farmácia compradora indisponível. Selecione uma unidade ativa com CNPJ válido da sua empresa.");
+  }
+  return valid[0];
 }
 
 async function resolveQuotationProducts(
@@ -2229,7 +2240,9 @@ function mapQuotation(row: Record<string, any>): Quotation {
     moduleType: row.module_type,
     name: row.name,
     pharmacyId: row.pharmacy_id ?? undefined,
-    buyerCompanyName: row.buyer_company_name ?? undefined,
+    buyerCompanyName: row.buyer_pharmacy_name ?? row.buyer_company_name ?? undefined,
+    buyerCnpj: row.buyer_cnpj ?? undefined,
+    buyerLegalName: row.buyer_pharmacy_legal_name ?? undefined,
     destinationClient: row.destination_client ?? undefined,
     orgaoDestino: row.orgao_destino ?? undefined,
     processNumber: row.process_number ?? undefined,

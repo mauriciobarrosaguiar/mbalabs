@@ -2,13 +2,13 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { AlertCircle, CheckCircle2, Clock, LockKeyhole } from "lucide-react";
-import { StatusBadge } from "@/modules/cotacoes/components/dashboard/status-badge";
 import { Badge } from "@/modules/cotacoes/components/ui/badge";
 import { Button } from "@/modules/cotacoes/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/modules/cotacoes/components/ui/card";
 import { SellerResponseForm } from "@/modules/cotacoes/components/quotations/seller-response-form";
 import { WinnerOrderForm } from "@/modules/cotacoes/components/quotations/winner-order-form";
 import { SafeFileUploadBoundary } from "@/modules/cotacoes/components/security/safe-file-upload-boundary";
+import { formatBuyerCnpj } from "@/modules/cotacoes/lib/buyer-cnpj";
 import { formatCurrency, formatDate, formatDateTime } from "@/modules/cotacoes/lib/formatters";
 import {
   canUsePublicResponseRepository,
@@ -225,9 +225,9 @@ export async function PublicOrderPage({
     : await getQuotationById(order.quotationId);
   const collections = useDemoOrder
     ? await demoRepository.getCollections()
-    : await getCollections();
+    : await getCollections(order.tenantId);
   const tenant = collections.tenants.find((item) => item.id === order.tenantId);
-  const pharmacy = collections.pharmacies.find((item) => item.id === quotation?.pharmacyId);
+  const pharmacy = collections.pharmacies.find((item) => item.id === quotation?.pharmacyId && item.tenantId === quotation?.tenantId);
   const quoteItemsById = Object.fromEntries(
     collections.quotationItems
       .filter((item) => item.quotationId === quotation?.id)
@@ -235,9 +235,17 @@ export async function PublicOrderPage({
   );
   const supplierCompany = getPurchaseOrderSupplierCompany(order);
   const supplierContact = getPurchaseOrderSupplierContact(order);
+  const distributorIds = new Set(order.items.map((item) => item.distributorId));
+  const distributorNamesById = Object.fromEntries(
+    collections.distributors
+      .filter((distributor) => distributor.tenantId === order.tenantId && distributorIds.has(distributor.id))
+      .map((distributor) => [distributor.id, distributor.nome]),
+  );
+  const buyerCnpj = quotation?.buyerCnpj ?? pharmacy?.cnpj;
+  const buyerLegalName = quotation?.buyerLegalName ?? (quotation?.buyerCnpj ? undefined : pharmacy?.razaoSocial);
 
   return (
-    <PublicShell>
+    <PublicShell printOrder>
       <Card className="border-slate-200 shadow-sm">
         <CardHeader>
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -246,7 +254,9 @@ export async function PublicOrderPage({
                 <CheckCircle2 className="h-3 w-3" />
                 Pedido vencedor
               </Badge>
-              <CardTitle className="mt-4 text-2xl">{pharmacy?.nomeFantasia ?? tenant?.nomeFantasia ?? "MBA Cotações"}</CardTitle>
+              <CardTitle className="mt-4 text-2xl">{(quotation?.buyerCnpj ? quotation.buyerCompanyName : pharmacy?.nomeFantasia) ?? tenant?.nomeFantasia ?? "MBA Cotações"}</CardTitle>
+              {quotation?.moduleType === "pharmacy" && buyerCnpj ? <p className="text-sm">CNPJ comprador · {formatBuyerCnpj(buyerCnpj) || buyerCnpj}</p> : null}
+              {quotation?.moduleType === "pharmacy" && buyerLegalName ? <p className="text-sm">Razão social · {buyerLegalName}</p> : null}
               <div className="mt-2 grid gap-1 text-sm text-muted-foreground">
                 <p>Cotação: {quotation?.name ?? "-"}</p>
                 <p>Empresa vencedora: {supplierCompany}</p>
@@ -257,12 +267,15 @@ export async function PublicOrderPage({
                 {quotation?.notes ? <p>Observação da farmácia: {quotation.notes}</p> : null}
               </div>
             </div>
-            <StatusBadge status={order.status} />
           </div>
         </CardHeader>
         <CardContent className="space-y-5">
-          <WinnerOrderForm initialOrder={order} quotationItemsById={quoteItemsById} />
-          <Button asChild variant="outline">
+          <WinnerOrderForm
+            initialOrder={order}
+            quotationItemsById={quoteItemsById}
+            distributorNamesById={distributorNamesById}
+          />
+          <Button asChild variant="outline" className="print:hidden">
             <Link href="/">
               Sair
             </Link>
@@ -273,9 +286,12 @@ export async function PublicOrderPage({
   );
 }
 
-function PublicShell({ children }: { children: ReactNode }) {
+function PublicShell({ children, printOrder = false }: { children: ReactNode; printOrder?: boolean }) {
   return (
-    <main className="cotacoes-module min-h-screen bg-slate-50 px-3 py-5 sm:px-6 lg:px-8">
+    <main
+      data-print-public-order={printOrder || undefined}
+      className={`cotacoes-module min-h-screen bg-slate-50 px-3 py-5 sm:px-6 lg:px-8 ${printOrder ? "print:min-h-0 print:bg-white print:p-0" : ""}`}
+    >
       <div className="mx-auto max-w-7xl space-y-5">
         <div className="flex items-center justify-between rounded-md border border-slate-200 bg-white p-4">
           <Link href="/" className="flex items-center gap-3">

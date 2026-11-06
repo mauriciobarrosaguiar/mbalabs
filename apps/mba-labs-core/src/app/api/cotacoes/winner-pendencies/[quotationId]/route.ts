@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentAuthContext } from "@/modules/cotacoes/lib/auth/session";
 import { ensureQuotationAccess } from "@/modules/cotacoes/lib/auth/quotation-access";
 import {
-  createQuotationFromWinnerPendingItems,
   redirectWinnerPendingItemToNextSupplier,
   updateWinnerPendingItemStatus,
 } from "@/modules/cotacoes/lib/data/repository";
+import { createSupabaseQuotationFromWinnerPendingItems } from "@/modules/cotacoes/lib/data/supabase-operational";
 import * as demoRepository from "@/modules/cotacoes/lib/data/demo-repository";
 import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/server";
 
@@ -21,10 +21,12 @@ export async function POST(
     const useDemo = isDemoQuotationRequest(quotationId, request.url);
     const pendingIds = Array.isArray(body.pendingIds) ? body.pendingIds.map(String) : pendingId ? [pendingId] : undefined;
 
+    let createdBy: string | undefined;
     if (!useDemo) {
       const auth = await getCurrentAuthContext();
-      const access = await ensureQuotationAccess(auth, quotationId);
+      const access = await ensureQuotationAccess(auth, quotationId, undefined, action === "new_quotation" ? "manage" : "read");
       if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
+      createdBy = auth.profile?.id;
       if (pendingIds?.length) {
         const pendingAccess = await ensurePendingItemsBelongToQuotation(pendingIds, quotationId, access.tenantId);
         if (!pendingAccess.ok) return NextResponse.json({ error: pendingAccess.error }, { status: pendingAccess.status });
@@ -41,7 +43,7 @@ export async function POST(
     if (action === "new_quotation") {
       const quotation = useDemo
         ? demoRepository.createQuotationFromWinnerPendingItems(quotationId, pendingIds)
-        : await createQuotationFromWinnerPendingItems(quotationId, pendingIds);
+        : await createSupabaseQuotationFromWinnerPendingItems(quotationId, pendingIds, createdBy);
       return NextResponse.json({ ok: true, quotation });
     }
 
@@ -55,6 +57,10 @@ export async function POST(
 
     return NextResponse.json({ error: "Ação inválida." }, { status: 400 });
   } catch (error) {
+    if (typeof error === "object" && error !== null && "code" in error && "message" in error &&
+      (error.code === "P7101" || (error.code === "P0001" && String(error.message).includes("Limite mensal")))) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Erro ao atualizar pendência." },
       { status: 500 },

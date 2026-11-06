@@ -1,3 +1,4 @@
+import { matchesPharmacyFilter, resolvePharmacyFilter } from "@/modules/cotacoes/lib/pharmacy-filter";
 import { NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import {
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
   }
 
   const tenantId = auth.isSuperAdmin ? undefined : auth.tenantAccess?.tenantId;
-  if (!auth.isSuperAdmin && (!auth.tenantAccess || isTenantSuspended(auth.tenantAccess.tenantStatus))) {
+  if (!auth.isSuperAdmin && (auth.tenantAccess?.status !== "ativo" || isTenantSuspended(auth.tenantAccess.tenantStatus))) {
     return NextResponse.json({ error: "Empresa sem acesso ativo ao MBA Cotações." }, { status: 403 });
   }
 
@@ -33,11 +34,17 @@ export async function GET(request: Request) {
   const moduleFilter = parseModuleFilter(url.searchParams.get("module"));
   const statusFilter = url.searchParams.get("status") ?? "all";
   const dateFilter = url.searchParams.get("date") ?? "";
+  const pharmacyId = url.searchParams.get("pharmacyId") ?? "";
   const vendorFilter = (url.searchParams.get("vendor") ?? "").trim().toLowerCase();
   const collections = await getCollections(tenantId);
 
+  const unitFilter = resolvePharmacyFilter(pharmacyId, collections.pharmacies, tenantId);
+  if (unitFilter.kind === "invalid") {
+    return NextResponse.json({ error: "Farmácia compradora indisponível." }, { status: 404 });
+  }
+
   const quotations = collections.quotations.filter((quotation) =>
-    moduleFilter === "all" || quotation.moduleType === moduleFilter,
+    matchesPharmacyFilter(quotation, unitFilter) && (moduleFilter === "all" || quotation.moduleType === moduleFilter),
   );
   const orderGroups = await Promise.all(quotations.map(async (quotation) => ({
     quotation,
@@ -66,6 +73,7 @@ export async function GET(request: Request) {
   }
 
   const quotationItemsById = new Map(collections.quotationItems.map((item) => [item.id, item]));
+  const distributorsById = new Map(collections.distributors.map((distributor) => [distributor.id, distributor]));
   const generatedAt = new Date();
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "MBA Cotacoes";
@@ -75,6 +83,9 @@ export async function GET(request: Request) {
   orderSheet.columns = [
     { header: "Modulo", key: "modulo", width: 14 },
     { header: "Cotacao", key: "cotacao", width: 32 },
+    { header: "Farmácia compradora", key: "farmacia", width: 28 },
+    { header: "CNPJ comprador", key: "cnpj", width: 20 },
+    { header: "Razão social compradora", key: "razaoSocial", width: 34 },
     { header: "Empresa vencedora", key: "empresaVencedora", width: 28 },
     { header: "Vendedor", key: "vendedor", width: 24 },
     { header: "WhatsApp", key: "whatsapp", width: 18 },
@@ -83,6 +94,7 @@ export async function GET(request: Request) {
     { header: "Produto", key: "produto", width: 38 },
     { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
     { header: "Laboratorio", key: "laboratorio", width: 22 },
+    { header: "Distribuidora", key: "distribuidora", width: 30 },
     { header: "Unidade", key: "unidade", width: 12 },
     { header: "Quantidade solicitada", key: "quantidade", width: 20 },
     { header: "Quantidade faturada", key: "quantidadeFaturada", width: 20 },
@@ -97,6 +109,7 @@ export async function GET(request: Request) {
   ];
 
   for (const { quotation, order } of rows) {
+    const pharmacy = collections.pharmacies.find((unit) => unit.id === quotation.pharmacyId && unit.tenantId === quotation.tenantId);
     const supplierCompany = getPurchaseOrderSupplierCompany(order);
     const supplierContact = getPurchaseOrderSupplierContact(order) ?? order.supplierName;
     const publicOrderPath = `/${order.moduleType === "bidding" ? "licitacao" : "cotacao"}/pedido/${order.publicToken}`;
@@ -104,12 +117,16 @@ export async function GET(request: Request) {
 
     for (const item of order.items) {
       const quotationItem = quotationItemsById.get(item.quotationItemId);
+      const distributor = item.distributorId ? distributorsById.get(item.distributorId) : undefined;
       const billedQuantity = getBilledQuantity(item);
       const missingQuantity = getMissingQuantity(item);
 
       orderSheet.addRow({
         modulo: getModuleLabel(order.moduleType),
         cotacao: quotation.name,
+        farmacia: (quotation.buyerCnpj ? quotation.buyerCompanyName : pharmacy?.nomeFantasia) ?? "",
+        cnpj: quotation.buyerCnpj ?? pharmacy?.cnpj ?? "",
+        razaoSocial: quotation.buyerLegalName ?? (quotation.buyerCnpj ? "" : pharmacy?.razaoSocial ?? ""),
         empresaVencedora: supplierCompany,
         vendedor: supplierContact,
         whatsapp: order.supplierWhatsapp ?? "",
@@ -118,6 +135,7 @@ export async function GET(request: Request) {
         produto: item.offeredProductName ?? item.productName,
         ean: quotationItem?.ean ? String(quotationItem.ean) : "",
         laboratorio: item.laboratory ?? quotationItem?.requestedLaboratory ?? "",
+        distribuidora: distributor?.tenantId === order.tenantId ? distributor?.nome ?? "" : "",
         unidade: item.unit,
         quantidade: item.quantityToBuy,
         quantidadeFaturada: billedQuantity,

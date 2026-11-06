@@ -127,6 +127,14 @@ body {
   color: var(--foreground);
 }
 
+@media print {
+  html:has([data-print-public-order]),
+  body:has([data-print-public-order]) {
+    min-height: 0;
+    background: white;
+  }
+}
+
 a {
   color: inherit;
   text-decoration: none;

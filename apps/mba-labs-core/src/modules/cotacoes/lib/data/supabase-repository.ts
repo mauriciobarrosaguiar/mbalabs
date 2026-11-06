@@ -450,6 +450,8 @@ export async function getQuotation(id: string) {
 export async function createQuotation(input: any) {
   const result = await createSupabaseQuotation({
     moduleType: input.moduleType,
+    tenantId: input.tenantId,
+    pharmacyId: input.pharmacyId,
     status: input.status ?? "draft",
     draft: input.draft ?? input,
     items: input.items ?? [],
@@ -1071,7 +1073,9 @@ function mapQuotation(row: Record<string, any>): Quotation {
     moduleType: row.module_type,
     name: row.name,
     pharmacyId: row.pharmacy_id ?? undefined,
-    buyerCompanyName: row.buyer_company_name ?? undefined,
+    buyerCompanyName: row.buyer_pharmacy_name ?? row.buyer_company_name ?? undefined,
+    buyerCnpj: row.buyer_cnpj ?? undefined,
+    buyerLegalName: row.buyer_pharmacy_legal_name ?? undefined,
     destinationClient: row.destination_client ?? undefined,
     orgaoDestino: row.orgao_destino ?? undefined,
     processNumber: row.process_number ?? undefined,
@@ -1095,7 +1099,7 @@ function mapQuotationToDb(input: Partial<Quotation>) {
     tenant_id: input.tenantId,
     module_type: input.moduleType,
     name: input.name,
-    pharmacy_id: input.pharmacyId || null,
+    pharmacy_id: input.pharmacyId,
     buyer_company_name: input.buyerCompanyName || null,
     destination_client: input.destinationClient || null,
     orgao_destino: input.orgaoDestino || null,

@@ -35,10 +35,16 @@ export async function GET(
     : await getQuotationById(order.quotationId);
   const collections = isDemoOrder
     ? await demoRepository.getCollections()
-    : await getCollections();
+    : await getCollections(order.tenantId);
   const tenant = collections.tenants.find((item) => item.id === order.tenantId);
-  const pharmacy = collections.pharmacies.find((item) => item.id === quotation?.pharmacyId);
-  const distributor = collections.distributors[0];
+  const pharmacy = collections.pharmacies.find((item) => item.id === quotation?.pharmacyId && item.tenantId === quotation?.tenantId);
+  const distributorsById = new Map(collections.distributors
+    .filter((distributor) => distributor.tenantId === order.tenantId)
+    .map((distributor) => [distributor.id, distributor]));
+  const distributorIds = new Set(order.items.map((item) => item.distributorId));
+  const [distributorId] = distributorIds;
+  const distributor = distributorIds.size === 1 && distributorId ? distributorsById.get(distributorId) : undefined;
+  const buyerLegalName = quotation?.buyerLegalName ?? (quotation?.buyerCnpj ? undefined : pharmacy?.razaoSocial);
   const generatedAt = new Date();
 
   const workbook = new ExcelJS.Workbook();
@@ -50,6 +56,7 @@ export async function GET(
     { header: "Produto", key: "produto", width: 34 },
     { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
     { header: "Laboratório", key: "laboratorio", width: 22 },
+    { header: "Distribuidora", key: "distribuidora", width: 30 },
     { header: "Quantidade solicitada", key: "quantidade", width: 20 },
     { header: "Quantidade faturada", key: "quantidadeFaturada", width: 20 },
     { header: "Quantidade faltante", key: "quantidadeFaltante", width: 20 },
@@ -68,6 +75,7 @@ export async function GET(
       produto: item.offeredProductName ?? item.productName,
       ean: quotationItem?.ean ? String(quotationItem.ean) : "",
       laboratorio: item.laboratory ?? quotationItem?.requestedLaboratory ?? "",
+      distribuidora: item.distributorId ? distributorsById.get(item.distributorId)?.nome ?? "" : "",
       quantidade: item.quantityToBuy,
       quantidadeFaturada: billedQuantity,
       quantidadeFaltante: missingQuantity,
@@ -93,7 +101,9 @@ export async function GET(
   const supplierCompany = getPurchaseOrderSupplierCompany(order);
   const supplierContact = getPurchaseOrderSupplierContact(order);
   const summaryRows = [
-    ["Farmácia", pharmacy?.nomeFantasia ?? tenant?.nomeFantasia ?? "-"],
+    ["Farmácia", (quotation?.buyerCnpj ? quotation.buyerCompanyName : pharmacy?.nomeFantasia) ?? tenant?.nomeFantasia ?? "-"],
+    ...(quotation?.moduleType === "pharmacy" ? [["CNPJ comprador", quotation.buyerCnpj ?? pharmacy?.cnpj ?? "-"]] : []),
+    ...(buyerLegalName ? [["Razão social", buyerLegalName]] : []),
     ["Cotação", quotation?.name ?? "-"],
     ["Empresa vencedora", supplierCompany],
     ["Vendedor", supplierContact ?? "-"],
@@ -108,18 +118,23 @@ export async function GET(
     ["Valor total", order.totalAmount],
     ["Valor faturado", confirmedAmount],
     ["Status do pedido", labelFrom(statusLabels, order.status)],
-    ["Pedido mínimo", distributor?.pedidoMinimo ?? 0],
-    ["Status do pedido mínimo", order.totalAmount >= (distributor?.pedidoMinimo ?? 0) ? "Atingiu" : "Não atingiu"],
+    ...(distributor ? [
+      ["Distribuidora", distributor.nome],
+      ["Pedido mínimo (cadastro atual)", distributor.pedidoMinimo],
+      ["Status do pedido mínimo (cadastro atual)", order.totalAmount >= distributor.pedidoMinimo ? "Atingiu" : "Não atingiu"],
+    ] : []),
   ];
   summarySheet.columns = [
     { header: "Campo", key: "campo", width: 26 },
     { header: "Valor", key: "valor", width: 42 },
   ];
-  summaryRows.forEach(([campo, valor]) => summarySheet.addRow({ campo, valor }));
+  for (const [campo, valor] of summaryRows) {
+    const row = summarySheet.addRow({ campo, valor });
+    if (campo === "Valor total" || campo === "Valor faturado" || campo === "Pedido mínimo (cadastro atual)") {
+      row.getCell("valor").numFmt = '"R$" #,##0.00';
+    }
+  }
   styleWorksheet(summarySheet);
-  summarySheet.getCell("B13").numFmt = '"R$" #,##0.00';
-  summarySheet.getCell("B14").numFmt = '"R$" #,##0.00';
-  summarySheet.getCell("B16").numFmt = '"R$" #,##0.00';
 
   const buffer = await workbook.xlsx.writeBuffer();
   const fileName = `pedido_${sanitizeFileName(supplierCompany)}_${formatDateBR(generatedAt.toISOString()).replaceAll("/", "-")}.xlsx`;

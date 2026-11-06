@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatBuyerCnpj } from "@/modules/cotacoes/lib/buyer-cnpj";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { CheckCircle2, Copy, Eye, MoreHorizontal, Pencil, Trash2, XCircle } from "lucide-react";
@@ -50,6 +51,7 @@ import type { ModuleType, Quotation, QuotationStatus } from "@/modules/cotacoes/
 type QuotationRow = {
   id: string;
   name: string;
+  buyerLabel?: string;
   deadlineAt: string;
   status: QuotationStatus;
   responseCount: number;
@@ -64,13 +66,17 @@ type QuotationRow = {
 export function DemoQuotationTable({
   moduleType,
   initialQuotations,
+  buyerLabels,
+  showLocalDrafts = true,
 }: {
   moduleType: ModuleType;
   initialQuotations: Quotation[];
+  buyerLabels?: Record<string, string>;
+  showLocalDrafts?: boolean;
 }) {
   const router = useRouter();
   const [localRows, setLocalRows] = useState<StoredDemoQuotation[]>(() => {
-    return canUseLocalDemo() ? getStoredDemoQuotations(moduleType) : [];
+    return showLocalDrafts && canUseLocalDemo() ? getStoredDemoQuotations(moduleType) : [];
   });
   const [serverRows, setServerRows] = useState(() => initialQuotations);
   const [pendingFinish, setPendingFinish] = useState<QuotationRow | null>(null);
@@ -82,6 +88,7 @@ export function DemoQuotationTable({
     const remoteRows = serverRows.map((quotation) => ({
       id: quotation.id,
       name: quotation.name,
+      buyerLabel: buyerLabels?.[quotation.id] ?? (quotation.buyerCnpj ? [quotation.buyerCompanyName, formatBuyerCnpj(quotation.buyerCnpj) || quotation.buyerCnpj].filter(Boolean).join(" · ") : undefined),
       deadlineAt: quotation.deadlineAt,
       status: quotation.status,
       responseCount: 0,
@@ -101,7 +108,7 @@ export function DemoQuotationTable({
       local: quotation,
     }));
     return [...storedRows, ...remoteRows];
-  }, [localRows, serverRows]);
+  }, [buyerLabels, localRows, serverRows]);
 
   async function duplicate(row: QuotationRow) {
     if (row.source === "localStorage" && row.local) {
@@ -129,6 +136,8 @@ export function DemoQuotationTable({
         tenantId: "",
         moduleType,
         name: `${row.name} (copia)`,
+        buyerCnpj: typeof payload.buyerCnpj === "string" ? payload.buyerCnpj : undefined,
+        buyerCompanyName: typeof payload.buyerCompanyName === "string" ? payload.buyerCompanyName : undefined,
         deadlineAt: row.deadlineAt,
         allowPartialSupply: true,
         allowEquivalent: true,
@@ -271,6 +280,7 @@ export function DemoQuotationTable({
               <h3 className="break-words text-base font-semibold leading-snug text-slate-950">
                 {quotation.name}
               </h3>
+              {quotation.buyerLabel ? <p className="mt-1 break-words text-sm text-slate-700">{quotation.buyerLabel}</p> : null}
               <p className="mt-1 text-sm text-slate-600">Prazo: {formatDate(quotation.deadlineAt)}</p>
             </div>
             <div className="shrink-0">{renderQuotationActions(quotation)}</div>
@@ -313,7 +323,10 @@ export function DemoQuotationTable({
           </TableRow>
         ) : rows.map((quotation) => (
           <TableRow key={`${quotation.source}-${quotation.id}`}>
-            <TableCell className="font-medium">{quotation.name}</TableCell>
+            <TableCell className="whitespace-normal font-medium">
+              {quotation.name}
+              {quotation.buyerLabel ? <p className="mt-1 break-words text-sm font-normal text-slate-700">{quotation.buyerLabel}</p> : null}
+            </TableCell>
             <TableCell>{formatDate(quotation.deadlineAt)}</TableCell>
             <TableCell>
               <StatusBadge status={quotation.status} label={labelFrom(quotationStatusLabels, quotation.status)} />

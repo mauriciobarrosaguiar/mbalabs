@@ -52,7 +52,8 @@ export async function GET(
     ? await demoRepository.getCollections()
     : await getCollections(tenantId);
   const tenant = collections.tenants.find((item) => item.id === quotation?.tenantId);
-  const pharmacy = collections.pharmacies.find((item) => item.id === quotation?.pharmacyId);
+  const pharmacy = collections.pharmacies.find((item) => item.id === quotation?.pharmacyId && item.tenantId === quotation?.tenantId);
+  const distributorsById = new Map(collections.distributors.map((distributor) => [distributor.id, distributor]));
   const generatedAt = new Date();
 
   const workbook = new ExcelJS.Workbook();
@@ -69,6 +70,7 @@ export async function GET(
     { header: "Produto", key: "produto", width: 36 },
     { header: "EAN", key: "ean", width: 18, style: { numFmt: "@" } },
     { header: "Laboratorio", key: "laboratorio", width: 22 },
+    { header: "Distribuidora", key: "distribuidora", width: 30 },
     { header: "Unidade", key: "unidade", width: 12 },
     { header: "Quantidade solicitada", key: "quantidade", width: 20 },
     { header: "Quantidade faturada", key: "quantidadeFaturada", width: 20 },
@@ -91,6 +93,7 @@ export async function GET(
 
     for (const item of order.items) {
       const quotationItem = collections.quotationItems.find((quoteItem) => quoteItem.id === item.quotationItemId);
+      const distributor = item.distributorId ? distributorsById.get(item.distributorId) : undefined;
       const billedQuantity = getBilledQuantity(item);
       const missingQuantity = getMissingQuantity(item);
       orderSheet.addRow({
@@ -102,6 +105,7 @@ export async function GET(
         produto: item.offeredProductName ?? item.productName,
         ean: quotationItem?.ean ? String(quotationItem.ean) : "",
         laboratorio: item.laboratory ?? quotationItem?.requestedLaboratory ?? "",
+        distribuidora: distributor?.tenantId === order.tenantId ? distributor?.nome ?? "" : "",
         unidade: item.unit,
         quantidade: item.quantityToBuy,
         quantidadeFaturada: billedQuantity,
@@ -131,8 +135,10 @@ export async function GET(
     { header: "Campo", key: "campo", width: 28 },
     { header: "Valor", key: "valor", width: 48 },
   ];
-  [
-    ["Empresa", pharmacy?.nomeFantasia ?? tenant?.nomeFantasia ?? "-"],
+  const summaryRows = [
+    ["Empresa", (quotation?.buyerCnpj ? quotation.buyerCompanyName : pharmacy?.nomeFantasia) ?? tenant?.nomeFantasia ?? "-"],
+    ...(quotation?.moduleType === "pharmacy" ? [["CNPJ comprador", quotation.buyerCnpj ?? pharmacy?.cnpj ?? "-"]] : []),
+    ...(quotation?.buyerLegalName ? [["Razão social", quotation.buyerLegalName]] : []),
     ["Cotacao", quotation?.name ?? "-"],
     ["Modulo", quotation?.moduleType === "bidding" ? "Licitacao" : "Farmacia"],
     ["Data", formatDateBR(generatedAt.toISOString())],
@@ -142,10 +148,14 @@ export async function GET(
     ["Quantidade faltante", totalMissing],
     ["Valor previsto", totalExpected],
     ["Valor faturado", totalConfirmed],
-  ].forEach(([campo, valor]) => summarySheet.addRow({ campo, valor }));
+  ];
+  for (const [campo, valor] of summaryRows) {
+    const row = summarySheet.addRow({ campo, valor });
+    if (campo === "Valor previsto" || campo === "Valor faturado") {
+      row.getCell("valor").numFmt = '"R$" #,##0.00';
+    }
+  }
   styleWorksheet(summarySheet);
-  summarySheet.getCell("B9").numFmt = '"R$" #,##0.00';
-  summarySheet.getCell("B10").numFmt = '"R$" #,##0.00';
 
   const buffer = await workbook.xlsx.writeBuffer();
   const fileName = `pedidos_vencedores_${sanitizeFileName(quotation?.name ?? quotationId)}_${formatDateBR(generatedAt.toISOString()).replaceAll("/", "-")}.xlsx`;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getCurrentAuthContext } from "@/modules/cotacoes/lib/auth/session";
+import { getCurrentAuthContext, isTenantSuspended } from "@/modules/cotacoes/lib/auth/session";
+import { formatBuyerCnpj, normalizeBuyerCnpj, type BuyerPharmacyOption } from "@/modules/cotacoes/lib/buyer-cnpj";
 import { createSupabaseAdminClient } from "@/modules/cotacoes/lib/supabase/server";
 
 export async function GET() {
@@ -15,7 +16,7 @@ export async function GET() {
     }
 
     const tenantId = auth.tenantAccess?.tenantId;
-    if (!tenantId) {
+    if (!tenantId || auth.tenantAccess?.status !== "ativo" || isTenantSuspended(auth.tenantAccess?.tenantStatus)) {
       return NextResponse.json({ error: "Empresa não identificada na sessão." }, { status: 403 });
     }
 
@@ -48,8 +49,23 @@ export async function GET() {
       }
     }
 
+    const { data: units, error: unitsError } = await supabase
+      .from("pharmacies")
+      .select("id,nome_fantasia,razao_social,cnpj")
+      .eq("tenant_id", tenantId)
+      .eq("status", "ativo")
+      .order("nome_fantasia");
+    if (unitsError) throw unitsError;
+
+    const pharmacies: BuyerPharmacyOption[] = (units ?? []).flatMap((unit: { id: string; nome_fantasia: string; razao_social: string; cnpj: string }) => {
+      const formattedCnpj = formatBuyerCnpj(unit.cnpj);
+      return formattedCnpj ? [{
+        id: unit.id, name: unit.nome_fantasia, legalName: unit.razao_social,
+        formattedCnpj, status: "ativo" as const,
+      }] : [];
+    });
     const formattedCnpj = formatCnpj(cnpj);
-    if (!formattedCnpj) {
+    if (!formattedCnpj && pharmacies.length === 0) {
       return NextResponse.json(
         { error: "O CNPJ da empresa não está cadastrado corretamente no MBA Labs." },
         { status: 409 },
@@ -59,8 +75,10 @@ export async function GET() {
     return NextResponse.json({
       tenantId,
       companyName,
-      cnpj: String(cnpj).replace(/\D/g, ""),
+      cnpj: normalizeBuyerCnpj(cnpj),
       formattedCnpj,
+      pharmacies,
+      defaultPharmacyId: pharmacies.length === 1 ? pharmacies[0].id : null,
     });
   } catch (error) {
     console.error("[MBA Cotações] Erro ao carregar empresa da cotação.", error);

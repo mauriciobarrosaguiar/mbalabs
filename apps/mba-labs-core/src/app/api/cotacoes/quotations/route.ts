@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  BuyerPharmacyError,
   canUseSupabaseOperational,
   createSupabaseQuotation,
 } from "@/modules/cotacoes/lib/data/supabase-operational";
@@ -30,6 +31,9 @@ export async function POST(request: NextRequest) {
     const access = ensureCreateQuotationAccess(auth, moduleType, body.tenantId);
     if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status });
 
+    if (moduleType === "pharmacy" && body.tenantId != null && body.tenantId !== access.tenantId) {
+      return NextResponse.json({ error: "Empresa fora do seu acesso." }, { status: 403 });
+    }
     const tenantId = access.tenantId;
     if (!tenantId) return NextResponse.json({ error: "Empresa não identificada." }, { status: 403 });
     console.info("[API] POST /api/quotations", {
@@ -38,7 +42,7 @@ export async function POST(request: NextRequest) {
       tenantName: auth.tenantAccess?.tenantName,
       isSuperAdmin: auth.isSuperAdmin,
     });
-    const result = await createSupabaseQuotation({ ...body, moduleType, tenantId });
+    const result = await createSupabaseQuotation({ ...body, moduleType, tenantId, createdBy: auth.profile?.id });
     await markShortageItemsAsQuoted(
       tenantId,
       result.quotation.id,
@@ -56,6 +60,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Erro ao criar cotação", error);
     const message = resolveErrorMessage(error, "Erro ao criar cotação.");
+    if (error instanceof BuyerPharmacyError || (typeof error === "object" && error !== null && "code" in error && error.code === "P7101")) {
+      return NextResponse.json({ error: message }, { status: 409 });
+    }
     return NextResponse.json(
       { error: message },
       { status: message.includes("Limite mensal de cotações atingido") ? 409 : 500 },
@@ -258,6 +265,7 @@ export async function PATCH(request: NextRequest) {
         .from("quotations")
         .insert({
           ...quotationPayload,
+          ...(quotation.module_type === "pharmacy" ? { created_by: auth.profile?.id, source_quotation_id: null, source_purchase_order_id: null } : {}),
           name: `${quotation.name} (copia)`,
           status: "draft",
           notes: quotation.notes ?? null,
@@ -285,15 +293,22 @@ export async function PATCH(request: NextRequest) {
         if (itemInsertError) throw itemInsertError;
       }
 
-      return NextResponse.json({ ok: true, id: duplicate.id, status: "draft" });
+      return NextResponse.json({
+        ok: true,
+        id: duplicate.id,
+        status: "draft",
+        buyerCnpj: duplicate.buyer_cnpj,
+        buyerCompanyName: duplicate.buyer_pharmacy_name,
+      });
     }
 
     return NextResponse.json({ error: "Ação não suportada." }, { status: 400 });
   } catch (error) {
     console.error("Erro ao atualizar cotação", error);
+    const invalidBuyer = typeof error === "object" && error !== null && "code" in error && error.code === "P7101";
     return NextResponse.json(
       { error: resolveErrorMessage(error, "Erro ao atualizar cotação.") },
-      { status: 500 },
+      { status: invalidBuyer ? 409 : 500 },
     );
   }
 }

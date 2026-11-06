@@ -38,20 +38,22 @@ begin
    result:=cot_review_winner_orders_batch(t,q,actor,edits,true,'[]');
    ok:=(result->>'approvedOrders')::int=1 and (result->>'minimumExceptions')::int=0
     and (select total_amount=700 from purchase_orders where id=o);
-  elsif case_id in ('G2-sem-confirmacao','G3-sem-motivo','G3-motivo-curto','G7-api-antiga') then
+  elsif case_id in ('G2-sem-confirmacao','G3-sem-motivo','G3-so-espacos','G7-api-antiga') then
    begin
     if case_id='G7-api-antiga' then
      perform cot_review_winner_orders_batch(t,q,actor,edits,true);
     elsif case_id='G2-sem-confirmacao' then
      perform cot_review_winner_orders_batch(t,q,actor,edits,true,'[]');
     else
-     ex1:=jsonb_set(ex1,'{reason}',to_jsonb(case when case_id='G3-sem-motivo' then '' else 'curto' end));
+     ex1:=jsonb_set(ex1,'{reason}',to_jsonb(case when case_id='G3-sem-motivo' then '' else E' \t\n ' end));
      perform cot_review_winner_orders_batch(t,q,actor,edits,true,jsonb_build_array(ex1));
     end if;
    exception when others then blocked:=true; msg:=sqlerrm; end;
    ok:=blocked and msg like '%abaixo do minimo%' and (select buyer_review_status='pending' from purchase_orders where id=o)
     and not exists(select 1 from cot_minimum_order_exceptions where quotation_id=q);
-  elsif case_id in ('G2-confirmado','G6-auditoria') then
+  elsif case_id in ('G2-confirmado','G6-auditoria','G3-um-caractere','G3-mais-de-500') then
+   if case_id='G3-um-caractere' then ex1:=jsonb_set(ex1,'{reason}',to_jsonb('x'::text)); end if;
+   if case_id='G3-mais-de-500' then ex1:=jsonb_set(ex1,'{reason}',to_jsonb(repeat('x',501))); end if;
    result:=cot_review_winner_orders_batch(t,q,actor,edits,true,jsonb_build_array(ex1));
    ok:=(result->>'minimumExceptions')::int=1 and exists(
     select 1 from cot_minimum_order_exceptions where quotation_id=q and purchase_order_id=o
@@ -108,7 +110,7 @@ begin
   case when msg='' then 'Assercoes satisfeitas; efeitos desfeitos' else msg end);
 end $$;
 select pg_temp.qa_minimum_case(id) from unnest(array[
- 'G1','G2-sem-confirmacao','G2-confirmado','G3-sem-motivo','G3-motivo-curto','G4-reducao',
+ 'G1','G2-sem-confirmacao','G2-confirmado','G3-sem-motivo','G3-so-espacos','G3-um-caractere','G3-mais-de-500','G4-reducao',
  'G5-uma-confirmacao','G5-duas-confirmacoes','G6-auditoria','G6-imutabilidade-permissoes',
  'G7-outra-farmacia','G7-aprovacao-duplicada','G7-confirmacao-duplicada','G7-api-antiga']) id;
 select * from qa_minimum_results order by id;

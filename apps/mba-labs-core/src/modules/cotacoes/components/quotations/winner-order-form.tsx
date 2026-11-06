@@ -33,8 +33,10 @@ type PersistAction = "save" | "finalize";
 export function WinnerOrderForm({
   initialOrder,
   quotationItemsById,
+  distributorNamesById,
 }: {
   initialOrder: PurchaseOrder;
+  distributorNamesById: Record<string, string>;
   quotationItemsById: Record<string, { ean?: string; requestedLaboratory?: string }>;
 }) {
   const [order, setOrder] = useState(initialOrder);
@@ -132,7 +134,21 @@ export function WinnerOrderForm({
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 rounded-md bg-slate-50 p-4 md:grid-cols-6">
+      <section className="hidden space-y-3 text-sm print:block" aria-label="Pedido para impressão">
+        <p><strong>Status do pedido:</strong> {labelFrom(statusLabels, order.status)}</p>
+        <p><strong>Valor faturado:</strong> {formatCurrencyBRL(order.confirmedAmount ?? 0)}</p>
+        {order.items.filter((item) => item.quantityToBuy > 0).map(normalizeItem).map((item) => (
+          <article key={item.id} className="break-inside-avoid border-t border-slate-300 pt-2">
+            <h3 className="font-semibold">{item.productName}</h3>
+            <p>Distribuidora: {(item.distributorId && distributorNamesById[item.distributorId]) || "Não informada"}</p>
+            <p>Laboratório: {quotationItemsById[item.quotationItemId]?.requestedLaboratory ?? item.laboratory ?? "Qualquer"}</p>
+            <p>Solicitado: {formatInteger(item.quantityToBuy)} {item.unit} · Faturado: {formatInteger(item.billedQuantity ?? 0)} {item.unit} · Falta: {formatInteger(item.missingQuantity ?? 0)} {item.unit}</p>
+            <p>Unitário: {formatCurrencyBRL(item.unitPrice)} · Total previsto: {formatCurrencyBRL(item.totalPrice)}</p>
+            {item.vendorObservation ? <p>Observação: {item.vendorObservation}</p> : null}
+          </article>
+        ))}
+      </section>
+      <div className="grid gap-3 rounded-md bg-slate-50 p-4 md:grid-cols-6 print:hidden">
         <Summary label="Total de itens" value={String(items.length)} />
         <Summary label="Itens faturados" value={String(totals.billedItems)} />
         <Summary label="Itens parciais" value={String(totals.partialItems)} />
@@ -142,7 +158,7 @@ export function WinnerOrderForm({
       </div>
 
       {!locked ? (
-        <div className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between print:hidden">
           <div>
             <p className="text-sm font-medium text-slate-950">Status de faturamento em massa</p>
             <p className="mt-1 text-xs text-muted-foreground">Atualiza todos os itens da tabela e preserva as observações.</p>
@@ -168,7 +184,7 @@ export function WinnerOrderForm({
         </div>
       ) : null}
 
-      <div className="hidden rounded-md border border-slate-200 md:block">
+      <div className="hidden rounded-md border border-slate-200 md:block print:hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -225,7 +241,7 @@ export function WinnerOrderForm({
         </Table>
       </div>
 
-      <div className="grid gap-3 md:hidden">
+      <div className="grid gap-3 md:hidden print:hidden">
         {items.map((item, index) => {
           const quoteItem = quotationItemsById[item.quotationItemId];
           return (
@@ -261,7 +277,7 @@ export function WinnerOrderForm({
         })}
       </div>
 
-      <div className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
         <div className="space-y-1 text-sm text-muted-foreground">
           <p>
             Status atual: <span className="font-medium text-slate-950">{labelFrom(statusLabels, order.status)}</span>
