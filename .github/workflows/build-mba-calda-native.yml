@@ -24,6 +24,10 @@ jobs:
           packages: 'platform-tools'
       - name: Install SDK
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Apply MBA Calda v3 native UI and icon
+        run: |
+          base64 -d mba-calda-nativo/build_src_v3.tar.xz.b64 | tar -xJ -C mba-calda-nativo
+          grep -q "versionCode 3" mba-calda-nativo/app/build.gradle
       - name: Build native APK
         working-directory: mba-calda-nativo
         run: gradle --no-daemon :app:assembleDebug
