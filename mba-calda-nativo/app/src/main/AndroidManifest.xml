@@ -3,6 +3,8 @@
     <application
         android:allowBackup="false"
         android:label="MBA Calda"
+        android:icon="@drawable/ic_launcher"
+        android:roundIcon="@drawable/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
