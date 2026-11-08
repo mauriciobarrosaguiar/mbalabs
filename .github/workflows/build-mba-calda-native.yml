@@ -28,6 +28,8 @@ jobs:
         run: |
           base64 -d mba-calda-nativo/build_src_v3.tar.xz.b64 | tar -xJ -C mba-calda-nativo
           grep -q "versionCode 3" mba-calda-nativo/app/build.gradle
+          sed -i '8,9d' mba-calda-nativo/app/src/main/AndroidManifest.xml
+          python3 -c "import xml.etree.ElementTree as E; E.parse('mba-calda-nativo/app/src/main/AndroidManifest.xml')"
       - name: Build native APK
         working-directory: mba-calda-nativo
         run: gradle --no-daemon :app:assembleDebug
