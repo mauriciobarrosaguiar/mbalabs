@@ -20,7 +20,9 @@ jobs:
         with:
           gradle-version: '8.10.2'
       - name: Install SDK
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+        run: |
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          "$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0'
       - name: Build native APK
         working-directory: mba-calda-nativo
         run: gradle --no-daemon :app:assembleDebug
