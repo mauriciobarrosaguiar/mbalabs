@@ -59,7 +59,7 @@ public class MainActivity extends Activity {
     private static final int MUTED = 0xFF526B58;
     private static final int BORDER = 0xFFC9DFC3;
     private static final String[] UNITS = {"mL/ha", "L/ha", "g/ha", "kg/ha"};
-    private final DecimalFormat fmt = new DecimalFormat("#,##0.###", new DecimalFormatSymbols(new Locale("pt", "BR")));
+    private final DecimalFormat fmt = new DecimalFormat("#,##0.######", new DecimalFormatSymbols(new Locale("pt", "BR")));
     private final ArrayList<Product> products = new ArrayList<>();
     private SharedPreferences store;
     private LinearLayout list;
@@ -393,10 +393,26 @@ public class MainActivity extends Activity {
         }catch(Exception e){return null;}
     }
     private Double hectares(){
-        if(tank==null||rate==null)return null;
-        Double t=positive(tank.getText().toString()); Double r=positive(rate.getText().toString());
-        return t==null||r==null?null:t/r;
+        if(mixer==null||rate==null)return null;
+        Double m=positive(mixer.getText().toString());
+        Double r=positive(rate.getText().toString());
+        return m==null||r==null?null:m/r;
     }
+    private static class Fills {
+        int full, total;
+        double remainder, capacity;
+    }
+    private Fills fillCount(double m,double t){
+        Fills f=new Fills();f.capacity=t;
+        // Small round-off in division should not add an imaginary extra refill.
+        f.full=(int)Math.floor(m/t+1e-9);
+        if(f.full<0)f.full=0;
+        f.remainder=m-f.full*t;
+        if(f.remainder<1e-7*Math.max(1,t))f.remainder=0;
+        f.total=f.full+(f.remainder>0?1:0);
+        return f;
+    }
+    
     private String quantity(double amount,int unit){
         boolean volume=unit<2;
         double base=(unit==0||unit==2)?amount:amount*1000;
@@ -404,32 +420,114 @@ public class MainActivity extends Activity {
         return fmt.format(base)+(volume?" mL":" g");
     }
     private void calculate(){
-        if(areaText==null||countText==null)return;
+        if(areaText==null||countText==null||mixer==null||rate==null||tank==null)return;
+        lastSummary=null;resultsVisible=false;
+        if(resultsCard!=null)resultsCard.setVisibility(View.GONE);
         Double h=hectares();
+        Double m=positive(mixer.getText().toString());
+        Double t=positive(tank.getText().toString());
         if(h==null){
-            areaText.setText("— ha");areaDetail.setText("Informe tanque e taxa maiores que zero.");
+            areaText.setText("— ha");
+            areaDetail.setText("Informe volume final do misturador e taxa em L/ha.");
         }else{
-            SpannableString v=new SpannableString(fmt.format(h)+" ha");
-            v.setSpan(new ForegroundColorSpan(MUTED),fmt.format(h).length(),v.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-            areaText.setText(v);
-            areaDetail.setText(fmt.format(positive(tank.getText().toString()))+" L ÷ "+fmt.format(positive(rate.getText().toString()))+" L/ha = "+fmt.format(h)+" hectares");
+            areaText.setText(fmt.format(h)+" ha");
+            areaDetail.setText(fmt.format(m)+" L ÷ "+rate.getText()+" L/ha = "+fmt.format(h)+" ha");
+        }
+        if(m==null||t==null){
+            tanksText.setText("—");
+            tanksDetail.setText("Informe o misturador e o volume do tanque do drone.");
+        }else{
+            Fills f=fillCount(m,t);
+            tanksText.setText(f.total+" abastecimento(s)");
+            String s=f.full+" tanque(s) cheio(s) de "+fmt.format(t)+" L";
+            if(f.remainder>0)s+="\n+ 1 abastecimento parcial de "+fmt.format(f.remainder)+" L";
+            else s+="\nSem sobra para abastecimento parcial.";
+            tanksDetail.setText(s);
         }
         int complete=0;
         for(Product p:products){
-            Double d=positive(p.dose.getText().toString());
-            if(h==null||d==null){p.resultLabel.setText("aguardando dados");p.resultLabel.setTextColor(MUTED);}
-            else {int u=p.unit.getSelectedItemPosition();if(u<0)u=0;
-                p.resultLabel.setText(quantity(h*d,u));p.resultLabel.setTextColor(0xFF087A35);complete++;}
+            if(positive(p.dose.getText().toString())!=null)complete++;
+            p.resultLabel.setText("toque em calcular");
+            p.resultLabel.setTextColor(MUTED);
         }
-        countText.setText(complete+"/"+products.size()+" PRODUTOS CALCULADOS");
+        countText.setText(complete+"/"+products.size()+" DOSES PREENCHIDAS");
         if(!restoring)save();
     }
+    private void calculateFinal(){
+        Double h=hectares(),m=positive(mixer.getText().toString()),
+               t=positive(tank.getText().toString()),r=positive(rate.getText().toString());
+        if(h==null||m==null||t==null||r==null){
+            Toast.makeText(this,"Informe misturador, taxa (L/ha) e tanque do drone, todos maiores que zero.",Toast.LENGTH_LONG).show();
+            return;
+        }
+        Fills f=fillCount(m,t);
+        int usable=0;
+        for(Product p:products)if(positive(p.dose.getText().toString())!=null)usable++;
+        if(usable==0){Toast.makeText(this,"Cadastre ao menos um produto com dose por hectare.",Toast.LENGTH_LONG).show();return;}
+        StringBuilder summary=new StringBuilder("MBA CALDA — RESUMO DO MISTURADOR\n");
+        summary.append("Misturador (volume FINAL): ").append(fmt.format(m)).append(" L\n");
+        summary.append("Taxa de aplicação: ").append(fmt.format(r)).append(" L/ha\n");
+        summary.append("Área atendida: ").append(fmt.format(h)).append(" ha\n");
+        String model=DRONES[droneModel.getSelectedItemPosition()];
+        summary.append("Drone: ").append(model).append("\n");
+        summary.append("Tanque do drone: ").append(fmt.format(t)).append(" L\n");
+        summary.append("Abastecimentos: ").append(f.total).append(" (").append(f.full).append(" cheios");
+        if(f.remainder>0)summary.append(" + 1 parcial de ").append(fmt.format(f.remainder)).append(" L");
+        summary.append(")\n");
+        double areaPerFull=t/r;
+        String intro="Misturador: "+fmt.format(m)+" L  •  Área: "+fmt.format(h)+" ha\n"+
+            "Drone: "+fmt.format(t)+" L  •  Abastecimentos: "+f.total+"\n"+
+            f.full+" tanque(s) cheio(s)"+(f.remainder>0?" + 1 parcial de "+fmt.format(f.remainder)+" L":" (sem parcial)");
+        resultSummary.setText(intro);
+        productResults.removeAllViews();
+        int n=0;
+        for(Product p:products){
+            Double dose=positive(p.dose.getText().toString());
+            if(dose==null)continue;
+            int unit=Math.max(0,p.unit.getSelectedItemPosition());
+            String name=p.name.getText().toString().trim();
+            if(name.isEmpty())name="Produto "+(n+1);
+            double total=h*dose;
+            double fullDose=areaPerFull*dose;
+            String resultMixer=quantity(total,unit), resultFull=quantity(fullDose,unit);
+            String partial= f.remainder>0?quantity((f.remainder/r)*dose,unit):"—";
+            LinearLayout card=vertical();card.setPadding(dp(13),dp(11),dp(13),dp(13));
+            card.setBackground(shape(Color.WHITE,BORDER,13));
+            card.addView(text(name+"   ("+fmt.format(dose)+" "+UNITS[unit]+")",16,DARK,true,false));
+            TextView totalView=text("NO MISTURADOR: "+resultMixer,18,0xFF087B34,true,false);
+            card.addView(totalView,top(6));
+            card.addView(text("Por tanque cheio ("+fmt.format(t)+" L): "+resultFull,14,TEXT,false,false),top(4));
+            if(f.remainder>0)card.addView(text("Último tanque parcial ("+fmt.format(f.remainder)+" L): "+partial,14,TEXT,false,false),top(3));
+            productResults.addView(card,top(n==0?0:9));
+            p.resultLabel.setText(resultMixer);p.resultLabel.setTextColor(0xFF087B34);
+            summary.append("\n").append(name).append(" — Dose: ").append(fmt.format(dose)).append(" ").append(UNITS[unit]);
+            summary.append("\n  MISTURADOR: ").append(resultMixer);
+            summary.append("\n  Tanque cheio: ").append(resultFull);
+            if(f.remainder>0)summary.append("\n  Tanque parcial (").append(fmt.format(f.remainder)).append(" L): ").append(partial);
+            summary.append("\n");
+            n++;
+        }
+        summary.append("\nAtenção: completar com água até o volume FINAL do misturador. Verifique bula, compatibilidade, ordem de mistura e orientação técnica.");
+        lastSummary=summary.toString();
+        resultsVisible=true;resultsCard.setVisibility(View.VISIBLE);
+        Toast.makeText(this,"Calda calculada para "+fmt.format(h)+" hectares.",Toast.LENGTH_SHORT).show();
+
+    }
+    
     private void save(){
         try{
             JSONObject root=new JSONObject();
-            root.put("tank",tank.getText().toString());root.put("rate",rate.getText().toString());
+            root.put("mixer",mixer.getText().toString());
+            root.put("tank",tank.getText().toString());
+            root.put("rate",rate.getText().toString());
+            root.put("drone",droneModel.getSelectedItemPosition());
             JSONArray arr=new JSONArray();
-            for(Product p:products){JSONObject o=new JSONObject();o.put("name",p.name.getText().toString());o.put("dose",p.dose.getText().toString());o.put("unit",p.unit.getSelectedItemPosition());arr.put(o);}
+            for(Product p:products){
+                JSONObject o=new JSONObject();
+                o.put("name",p.name.getText().toString());
+                o.put("dose",p.dose.getText().toString());
+                o.put("unit",p.unit.getSelectedItemPosition());arr.put(o);
+            }
             root.put("products",arr);
             store.edit().putString("state",root.toString()).apply();
         }catch(Exception ignored){}
@@ -438,39 +536,35 @@ public class MainActivity extends Activity {
         restoring=true;
         try{
             JSONObject root=new JSONObject(store.getString("state","{}"));
-            tank.setText(root.optString("tank",""));rate.setText(root.optString("rate",""));
+            mixer.setText(root.optString("mixer",""));
+            tank.setText(root.optString("tank",""));
+            rate.setText(root.optString("rate",""));
+            int idx=root.optInt("drone",0);
+            droneModel.setSelection(Math.max(0,Math.min(DRONES.length-1,idx)));
             JSONArray arr=root.optJSONArray("products");
             if(arr!=null)for(int i=0;i<arr.length();i++){
-                JSONObject o=arr.optJSONObject(i);if(o!=null)addProduct(o.optString("name",""),o.optString("dose",""),o.optInt("unit",0));
+                JSONObject o=arr.optJSONObject(i);
+                if(o!=null)addProduct(o.optString("name",""),o.optString("dose",""),o.optInt("unit",0));
             }
         }catch(Exception ignored){}
         if(products.isEmpty())addProduct("","",0);
         restoring=false;
     }
     private void copySummary(){
-        Double h=hectares();if(h==null){Toast.makeText(this,"Informe tanque e taxa primeiro.",Toast.LENGTH_SHORT).show();return;}
-        StringBuilder s=new StringBuilder("MBA CALDA — RESUMO\n");
-        s.append("Tanque: ").append(tank.getText()).append(" L\nTaxa: ").append(rate.getText()).append(" L/ha\n");
-        s.append("Área por tanque: ").append(fmt.format(h)).append(" ha\n\nPRODUTOS POR TANQUE:\n");
-        int complete=0;
-        for(Product p:products){
-            Double d=positive(p.dose.getText().toString());
-            if(d==null)continue;
-            int u=Math.max(0,p.unit.getSelectedItemPosition());
-            String name=p.name.getText().toString().trim();if(name.isEmpty())name="Produto "+(complete+1);
-            s.append("• ").append(name).append(": ").append(quantity(h*d,u)).append(" (dose ").append(fmt.format(d)).append(" ").append(UNITS[u]).append(")\n");complete++;
+        if(!resultsVisible||lastSummary==null){
+            Toast.makeText(this,"Clique em CALCULAR MINHA CALDA antes de copiar.",Toast.LENGTH_SHORT).show();
+            return;
         }
-        if(complete==0){Toast.makeText(this,"Informe ao menos uma dose de produto.",Toast.LENGTH_SHORT).show();return;}
-        s.append("\nComplete com água até o volume FINAL do tanque. Confira a bula e a compatibilidade da mistura.");
         ClipboardManager clipboard=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE);
-        if(clipboard!=null)clipboard.setPrimaryClip(ClipData.newPlainText("Resumo MBA Calda",s.toString()));
-        Toast.makeText(this,"Resumo copiado!",Toast.LENGTH_SHORT).show();
+        if(clipboard!=null)clipboard.setPrimaryClip(ClipData.newPlainText("Resumo MBA Calda",lastSummary));
+        Toast.makeText(this,"Resumo completo copiado!",Toast.LENGTH_SHORT).show();
     }
+    
     private void confirmClear(){
         new AlertDialog.Builder(this).setTitle("Limpar cálculo?")
             .setMessage("Apagar os valores e todos os produtos adicionados?")
             .setNegativeButton("Cancelar",null).setPositiveButton("Limpar",(d,w)->{
-                restoring=true;tank.setText("");rate.setText("");products.clear();list.removeAllViews();
+                restoring=true;mixer.setText("");tank.setText("");rate.setText("");droneModel.setSelection(0);products.clear();list.removeAllViews();
                 addProduct("","",0);restoring=false;calculate();
                 Toast.makeText(this,"Campos limpos",Toast.LENGTH_SHORT).show();
             }).show();
