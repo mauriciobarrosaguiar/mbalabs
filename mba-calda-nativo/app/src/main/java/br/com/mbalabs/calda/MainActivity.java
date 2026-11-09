@@ -69,6 +69,7 @@ public class MainActivity extends Activity {
     private LinearLayout resultsCard, productResults;
     private String lastSummary = null;
     private boolean resultsVisible = false;
+    private int lastDroneIndex = 0;
     private static final String[] DRONES = {"Outro modelo / personalizado", "DJI Agras T25P — 20 L", "DJI Agras T50 — 40 L", "DJI Agras T55 — 50 L", "DJI Agras T70P — 70 L", "DJI Agras T100 — 100 L"};
     private static final int[] DRONE_CAPS = {0,20,40,50,70,100};
     private TextView areaText, areaDetail, countText;
@@ -247,7 +248,8 @@ public class MainActivity extends Activity {
         page.addView(droneCard,top(12));
         droneModel.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
             @Override public void onItemSelected(AdapterView<?> a,View v,int pos,long id) {
-                if(!restoring && pos>0)tank.setText(String.valueOf(DRONE_CAPS[pos]));
+                if(!restoring && pos>0 && pos!=lastDroneIndex)tank.setText(String.valueOf(DRONE_CAPS[pos]));
+                lastDroneIndex=pos;
                 calculate();
             }
             @Override public void onNothingSelected(AdapterView<?> a){}
@@ -540,7 +542,8 @@ public class MainActivity extends Activity {
             tank.setText(root.optString("tank",""));
             rate.setText(root.optString("rate",""));
             int idx=root.optInt("drone",0);
-            droneModel.setSelection(Math.max(0,Math.min(DRONES.length-1,idx)));
+            lastDroneIndex=Math.max(0,Math.min(DRONES.length-1,idx));
+            droneModel.setSelection(lastDroneIndex);
             JSONArray arr=root.optJSONArray("products");
             if(arr!=null)for(int i=0;i<arr.length();i++){
                 JSONObject o=arr.optJSONObject(i);
@@ -564,7 +567,7 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle("Limpar cálculo?")
             .setMessage("Apagar os valores e todos os produtos adicionados?")
             .setNegativeButton("Cancelar",null).setPositiveButton("Limpar",(d,w)->{
-                restoring=true;mixer.setText("");tank.setText("");rate.setText("");droneModel.setSelection(0);products.clear();list.removeAllViews();
+                restoring=true;mixer.setText("");tank.setText("");rate.setText("");droneModel.setSelection(0);lastDroneIndex=0;products.clear();list.removeAllViews();
                 addProduct("","",0);restoring=false;calculate();
                 Toast.makeText(this,"Campos limpos",Toast.LENGTH_SHORT).show();
             }).show();
