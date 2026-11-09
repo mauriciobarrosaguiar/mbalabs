@@ -317,6 +317,19 @@ public class MainActivity extends Activity {
         TextView note=text("⚠ IMPORTANTE: ferramenta de cálculo, não de prescrição. Siga bula, receita agronômica, compatibilidade e EPI. Considere o volume FINAL da calda no misturador e no drone.",13,0xFF624B15,false,false);
         note.setLineSpacing(dp(3),1f);alert.addView(note);
         page.addView(alert,top(15));
+
+        // Discrete author credit, deliberately placed after all calculator content.
+        LinearLayout footer=vertical();
+        footer.setGravity(Gravity.CENTER_HORIZONTAL);
+        footer.setPadding(dp(6),dp(14),dp(6),dp(6));
+        TextView credit=text("Desenvolvido por Mauricio Aguiar",12,MUTED,false,false);
+        credit.setGravity(Gravity.CENTER);
+        footer.addView(credit);
+        TextView contact=text("63 98432-6004  •  mbalabs.com.br",11,0xFF728276,false,false);
+        contact.setGravity(Gravity.CENTER);
+        footer.addView(contact,top(4));
+        page.addView(footer,top(23));
+
         setContentView(scroll);
     }
     
