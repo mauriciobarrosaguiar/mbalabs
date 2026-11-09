@@ -63,7 +63,14 @@ public class MainActivity extends Activity {
     private final ArrayList<Product> products = new ArrayList<>();
     private SharedPreferences store;
     private LinearLayout list;
-    private EditText tank, rate;
+    private EditText mixer, tank, rate;
+    private Spinner droneModel;
+    private TextView tanksText, tanksDetail, resultSummary;
+    private LinearLayout resultsCard, productResults;
+    private String lastSummary = null;
+    private boolean resultsVisible = false;
+    private static final String[] DRONES = {"Outro modelo / personalizado", "DJI Agras T25P — 20 L", "DJI Agras T50 — 40 L", "DJI Agras T55 — 50 L", "DJI Agras T70P — 70 L", "DJI Agras T100 — 100 L"};
+    private static final int[] DRONE_CAPS = {0,20,40,50,70,100};
     private TextView areaText, areaDetail, countText;
     private boolean restoring;
 
@@ -183,94 +190,131 @@ public class MainActivity extends Activity {
     }
     
     private void buildScreen() {
-        ScrollView scroll=new ScrollView(this);
-        scroll.setFillViewport(true);scroll.setClipToPadding(false);
+        ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);
+        scroll.setClipToPadding(false);scroll.setVerticalScrollBarEnabled(false);
         scroll.setBackground(new GridDrawable());
-        scroll.setVerticalScrollBarEnabled(false);
         LinearLayout page=vertical();page.setPadding(dp(16),dp(17),dp(16),dp(38));
         scroll.addView(page,new ScrollView.LayoutParams(-1,-2));
 
         LinearLayout hero=vertical();hero.setPadding(dp(19),dp(19),dp(19),dp(20));
         hero.setBackground(gradient(0xFF003B1D,0xFF006027,Color.TRANSPARENT,20));
-        TextView brand=text("MBA CALDA  •  DRONES AGRÍCOLAS",12,0xFFB5EA7D,true,false);
-        brand.setLetterSpacing(.045f);hero.addView(brand);
-        TextView title=text("CÁLCULO DE CALDA",28,Color.WHITE,true,false);
-        hero.addView(title,top(9));
-        TextView subtitle=text("JEITO SIMPLES PARA QUEM ESTÁ COMEÇANDO",12,0xFFDEEDD9,true,false);
-        subtitle.setLetterSpacing(.018f);hero.addView(subtitle,top(3));
+        hero.addView(text("MBA CALDA  •  DRONES AGRÍCOLAS",12,0xFFB5EA7D,true,false));
+        hero.addView(text("CÁLCULO DE CALDA",28,Color.WHITE,true,false),top(9));
+        hero.addView(text("DO MISTURADOR AO TANQUE DO DRONE",13,0xFFDEEDD9,true,false),top(4));
         page.addView(hero);
-
         LinearLayout objective=vertical();objective.setPadding(dp(15),dp(12),dp(15),dp(12));
         objective.setBackground(shape(LIGHT_GREEN,0xFFC7E8BA,14));
-        TextView goal=text("OBJETIVO",11,0xFF17692F,true,false);objective.addView(goal);
-        objective.addView(text("Saber quantos hectares o tanque faz e quanto de cada produto usar.",14,TEXT,false,false),top(3));
+        objective.addView(text("OBJETIVO",11,0xFF17692F,true,false));
+        objective.addView(text("Calcular hectares, abastecimentos e a quantidade de cada produto para preparar a calda no misturador.",14,TEXT,false,false),top(4));
         page.addView(objective,top(12));
 
-        section(page,"1","DESCUBRA QUANTOS HECTARES O TANQUE FAZ");
+        section(page,"1","QUANTOS HECTARES O MISTURADOR FAZ?");
         LinearLayout fields=horizontal();
-        LinearLayout tankCard=metric("CAPACIDADE DO TANQUE","40","L");
+        LinearLayout mixCard=metric("MISTURADOR","200","L");
         LinearLayout rateCard=metric("TAXA DE APLICAÇÃO","10","L/ha");
-        tank=inputWithSuffix(tankCard,"40","L");
+        mixer=inputWithSuffix(mixCard,"200","L");
         rate=inputWithSuffix(rateCard,"10","L/ha");
-        fields.addView(tankCard,new LinearLayout.LayoutParams(0,dp(102),1));
-        LinearLayout.LayoutParams right=new LinearLayout.LayoutParams(0,dp(102),1);
+        fields.addView(mixCard,new LinearLayout.LayoutParams(0,dp(108),1));
+        LinearLayout.LayoutParams right=new LinearLayout.LayoutParams(0,dp(108),1);
         right.leftMargin=dp(9);fields.addView(rateCard,right);
         page.addView(fields,top(12));
-        explanation(page,"HECTARES = capacidade do tanque (L) ÷ taxa de aplicação (L/ha)");
+        explanation(page,"HECTARES = volume FINAL do misturador (L) ÷ taxa de aplicação (L/ha).\nA taxa em L/ha não é a vazão da bomba em L/min.");
 
-        LinearLayout area=vertical();area.setPadding(dp(16),dp(14),dp(16),dp(15));
+        LinearLayout area=vertical();area.setPadding(dp(16),dp(13),dp(16),dp(15));
         area.setBackground(shape(0xFFDDF4CF,0xFFB8DBA9,16));
-        area.addView(text("RESULTADO • ÁREA POR TANQUE",12,0xFF17652D,true,false));
+        area.addView(text("ÁREA ATENDIDA PELO MISTURADOR",12,0xFF17652D,true,false));
         LinearLayout areaRow=horizontal();areaRow.setGravity(Gravity.CENTER_VERTICAL);
         areaText=text("— ha",35,0xFF06672C,true,false);
         areaRow.addView(areaText,new LinearLayout.LayoutParams(0,dp(59),1));
-        CropIcon crop=new CropIcon(this);areaRow.addView(crop,lp(62,54));
-        area.addView(areaRow,top(2));
-        areaDetail=text("Informe tanque e taxa maiores que zero.",13,DARK,false,false);
-        area.addView(areaDetail);
+        areaRow.addView(new CropIcon(this),lp(62,54));area.addView(areaRow,top(2));
+        areaDetail=text("Informe a capacidade e a taxa.",13,DARK,false,false);area.addView(areaDetail);
         page.addView(area,top(12));
 
-        section(page,"2","CALCULE QUANTO DE CADA PRODUTO VAI NO TANQUE");
-        explanation(page,"QUANTIDADE DO PRODUTO = hectares do passo 1 × dose do produto por hectare.");
+        section(page,"2","QUANTOS TANQUES DE DRONE ELE ABASTECE?");
+        LinearLayout droneCard=vertical();droneCard.setPadding(dp(13),dp(13),dp(13),dp(14));
+        droneCard.setBackground(shape(Color.WHITE,BORDER,16));
+        droneCard.addView(text("MODELO DO DRONE (PULVERIZAÇÃO)",12,DARK,true,false));
+        droneModel=new Spinner(this);
+        ArrayAdapter<String> droneAdapter=new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,DRONES){
+            @Override public View getView(int pos,View convert,ViewGroup parent) {return unitText(getItem(pos),false);}
+            @Override public View getDropDownView(int pos,View convert,ViewGroup parent) {return unitText(getItem(pos),true);}
+        };
+        droneModel.setAdapter(droneAdapter);droneModel.setBackground(shape(0xFFF2FBEF,BORDER,12));
+        droneCard.addView(droneModel,top(8));droneModel.getLayoutParams().height=dp(55);
+        LinearLayout capacity=metric("CAPACIDADE DO TANQUE DO DRONE","40","L");
+        tank=inputWithSuffix(capacity,"40","L");
+        droneCard.addView(capacity,top(10));
+        page.addView(droneCard,top(12));
+        droneModel.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            @Override public void onItemSelected(AdapterView<?> a,View v,int pos,long id) {
+                if(!restoring && pos>0)tank.setText(String.valueOf(DRONE_CAPS[pos]));
+                calculate();
+            }
+            @Override public void onNothingSelected(AdapterView<?> a){}
+        });
+        explanation(page,"TANQUES = volume do misturador ÷ volume do tanque do drone.\nMostramos os tanques cheios e a sobra para um último abastecimento parcial.");
+        LinearLayout fills=vertical();fills.setPadding(dp(16),dp(14),dp(16),dp(15));
+        fills.setBackground(shape(0xFFF1F9EC,BORDER,16));
+        fills.addView(text("ABASTECIMENTOS DISPONÍVEIS",12,DARK,true,false));
+        tanksText=text("—",25,0xFF086C2C,true,false);fills.addView(tanksText,top(5));
+        tanksDetail=text("Informe a capacidade do drone.",14,MUTED,false,false);
+        tanksDetail.setLineSpacing(dp(3),1f);fills.addView(tanksDetail,top(3));
+        page.addView(fills,top(12));
+
+        section(page,"3","CADASTRE OS PRODUTOS E AS DOSES");
+        explanation(page,"Digite o nome, a dose por hectare e a unidade de cada produto. O cálculo será feito para o misturador inteiro.");
         list=vertical();page.addView(list,top(12));
         TextView add=text("+ ADICIONAR PRODUTO",15,DARK,true,false);
-        add.setGravity(Gravity.CENTER);
-        add.setBackground(shape(0xFFF2FBEA,0xFF7CB85C,13));
+        add.setGravity(Gravity.CENTER);add.setBackground(shape(0xFFF2FBEA,0xFF7CB85C,13));
         add.setOnClickListener(v->{addProduct("","",0);calculate();});
         page.addView(add,top(11));add.getLayoutParams().height=dp(52);
-        countText=text("0/1 PRODUTOS CALCULADOS",12,MUTED,true,false);
+        countText=text("ADICIONE OS PRODUTOS",12,MUTED,true,false);
         countText.setGravity(Gravity.CENTER);page.addView(countText,top(12));
 
-        section(page,"3","PREPARE A CALDA");
-        LinearLayout prep=vertical();prep.setPadding(dp(16),dp(5),dp(16),dp(18));
-        prep.setBackground(shape(Color.WHITE,BORDER,17));
-        prepLine(prep,"1","Confira as recomendações","Verifique bula, receita agronômica e compatibilidade dos produtos.");
-        prepLine(prep,"2","Adicione os produtos","Respeite a ordem e as condições de mistura recomendadas.");
-        prepLine(prep,"3","Complete com água","Ajuste a mistura até o volume FINAL do tanque, não acrescente um tanque extra de água.");
-        prepLine(prep,"4","Agite conforme a orientação","Mantenha a agitação indicada antes e durante a aplicação.");
-        page.addView(prep,top(12));
+        TextView go=text("CALCULAR MINHA CALDA",18,Color.WHITE,true,false);
+        go.setGravity(Gravity.CENTER);
+        go.setBackground(gradient(0xFF08752D,0xFF48BB20,Color.TRANSPARENT,15));
+        go.setOnClickListener(v->calculateFinal());
+        page.addView(go,top(17));go.getLayoutParams().height=dp(62);
 
+        resultsCard=vertical();resultsCard.setPadding(dp(16),dp(15),dp(16),dp(17));
+        resultsCard.setBackground(shape(0xFFEBF8E4,0xFFACD99B,16));
+        resultsCard.addView(text("4  RESULTADO DA CALDA",20,DARK,true,false));
+        resultSummary=text("",15,DARK,false,false);resultSummary.setLineSpacing(dp(4),1f);
+        resultsCard.addView(resultSummary,top(13));
+        productResults=vertical();resultsCard.addView(productResults,top(9));
+        TextView copy=text("COPIAR RESUMO COMPLETO",15,Color.WHITE,true,false);
+        copy.setGravity(Gravity.CENTER);
+        copy.setBackground(gradient(0xFF11782E,0xFF4AAE20,Color.TRANSPARENT,13));
+        copy.setOnClickListener(v->copySummary());
+        resultsCard.addView(copy,top(14));copy.getLayoutParams().height=dp(54);
+        page.addView(resultsCard,top(15));
+        resultsCard.setVisibility(View.GONE);
+
+        section(page,"5","PREPARE A CALDA NO MISTURADOR");
+        LinearLayout prep=vertical();prep.setPadding(dp(16),dp(6),dp(16),dp(18));
+        prep.setBackground(shape(Color.WHITE,BORDER,17));
+        prepLine(prep,"1","Confira a prescrição e a bula","Verifique dose, compatibilidade e sequência recomendada.");
+        prepLine(prep,"2","Meça os produtos calculados","Use o resultado POR MISTURADOR, não multiplique a dose novamente pelos tanques.");
+        prepLine(prep,"3","Complete até o volume FINAL","O volume do misturador inclui produtos e água; não acrescente tudo em água.");
+        prepLine(prep,"4","Agite e abasteça o drone","Siga as condições de mistura e faça os abastecimentos previstos.");
+        page.addView(prep,top(12));
         LinearLayout rule=vertical();rule.setPadding(dp(15),dp(14),dp(15),dp(14));
         rule.setBackground(gradient(0xFF00602B,0xFF078D39,Color.TRANSPARENT,15));
         rule.addView(text("REGRA FÁCIL",14,0xFFDCFFC6,true,false));
-        rule.addView(text("Tanque ÷ L/ha = hectares",16,Color.WHITE,true,false),top(5));
-        rule.addView(text("Hectares × dose/ha = produto no tanque",15,Color.WHITE,true,false),top(2));
-        page.addView(rule,top(17));
+        rule.addView(text("Misturador ÷ L/ha = hectares",16,Color.WHITE,true,false),top(5));
+        rule.addView(text("Misturador ÷ tanque = abastecimentos",15,Color.WHITE,true,false),top(2));
+        rule.addView(text("Hectares × dose/ha = produto no misturador",15,Color.WHITE,true,false),top(2));
+        page.addView(rule,top(15));
 
-        TextView copy=text("COPIAR RESUMO DA CALDA",17,Color.WHITE,true,false);
-        copy.setGravity(Gravity.CENTER);copy.setBackground(gradient(0xFF11782E,0xFF4AAE20,Color.TRANSPARENT,15));
-        copy.setOnClickListener(v->copySummary());page.addView(copy,top(16));
-        copy.getLayoutParams().height=dp(58);
         TextView clear=text("LIMPAR TODOS OS CAMPOS",13,MUTED,true,false);
         clear.setGravity(Gravity.CENTER);clear.setOnClickListener(v->confirmClear());
-        page.addView(clear,top(8));clear.getLayoutParams().height=dp(42);
-
+        page.addView(clear,top(11));clear.getLayoutParams().height=dp(42);
         LinearLayout alert=vertical();alert.setPadding(dp(13),dp(12),dp(13),dp(13));
         alert.setBackground(shape(0xFFFFF9E7,0xFFF2D99C,13));
-        TextView note=text("⚠ IMPORTANTE: as quantidades calculadas não substituem a bula nem a orientação de profissional habilitado. O tanque indica o volume FINAL da calda. Use EPI.",13,0xFF624B15,false,false);
+        TextView note=text("⚠ IMPORTANTE: ferramenta de cálculo, não de prescrição. Siga bula, receita agronômica, compatibilidade e EPI. Considere o volume FINAL da calda no misturador e no drone.",13,0xFF624B15,false,false);
         note.setLineSpacing(dp(3),1f);alert.addView(note);
         page.addView(alert,top(15));
-
         setContentView(scroll);
     }
     
@@ -312,9 +356,9 @@ public class MainActivity extends Activity {
         GradientDrawable line=shape(0xFFEAF7E4,0xFFCBE8C0,12);
         output.setBackground(line);
         output.setPadding(dp(13),dp(11),dp(12),dp(11));
-        TextView label=text("QUANTO USAR",12,DARK,true,false);
+        TextView label=text("NO MISTURADOR",12,DARK,true,false);
         output.addView(label,new LinearLayout.LayoutParams(0,-2,1));
-        p.resultLabel=text("aguardando dados",13,MUTED,true,false);
+        p.resultLabel=text("toque em calcular",13,MUTED,true,false);
         p.resultLabel.setGravity(Gravity.END); p.resultLabel.setTextAlignment(View.TEXT_ALIGNMENT_VIEW_END);
         output.addView(p.resultLabel,new LinearLayout.LayoutParams(0,-2,1.32f));
         card.addView(output,top(11));
