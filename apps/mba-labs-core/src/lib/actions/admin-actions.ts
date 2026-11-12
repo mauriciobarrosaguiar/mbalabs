@@ -585,7 +585,7 @@ async function syncCotacoesTenantAccessFromEmpresaApp(client: any, row: any, app
     .select("id,nome,nome_fantasia,razao_social,cnpj,telefone,whatsapp,email,estado,cidade,responsavel,status")
     .eq("id", row.empresa_id).maybeSingle();
   if (companyError || !company) fail("Empresa do MBA Labs não encontrada.");
-  const cnpj = String(company.cnpj ?? "").replace(/\\D/g, "");
+  const cnpj = String(company.cnpj ?? "").replace(/\D/g, "");
   if (cnpj.length !== 14) {
     fail("Informe um CNPJ de 14 dígitos na empresa antes de liberar o MBA Cotações.");
   }
@@ -597,12 +597,12 @@ async function syncCotacoesTenantAccessFromEmpresaApp(client: any, row: any, app
   const { data: linked, error: linkedError } = await client.from("tenants")
     .select("id,cnpj,core_empresa_id").eq("core_empresa_id", company.id).maybeSingle();
   if (linkedError) fail("Falha ao consultar a empresa vinculada ao MBA Cotações.");
-  if (linked && String(linked.cnpj ?? "").replace(/\\D/g, "") !== cnpj) {
+  if (linked && String(linked.cnpj ?? "").replace(/\D/g, "") !== cnpj) {
     fail("O CNPJ da empresa MBA Labs difere do cadastro MBA Cotações. Corrija antes de continuar.");
   }
   let tenant = linked;
   if (!tenant) {
-    const formattedCnpj = cnpj.replace(/^(\\d{2})(\\d{3})(\\d{3})(\\d{4})(\\d{2})$/, "$1.$2.$3/$4-$5");
+    const formattedCnpj = cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
     const { data: matches, error: matchError } = await client.from("tenants")
       .select("id,cnpj,core_empresa_id").in("cnpj", [cnpj, formattedCnpj]).limit(2);
     if (matchError) fail("Falha ao consultar o CNPJ no MBA Cotações.");
