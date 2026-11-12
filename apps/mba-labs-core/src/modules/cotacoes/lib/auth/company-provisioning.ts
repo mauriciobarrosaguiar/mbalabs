@@ -74,6 +74,8 @@ export async function syncCotacoesCompanyAccess(tenant: CotacoesTenantBridge) {
     companyId = created.id;
   }
 
+  if (!companyId) throw new Error("Nao foi possivel vincular a empresa ao MBA Labs.");
+
   if (companyId !== currentTenant?.core_empresa_id) {
     const { error } = await supabase.from("tenants")
       .update({ core_empresa_id: companyId }).eq("id", tenant.id);
