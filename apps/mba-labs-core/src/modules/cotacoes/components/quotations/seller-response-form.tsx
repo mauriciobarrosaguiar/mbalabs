@@ -389,7 +389,7 @@ export function SellerResponseForm({
           <div className="mt-4 space-y-3 rounded-md border border-teal-200 bg-teal-50 p-3">
             <p className="font-semibold text-teal-950">Distribuidoras para faturamento</p>
             <p className="text-sm text-teal-900">Marque uma ou várias distribuidoras cadastradas pela farmácia. Em cada produto, escolha qual vai faturá-lo.</p>
-            {distributors.length ? <details className="rounded-md border border-teal-200 bg-white" open={false}>
+            {distributors.length ? <details className="rounded-md border border-teal-200 bg-white">
               <summary className="cursor-pointer px-3 py-3 text-sm font-medium text-teal-950">
                 {selectedDistributorIds.length
                   ? `${selectedDistributorIds.length} distribuidora(s) selecionada(s): ${distributors.filter((d) => selectedDistributorIds.includes(d.id)).map((d) => d.name).join(", ")}`
