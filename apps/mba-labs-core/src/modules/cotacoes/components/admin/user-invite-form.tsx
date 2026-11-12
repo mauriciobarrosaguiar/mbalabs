@@ -88,6 +88,10 @@ export function UserInviteForm({ tenants = [] }: { tenants?: TenantOption[] }) {
         />
       </div>
 
+      <p className="col-span-full text-xs text-slate-600">
+        Se o e-mail já estiver cadastrado no MBA Labs, será vinculado ao MBA Cotações sem alterar a senha atual.
+        Para usuários novos, a senha temporária escolhida será utilizada no primeiro acesso.
+      </p>
       <input type="hidden" name="mustChangePassword" value="true" />
       <div className="flex items-end">
         <Button className="w-full" type="submit" disabled={pending || tenants.length === 0}>
