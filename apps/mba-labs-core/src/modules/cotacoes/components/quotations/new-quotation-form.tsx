@@ -164,6 +164,7 @@ export function NewQuotationForm({
 }) {
   const router = useRouter();
   const submissionLockRef = useRef(false);
+  const completedQuotationRef = useRef(false);
   const isBidding = moduleType === "bidding";
   const base = moduleType === "pharmacy" ? "/cotacoes/cotacoes-farmacia" : "/cotacoes/licitacoes";
   const supplierOptions = useMemo<SupplierOption[]>(() => {
@@ -321,7 +322,7 @@ export function NewQuotationForm({
   // Não grava sobre um rascunho existente enquanto o usuário decide se quer retomá-lo.
   useEffect(() => {
     const storageKey = draftStorageKeyRef.current;
-    if (!wizardReady || !storageKey || submitting || submissionLockRef.current || resumeChoice) return;
+    if (!wizardReady || !storageKey || submitting || submissionLockRef.current || completedQuotationRef.current || resumeChoice) return;
     writeQuotationWizardSnapshot(storageKey, { step, draft, items, selectedSupplierIds, updatedAt: Date.now() });
   }, [wizardReady, resumeChoice, step, draft, items, selectedSupplierIds, submitting]);
 
@@ -365,6 +366,7 @@ export function NewQuotationForm({
       buyerObservation: item.notes,
     })));
     setSelectedSupplierIds([]);
+    completedQuotationRef.current = false;
     setLinks([]);
     goToStep(1, "replace");
     setResumeChoice(null);
@@ -452,6 +454,7 @@ export function NewQuotationForm({
           setLinks(persisted.links.map((link) => ({ ...link, status: "pendente" })));
         }
 
+        completedQuotationRef.current = true;
         removeQuotationWizardSnapshot(draftStorageKeyRef.current);
         await sendWhatsappInBulk(persisted.quotationId);
         toast.success("Cotação criada. Abrindo os detalhes...");
@@ -466,6 +469,7 @@ export function NewQuotationForm({
         return { supplierId: supplier.id, token, url, status: "pendente" as const };
       });
       setLinks(generated);
+      completedQuotationRef.current = true;
       removeQuotationWizardSnapshot(draftStorageKeyRef.current);
       toast.success("Cotação criada e links públicos gerados.");
     } catch (error) {
