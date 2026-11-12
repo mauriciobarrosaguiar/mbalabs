@@ -30,16 +30,30 @@ export async function syncCotacoesCompanyAccess(tenant: CotacoesTenantBridge) {
   if (tenantError) throw tenantError;
 
   let companyId = currentTenant?.core_empresa_id as string | null;
-  if (!companyId) {
-    const { data: existing, error: existingError } = await supabase.from("core_empresas")
-      .select("id").eq("cnpj", cnpj).maybeSingle();
-    if (existingError) throw existingError;
-    companyId = existing?.id ?? null;
+  if (companyId) {
+    // Um CNPJ de um tenant nunca pode herdar o cadastro central de outra empresa.
+    const { data: linked, error: linkedError } = await supabase.from("core_empresas")
+      .select("id,cnpj").eq("id", companyId).maybeSingle();
+    if (linkedError) throw linkedError;
+    if (!linked) throw new Error("Vinculo da empresa MBA Labs nao encontrado. Contate o administrador.");
+    const linkedCnpj = String(linked.cnpj ?? "").replace(/\D/g, "");
+    if (linkedCnpj && linkedCnpj !== cnpj) {
+      throw new Error("O CNPJ difere da empresa ja vinculada ao MBA Labs. Corrija o cadastro central.");
+    }
   }
   if (!companyId) {
-    // A categoria e obrigatoria no portal MBA Labs. Nunca criar empresa sem ela.
-    // Farmacia e "both" sao clientes de farmacia; licitacao por distribuidora usa distribuidora.
-    const categorySlug = tenant.tipoCliente === "distributor_bidding" ? "distribuidora" : "farmacia";
+    // Busca os dois formatos de CNPJ: o portal central pode armazenar CNPJ pontuado.
+    const formattedCnpj = cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+    const { data: matches, error: existingError } = await supabase.from("core_empresas")
+      .select("id,cnpj").in("cnpj", [cnpj, formattedCnpj]).limit(2);
+    if (existingError) throw existingError;
+    if ((matches?.length ?? 0) > 1) throw new Error("Mais de uma empresa MBA Labs possui este CNPJ. Contate o administrador.");
+    companyId = matches?.[0]?.id ?? null;
+  }
+  if (!companyId) {
+    // Farmacias e drogarias sao classificadas automaticamente como Drogaria.
+    // O tipo de modulo nao altera a categoria de empresas ja existentes no MBA Labs.
+    const categorySlug = tenant.tipoCliente === "distributor_bidding" ? "distribuidora" : "drogaria";
     const { data: category, error: categoryError } = await supabase.from("core_empresa_categorias")
       .select("id").eq("slug", categorySlug).eq("status", "ativa").maybeSingle();
     if (categoryError) throw categoryError;
@@ -59,6 +73,8 @@ export async function syncCotacoesCompanyAccess(tenant: CotacoesTenantBridge) {
     if (createError) throw createError;
     companyId = created.id;
   }
+
+  if (!companyId) throw new Error("Nao foi possivel vincular a empresa ao MBA Labs.");
 
   if (companyId !== currentTenant?.core_empresa_id) {
     const { error } = await supabase.from("tenants")

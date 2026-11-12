@@ -34,8 +34,12 @@ export async function createUserAccessAction(
       "A senha provisoria",
       "Empresa do MBA",
       "Categoria da empresa",
+      "Vinculo da empresa",
+      "O CNPJ difere",
+      "Mais de uma empresa MBA Labs",
       "Este e-mail ja pertence",
       "Este e-mail já pertence",
+      "O acesso do usuario esta bloqueado",
     ];
     if (expected.some((prefix) => message.startsWith(prefix))) return { error: message };
     const code = error && typeof error === "object" && "code" in error ? String(error.code) : "unclassified";
@@ -76,10 +80,13 @@ async function createUserAccess(formData: FormData) {
 
   // Criação de usuário feita aqui sem distribuir permissões de outros aplicativos.
   const { data: oldCore, error: oldCoreError } = await supabase.from("core_usuarios")
-    .select("id,empresa_id").eq("auth_user_id", authUser.id).maybeSingle();
+    .select("id,empresa_id,status").eq("auth_user_id", authUser.id).maybeSingle();
   if (oldCoreError) throw oldCoreError;
   if (oldCore && oldCore.empresa_id !== coreCompanyId) {
     throw new Error("Este e-mail já pertence a outra empresa do portal MBA Labs.");
+  }
+  if (oldCore && oldCore.status !== "ativo") {
+    throw new Error("O acesso do usuario esta bloqueado no MBA Labs. Reative-o no cadastro central.");
   }
   let coreUserId = oldCore?.id;
   if (!coreUserId) {
@@ -110,7 +117,10 @@ async function createUserAccess(formData: FormData) {
 
   if (profileError) throw profileError;
 
+  if (!coreUserId) throw new Error("Nao foi possivel vincular o usuario ao MBA Labs.");
   await upsertTenantUser(profile.id, tenantId, role, status);
+  // Permissao explicita somente do MBA Cotacoes (sem liberar outros aplicativos).
+  await ensureCotacoesCorePermission(coreUserId, coreCompanyId, role, status);
 }
 
 export async function updateUserAccessAction(formData: FormData) {
@@ -186,6 +196,42 @@ async function findUserByEmail(email: string) {
   }
 
   return null;
+}
+
+
+// O cadastro feito pelo MBA Cotacoes precisa aparecer na entrada central do MBA Labs.
+// Nunca alterar credenciais de Auth nem permissoes de outros aplicativos.
+async function ensureCotacoesCorePermission(
+  coreUserId: string,
+  coreCompanyId: string,
+  role: TenantRole,
+  status: ProfileStatus,
+) {
+  const supabase = createSupabaseAdminClient();
+  const { data: app, error: appError } = await supabase.from("core_apps")
+    .select("id").in("slug", ["mba-cotacoes", "mbacotacoes"]).limit(1).maybeSingle();
+  if (appError) throw appError;
+  if (!app) throw new Error("Aplicativo MBA Cotações não cadastrado no portal MBA Labs.");
+
+  const { data: existing, error: existingError } = await supabase.from("core_usuario_app_permissoes")
+    .select("id,empresa_id,status").eq("usuario_id", coreUserId).eq("app_id", app.id).maybeSingle();
+  if (existingError) throw existingError;
+  if (existing?.empresa_id && existing.empresa_id !== coreCompanyId) {
+    throw new Error("Este e-mail já pertence a outra empresa do portal MBA Labs.");
+  }
+  if (existing && ["bloqueado", "inativo"].includes(existing.status)) {
+    throw new Error("O acesso do usuario esta bloqueado no MBA Labs. Reative-o no cadastro central.");
+  }
+  const appRole = role === "ADMIN_EMPRESA" ? "admin_empresa"
+    : role === "COMPRADOR" ? "comprador" : "visualizador";
+  const { error } = await supabase.from("core_usuario_app_permissoes").upsert({
+    usuario_id: coreUserId,
+    empresa_id: coreCompanyId,
+    app_id: app.id,
+    perfil_app: appRole,
+    status: status === "ativo" ? "ativo" : status === "convidado" ? "pendente" : "inativo",
+  }, { onConflict: "usuario_id,app_id" });
+  if (error) throw error;
 }
 
 async function upsertTenantUser(
