@@ -5,6 +5,7 @@ export type StockAnswer = "sim" | "nao";
 
 export interface SellerResponseRowDraft {
   quotationItemId: string;
+  distributorId?: string;
   offeredProductName?: string;
   offeredLaboratory?: string;
   grossPrice?: string;
