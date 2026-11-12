@@ -446,20 +446,20 @@ export function SellerResponseForm({
         })}
       </div>
 
-      <div className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
+      <div className="grid min-w-0 gap-3 rounded-md border border-slate-200 bg-white p-3 shadow-sm sm:p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <p className="min-w-0 text-sm leading-relaxed text-muted-foreground">
           {isBidding
             ? "Dados do comprador ficam travados. Você responde apenas sua oferta, preço, quantidade, prazo e observação."
             : "Dados da farmácia ficam travados. Informe preço e, quando souber, estoque e quantidade disponível. Observação e equivalente autorizado são opcionais."}
         </p>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="grid min-w-0 grid-cols-2 gap-2 lg:flex lg:flex-wrap lg:justify-end">
           {!isBidding ? (
             <>
-              <Button type="button" variant="outline" size="lg" disabled={saving} onClick={exportPharmacyExcel}>
+              <Button type="button" variant="outline" size="lg" className="min-w-0 whitespace-normal text-xs sm:text-sm" disabled={saving} onClick={exportPharmacyExcel}>
                 <Download className="h-4 w-4" />
                 Exportar Excel
               </Button>
-              <Button type="button" variant="outline" size="lg" disabled={locked || saving} onClick={() => importInputRef.current?.click()}>
+              <Button type="button" variant="outline" size="lg" className="min-w-0 whitespace-normal text-xs sm:text-sm" disabled={locked || saving} onClick={() => importInputRef.current?.click()}>
                 <Upload className="h-4 w-4" />
                 Importar Excel
               </Button>
@@ -475,11 +475,11 @@ export function SellerResponseForm({
               />
             </>
           ) : null}
-          <Button type="button" variant="outline" size="lg" disabled={locked || saving} onClick={saveDraft}>
+          <Button type="button" variant="outline" size="lg" className="min-w-0 whitespace-normal text-xs sm:text-sm" disabled={locked || saving} onClick={saveDraft}>
             <Save className="h-4 w-4" />
             Salvar rascunho
           </Button>
-          <Button type="button" size="lg" disabled={locked || saving} onClick={submitFinal}>
+          <Button type="button" size="lg" className="min-w-0 whitespace-normal text-xs sm:text-sm" disabled={locked || saving} onClick={submitFinal}>
             <Send className="h-4 w-4" />
             Enviar cotação
           </Button>
@@ -731,56 +731,56 @@ function SellerResponseMobileCard({
 
   if (!isBidding) {
     return (
-      <Card className="border-slate-200 bg-white shadow-sm">
-        <CardContent className="space-y-4 p-4">
-          <div>
+      <Card className="min-w-0 border-slate-200 bg-white shadow-sm">
+        <CardContent className="min-w-0 space-y-3 p-3 sm:p-4">
+          <div className="min-w-0">
             <p className="text-xs text-muted-foreground">Item {item.itemNumber}</p>
-            <h3 className="font-semibold text-slate-950">{item.productName}</h3>
-            <div className="mt-2 grid gap-1 text-sm text-muted-foreground">
-              <span title={getUnitLabel(item.requestedUnit)}>Qtd: {formatInteger(item.requestedQuantity)}</span>
-              <span>Lab. solicitado: {item.requestedLaboratory ?? "Qualquer"}</span>
-            </div>
+            <h3 className="break-words font-semibold text-slate-950">{item.productName}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Quantidade solicitada: {formatInteger(item.requestedQuantity)}
+            </p>
           </div>
 
-          <details className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
-            <summary className="cursor-pointer font-medium text-teal-700">Ver detalhes</summary>
-            <div className="mt-2 grid gap-1 text-muted-foreground">
-              <span>Tipo: {productTypeLabels[item.productType] ?? item.productType}</span>
-              {item.buyerObservation ? <span>Obs. farmácia: {item.buyerObservation}</span> : null}
+          <PriceField
+            label="Preço"
+            value={row.netPrice}
+            disabled={locked}
+            onChange={(value) => updateRow(item.id, { netPrice: value })}
+          />
+          <DistributorSelect
+            distributors={distributors}
+            value={row.distributorId || (distributors.length === 1 ? distributors[0].id : "")}
+            disabled={locked || row.hasStock === "nao"}
+            itemName={item.productName}
+            onChange={(id) => updateRow(item.id, { distributorId: id })}
+          />
+
+          <details className="min-w-0 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
+            <summary className="cursor-pointer font-medium text-teal-700">Detalhes e informações opcionais</summary>
+            <div className="mt-3 grid min-w-0 gap-3">
+              <div className="grid gap-1 text-xs text-muted-foreground">
+                <span>Laboratório solicitado: {item.requestedLaboratory ?? "Qualquer"}</span>
+                <span>Tipo: {productTypeLabels[item.productType] ?? item.productType}</span>
+                {item.buyerObservation ? <span>Observação da farmácia: {item.buyerObservation}</span> : null}
+              </div>
+              <PharmacyStockInputs item={item} row={row} locked={locked}
+                onChange={(patch) => updateRow(item.id, patch)} />
+              {item.acceptEquivalent ? (
+                <TextField
+                  label="Produto equivalente ofertado (opcional)"
+                  value={row.offeredProductName === item.productName ? "" : row.offeredProductName}
+                  placeholder="Nome/apresentação do produto alternativo"
+                  disabled={locked}
+                  onChange={(value) => updateRow(item.id, { offeredProductName: value || item.productName })}
+                />
+              ) : null}
+              <div className="space-y-2">
+                <Label>Observação (opcional)</Label>
+                <Textarea value={row.observation ?? ""} disabled={locked}
+                  onChange={(event) => updateRow(item.id, { observation: event.target.value })} />
+              </div>
             </div>
           </details>
-
-          <div className="grid gap-3">
-            <PriceField
-              label="Preço"
-              value={row.netPrice}
-              disabled={locked}
-              onChange={(value) => updateRow(item.id, { netPrice: value })}
-            />
-            <PharmacyStockInputs item={item} row={row} locked={locked} onChange={(patch) => updateRow(item.id, patch)} />
-            <DistributorSelect
-              distributors={distributors}
-              value={row.distributorId || (distributors.length === 1 ? distributors[0].id : "")}
-              disabled={locked || row.hasStock === "nao"}
-              itemName={item.productName}
-              onChange={(id) => updateRow(item.id, { distributorId: id })}
-            />
-            {item.acceptEquivalent ? (
-              <TextField
-                label="Produto equivalente ofertado (opcional)"
-                value={row.offeredProductName === item.productName ? "" : row.offeredProductName}
-                placeholder="Nome/apresentação do produto alternativo"
-                disabled={locked}
-                onChange={(value) => updateRow(item.id, { offeredProductName: value || item.productName })}
-              />
-            ) : (
-              <p className="text-xs text-slate-600">Esta cotação não permite produto equivalente para este item.</p>
-            )}
-            <div className="space-y-2">
-              <Label>Observação (opcional)</Label>
-              <Textarea value={row.observation ?? ""} disabled={locked} onChange={(event) => updateRow(item.id, { observation: event.target.value })} />
-            </div>
-          </div>
         </CardContent>
       </Card>
     );
