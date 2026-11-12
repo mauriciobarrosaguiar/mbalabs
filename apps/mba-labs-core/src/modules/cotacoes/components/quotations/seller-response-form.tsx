@@ -56,6 +56,7 @@ interface SellerIdentity {
   whatsapp?: string;
   email?: string;
   billingCompany?: string;
+  selectedDistributorIds?: string[];
   paymentTerms?: string;
   deliveryTerms?: string;
   generalObservation?: string;
@@ -73,6 +74,7 @@ interface SellerResponseFormProps {
   quotationName?: string;
   deadlineAt?: string;
   minimumEnabled?: boolean;
+  distributors?: Array<{ id: string; name: string }>;
 }
 
 const deliveryOptions = ["Imediato", "1 dia", "2 dias", "3 dias", "5 dias", "7 dias", "Outro"];
@@ -89,6 +91,7 @@ export function SellerResponseForm({
   quotationName,
   deadlineAt,
   minimumEnabled = false,
+  distributors = [],
 }: SellerResponseFormProps) {
   const isBidding = moduleType === "bidding";
   const [seller, setSeller] = useState<SellerIdentity>(() =>
@@ -96,6 +99,9 @@ export function SellerResponseForm({
   );
   const [rows, setRows] = useState<SellerResponseRowDraft[]>(() =>
     readDemoDraft(token, moduleType)?.rows ?? buildInitialRows(moduleType, items, initialResponseItems),
+  );
+  const [selectedDistributorIds, setSelectedDistributorIds] = useState<string[]>(() =>
+    [...new Set((initialResponseItems ?? []).map((row) => row.distributorId).filter(Boolean) as string[])],
   );
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
@@ -140,8 +146,17 @@ export function SellerResponseForm({
       const calculation = calculateSellerRow(moduleType, item, row);
       return calculation.netPrice > 0 && calculation.status !== "sem_estoque";
     });
-    if (!isBidding && minimumEnabled && hasAvailableOffer && !seller.billingCompany?.trim()) {
-      validationErrors.push("Informe a distribuidora de faturamento cadastrada na farmácia para validar o pedido mínimo.");
+    if (!isBidding && hasAvailableOffer) {
+      if (!selectedDistributorIds.length) validationErrors.push("Selecione uma ou mais distribuidoras cadastradas na farmácia.");
+      for (const item of items) {
+        const row = rows.find((entry) => entry.quotationItemId === item.id);
+        if (!row) continue;
+        const result = calculateSellerRow(moduleType, item, row);
+        const distributorId = row.distributorId || (selectedDistributorIds.length === 1 ? selectedDistributorIds[0] : "");
+        if (result.netPrice > 0 && result.status !== "sem_estoque" && !selectedDistributorIds.includes(distributorId)) {
+          validationErrors.push(`Informe a distribuidora do produto "${item.productName}".`);
+        }
+      }
     }
     setErrors(validationErrors);
     if (validationErrors.length > 0) {
@@ -162,17 +177,19 @@ export function SellerResponseForm({
     setSaving(true);
 
     try {
+      const sellerPayload = { ...seller, selectedDistributorIds,
+        billingCompany: selectedDistributorIds.map((id) => distributors.find((d) => d.id === id)?.name).filter(Boolean).join(", ") };
       const useLocalDemoStorage = isLocalBrowser() && token.includes("demo-token");
       if (useLocalDemoStorage) {
         window.localStorage.setItem(
           demoStorageKey(token, moduleType),
-          JSON.stringify({ status, moduleType, seller, rows, updatedAt: new Date().toISOString() }),
+          JSON.stringify({ status, moduleType, seller: sellerPayload, rows, updatedAt: new Date().toISOString() }),
         );
       } else if (hasSupabaseBrowserConfig()) {
         const response = await fetch(`/api/cotacoes/public/supplier-response/${token}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ moduleType, status, seller, rows }),
+          body: JSON.stringify({ moduleType, status, seller: sellerPayload, rows }),
         });
         const payload = await response.json();
         if (!response.ok) {
@@ -181,7 +198,7 @@ export function SellerResponseForm({
       } else if (isLocalBrowser()) {
         window.localStorage.setItem(
           demoStorageKey(token, moduleType),
-          JSON.stringify({ status, moduleType, seller, rows, updatedAt: new Date().toISOString() }),
+          JSON.stringify({ status, moduleType, seller: sellerPayload, rows, updatedAt: new Date().toISOString() }),
         );
       } else {
         throw new Error(
@@ -345,14 +362,14 @@ export function SellerResponseForm({
         moduleType={moduleType}
       />
 
-      <section className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+      <section className="min-w-0 rounded-md border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
         {!isBidding ? (
           <div className="mb-4 rounded-md bg-teal-50 p-3 text-sm text-teal-900">
             <p className="font-semibold">{buyerName ?? "Cliente"} · {quotationName ?? "Cotação"}</p>
             <p className="mt-1">Informe os preços dos produtos abaixo{deadlineAt ? ` até ${formatDeadlineDateBR(deadlineAt)}` : ""}.</p>
           </div>
         ) : null}
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <TextField label="Seu nome" value={seller.name} disabled={locked} onChange={(value) => updateSeller({ name: value })} />
           <TextField label="Empresa" value={seller.company} disabled={locked} onChange={(value) => updateSeller({ company: value })} />
           <TextField label="WhatsApp" value={seller.whatsapp} disabled={locked} onChange={(value) => updateSeller({ whatsapp: value })} />
@@ -364,21 +381,28 @@ export function SellerResponseForm({
             </>
           ) : null}
         </div>
-        {!isBidding && minimumEnabled ? (
-          <div className="mt-4 space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3">
-            <TextField label="Distribuidora de faturamento" value={seller.billingCompany} disabled={locked}
-              onChange={(value) => updateSeller({ billingCompany: value })} />
-            <p className="text-sm text-amber-950">
-              Obrigatória para produtos disponíveis. Informe o nome cadastrado na farmácia;
-              em caso de dúvida, confirme com o comprador. O pedido mínimo será conferido antes da aprovação.
-            </p>
+        {!isBidding ? (
+          <div className="mt-4 space-y-3 rounded-md border border-teal-200 bg-teal-50 p-3">
+            <p className="font-semibold text-teal-950">Distribuidoras para faturamento</p>
+            <p className="text-sm text-teal-900">Marque uma ou várias distribuidoras cadastradas pela farmácia. Em cada produto, escolha qual vai faturá-lo.</p>
+            {distributors.length ? <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {distributors.map((d) => <label key={d.id} className="flex min-w-0 cursor-pointer items-center gap-3 rounded-md border bg-white p-3 text-sm">
+                <input type="checkbox" className="h-4 w-4 shrink-0 accent-teal-700" disabled={locked || saving}
+                  checked={selectedDistributorIds.includes(d.id)} onChange={(e) => {
+                    const next = e.target.checked ? [...selectedDistributorIds, d.id] : selectedDistributorIds.filter((id) => id !== d.id);
+                    setSelectedDistributorIds(next);
+                    if (!e.target.checked) setRows((old) => old.map((row) => row.distributorId === d.id ? { ...row, distributorId: undefined } : row));
+                  }} />
+                <span className="min-w-0 break-words">{d.name}</span>
+              </label>)}
+            </div> : <p className="text-sm text-amber-800">A farmácia precisa cadastrar distribuidoras ativas para receber a cotação.</p>}
+            {minimumEnabled ? <p className="text-xs text-teal-900">O pedido mínimo será verificado por distribuidora.</p> : null}
           </div>
         ) : null}
         {!isBidding ? (
           <details className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3">
             <summary className="cursor-pointer text-sm font-medium text-teal-700">Informações adicionais opcionais</summary>
             <div className="mt-3 grid gap-3 md:grid-cols-3">
-              {!minimumEnabled ? <TextField label="Faturamento/distribuidora" value={seller.billingCompany} disabled={locked} onChange={(value) => updateSeller({ billingCompany: value })} /> : null}
               <TextField label="Condição de pagamento" value={seller.paymentTerms} disabled={locked} onChange={(value) => updateSeller({ paymentTerms: value })} />
               <TextField label="Observação geral" value={seller.generalObservation} disabled={locked} onChange={(value) => updateSeller({ generalObservation: value })} />
             </div>
@@ -386,15 +410,15 @@ export function SellerResponseForm({
         ) : null}
       </section>
 
-      <div className="hidden rounded-md border border-slate-200 bg-white shadow-sm md:block">
+      <div className="hidden min-w-0 overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm lg:block">
         {isBidding ? (
           <BiddingDesktopGrid items={items} rows={rows} locked={locked || saving} updateRow={updateRow} />
         ) : (
-          <PharmacyDesktopGrid items={items} rows={rows} locked={locked || saving} updateRow={updateRow} />
+          <PharmacyDesktopGrid items={items} rows={rows} locked={locked || saving} updateRow={updateRow} distributors={distributors.filter((d) => selectedDistributorIds.includes(d.id))} />
         )}
       </div>
 
-      <div className="grid gap-3 md:hidden">
+      <div className="grid min-w-0 gap-3 lg:hidden">
         {items.map((item) => {
           const row = findRow(rows, item.id);
           return (
@@ -405,6 +429,7 @@ export function SellerResponseForm({
               moduleType={moduleType}
               locked={locked || saving}
               updateRow={updateRow}
+              distributors={distributors.filter((d) => selectedDistributorIds.includes(d.id))}
             />
           );
         })}
@@ -458,11 +483,13 @@ function PharmacyDesktopGrid({
   rows,
   locked,
   updateRow,
+  distributors,
 }: {
   items: QuotationItem[];
   rows: SellerResponseRowDraft[];
   locked: boolean;
   updateRow: (quotationItemId: string, patch: Partial<SellerResponseRowDraft>) => void;
+  distributors: Array<{ id: string; name: string }>;
 }) {
   return (
     <Table>
@@ -474,6 +501,7 @@ function PharmacyDesktopGrid({
           <TableHead>Qtd</TableHead>
           <TableHead>Preço</TableHead>
           <TableHead className="min-w-52">Estoque / qtd. disponível</TableHead>
+          <TableHead className="min-w-40">Distribuidora</TableHead>
           <TableHead className="min-w-52">Produto alternativo / obs.</TableHead>
         </TableRow>
       </TableHeader>
@@ -497,7 +525,9 @@ function PharmacyDesktopGrid({
               </TableCell>
               <TableCell>
                 <PharmacyStockInputs item={item} row={row} locked={locked} onChange={(patch) => updateRow(item.id, patch)} />
+            <DistributorSelect distributors={distributors} value={row.distributorId || (distributors.length === 1 ? distributors[0].id : "")} disabled={locked} itemName={item.productName} onChange={(id) => updateRow(item.id, { distributorId: id })} />
               </TableCell>
+              <TableCell><DistributorSelect distributors={distributors} value={row.distributorId || (distributors.length === 1 ? distributors[0].id : "")} disabled={locked} itemName={item.productName} onChange={(id) => updateRow(item.id, { distributorId: id })} /></TableCell>
               <TableCell>
                 {item.acceptEquivalent ? (
                   <CompactInput
@@ -517,6 +547,21 @@ function PharmacyDesktopGrid({
       </TableBody>
     </Table>
   );
+}
+
+function DistributorSelect({ distributors, value, disabled, itemName, onChange }: {
+  distributors: Array<{ id: string; name: string }>;
+  value?: string; disabled: boolean; itemName: string; onChange: (id: string) => void;
+}) {
+  return <label className="block min-w-0 space-y-1 text-xs font-medium text-slate-700">
+    <span>Distribuidora do produto</span>
+    <select className="h-10 w-full min-w-0 rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900"
+      value={value ?? ""} disabled={disabled || !distributors.length}
+      aria-label={`Distribuidora de ${itemName}`} onChange={(event) => onChange(event.target.value)}>
+      <option value="">Selecione a distribuidora</option>
+      {distributors.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+    </select>
+  </label>;
 }
 
 function PharmacyStockInputs({
@@ -661,12 +706,14 @@ function SellerResponseMobileCard({
   moduleType,
   locked,
   updateRow,
+  distributors,
 }: {
   item: QuotationItem;
   row: SellerResponseRowDraft;
   moduleType: ModuleType;
   locked: boolean;
   updateRow: (quotationItemId: string, patch: Partial<SellerResponseRowDraft>) => void;
+  distributors: Array<{ id: string; name: string }>;
 }) {
   const calculation = calculateSellerRow(moduleType, item, row);
   const isBidding = moduleType === "bidding";
@@ -803,7 +850,7 @@ function SellerResponseSummary({
   }
 
   return (
-    <section className="grid gap-3 md:grid-cols-5">
+    <section className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
       <SummaryBox label="Total geral" value={formatCurrencyBRL(totalAmount)} tone="strong" />
       <SummaryBox label="Itens respondidos" value={`${respondedItems} de ${totalItems}`} />
       <SummaryBox label="Sem resposta" value={formatInteger(missingItems)} />
@@ -1145,6 +1192,7 @@ function buildInitialRows(
         existing?.availableQuantity != null ? "sim" : undefined,
       deliveryText: existing?.deliveryTermText ?? (existing?.deliveryDays ? `${existing.deliveryDays} dias` : ""),
       observation: existing?.sellerObservation ?? "",
+      distributorId: existing?.distributorId ?? undefined,
     };
   });
 }
