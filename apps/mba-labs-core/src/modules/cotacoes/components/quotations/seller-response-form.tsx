@@ -122,7 +122,8 @@ export function SellerResponseForm({
   const [autoSaveState, setAutoSaveState] = useState<"local" | "syncing" | "synced" | "offline">("local");
   const serverDraftInFlight = useRef<Promise<void> | null>(null);
   const preventAutoSave = useRef(false);
-  const latestDraftRef = useRef({ seller, rows, selectedDistributorIds });
+  const distributorMenuRef = useRef<HTMLDetailsElement>(null);
+  const locked = Boolean(lockedReason) || finalSubmitted;
 
   // Restabelece o formulário deste convite após atualização, fechamento ou queda de conexão.
   // O cache é exclusivo do token e não mistura dados de outros representantes.
@@ -149,7 +150,6 @@ export function SellerResponseForm({
   }, [token, moduleType]); // Apenas ao abrir outro convite: não sobrescrever digitação em curso.
 
   useEffect(() => {
-    latestDraftRef.current = { seller, rows, selectedDistributorIds };
     if (!draftReady || locked) return;
     const snapshot = {
       seller, rows, selectedDistributorIds,
@@ -204,7 +204,24 @@ export function SellerResponseForm({
     return () => window.removeEventListener("online", retry);
   }, [draftReady, locked]);
 
-  const locked = Boolean(lockedReason) || finalSubmitted;
+  useEffect(() => {
+    const closeOutside = (event: PointerEvent) => {
+      const menu = distributorMenuRef.current;
+      if (menu?.open && event.target instanceof Node && !menu.contains(event.target)) {
+        menu.open = false;
+      }
+    };
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && distributorMenuRef.current) distributorMenuRef.current.open = false;
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeEscape);
+    };
+  }, []);
+
   const summary = useMemo(
     () => calculateResponseSummary(moduleType, items, rows),
     [items, moduleType, rows],
@@ -478,7 +495,7 @@ export function SellerResponseForm({
           <div className="mt-4 space-y-3 rounded-md border border-teal-200 bg-teal-50 p-3">
             <p className="font-semibold text-teal-950">Distribuidoras para faturamento</p>
             <p className="text-sm text-teal-900">Marque uma ou várias distribuidoras cadastradas pela farmácia. Em cada produto, escolha qual vai faturá-lo.</p>
-            {distributors.length ? <details className="rounded-md border border-teal-200 bg-white">
+            {distributors.length ? <details ref={distributorMenuRef} className="rounded-md border border-teal-200 bg-white">
               <summary className="cursor-pointer px-3 py-3 text-sm font-medium text-teal-950">
                 {selectedDistributorIds.length
                   ? `${selectedDistributorIds.length} distribuidora(s) selecionada(s): ${distributors.filter((d) => selectedDistributorIds.includes(d.id)).map((d) => d.name).join(", ")}`
@@ -608,9 +625,8 @@ function PharmacyDesktopGrid({
           <TableHead>Lab. solicitado</TableHead>
           <TableHead>Qtd</TableHead>
           <TableHead>Preço</TableHead>
-          <TableHead className="min-w-52">Estoque / qtd. disponível</TableHead>
           <TableHead className="min-w-40">Distribuidora</TableHead>
-          <TableHead className="min-w-52">Produto alternativo / obs.</TableHead>
+          <TableHead className="min-w-44">Observação</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -632,22 +648,17 @@ function PharmacyDesktopGrid({
                 />
               </TableCell>
               <TableCell>
-                <PharmacyStockInputs item={item} row={row} locked={locked} onChange={(patch) => updateRow(item.id, patch)} />
-            <DistributorSelect distributors={distributors} value={row.distributorId || (distributors.length === 1 ? distributors[0].id : "")} disabled={locked} itemName={item.productName} onChange={(id) => updateRow(item.id, { distributorId: id })} />
+                <DistributorSelect
+                  distributors={distributors}
+                  value={row.distributorId || (distributors.length === 1 ? distributors[0].id : "")}
+                  disabled={locked}
+                  itemName={item.productName}
+                  onChange={(id) => updateRow(item.id, { distributorId: id })}
+                />
               </TableCell>
-              <TableCell><DistributorSelect distributors={distributors} value={row.distributorId || (distributors.length === 1 ? distributors[0].id : "")} disabled={locked} itemName={item.productName} onChange={(id) => updateRow(item.id, { distributorId: id })} /></TableCell>
               <TableCell>
-                {item.acceptEquivalent ? (
-                  <CompactInput
-                    value={row.offeredProductName === item.productName ? "" : row.offeredProductName}
-                    disabled={locked}
-                    placeholder="Outro produto (se equivalente)"
-                    onChange={(value) => updateRow(item.id, { offeredProductName: value || item.productName })}
-                  />
-                ) : (
-                  <p className="mb-1 text-xs text-slate-500">Equivalente não autorizado</p>
-                )}
-                <CompactInput value={row.observation} placeholder="Observação opcional" disabled={locked} onChange={(value) => updateRow(item.id, { observation: value })} />
+                <CompactInput value={row.observation} placeholder="Escreva uma observação (opcional)"
+                  disabled={locked} onChange={(value) => updateRow(item.id, { observation: value })} />
               </TableCell>
             </TableRow>
           );
