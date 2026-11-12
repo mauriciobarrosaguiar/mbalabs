@@ -37,8 +37,17 @@ export async function syncCotacoesCompanyAccess(tenant: CotacoesTenantBridge) {
     companyId = existing?.id ?? null;
   }
   if (!companyId) {
+    // A categoria e obrigatoria no portal MBA Labs. Nunca criar empresa sem ela.
+    // Farmacia e "both" sao clientes de farmacia; licitacao por distribuidora usa distribuidora.
+    const categorySlug = tenant.tipoCliente === "distributor_bidding" ? "distribuidora" : "farmacia";
+    const { data: category, error: categoryError } = await supabase.from("core_empresa_categorias")
+      .select("id").eq("slug", categorySlug).eq("status", "ativa").maybeSingle();
+    if (categoryError) throw categoryError;
+    if (!category) throw new Error("Categoria da empresa indisponivel no MBA Labs. Contate o administrador.");
+
     const { data: created, error: createError } = await supabase.from("core_empresas")
       .insert({
+        categoria_id: category.id,
         nome: tenant.razaoSocial || tenant.nomeFantasia,
         nome_fantasia: tenant.nomeFantasia,
         razao_social: tenant.razaoSocial || tenant.nomeFantasia,
