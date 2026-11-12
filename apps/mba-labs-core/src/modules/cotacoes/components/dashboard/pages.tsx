@@ -94,7 +94,8 @@ import {
   isQuotationInProgress,
 } from "@/modules/cotacoes/lib/quotation-status";
 import { savePaymentSettingsAction } from "@/modules/cotacoes/lib/actions/payment-settings";
-import { createUserAccessAction, updateUserAccessAction, deactivateCotacoesUserAction } from "@/modules/cotacoes/lib/actions/users";
+import { updateUserAccessAction, deactivateCotacoesUserAction } from "@/modules/cotacoes/lib/actions/users";
+import { UserInviteForm } from "@/modules/cotacoes/components/admin/user-invite-form";
 import { listManagedUsers, listTenantOptions, type ManagedUser, type TenantOption } from "@/modules/cotacoes/lib/auth/users";
 import { createSupabaseAdminClient, hasSupabaseAdminConfig } from "@/modules/cotacoes/lib/supabase/server";
 import { listPendingShortageItems } from "@/modules/cotacoes/lib/data/shortage-items";
@@ -3737,68 +3738,6 @@ function AdminUsersTable({
       </TableBody>
     </Table>
     </div>
-  );
-}
-
-function UserInviteForm({ tenants = [] }: { tenants?: TenantOption[] }) {
-  return (
-    <form action={createUserAccessAction} className="grid gap-4 md:grid-cols-6">
-      <LabeledInput label="Nome" name="fullName" required />
-      <LabeledInput label="E-mail" name="email" type="email" required />
-      <div className="space-y-2">
-        <Label>Perfil</Label>
-        <Select name="role" defaultValue="COMPRADOR">
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ADMIN_EMPRESA">{userRoleLabels.ADMIN_EMPRESA}</SelectItem>
-            <SelectItem value="COMPRADOR">{userRoleLabels.COMPRADOR}</SelectItem>
-            <SelectItem value="CONFERENTE">{userRoleLabels.CONFERENTE}</SelectItem>
-            <SelectItem value="FINANCEIRO">{userRoleLabels.FINANCEIRO}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-2">
-        <Label>Empresa</Label>
-        <Select name="tenantId" defaultValue={tenants[0]?.id ?? "none"}>
-          <SelectTrigger><SelectValue placeholder="Selecione a farmácia" /></SelectTrigger>
-          <SelectContent>
-            {tenants.length === 0 ? <SelectItem value="none">Cadastre uma farmácia primeiro</SelectItem> : null}
-            {tenants.map((tenant) => (
-              <SelectItem key={tenant.id} value={tenant.id}>
-                {tenant.name} · {labelFrom(customerTypeLabels, tenant.type)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-2">
-        <Label>Status</Label>
-        <Select name="status" defaultValue="ativo">
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ativo">Ativo</SelectItem>
-            <SelectItem value="convidado">Convidado</SelectItem>
-            <SelectItem value="inativo">Inativo</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <LabeledInput
-        label="Senha temporária exclusiva (mínimo de 10 caracteres)"
-        name="temporaryPassword"
-        type="password"
-        autoComplete="new-password"
-        minLength={10}
-        pattern="(?!Alterar@123$).{10,}"
-        title="Informe uma senha exclusiva com pelo menos 10 caracteres. Não use a senha padrão Alterar@123."
-        required
-      />
-      <input type="hidden" name="mustChangePassword" value="true" />
-      <div className="flex items-end">
-        <Button className="w-full" type="submit">
-          Criar acesso
-        </Button>
-      </div>
-    </form>
   );
 }
 
