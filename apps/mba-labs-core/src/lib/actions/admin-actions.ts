@@ -578,14 +578,82 @@ async function upsertUserPermission(
 async function syncCotacoesTenantAccessFromEmpresaApp(client: any, row: any, appSlug: string) {
   if (appSlug !== "mba-cotacoes" || !row?.empresa_id) return;
 
+  const redirectPath = `/admin/empresas/${row.empresa_id}/apps`;
+  const fail = (message: string): never => redirect(`${redirectPath}?error=${messageParam(message)}`);
   const accessType = normalizeCotacoesAccessType(String(row.cotacoes_tipo_acesso ?? ""));
-  const { error } = await client
-    .from("tenants")
-    .update({ tipo_cliente: accessType })
-    .eq("core_empresa_id", row.empresa_id);
+  const { data: company, error: companyError } = await client.from("core_empresas")
+    .select("id,nome,nome_fantasia,razao_social,cnpj,telefone,whatsapp,email,estado,cidade,responsavel,status")
+    .eq("id", row.empresa_id).maybeSingle();
+  if (companyError || !company) fail("Empresa do MBA Labs não encontrada.");
+  const cnpj = String(company.cnpj ?? "").replace(/\\D/g, "");
+  if (cnpj.length !== 14) {
+    fail("Informe um CNPJ de 14 dígitos na empresa antes de liberar o MBA Cotações.");
+  }
 
-  if (error) {
-    redirect(`/admin/empresas/${row.empresa_id}/apps?error=${messageParam(error.message)}`);
+  const status = row.status === "cancelado" ? "cancelado"
+    : row.status === "bloqueado" || row.status === "vencido" || company.status === "bloqueada" ? "suspenso"
+    : row.status === "teste" || company.status === "teste" ? "teste" : "ativo";
+
+  const { data: linked, error: linkedError } = await client.from("tenants")
+    .select("id,cnpj,core_empresa_id").eq("core_empresa_id", company.id).maybeSingle();
+  if (linkedError) fail("Falha ao consultar a empresa vinculada ao MBA Cotações.");
+  if (linked && String(linked.cnpj ?? "").replace(/\\D/g, "") !== cnpj) {
+    fail("O CNPJ da empresa MBA Labs difere do cadastro MBA Cotações. Corrija antes de continuar.");
+  }
+  let tenant = linked;
+  if (!tenant) {
+    const { data: byCnpj, error: matchError } = await client.from("tenants")
+      .select("id,cnpj,core_empresa_id").eq("cnpj", cnpj).maybeSingle();
+    if (matchError) fail("Falha ao consultar o CNPJ no MBA Cotações.");
+    if (byCnpj?.core_empresa_id && byCnpj.core_empresa_id !== company.id) {
+      fail("O CNPJ já está vinculado a outra empresa no MBA Cotações.");
+    }
+    tenant = byCnpj;
+  }
+
+  if (tenant) {
+    const { error } = await client.from("tenants").update({
+      core_empresa_id: company.id, tipo_cliente: accessType, status,
+    }).eq("id", tenant.id);
+    if (error) fail("Não foi possível atualizar o vínculo com o MBA Cotações.");
+  } else if (status !== "cancelado") {
+    // Cadastro central cria a empresa operacional uma vez; não cria permissões de usuário.
+    const { data: created, error } = await client.from("tenants").insert({
+      core_empresa_id: company.id,
+      nome_fantasia: company.nome_fantasia || company.nome,
+      razao_social: company.razao_social || company.nome,
+      cnpj,
+      tipo_cliente: accessType,
+      responsavel_nome: company.responsavel || "Responsável",
+      responsavel_email: company.email || "",
+      responsavel_whatsapp: company.whatsapp || company.telefone || "",
+      status,
+      valor_mensal: 0,
+    }).select("id").single();
+    if (error || !created) fail("Não foi possível criar o vínculo da empresa no MBA Cotações.");
+    tenant = created;
+  }
+
+  // Uma drogaria cadastrada no portal deve ter sua unidade matriz no módulo.
+  if (tenant && accessType !== "distributor_bidding" && status !== "cancelado") {
+    const { data: existingUnit, error: unitLookupError } = await client.from("pharmacies")
+      .select("id").eq("tenant_id", tenant.id).limit(1).maybeSingle();
+    if (unitLookupError) fail("Não foi possível consultar as unidades da empresa.");
+    if (!existingUnit) {
+      const { error: unitError } = await client.from("pharmacies").insert({
+        tenant_id: tenant.id,
+        nome_fantasia: company.nome_fantasia || company.nome,
+        razao_social: company.razao_social || company.nome,
+        cnpj,
+        cidade: company.cidade || "",
+        uf: company.estado || "",
+        responsavel: company.responsavel || "Responsável",
+        whatsapp: company.whatsapp || company.telefone || "",
+        email: company.email || "",
+        status: status === "ativo" || status === "teste" ? "ativo" : "inativo",
+      });
+      if (unitError) fail("Não foi possível registrar a matriz no MBA Cotações.");
+    }
   }
 }
 
