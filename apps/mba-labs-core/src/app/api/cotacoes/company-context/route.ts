@@ -74,6 +74,7 @@ export async function GET() {
 
     return NextResponse.json({
       tenantId,
+      userId: auth.profile.id,
       companyName,
       cnpj: String(cnpj).replace(/\D/g, ""),
       formattedCnpj,
