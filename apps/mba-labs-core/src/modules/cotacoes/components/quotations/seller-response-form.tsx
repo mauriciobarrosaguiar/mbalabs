@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, CheckCircle2, Download, Save, Send, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/modules/cotacoes/components/ui/badge";
@@ -118,6 +118,91 @@ export function SellerResponseForm({
       : null,
   );
   const importInputRef = useRef<HTMLInputElement>(null);
+  const [draftReady, setDraftReady] = useState(false);
+  const [autoSaveState, setAutoSaveState] = useState<"local" | "syncing" | "synced" | "offline">("local");
+  const serverDraftInFlight = useRef<Promise<void> | null>(null);
+  const preventAutoSave = useRef(false);
+  const latestDraftRef = useRef({ seller, rows, selectedDistributorIds });
+
+  // Restabelece o formulário deste convite após atualização, fechamento ou queda de conexão.
+  // O cache é exclusivo do token e não mistura dados de outros representantes.
+  useEffect(() => {
+    if (initialResponse?.status === "submitted" || lockedReason) {
+      removeLocalReplyDraft(token, moduleType);
+      setDraftReady(true);
+      return;
+    }
+    const cached = readLocalReplyDraft(token, moduleType);
+    if (cached) {
+      if (cached.seller) setSeller((previous) => ({ ...previous, ...cached.seller }));
+      if (Array.isArray(cached.rows)) {
+        setRows((previous) => previous.map((row) => {
+          const saved = cached.rows?.find((item) => item.quotationItemId === row.quotationItemId);
+          return saved ? { ...row, ...saved } : row;
+        }));
+      }
+      if (Array.isArray(cached.selectedDistributorIds)) {
+        setSelectedDistributorIds(cached.selectedDistributorIds.filter((id) => distributors.some((d) => d.id === id)));
+      }
+    }
+    setDraftReady(true);
+  }, [token, moduleType]); // Apenas ao abrir outro convite: não sobrescrever digitação em curso.
+
+  useEffect(() => {
+    latestDraftRef.current = { seller, rows, selectedDistributorIds };
+    if (!draftReady || locked) return;
+    const snapshot = {
+      seller, rows, selectedDistributorIds,
+      updatedAt: new Date().toISOString(),
+    };
+    if (!writeLocalReplyDraft(token, moduleType, snapshot)) {
+      setAutoSaveState("offline");
+    } else {
+      setAutoSaveState("local");
+    }
+    // O armazenamento local é imediato; o servidor é sincronizado após pausa na digitação.
+    if (isLocalBrowser() && token.includes("demo-token")) return;
+    const timer = window.setTimeout(() => {
+      if (preventAutoSave.current || !navigator.onLine) {
+        if (!navigator.onLine) setAutoSaveState("offline");
+        return;
+      }
+      const previous = serverDraftInFlight.current ?? Promise.resolve();
+      const pending = previous.catch(() => {}).then(async () => {
+        if (preventAutoSave.current) return;
+        setAutoSaveState("syncing");
+        const response = await fetch(`/api/cotacoes/public/supplier-response/${token}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            moduleType, status: "draft",
+            seller: {
+              ...snapshot.seller,
+              selectedDistributorIds: snapshot.selectedDistributorIds,
+              billingCompany: snapshot.selectedDistributorIds.map((id) =>
+                distributors.find((d) => d.id === id)?.name).filter(Boolean).join(", "),
+            },
+            rows: snapshot.rows,
+          }),
+        });
+        if (!response.ok) throw new Error("Falha na sincronização do rascunho.");
+        setAutoSaveState("synced");
+      }).catch(() => setAutoSaveState("offline"));
+      serverDraftInFlight.current = pending;
+    }, 3500);
+    return () => window.clearTimeout(timer);
+  }, [seller, rows, selectedDistributorIds, draftReady, locked, token, moduleType]);
+
+  useEffect(() => {
+    const retry = () => {
+      if (draftReady && !locked) {
+        // A atualização do estado gera uma nova tentativa de sincronização.
+        setRows((previous) => [...previous]);
+      }
+    };
+    window.addEventListener("online", retry);
+    return () => window.removeEventListener("online", retry);
+  }, [draftReady, locked]);
 
   const locked = Boolean(lockedReason) || finalSubmitted;
   const summary = useMemo(
@@ -178,9 +263,11 @@ export function SellerResponseForm({
 
   async function persist(status: "draft" | "submitted") {
     if (locked && status === "submitted") return;
+    if (status === "submitted") preventAutoSave.current = true;
     setSaving(true);
 
     try {
+      if (serverDraftInFlight.current) await serverDraftInFlight.current;
       const sellerPayload = { ...seller, selectedDistributorIds,
         billingCompany: selectedDistributorIds.map((id) => distributors.find((d) => d.id === id)?.name).filter(Boolean).join(", ") };
       const useLocalDemoStorage = isLocalBrowser() && token.includes("demo-token");
@@ -211,6 +298,7 @@ export function SellerResponseForm({
       }
 
       if (status === "submitted") {
+        removeLocalReplyDraft(token, moduleType);
         setFinalSubmitted(true);
         const message = isBidding
           ? "Resposta enviada com sucesso."
@@ -225,6 +313,7 @@ export function SellerResponseForm({
         );
       }
     } catch (error) {
+      if (status === "submitted") preventAutoSave.current = false;
       toast.error(error instanceof Error ? error.message : "Erro ao salvar resposta.");
     } finally {
       setSaving(false);
@@ -446,6 +535,14 @@ export function SellerResponseForm({
         })}
       </div>
 
+      {!locked && draftReady ? (
+        <p className="text-xs text-slate-600" role="status" aria-live="polite">
+          {autoSaveState === "synced" ? "✓ Rascunho salvo automaticamente neste aparelho e no sistema." :
+           autoSaveState === "syncing" ? "Sincronizando rascunho..." :
+           autoSaveState === "offline" ? "Sem sincronização no momento. Seus dados permanecem salvos neste aparelho." :
+           "Alterações salvas automaticamente neste aparelho."}
+        </p>
+      ) : null}
       <div className="grid min-w-0 gap-3 rounded-md border border-slate-200 bg-white p-3 shadow-sm sm:p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         <p className="min-w-0 text-sm leading-relaxed text-muted-foreground">
           {isBidding
@@ -1380,6 +1477,39 @@ function downloadBlob(blob: Blob, fileName: string) {
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
+}
+
+type LocalReplyDraft = {
+  seller?: SellerIdentity;
+  rows?: SellerResponseRowDraft[];
+  selectedDistributorIds?: string[];
+  updatedAt?: string;
+};
+
+function localReplyStorageKey(token: string, moduleType: ModuleType) {
+  return `mba-cotacoes-public-reply-autosave-v1-${moduleType}-${token}`;
+}
+
+function readLocalReplyDraft(token: string, moduleType: ModuleType): LocalReplyDraft | null {
+  try {
+    const stored = window.localStorage.getItem(localReplyStorageKey(token, moduleType));
+    return stored ? JSON.parse(stored) as LocalReplyDraft : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalReplyDraft(token: string, moduleType: ModuleType, data: LocalReplyDraft): boolean {
+  try {
+    window.localStorage.setItem(localReplyStorageKey(token, moduleType), JSON.stringify(data));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function removeLocalReplyDraft(token: string, moduleType: ModuleType) {
+  try { window.localStorage.removeItem(localReplyStorageKey(token, moduleType)); } catch { /* storage bloqueado */ }
 }
 
 function demoStorageKey(token: string, moduleType: ModuleType) {
