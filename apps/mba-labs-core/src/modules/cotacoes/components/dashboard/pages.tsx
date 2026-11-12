@@ -25,7 +25,6 @@ import { BulkBuyerOrderReview } from "@/modules/cotacoes/components/quotations/b
 import { loadMinimumOrderRules } from "@/modules/cotacoes/lib/services/minimum-order-server";
 import { buildBilledPurchaseHistory } from "@/modules/cotacoes/lib/services/purchase-history";
 import { NewQuotationForm } from "@/modules/cotacoes/components/quotations/new-quotation-form";
-import { DistributorOffersImport } from "@/modules/cotacoes/components/quotations/distributor-offers-import";
 import { PublicOrderActions } from "@/modules/cotacoes/components/quotations/public-order-actions";
 import { QuotationBasicEditor } from "@/modules/cotacoes/components/quotations/quotation-basic-editor";
 import { BackButton, QuotationPageActions } from "@/modules/cotacoes/components/quotations/quotation-page-actions";
@@ -2270,10 +2269,6 @@ async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotatio
       ? ["respostas", "analise", "pedidos"]
       : ["respostas", "analise", "mapa-comparativo", "saldo-pendente", "pedidos"];
 
-  const representativeProgress = getRepresentativeProgress(sessions, quotation.deadlineAt);
-  const distributorSuppliers = moduleType === "pharmacy" && !isQuotationClosed(quotation.status)
-    ? (await getCollections(tenantId)).suppliers
-    : [];
   const items = rawItems.map((item) => ({
     ...item,
     status: getQuotationItemStatusFromOrders(item, orders),
@@ -2293,22 +2288,6 @@ async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotatio
         />
       ) : null}
       <QuotationPageActions quotationId={quotation.id} moduleType={moduleType} status={quotation.status} currentPage="detail" />
-      {moduleType === "pharmacy" ? (
-        <Card>
-          <CardHeader><CardTitle>Cotação híbrida: representantes e distribuidoras</CardTitle></CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p>Representantes: {representativeProgress.submitted} resposta(s) finalizada(s) de {representativeProgress.total} convite(s); {representativeProgress.pending} pendente(s).</p>
-            <p className="text-muted-foreground">
-              {isQuotationClosed(quotation.status)
-                ? "Cotação encerrada: resultado final disponível na análise."
-                : representativeProgress.canClose
-                  ? "Pronta para encerramento, após conferência das ofertas."
-                  : "Aguardando as respostas dos representantes ou o fim do prazo. O menor preço é provisório."}
-            </p>
-            <p className="text-muted-foreground">Ofertas diretas das distribuidoras serão consideradas em paralelo quando houver conectores ou fontes de preços homologadas para este CNPJ. Sem conexão, os representantes continuam participando normalmente.</p>
-          </CardContent>
-        </Card>
-      ) : null}
       <div className="flex flex-wrap gap-2">
         {!isQuotationClosed(quotation.status) ? (
           <Button asChild variant="outline" size="sm">
@@ -2327,9 +2306,6 @@ async function QuotationDetail({ quotationId, moduleType, tenantId }: { quotatio
           <ItemsTable items={items} />
         </CardContent>
       </Card>
-      {moduleType === "pharmacy" && !isQuotationClosed(quotation.status) ? (
-        <DistributorOffersImport quotationId={quotation.id} items={rawItems} suppliers={distributorSuppliers} />
-      ) : null}
       <Card>
         <CardHeader><CardTitle>Links dos fornecedores</CardTitle></CardHeader>
         <CardContent className="p-0">
