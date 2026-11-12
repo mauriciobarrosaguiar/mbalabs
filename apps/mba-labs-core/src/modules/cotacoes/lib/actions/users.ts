@@ -117,6 +117,7 @@ async function createUserAccess(formData: FormData) {
 
   if (profileError) throw profileError;
 
+  if (!coreUserId) throw new Error("Nao foi possivel vincular o usuario ao MBA Labs.");
   await upsertTenantUser(profile.id, tenantId, role, status);
   // Permissao explicita somente do MBA Cotacoes (sem liberar outros aplicativos).
   await ensureCotacoesCorePermission(coreUserId, coreCompanyId, role, status);
