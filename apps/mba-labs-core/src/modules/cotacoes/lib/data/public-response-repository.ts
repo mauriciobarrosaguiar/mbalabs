@@ -35,6 +35,7 @@ interface SavePublicSellerResponseInput {
     whatsapp?: string;
     email?: string;
     billingCompany?: string;
+    selectedDistributorIds?: string[];
     paymentTerms?: string;
     deliveryTerms?: string;
     generalObservation?: string;
@@ -200,19 +201,45 @@ export async function savePublicSellerResponse(token: string, input: SavePublicS
   }
 
   const supabase = db();
-  const distributorId = await resolveBillingDistributor(
-    supabase, session.tenantId, input.moduleType, input.seller?.billingCompany,
-  );
+  const { data: distributorRows, error: distributorError } = input.moduleType === "pharmacy"
+    ? await supabase.from("distributors").select("id,nome").eq("tenant_id", session.tenantId).eq("status", "ativo").is("deleted_at", null)
+    : { data: [], error: null };
+  if (distributorError) throw distributorError;
+  const distributorById = new Map((distributorRows ?? []).map((d) => [String(d.id), String(d.nome)]));
+  const selectedIds = [...new Set((input.seller?.selectedDistributorIds ?? []).filter((id) => typeof id === "string"))];
+  if (selectedIds.some((id) => !distributorById.has(id))) {
+    throw new Error("Uma das distribuidoras selecionadas não está ativa no cadastro da farmácia.");
+  }
+  const legacyDistributorId = selectedIds.length === 0
+    ? await resolveBillingDistributor(supabase, session.tenantId, input.moduleType, input.seller?.billingCompany)
+    : null;
+  const distributorId = selectedIds.length === 1 ? selectedIds[0] : legacyDistributorId;
+  const chosenItemDistributorIds = new Map(input.rows.map((row) => [row.quotationItemId, row.distributorId || distributorId]));
   const hasAvailableOffer = publicQuote.items.some((item) => {
     const row = input.rows.find((candidate) => candidate.quotationItemId === item.id);
     if (!row) return false;
     const calculation = calculateSellerRow(input.moduleType, item, row);
     return calculation.netPrice > 0 && calculation.status !== "sem_estoque";
   });
-  if (input.status === "submitted" && quotation.moduleType === "pharmacy" &&
-      quotation.considerMinimumOrder && hasAvailableOffer && !distributorId) {
-    throw new Error("Informe uma distribuidora de faturamento cadastrada na farmácia, com nome único, para validar o pedido mínimo. Confirme o nome com o comprador.");
+  if (input.moduleType === "pharmacy") {
+    for (const item of publicQuote.items) {
+      const row = input.rows.find((entry) => entry.quotationItemId === item.id);
+      if (!row) continue;
+      const calculation = calculateSellerRow("pharmacy", item, row);
+      if (input.status === "submitted" && calculation.netPrice > 0 && calculation.status !== "sem_estoque") {
+        const selected = chosenItemDistributorIds.get(item.id);
+        if (!selected || !distributorById.has(selected) || (selectedIds.length > 0 && !selectedIds.includes(selected))) {
+          throw new Error(`Selecione uma distribuidora cadastrada para o produto "${item.productName}".`);
+        }
+      }
+      const selected = row.distributorId;
+      if (selected && (!distributorById.has(selected) || (selectedIds.length > 0 && !selectedIds.includes(selected)))) {
+        throw new Error(`Distribuidora inválida para o produto "${item.productName}".`);
+      }
+    }
   }
+  input.seller = { ...input.seller, billingCompany: [...new Set([...selectedIds, ...Array.from(chosenItemDistributorIds.values()).filter(Boolean)])]
+    .map((id) => distributorById.get(id)).filter(Boolean).join(", ") || input.seller?.billingCompany };
   const submittedAt = input.status === "submitted" ? new Date().toISOString() : null;
   const responseId = await upsertResponse(supabase, session, input, submittedAt);
 
@@ -223,6 +250,7 @@ export async function savePublicSellerResponse(token: string, input: SavePublicS
     items: publicQuote.items,
     rows: input.rows,
     distributorId,
+    distributorById,
   });
 
   const { error: sessionError } = await supabase
@@ -339,9 +367,9 @@ async function replaceResponseItems(
     items: QuotationItem[];
     rows: SellerResponseRowDraft[];
     distributorId: string | null;
+    distributorById: Map<string, string>;
   },
 ) {
-  const distributorId = input.distributorId;
   const { error: deleteError } = await supabase
     .from("supplier_quote_response_items")
     .delete()
@@ -363,7 +391,9 @@ async function replaceResponseItems(
     // Não criar registros para campos inteiramente em branco.
     if (calculation.netPrice <= 0 && row.hasStock !== "nao") return [];
 
-    return [buildPharmacyResponseItemPayload(input.responseId, input.session, item, row, distributorId)];
+    const itemDistributorId = row.distributorId || input.distributorId;
+    return [buildPharmacyResponseItemPayload(input.responseId, input.session, item, row,
+      itemDistributorId && input.distributorById.has(itemDistributorId) ? itemDistributorId : null)];
   });
 
   if (payloads.length === 0) return;
