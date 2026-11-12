@@ -184,7 +184,7 @@ export function NewQuotationForm({
   }, [suppliers]);
   const [step, setStep] = useState(() => getInitialWizardStep());
   const [draft, setDraft] = useState<QuotationDraft>({
-    name: isBidding ? "Pregão medicamentos" : initialItems.length > 0 ? "Cotação da lista de faltas" : "Falteiro loja matriz",
+    name: isBidding ? "Pregão medicamentos" : "",
     buyerDocument: isBidding || hasSupabaseBrowserConfig() ? "" : "12.345.678/0001-90",
     buyerCompanyName: isBidding ? "Distribuidora Licitação Exemplo" : "",
     destinationClient: "Município de Goiânia",
@@ -215,6 +215,12 @@ export function NewQuotationForm({
   const [links, setLinks] = useState<GeneratedLink[]>([]);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [buyerContext, setBuyerContext] = useState<{ tenantId: string; cnpj: string; companyName: string } | null>(null);
+  const [resumeChoice, setResumeChoice] = useState<QuotationWizardSnapshot | null>(null);
+  const [wizardReady, setWizardReady] = useState(isBidding);
+  const draftStorageKeyRef = useRef<string | null>(null);
+  const initialShortageRef = useRef(initialItems);
+  const [wizardStarted, setWizardStarted] = useState(false);
 
   const selectedSuppliers = useMemo(
     () => supplierOptions.filter((supplier) => selectedSupplierIds.includes(supplier.id)),
@@ -264,6 +270,8 @@ export function NewQuotationForm({
       try {
         const response = await fetch("/api/cotacoes/company-context", { cache: "no-store" });
         const payload = await response.json() as {
+          tenantId?: string;
+          cnpj?: string;
           companyName?: string;
           formattedCnpj?: string;
           error?: string;
@@ -274,11 +282,29 @@ export function NewQuotationForm({
         }
         if (cancelled) return;
 
+        const tenantId = String(payload.tenantId ?? "");
+        const companyCnpj = String(payload.cnpj ?? "").replace(/\\D/g, "");
+        if (!tenantId || companyCnpj.length !== 14) {
+          throw new Error("Não foi possível identificar a loja/CNPJ para a nova cotação.");
+        }
+        const companyName = String(payload.companyName ?? "").trim();
+        const storageKey = quotationWizardStorageKey(tenantId, companyCnpj, moduleType);
+        draftStorageKeyRef.current = storageKey;
+        setBuyerContext({ tenantId, cnpj: companyCnpj, companyName });
         setDraft((current) => ({
           ...current,
+          name: companyName || `Cotação ${payload.formattedCnpj ?? companyCnpj}`,
           buyerDocument: payload.formattedCnpj ?? "",
-          buyerCompanyName: payload.companyName ?? current.buyerCompanyName,
+          buyerCompanyName: companyName,
         }));
+        const saved = readQuotationWizardSnapshot(storageKey);
+        if (saved && saved.draft.buyerDocument.replace(/\\D/g, "") === companyCnpj &&
+            (saved.items.length > 0 || saved.selectedSupplierIds.length > 0 || saved.step > 1 ||
+             saved.draft.notes.trim() || saved.draft.name !== (companyName || `Cotação ${payload.formattedCnpj ?? companyCnpj}`))) {
+          setResumeChoice(saved);
+        } else {
+          setWizardReady(true);
+        }
       } catch (error) {
         if (!cancelled) {
           toast.error(error instanceof Error ? error.message : "Não foi possível carregar o CNPJ da empresa.");
@@ -290,7 +316,61 @@ export function NewQuotationForm({
     return () => {
       cancelled = true;
     };
-  }, [isBidding]);
+  }, [isBidding, moduleType]);
+
+  // Não grava sobre um rascunho existente enquanto o usuário decide se quer retomá-lo.
+  useEffect(() => {
+    const storageKey = draftStorageKeyRef.current;
+    if (!wizardReady || !storageKey || submitting || submissionLockRef.current || resumeChoice) return;
+    writeQuotationWizardSnapshot(storageKey, { step, draft, items, selectedSupplierIds, updatedAt: Date.now() });
+  }, [wizardReady, resumeChoice, step, draft, items, selectedSupplierIds, submitting]);
+
+  function continueQuotation() {
+    if (!resumeChoice) return;
+    setDraft({
+      ...resumeChoice.draft,
+      buyerDocument: draft.buyerDocument,
+      buyerCompanyName: buyerContext?.companyName ?? draft.buyerCompanyName,
+    });
+    setItems(resumeChoice.items);
+    setSelectedSupplierIds(resumeChoice.selectedSupplierIds.filter(
+      (id) => supplierOptions.some((supplier) => supplier.id === id),
+    ));
+    goToStep(resumeChoice.step, "replace");
+    setResumeChoice(null);
+    setWizardStarted(true);
+    setWizardReady(true);
+  }
+
+  function startNewQuotation() {
+    if (draftStorageKeyRef.current) removeQuotationWizardSnapshot(draftStorageKeyRef.current);
+    setDraft((current) => ({
+      ...current,
+      name: buyerContext?.companyName || `Cotação ${current.buyerDocument}`,
+      deadlineAt: getDefaultDeadline(),
+      notes: "",
+      quotationType: "generico_similar",
+      allowPartialSupply: true,
+      allowEquivalent: true,
+      considerMinimumOrder: true,
+    }));
+    setItems(initialShortageRef.current.map((item, index) => ({
+      ...buildDefaultItem(false),
+      id: item.id,
+      itemNumber: String(index + 1),
+      productName: item.productName,
+      ean: item.ean,
+      requestedQuantity: item.requestedQuantity,
+      requestedUnit: item.requestedUnit,
+      buyerObservation: item.notes,
+    })));
+    setSelectedSupplierIds([]);
+    setLinks([]);
+    goToStep(1, "replace");
+    setResumeChoice(null);
+    setWizardStarted(true);
+    setWizardReady(true);
+  }
 
   function addItem(item?: DraftItem) {
     if (item) {
@@ -372,6 +452,7 @@ export function NewQuotationForm({
           setLinks(persisted.links.map((link) => ({ ...link, status: "pendente" })));
         }
 
+        removeQuotationWizardSnapshot(draftStorageKeyRef.current);
         await sendWhatsappInBulk(persisted.quotationId);
         toast.success("Cotação criada. Abrindo os detalhes...");
         router.replace(`${base}/${persisted.quotationId}`);
@@ -385,6 +466,7 @@ export function NewQuotationForm({
         return { supplierId: supplier.id, token, url, status: "pendente" as const };
       });
       setLinks(generated);
+      removeQuotationWizardSnapshot(draftStorageKeyRef.current);
       toast.success("Cotação criada e links públicos gerados.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao criar a cotação. Tente novamente.");
@@ -486,6 +568,32 @@ export function NewQuotationForm({
     return { quotationId: demoId, links: [] };
   }
 
+  if (!isBidding && resumeChoice && !wizardStarted) {
+    return (
+      <Card className="border-teal-200">
+        <CardHeader>
+          <CardTitle>Você tem uma cotação em andamento</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-slate-700">
+            Deseja continuar de onde parou ou gerar uma cotação nova?
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Loja: {buyerContext?.companyName || draft.name}. Os produtos, destinatários e demais informações preenchidas serão recuperados.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button type="button" onClick={continueQuotation}>Continuar de onde parei</Button>
+            <Button type="button" variant="outline" onClick={startNewQuotation}>Gerar cotação nova</Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!isBidding && !wizardReady) {
+    return <Card><CardContent className="p-5 text-sm text-muted-foreground">Carregando os dados da loja e verificando cotações em andamento...</CardContent></Card>;
+  }
+
   return (
     <div className="space-y-5">
       <StepHeader step={step} isBidding={isBidding} />
@@ -554,6 +662,41 @@ export function NewQuotationForm({
       </div>
     </div>
   );
+}
+
+type QuotationWizardSnapshot = {
+  step: number;
+  draft: QuotationDraft;
+  items: DraftItem[];
+  selectedSupplierIds: string[];
+  updatedAt: number;
+};
+
+function quotationWizardStorageKey(tenantId: string, cnpj: string, moduleType: ModuleType) {
+  return `mba-cotacoes-wizard-v1-${tenantId}-${cnpj}-${moduleType}`;
+}
+
+function readQuotationWizardSnapshot(key: string): QuotationWizardSnapshot | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const value = JSON.parse(raw) as QuotationWizardSnapshot;
+    if (!value || !value.draft || !Array.isArray(value.items) ||
+        !Array.isArray(value.selectedSupplierIds) || !Number.isFinite(value.step)) return null;
+    return { ...value, step: normalizeWizardStep(value.step) };
+  } catch {
+    return null;
+  }
+}
+
+function writeQuotationWizardSnapshot(key: string, snapshot: QuotationWizardSnapshot) {
+  try { window.localStorage.setItem(key, JSON.stringify(snapshot)); }
+  catch { /* quota/privacidade: formulário permanece utilizável */ }
+}
+
+function removeQuotationWizardSnapshot(key: string | null) {
+  if (!key) return;
+  try { window.localStorage.removeItem(key); } catch { /* modo privado */ }
 }
 
 function hasSupabaseBrowserConfig() {
