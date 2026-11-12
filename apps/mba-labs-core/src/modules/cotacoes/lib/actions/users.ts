@@ -13,9 +13,41 @@ const tenantRoles = ["ADMIN_EMPRESA", "COMPRADOR", "CONFERENTE", "FINANCEIRO"] a
 type TenantRole = Exclude<(typeof profileRoles)[number], "SUPER_ADMIN">;
 type ProfileStatus = (typeof statuses)[number];
 
-export async function createUserAccessAction(formData: FormData) {
-  await requireSuperAdmin("/cotacoes/gestao/usuarios");
+export type CreateUserAccessState = { error: string | null };
 
+// Formulario de cadastro usa useActionState: erros validos nao derrubam a pagina.
+export async function createUserAccessAction(
+  _previousState: CreateUserAccessState,
+  formData: FormData,
+): Promise<CreateUserAccessState> {
+  await requireSuperAdmin("/cotacoes/gestao/usuarios");
+  try {
+    await createUserAccess(formData);
+  } catch (error) {
+    // Nunca exibir informacoes tecnicas/SQL e dados pessoais ao administrador.
+    const message = error instanceof Error ? error.message : "";
+    const expected = [
+      "Campo obrigatorio ausente:",
+      "Selecione uma empresa",
+      "Informe uma senha provisoria",
+      "A senha padrao",
+      "A senha provisoria",
+      "Empresa do MBA",
+      "Categoria da empresa",
+      "Este e-mail ja pertence",
+      "Este e-mail já pertence",
+    ];
+    if (expected.some((prefix) => message.startsWith(prefix))) return { error: message };
+    const code = error && typeof error === "object" && "code" in error ? String(error.code) : "unclassified";
+    console.error("[MBA Cotacoes] Falha no cadastro de usuario", { code });
+    return { error: "Nao foi possivel criar o acesso. Verifique os dados e tente novamente. Se persistir, contate o administrador." };
+  }
+
+  revalidatePath("/cotacoes/gestao/usuarios");
+  redirect("/cotacoes/gestao/usuarios");
+}
+
+async function createUserAccess(formData: FormData) {
   const fullName = readRequired(formData, "fullName");
   const email = readRequired(formData, "email").toLowerCase();
   const role = readEnum(formData, "role", profileRoles, "COMPRADOR");
@@ -79,9 +111,6 @@ export async function createUserAccessAction(formData: FormData) {
   if (profileError) throw profileError;
 
   await upsertTenantUser(profile.id, tenantId, role, status);
-
-  revalidatePath("/cotacoes/gestao/usuarios");
-  redirect("/cotacoes/gestao/usuarios");
 }
 
 export async function updateUserAccessAction(formData: FormData) {
