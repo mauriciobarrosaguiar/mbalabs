@@ -272,6 +272,7 @@ export function NewQuotationForm({
         const response = await fetch("/api/cotacoes/company-context", { cache: "no-store" });
         const payload = await response.json() as {
           tenantId?: string;
+          userId?: string;
           cnpj?: string;
           companyName?: string;
           formattedCnpj?: string;
@@ -289,7 +290,9 @@ export function NewQuotationForm({
           throw new Error("Não foi possível identificar a loja/CNPJ para a nova cotação.");
         }
         const companyName = String(payload.companyName ?? "").trim();
-        const storageKey = quotationWizardStorageKey(tenantId, companyCnpj, moduleType);
+        const userId = String(payload.userId ?? "");
+        if (!userId) throw new Error("Usuário não identificado para recuperar a cotação.");
+        const storageKey = quotationWizardStorageKey(tenantId, userId, companyCnpj, moduleType);
         draftStorageKeyRef.current = storageKey;
         setBuyerContext({ tenantId, cnpj: companyCnpj, companyName });
         setDraft((current) => ({
@@ -676,8 +679,8 @@ type QuotationWizardSnapshot = {
   updatedAt: number;
 };
 
-function quotationWizardStorageKey(tenantId: string, cnpj: string, moduleType: ModuleType) {
-  return `mba-cotacoes-wizard-v1-${tenantId}-${cnpj}-${moduleType}`;
+function quotationWizardStorageKey(tenantId: string, userId: string, cnpj: string, moduleType: ModuleType) {
+  return `mba-cotacoes-wizard-v1-${tenantId}-${userId}-${cnpj}-${moduleType}`;
 }
 
 function readQuotationWizardSnapshot(key: string): QuotationWizardSnapshot | null {
