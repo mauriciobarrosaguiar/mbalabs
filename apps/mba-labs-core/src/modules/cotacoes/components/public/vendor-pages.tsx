@@ -55,6 +55,7 @@ interface PublicQuoteData {
   };
   response?: SupplierQuoteResponse;
   responseItems: SupplierQuoteResponseItem[];
+  distributors?: Array<{ id: string; name: string }>;
 }
 
 export async function VendorResponsePage({
@@ -168,6 +169,7 @@ export async function VendorResponsePage({
               quotationName={quotation.name}
               deadlineAt={quotation.deadlineAt}
               minimumEnabled={quotation.considerMinimumOrder}
+              distributors={publicData.distributors ?? []}
             />
           </SafeFileUploadBoundary>
           <div className="flex items-start gap-3 rounded-md bg-slate-50 p-4 text-sm text-muted-foreground">
@@ -275,8 +277,8 @@ export async function PublicOrderPage({
 
 function PublicShell({ children }: { children: ReactNode }) {
   return (
-    <main className="cotacoes-module min-h-screen bg-slate-50 px-3 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl space-y-5">
+    <main className="cotacoes-module min-h-screen w-full max-w-full overflow-x-hidden bg-slate-50 px-2 py-3 sm:px-6 lg:px-8">
+      <div className="mx-auto min-w-0 max-w-7xl space-y-4">
         <div className="flex items-center justify-between rounded-md border border-slate-200 bg-white p-4">
           <Link href="/" className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-md bg-teal-700 text-sm font-bold text-white">
