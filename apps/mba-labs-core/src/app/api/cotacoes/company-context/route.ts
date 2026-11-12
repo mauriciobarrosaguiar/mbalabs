@@ -48,6 +48,22 @@ export async function GET() {
       }
     }
 
+    // O nome do comprador deve corresponder à unidade fiscal do CNPJ,
+    // não a um título fixo como "Falteiro loja matriz".
+    const cnpjDigits = String(cnpj).replace(/\\D/g, "");
+    const { data: units, error: unitsError } = await supabase
+      .from("pharmacies")
+      .select("nome_fantasia,razao_social,cnpj,status")
+      .eq("tenant_id", tenantId)
+      .eq("status", "ativo");
+    if (unitsError) throw unitsError;
+    const matchingUnit = (units ?? []).find(
+      (unit) => String(unit.cnpj ?? "").replace(/\\D/g, "") === cnpjDigits,
+    );
+    if (matchingUnit) {
+      companyName = matchingUnit.nome_fantasia || matchingUnit.razao_social || companyName;
+    }
+
     const formattedCnpj = formatCnpj(cnpj);
     if (!formattedCnpj) {
       return NextResponse.json(
