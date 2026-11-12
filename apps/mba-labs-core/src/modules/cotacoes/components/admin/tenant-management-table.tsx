@@ -321,7 +321,7 @@ export function TenantManagementTable({
           <DialogHeader>
             <DialogTitle>{editing?.nomeFantasia ? "Editar farmácia / cliente" : "Nova farmácia / cliente"}</DialogTitle>
             <DialogDescription>
-              Cadastro único do cliente: CNPJ, plano, responsável e acesso ao MBA Cotações.
+              O mesmo CNPJ vale no MBA Labs e no MBA Cotações. A categoria é automática: Drogaria para farmácias e Distribuidora para licitações. Empresas já cadastradas mantêm a categoria original.
             </DialogDescription>
           </DialogHeader>
           {editing ? (
