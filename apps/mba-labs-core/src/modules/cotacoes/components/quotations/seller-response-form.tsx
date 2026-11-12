@@ -389,7 +389,13 @@ export function SellerResponseForm({
           <div className="mt-4 space-y-3 rounded-md border border-teal-200 bg-teal-50 p-3">
             <p className="font-semibold text-teal-950">Distribuidoras para faturamento</p>
             <p className="text-sm text-teal-900">Marque uma ou várias distribuidoras cadastradas pela farmácia. Em cada produto, escolha qual vai faturá-lo.</p>
-            {distributors.length ? <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {distributors.length ? <details className="rounded-md border border-teal-200 bg-white" open={false}>
+              <summary className="cursor-pointer px-3 py-3 text-sm font-medium text-teal-950">
+                {selectedDistributorIds.length
+                  ? `${selectedDistributorIds.length} distribuidora(s) selecionada(s): ${distributors.filter((d) => selectedDistributorIds.includes(d.id)).map((d) => d.name).join(", ")}`
+                  : "Toque para selecionar distribuidoras"}
+              </summary>
+              <div className="grid gap-2 border-t border-teal-100 p-3 sm:grid-cols-2 lg:grid-cols-3">
               {distributors.map((d) => <label key={d.id} className="flex min-w-0 cursor-pointer items-center gap-3 rounded-md border bg-white p-3 text-sm">
                 <input type="checkbox" className="h-4 w-4 shrink-0 accent-teal-700" disabled={locked || saving}
                   checked={selectedDistributorIds.includes(d.id)} onChange={(e) => {
@@ -399,7 +405,8 @@ export function SellerResponseForm({
                   }} />
                 <span className="min-w-0 break-words">{d.name}</span>
               </label>)}
-            </div> : <p className="text-sm text-amber-800">A farmácia precisa cadastrar distribuidoras ativas para receber a cotação.</p>}
+              </div>
+            </details> : <p className="text-sm text-amber-800">A farmácia precisa cadastrar distribuidoras ativas para receber a cotação.</p>}
             {minimumEnabled ? <p className="text-xs text-teal-900">O pedido mínimo será verificado por distribuidora.</p> : null}
           </div>
         ) : null}
@@ -751,6 +758,13 @@ function SellerResponseMobileCard({
               onChange={(value) => updateRow(item.id, { netPrice: value })}
             />
             <PharmacyStockInputs item={item} row={row} locked={locked} onChange={(patch) => updateRow(item.id, patch)} />
+            <DistributorSelect
+              distributors={distributors}
+              value={row.distributorId || (distributors.length === 1 ? distributors[0].id : "")}
+              disabled={locked || row.hasStock === "nao"}
+              itemName={item.productName}
+              onChange={(id) => updateRow(item.id, { distributorId: id })}
+            />
             {item.acceptEquivalent ? (
               <TextField
                 label="Produto equivalente ofertado (opcional)"
