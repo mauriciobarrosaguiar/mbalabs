@@ -602,9 +602,12 @@ async function syncCotacoesTenantAccessFromEmpresaApp(client: any, row: any, app
   }
   let tenant = linked;
   if (!tenant) {
-    const { data: byCnpj, error: matchError } = await client.from("tenants")
-      .select("id,cnpj,core_empresa_id").eq("cnpj", cnpj).maybeSingle();
+    const formattedCnpj = cnpj.replace(/^(\\d{2})(\\d{3})(\\d{3})(\\d{4})(\\d{2})$/, "$1.$2.$3/$4-$5");
+    const { data: matches, error: matchError } = await client.from("tenants")
+      .select("id,cnpj,core_empresa_id").in("cnpj", [cnpj, formattedCnpj]).limit(2);
     if (matchError) fail("Falha ao consultar o CNPJ no MBA Cotações.");
+    if ((matches?.length ?? 0) > 1) fail("Existem cadastros duplicados para este CNPJ. Contate o administrador.");
+    const byCnpj = matches?.[0] ?? null;
     if (byCnpj?.core_empresa_id && byCnpj.core_empresa_id !== company.id) {
       fail("O CNPJ já está vinculado a outra empresa no MBA Cotações.");
     }
