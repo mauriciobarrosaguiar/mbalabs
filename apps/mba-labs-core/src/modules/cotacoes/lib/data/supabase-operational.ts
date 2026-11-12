@@ -480,7 +480,7 @@ export async function createSupabaseQuotation(input: {
   });
   await ensureUnitTypes(supabase);
   const pharmacy = moduleType === "pharmacy"
-    ? await resolvePharmacy(supabase, tenant.id)
+    ? await resolvePharmacy(supabase, tenant, input.draft.buyerDocument)
     : null;
   const pharmacyProducts = moduleType === "pharmacy"
     ? await resolveQuotationProducts(supabase, tenant.id, input.items)
@@ -2133,16 +2133,59 @@ async function ensureUnitTypes(supabase: SupabaseClient) {
   if (error) throw error;
 }
 
-async function resolvePharmacy(supabase: SupabaseClient, tenantId: string) {
-  const { data, error } = await supabase
+async function resolvePharmacy(supabase: SupabaseClient, tenant: Tenant, buyerDocument?: string) {
+  // A unidade fiscal é obrigatória pelo gatilho cot_quotation_buyer.
+  // Cadastros feitos pelo MBA Labs podem criar o tenant antes da primeira unidade.
+  const digits = (value?: string | null) => String(value ?? "").replace(/\\D/g, "");
+  const { data: units, error } = await supabase
     .from("pharmacies")
     .select("*")
-    .eq("tenant_id", tenantId)
-    .limit(1)
-    .maybeSingle();
-
+    .eq("tenant_id", tenant.id)
+    .order("created_at", { ascending: true });
   if (error) throw error;
-  return data;
+
+  const requestedCnpj = digits(buyerDocument);
+  const tenantCnpj = digits(tenant.cnpj);
+  const activeUnits = (units ?? []).filter((unit) => unit.status === "ativo");
+  const matchingUnit = activeUnits.find((unit) => digits(unit.cnpj) === requestedCnpj)
+    ?? activeUnits.find((unit) => digits(unit.cnpj) === tenantCnpj);
+  if (matchingUnit) return matchingUnit;
+  if (activeUnits.length > 0) {
+    // Não escolher arbitrariamente uma filial de outro CNPJ.
+    throw new Error("Selecione a unidade compradora com o CNPJ correto antes de criar a cotação.");
+  }
+
+  if (tenant.status !== "ativo" || tenantCnpj.length !== 14 ||
+      (requestedCnpj && requestedCnpj !== tenantCnpj)) {
+    throw new Error("A empresa precisa ter um CNPJ válido e ativo para criar sua primeira cotação.");
+  }
+
+  // Recuperação segura de cadastro: vincular a matriz do próprio tenant,
+  // sem criar uma empresa diferente ou alterar filiais já cadastradas.
+  const { data: created, error: creationError } = await supabase
+    .from("pharmacies")
+    .insert({
+      tenant_id: tenant.id,
+      nome_fantasia: tenant.nomeFantasia,
+      razao_social: tenant.razaoSocial,
+      cnpj: tenantCnpj,
+      status: "ativo",
+    })
+    .select("*")
+    .single();
+  if (creationError) {
+    // Duas requisições simultâneas podem ter cadastrado a mesma unidade.
+    const { data: existing } = await supabase
+      .from("pharmacies")
+      .select("*")
+      .eq("tenant_id", tenant.id)
+      .eq("cnpj", tenantCnpj)
+      .eq("status", "ativo")
+      .maybeSingle();
+    if (existing) return existing;
+    throw creationError;
+  }
+  return created;
 }
 
 async function resolveQuotationProducts(
