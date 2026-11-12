@@ -39,7 +39,7 @@ const emptyForm = {
   productName: "",
   ean: "",
   requestedQuantity: "1",
-  requestedUnit: "UN",
+  requestedUnit: "CX",
   notes: "",
 };
 
@@ -52,6 +52,7 @@ export function ShortageListPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -116,6 +117,27 @@ export function ShortageListPage() {
     }
   }
 
+  async function clearAllItems() {
+    if (clearing || saving || loading || items.length === 0) return;
+    setClearing(true);
+    try {
+      const response = await fetch("/api/cotacoes/shortage-items", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clearAll: true }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error ?? "Não foi possível limpar a lista.");
+      setItems([]);
+      resetForm();
+      toast.success(`${payload.deletedCount ?? 0} produto(s) removido(s) da lista de faltas.`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Erro ao limpar a lista.");
+    } finally {
+      setClearing(false);
+    }
+  }
+
   function typeProductName(value: string) {
     const exactMatch = products.find((product) => normalizeText(product.name) === normalizeText(value));
     const previousSelected = products.find((product) => product.id === selectedProductId);
@@ -173,10 +195,25 @@ export function ShortageListPage() {
             Registre produtos em falta ao longo do dia e transforme a lista em uma cotação pronta para revisar.
           </p>
         </div>
-        <Button type="button" onClick={createQuotation} disabled={loading || items.length === 0}>
-          <Send className="h-4 w-4" />
-          Criar cotação com a lista
-        </Button>
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <Button type="button" onClick={createQuotation} disabled={loading || clearing || items.length === 0}>
+            <Send className="h-4 w-4" />
+            Criar cotação com a lista
+          </Button>
+          <ConfirmDialog
+            title="Limpar todos os produtos da lista de faltas?"
+            description="Todos os produtos pendentes desta empresa serão excluídos da lista. Esta ação não poderá ser desfeita. Cotações já criadas não serão alteradas."
+            confirmLabel="Sim, limpar lista"
+            onConfirm={clearAllItems}
+            trigger={
+              <Button type="button" variant="outline" disabled={loading || clearing || saving || items.length === 0}
+                className="text-red-700 hover:text-red-800">
+                <Trash2 className="h-4 w-4" />
+                {clearing ? "Limpando..." : "Limpar todos os produtos"}
+              </Button>
+            }
+          />
+        </div>
       </div>
 
       <Card className="border-teal-100 bg-teal-50/40">
@@ -239,8 +276,8 @@ export function ShortageListPage() {
                 onChange={(event) => setForm((current) => ({ ...current, requestedUnit: event.target.value }))}
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
-                <option value="UN">Unidade</option>
                 <option value="CX">Caixa</option>
+                <option value="UN">Unidade</option>
                 <option value="FR">Frasco</option>
                 <option value="PCT">Pacote</option>
                 <option value="KIT">Kit</option>
