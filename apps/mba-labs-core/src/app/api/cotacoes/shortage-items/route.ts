@@ -117,9 +117,23 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { tenantId } = await requireTenantAccess();
-    const body = await request.json() as { id?: string };
-    if (!body.id) throw new ApiError("Item obrigatório.", 400);
+    const body = await request.json() as { id?: string; clearAll?: boolean };
+    if (body.clearAll !== true && !body.id) throw new ApiError("Item obrigatório.", 400);
     const supabase = createSupabaseAdminClient();
+
+    // Exclusão em massa afeta somente itens pendentes da empresa autenticada.
+    // Itens de outras empresas e históricos já cotados não são alterados.
+    if (body.clearAll === true) {
+      const { data, error } = await supabase
+        .from("shortage_items")
+        .delete()
+        .eq("tenant_id", tenantId)
+        .eq("status", "pending")
+        .select("id");
+      if (error) throw error;
+      return NextResponse.json({ ok: true, deleted: true, deletedCount: data?.length ?? 0 });
+    }
+
     const { data, error } = await supabase
       .from("shortage_items")
       .delete()
