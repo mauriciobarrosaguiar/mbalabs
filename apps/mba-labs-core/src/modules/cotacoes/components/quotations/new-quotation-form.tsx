@@ -363,8 +363,11 @@ export function NewQuotationForm({
     try {
       const persisted = await persist("waiting_responses");
 
-      if (hasSupabaseBrowserConfig()) {
-        if (!persisted.quotationId) return;
+      if (!isLocalBrowser() || hasSupabaseBrowserConfig()) {
+        if (!persisted.quotationId) {
+          toast.error("A cotação não foi salva. Verifique o erro e tente novamente.");
+          return;
+        }
         if (persisted.links.length > 0) {
           setLinks(persisted.links.map((link) => ({ ...link, status: "pendente" })));
         }
@@ -383,6 +386,8 @@ export function NewQuotationForm({
       });
       setLinks(generated);
       toast.success("Cotação criada e links públicos gerados.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao criar a cotação. Tente novamente.");
     } finally {
       setSubmitting(false);
       submissionLockRef.current = false;
@@ -399,7 +404,9 @@ export function NewQuotationForm({
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.error ?? "Falha no envio automático por WhatsApp.");
       const whatsapp = payload.whatsapp as { enviado?: number; falhou?: number; ignorado?: number } | undefined;
-      if (Number(whatsapp?.falhou ?? 0) > 0) {
+      if (payload.queued === true) {
+        toast.info("Cotação salva. O WhatsApp foi colocado na fila; confira o status de envio nos detalhes.");
+      } else if (Number(whatsapp?.falhou ?? 0) > 0) {
         toast.warning(`Cotação criada, mas ${whatsapp?.falhou} envio(s) por WhatsApp falharam. Você poderá reenviar na tela da cotação.`);
       } else if (Number(whatsapp?.enviado ?? 0) > 0) {
         toast.success("Cotação enviada em massa aos vendedores.");
@@ -431,7 +438,8 @@ export function NewQuotationForm({
   }
 
   async function persist(status: "draft" | "waiting_responses"): Promise<PersistResult> {
-    if (hasSupabaseBrowserConfig()) {
+    // Em produção, sempre usar a API do servidor: não depender de variáveis NEXT_PUBLIC no navegador.
+    if (!isLocalBrowser() || hasSupabaseBrowserConfig()) {
       setSaving(true);
       try {
         const response = await fetch("/api/cotacoes/quotations", {
