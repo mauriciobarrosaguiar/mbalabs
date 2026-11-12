@@ -3594,6 +3594,9 @@ function LabeledInput({
   required,
   placeholder,
   autoComplete,
+  minLength,
+  pattern,
+  title,
 }: {
   label: string;
   defaultValue?: string;
@@ -3602,6 +3605,9 @@ function LabeledInput({
   required?: boolean;
   placeholder?: string;
   autoComplete?: string;
+  minLength?: number;
+  pattern?: string;
+  title?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -3613,6 +3619,9 @@ function LabeledInput({
         required={required}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        minLength={minLength}
+        pattern={pattern}
+        title={title}
       />
     </div>
   );
@@ -3774,8 +3783,13 @@ function UserInviteForm({ tenants = [] }: { tenants?: TenantOption[] }) {
         </Select>
       </div>
       <LabeledInput
-        label="Senha temporária exclusiva (10+ caracteres)"
+        label="Senha temporária exclusiva (mínimo de 10 caracteres)"
         name="temporaryPassword"
+        type="password"
+        autoComplete="new-password"
+        minLength={10}
+        pattern="(?!Alterar@123$).{10,}"
+        title="Informe uma senha exclusiva com pelo menos 10 caracteres. Não use a senha padrão Alterar@123."
         required
       />
       <input type="hidden" name="mustChangePassword" value="true" />
