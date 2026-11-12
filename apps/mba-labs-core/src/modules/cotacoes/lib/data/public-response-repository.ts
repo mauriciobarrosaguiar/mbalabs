@@ -228,7 +228,8 @@ export async function savePublicSellerResponse(token: string, input: SavePublicS
       const calculation = calculateSellerRow("pharmacy", item, row);
       if (input.status === "submitted" && calculation.netPrice > 0 && calculation.status !== "sem_estoque") {
         const selected = chosenItemDistributorIds.get(item.id);
-        if (!selected || !distributorById.has(selected) || (selectedIds.length > 0 && !selectedIds.includes(selected))) {
+        if ((selectedIds.length > 0 || row.distributorId || quotation.considerMinimumOrder) &&
+            (!selected || !distributorById.has(selected) || (selectedIds.length > 0 && !selectedIds.includes(selected)))) {
           throw new Error(`Selecione uma distribuidora cadastrada para o produto "${item.productName}".`);
         }
       }
