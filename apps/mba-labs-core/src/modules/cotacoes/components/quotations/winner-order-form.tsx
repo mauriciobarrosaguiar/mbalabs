@@ -131,8 +131,8 @@ export function WinnerOrderForm({
   }
 
   return (
-    <div className="space-y-5">
-      <div className="grid gap-3 rounded-md bg-slate-50 p-4 md:grid-cols-6">
+    <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden">
+      <div className="grid min-w-0 grid-cols-2 gap-3 rounded-md bg-slate-50 p-3 sm:grid-cols-3 lg:grid-cols-6 lg:p-4">
         <Summary label="Total de itens" value={String(items.length)} />
         <Summary label="Itens faturados" value={String(totals.billedItems)} />
         <Summary label="Itens parciais" value={String(totals.partialItems)} />
@@ -142,25 +142,25 @@ export function WinnerOrderForm({
       </div>
 
       {!locked ? (
-        <div className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 space-y-3 rounded-md border border-slate-200 bg-white p-3 sm:p-4">
           <div>
             <p className="text-sm font-medium text-slate-950">Status de faturamento em massa</p>
             <p className="mt-1 text-xs text-muted-foreground">Atualiza todos os itens da tabela e preserva as observações.</p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <Button type="button" variant="outline" disabled={saving} onClick={() => updateAllFulfillmentStatus("faturado")}>
+          <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <Button type="button" variant="outline" className="w-full min-w-0 whitespace-normal text-center text-xs sm:text-sm" disabled={saving} onClick={() => updateAllFulfillmentStatus("faturado")}>
               <CheckCircle2 className="h-4 w-4" />
               Marcar todos como Faturado
             </Button>
-            <Button type="button" variant="outline" disabled={saving} onClick={() => updateAllFulfillmentStatus("parcial")}>
+            <Button type="button" variant="outline" className="w-full min-w-0 whitespace-normal text-center text-xs sm:text-sm" disabled={saving} onClick={() => updateAllFulfillmentStatus("parcial")}>
               <RotateCcw className="h-4 w-4" />
               Marcar todos como Parcial
             </Button>
-            <Button type="button" variant="outline" disabled={saving} onClick={() => updateAllFulfillmentStatus("nao_faturado")}>
+            <Button type="button" variant="outline" className="w-full min-w-0 whitespace-normal text-center text-xs sm:text-sm" disabled={saving} onClick={() => updateAllFulfillmentStatus("nao_faturado")}>
               <XCircle className="h-4 w-4" />
               Marcar todos como Não faturado
             </Button>
-            <Button type="button" variant="outline" disabled={saving} onClick={() => updateAllFulfillmentStatus("pendente")}>
+            <Button type="button" variant="outline" className="w-full min-w-0 whitespace-normal text-center text-xs sm:text-sm" disabled={saving} onClick={() => updateAllFulfillmentStatus("pendente")}>
               <RotateCcw className="h-4 w-4" />
               Marcar todos como Pendente
             </Button>
@@ -168,7 +168,7 @@ export function WinnerOrderForm({
         </div>
       ) : null}
 
-      <div className="hidden rounded-md border border-slate-200 md:block">
+      <div className="hidden min-w-0 max-w-full overflow-x-auto rounded-md border border-slate-200 xl:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -225,11 +225,11 @@ export function WinnerOrderForm({
         </Table>
       </div>
 
-      <div className="grid gap-3 md:hidden">
+      <div className="grid min-w-0 gap-3 xl:hidden">
         {items.map((item, index) => {
           const quoteItem = quotationItemsById[item.quotationItemId];
           return (
-            <div key={item.id} className="space-y-3 rounded-md border border-slate-200 bg-white p-4">
+            <div key={item.id} className="min-w-0 space-y-3 rounded-md border border-slate-200 bg-white p-3 sm:p-4">
               <div>
                 <p className="text-xs text-muted-foreground">Item {index + 1}</p>
                 <h3 className="font-semibold text-slate-950">{item.productName}</h3>
@@ -261,23 +261,25 @@ export function WinnerOrderForm({
         })}
       </div>
 
-      <div className="flex flex-col gap-3 rounded-md border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="grid min-w-0 gap-3 rounded-md border border-slate-200 bg-white p-3 sm:p-4">
         <div className="space-y-1 text-sm text-muted-foreground">
           <p>
             Status atual: <span className="font-medium text-slate-950">{labelFrom(statusLabels, order.status)}</span>
           </p>
           {locked ? <p className="text-emerald-700">Pedido já finalizado. Alterações bloqueadas.</p> : null}
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="grid min-w-0 gap-3">
           <PublicOrderActions order={{ ...order, items }} />
-          <Button type="button" variant="outline" disabled={locked || saving} onClick={() => void persist("save")}>
+          <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+          <Button type="button" variant="outline" className="w-full min-w-0" disabled={locked || saving} onClick={() => void persist("save")}>
             {pendingAction === "save" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {pendingAction === "save" ? "Salvando..." : "Salvar conferência"}
           </Button>
-          <Button type="button" disabled={locked || saving} onClick={() => void persist("finalize")}>
+          <Button type="button" className="w-full min-w-0" disabled={locked || saving} onClick={() => void persist("finalize")}>
             {pendingAction === "finalize" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
             {pendingAction === "finalize" ? "Finalizando..." : "Finalizar pedido"}
           </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -295,7 +297,7 @@ function FulfillmentSelect({
 }) {
   return (
     <Select value={normalizeFulfillmentStatus(value)} disabled={disabled} onValueChange={(next) => onChange(normalizeFulfillmentStatus(next))}>
-      <SelectTrigger className="min-w-36">
+      <SelectTrigger className="w-full min-w-0">
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -328,15 +330,15 @@ function QuantityInput({
       value={Number.isFinite(value) ? value : 0}
       disabled={disabled}
       onChange={(event) => onChange(Number(event.target.value))}
-      className="w-32"
+      className="w-full min-w-0"
     />
   );
 }
 
 function Summary({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
+    <div className="min-w-0 break-words">
+      <p className="text-xs leading-snug text-muted-foreground">{label}</p>
       <p className="mt-1 font-semibold text-slate-950">{value}</p>
     </div>
   );
