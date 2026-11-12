@@ -36,14 +36,14 @@ export async function syncCotacoesCompanyAccess(tenant: CotacoesTenantBridge) {
       .select("id,cnpj").eq("id", companyId).maybeSingle();
     if (linkedError) throw linkedError;
     if (!linked) throw new Error("Vinculo da empresa MBA Labs nao encontrado. Contate o administrador.");
-    const linkedCnpj = String(linked.cnpj ?? "").replace(/\\D/g, "");
+    const linkedCnpj = String(linked.cnpj ?? "").replace(/\D/g, "");
     if (linkedCnpj && linkedCnpj !== cnpj) {
       throw new Error("O CNPJ difere da empresa ja vinculada ao MBA Labs. Corrija o cadastro central.");
     }
   }
   if (!companyId) {
     // Busca os dois formatos de CNPJ: o portal central pode armazenar CNPJ pontuado.
-    const formattedCnpj = cnpj.replace(/^(\\d{2})(\\d{3})(\\d{3})(\\d{4})(\\d{2})$/, "$1.$2.$3/$4-$5");
+    const formattedCnpj = cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
     const { data: matches, error: existingError } = await supabase.from("core_empresas")
       .select("id,cnpj").in("cnpj", [cnpj, formattedCnpj]).limit(2);
     if (existingError) throw existingError;
