@@ -95,14 +95,18 @@ export async function getPublicQuoteByToken(token: string, moduleType: ModuleTyp
     }
     if (!quotationRow || isQuotationDeleted(quotationRow.status) || quotationRow.deleted_at) return null;
 
-    const [{ data: itemRows, error: itemError }, { data: tenantRow }, { data: pharmacyRow }] =
+    const [{ data: itemRows, error: itemError }, { data: tenantRow }, { data: pharmacyRow }, { data: distributorRows, error: distributorError }] =
       await Promise.all([
         supabase.from("quotation_items").select("*").eq("quotation_id", quotationRow.id).order("item_number"),
         supabase.from("tenants").select("*").eq("id", quotationRow.tenant_id).maybeSingle(),
         quotationRow.pharmacy_id
           ? supabase.from("pharmacies").select("*").eq("id", quotationRow.pharmacy_id).maybeSingle()
           : Promise.resolve({ data: null }),
+        moduleType === "pharmacy"
+          ? supabase.from("distributors").select("id,nome").eq("tenant_id", quotationRow.tenant_id).eq("status", "ativo").is("deleted_at", null).order("nome")
+          : Promise.resolve({ data: [], error: null }),
       ]);
+    if (distributorError) throw distributorError;
 
     if (itemError) {
       logSupabaseReadError("quotation_items", itemError);
@@ -142,6 +146,7 @@ export async function getPublicQuoteByToken(token: string, moduleType: ModuleTyp
       pharmacy: pharmacyRow ? mapPharmacy(pharmacyRow) : undefined,
       response: responseRow ? mapSupplierResponse(responseRow) : undefined,
       responseItems: (responseItemRows ?? []).map(mapSupplierResponseItem),
+      distributors: (distributorRows ?? []).map((entry) => ({ id: String(entry.id), name: String(entry.nome) })),
     };
   } catch (error) {
     logSupabaseReadError("cotacao publica", error);
