@@ -58,7 +58,7 @@ export async function GET() {
       .eq("status", "ativo");
     if (unitsError) throw unitsError;
     const matchingUnit = (units ?? []).find(
-      (unit) => String(unit.cnpj ?? "").replace(/\\D/g, "") === cnpjDigits,
+      (unit: { cnpj?: string | null; nome_fantasia?: string | null; razao_social?: string | null }) => String(unit.cnpj ?? "").replace(/\\D/g, "") === cnpjDigits,
     );
     if (matchingUnit) {
       companyName = matchingUnit.nome_fantasia || matchingUnit.razao_social || companyName;
