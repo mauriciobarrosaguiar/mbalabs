@@ -100,9 +100,13 @@ export function SellerResponseForm({
   const [rows, setRows] = useState<SellerResponseRowDraft[]>(() =>
     readDemoDraft(token, moduleType)?.rows ?? buildInitialRows(moduleType, items, initialResponseItems),
   );
-  const [selectedDistributorIds, setSelectedDistributorIds] = useState<string[]>(() =>
-    [...new Set((initialResponseItems ?? []).map((row) => row.distributorId).filter(Boolean) as string[])],
-  );
+  const [selectedDistributorIds, setSelectedDistributorIds] = useState<string[]>(() => {
+    const byItem = (initialResponseItems ?? []).map((row) => row.distributorId).filter(Boolean) as string[];
+    const byName = (initialResponse?.billingCompany ?? "").split(",").map((name) => name.trim().toLocaleLowerCase("pt-BR"));
+    const fromNames = distributors.filter((d) => byName.includes(d.name.trim().toLocaleLowerCase("pt-BR"))).map((d) => d.id);
+    const local = readDemoDraft(token, moduleType)?.seller?.selectedDistributorIds ?? [];
+    return [...new Set([...byItem, ...fromNames, ...(Array.isArray(local) ? local : [])])];
+  });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [finalSubmitted, setFinalSubmitted] = useState(
