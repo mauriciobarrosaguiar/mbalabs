@@ -127,7 +127,9 @@ export function AgroDocTable({
   children: ReactNode;
 }) {
   return (
-    <div className="agro-table-scroll" role="region" aria-label="Tabela de dados: deslize horizontalmente para ver todas as colunas" tabIndex={0}>
+    <>
+      <p className="agro-mobile-table-hint">Deslize a tabela para ver todas as colunas ↔</p>
+      <div className="agro-table-scroll" role="region" aria-label="Tabela de dados: deslize horizontalmente para ver todas as colunas" tabIndex={0}>
       <table className="agro-table">
         <thead>
           <tr>
@@ -138,7 +140,8 @@ export function AgroDocTable({
         </thead>
         <tbody>{children}</tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }
 export function AgroDocFlow({ compact = false }: { compact?: boolean }) {
@@ -228,7 +231,7 @@ export function AgroDocError({ error }: { error: string }) {
 }
 export function currentAgroMonth() {
   const p = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
+    timeZone: "America/Araguaina",
     year: "numeric",
     month: "2-digit",
   }).formatToParts(new Date());
