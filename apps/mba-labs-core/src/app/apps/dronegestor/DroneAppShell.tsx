@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenCheck, ClipboardCheck, ClipboardList, Drone, FileSpreadsheet, FileText, FolderCheck, Home, LogOut, Map, PlaneTakeoff, Settings2, SlidersHorizontal, X } from "lucide-react";
+import { BookOpenCheck, ClipboardCheck, ClipboardList, ShieldCheck, Drone, FileSpreadsheet, FileText, FolderCheck, Home, LogOut, Map, PlaneTakeoff, Settings2, SlidersHorizontal, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
 
@@ -13,6 +13,7 @@ const primary = [
 ] as const;
 
 const moreItems = [
+  { href: "/apps/dronegestor/diagnostico", title: "Diagnóstico e regularização", text: "Identifique obrigações, responsáveis e documentos vencidos.", icon: ShieldCheck },
   { href: "/apps/dronegestor/documentos", title: "SARPAS e documentos", text: "Autorização, SISANT e anexos da operação.", icon: PlaneTakeoff },
   { href: "/apps/dronegestor/pacote-operacao", title: "Finalizar operação", text: "Confira pendências, salve para regularizar ou encerre a OS quando estiver completa.", icon: FolderCheck },
   { href: "/apps/dronegestor/gestao", title: "Clientes, áreas e OS", text: "Prepare a operação antes de ir ao campo.", icon: ClipboardList },
