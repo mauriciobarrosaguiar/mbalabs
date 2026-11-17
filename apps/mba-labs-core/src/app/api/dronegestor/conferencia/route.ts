@@ -69,7 +69,7 @@ export async function POST(req:NextRequest){
       if(!value(s.registroAnac)||!value(s.drone))missing.push("drone e prefixo ANAC");
       if(!value(s.cultura)||!details.tipoServico)missing.push("cultura e tipo de serviço");
       if(!details.tipoAeronave)missing.push("tipo de aeronave");
-      if(!/^(\\d{1,3}):([0-5]\\d)$/.test(details.horasAplicacao)||details.horasAplicacao==="00:00")missing.push("horas efetivas HH:MM, sem paralisações");
+      if(!/^(\d{1,3}):([0-5]\d)$/.test(details.horasAplicacao)||details.horasAplicacao==="00:00")missing.push("horas efetivas HH:MM, sem paralisações");
       if(!TYPES.has(details.tipoServico))missing.push("tipo de serviço conforme lista MAPA");
       if(number(s.areaConcluidaHa??s.areaHa)<=0)missing.push("área realizada");
       if(!s.iniciadaEm||!s.finalizadaEm||Date.parse(s.finalizadaEm)<=Date.parse(s.iniciadaEm))missing.push("horários válidos");
