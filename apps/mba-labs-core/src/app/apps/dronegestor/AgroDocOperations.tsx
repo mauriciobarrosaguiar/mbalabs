@@ -105,7 +105,7 @@ export function AgroDocOperations({
         title="Operações"
         description="Ordens de serviço, execução em campo e acompanhamento das aplicações."
       />
-      <div className="agro-toolbar">
+      <div className="agro-toolbar agro-toolbar-operations">
         <input
           type="search"
           aria-label="Buscar operações"
@@ -262,8 +262,8 @@ export function AgroDocOperations({
             </AgroDocEmpty>
           )}
           <div
-            className="agro-toolbar"
-            style={{ border: 0, marginTop: 40, padding: 0 }}
+            className="agro-toolbar agro-operation-pagination"
+            style={{ border: 0, marginTop: 16, padding: 0 }}
           >
             <button className="agro-button" onClick={openEditor}>
               <Search size={16} />
