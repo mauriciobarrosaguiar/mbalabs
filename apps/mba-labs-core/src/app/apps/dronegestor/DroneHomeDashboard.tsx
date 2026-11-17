@@ -69,7 +69,7 @@ export function DroneHomeDashboard({ userName, canManage }: { userName:string; c
           <p className="mt-1 text-xs leading-5">{item.motivo||"Consultar com o responsável"}</p>
         </div>)}</div>
         <Link href="/apps/dronegestor/fichas" className="mt-3 inline-block rounded-xl bg-amber-800 px-4 py-2 text-xs font-black text-white no-underline">Ver minhas operações</Link>
-      </section>
+      </section>}
 
       {hasMission && <Link href="/apps/dronegestor/campo" className="mt-4 flex items-center gap-4 rounded-[24px] border border-[#9fd8b9] bg-[#d7f4df] p-4 no-underline shadow-[0_10px_24px_rgba(25,111,77,.09)] sm:p-5">
         <span className="grid size-14 shrink-0 place-items-center rounded-[20px] bg-[#087a55] text-white"><ClipboardList size={25}/></span>
