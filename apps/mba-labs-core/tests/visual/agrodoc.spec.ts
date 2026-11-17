@@ -99,3 +99,36 @@ test("exportação permanece bloqueada sem modelo ou sem aprovação", async ({
       page.getByRole("button", { name: "Baixar XLSX oficial", exact: true }),
     ).toBeDisabled();
 });
+
+
+/** Mobile regression checks for issues reported from real Samsung browser screenshots. */
+for (const mobileWidth of [360, 390, 412]) {
+  for (const [name, route] of routes) {
+    test(`mobile layout: ${name} at ${mobileWidth}px`, async ({ page }) => {
+      await page.setViewportSize({width: mobileWidth, height: 800});
+      await page.goto(`/apps/dronegestor${route}`);
+      await expect(page.locator(".agro-hero h1")).toBeVisible();
+      const result = await page.evaluate(() => {
+        const hero = document.querySelector(".agro-hero");
+        const heading = hero?.querySelector("h1");
+        const title = hero?.querySelector(".agro-hero-title");
+        if (!hero || !heading || !title) return {ok: false, reason: "missing hero"};
+        const h = hero.getBoundingClientRect(), t = title.getBoundingClientRect();
+        return {
+          ok: t.width > 50 && t.left >= h.left - 2 && t.right <= h.right + 2
+            && t.bottom <= h.bottom + 2
+            && document.documentElement.scrollWidth <= innerWidth + 2,
+          reason: JSON.stringify({viewport: innerWidth, hero: h.toJSON(), title: t.toJSON(), documentWidth: document.documentElement.scrollWidth})
+        };
+      });
+      expect(result.ok, result.reason).toBe(true);
+      await page.screenshot({path: test.info().outputPath(`mobile-${name}-${mobileWidth}.png`), fullPage: false});
+    });
+  }
+}
+test("mobile report model manager is not duplicated", async ({ page }) => {
+  await page.setViewportSize({width: 390, height: 844});
+  await page.goto("/apps/dronegestor/relatorio-mensal");
+  await expect(page.getByRole("heading", {name: "Relatórios MAPA", exact: true})).toBeVisible();
+  await expect(page.getByText("Planilha oficial MAPA 2026", {exact: true})).toHaveCount(1);
+});
