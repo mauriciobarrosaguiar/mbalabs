@@ -1765,3 +1765,209 @@
 .agro-decision-actions {
   flex-direction: row-reverse;
 }
+
+
+/* AgroDoc mobile QA (17/11/2026): preserve complete words and touch layout. */
+.agro-hero-title {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  flex: 1 1 auto;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  text-wrap: balance;
+}
+.agro-hero-title em {
+  display: inline;
+  white-space: normal;
+}
+.agro-review-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+.agro-review-navigation .agro-button { min-width: 44px; min-height: 44px; }
+.agro-review-navigation small { flex: 1; text-align: center; white-space: nowrap; }
+.agro-table-scroll { max-width: 100%; overscroll-behavior-x: contain; }
+.agro-table-scroll:focus-visible { outline: 2px solid #087a55; outline-offset: 2px; }
+
+@media (max-width: 767px) {
+  .agro-shell,
+  .agro-workspace,
+  .agro-page-content { min-width: 0; }
+  .agro-page-content {
+    padding: 12px 12px calc(150px + env(safe-area-inset-bottom, 0px));
+    overflow-x: clip;
+  }
+  .agro-shell { scroll-padding-bottom: 130px; }
+  .agro-hero,
+  .agro-diagnostic .agro-hero,
+  .agro-hero-large {
+    min-height: 166px;
+    height: auto;
+    background-position: right center;
+    background-size: auto 100%;
+    align-items: center;
+  }
+  .agro-hero:before {
+    clip-path: none;
+    background: linear-gradient(90deg, #002b24fa 0%, #06382fe8 65%, #073b3066 100%);
+  }
+  .agro-hero > div {
+    padding: 20px 16px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .agro-hero h1,
+  .agro-hero-large h1 {
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    font-size: clamp(21px, 5.5vw, 27px) !important;
+    line-height: 1.18 !important;
+    letter-spacing: -0.025em;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+  .agro-hero h1 > svg { width: 29px; height: 29px; flex: 0 0 29px; margin-top: 2px; }
+  .agro-hero-title { min-width: 0; width: auto; text-wrap: pretty; }
+  .agro-hero p,
+  .agro-hero-large p {
+    max-width: 37ch;
+    width: 100%;
+    font-size: 13px;
+    line-height: 1.4;
+    margin-top: 11px;
+  }
+
+  /* Avoid flexible items keeping their intrinsic minimum widths. */
+  .agro-toolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 10px;
+  }
+  .agro-toolbar > input,
+  .agro-toolbar > select,
+  .agro-toolbar > .agro-button,
+  .agro-toolbar > a.agro-button,
+  .agro-toolbar > button.agro-button {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100%;
+    min-height: 44px;
+    margin: 0;
+    padding-inline: 10px;
+    font-size: 13px;
+    box-sizing: border-box;
+  }
+  .agro-toolbar > input[type="search"] { grid-column: 1 / -1; }
+  .agro-toolbar .agro-button { overflow-wrap: normal; }
+  .agro-toolbar-documents > input[type="search"] { grid-column: 1 / -1; }
+  .agro-toolbar-documents > select { grid-column: span 1; }
+  .agro-toolbar-documents > button:last-child { grid-column: 1 / -1; }
+  .agro-toolbar-reports > input[type="month"] { grid-column: 1; }
+  .agro-toolbar-reports > .agro-report-operator {
+    grid-column: 2;
+    display: block;
+    line-height: 27px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+  }
+  .agro-toolbar-reports > button:last-child { grid-column: 1 / -1; }
+  .agro-toolbar-review > select:first-child,
+  .agro-toolbar-review > .agro-status,
+  .agro-toolbar-review > input[type="month"],
+  .agro-toolbar-review > button.agro-button,
+  .agro-toolbar-review > .agro-review-navigation {
+    grid-column: 1 / -1;
+  }
+  .agro-toolbar-review > .agro-status { justify-self: start; }
+  .agro-review-navigation { width: 100%; justify-content: space-between; }
+  .agro-review-navigation .agro-button {
+    width: 50px;
+    flex-shrink: 0;
+    min-height: 44px;
+    padding: 8px;
+  }
+  .agro-toolbar-operations > input[type="month"] { grid-column: span 1; }
+  .agro-toolbar-operations > button:last-child { grid-column: 1 / -1; }
+
+  /* OS editor must not compete with pagination controls. */
+  .agro-operation-pagination {
+    display: grid;
+    grid-template-columns: minmax(72px, 1fr) 44px 52px 44px;
+    align-items: center;
+    gap: 8px;
+  }
+  .agro-operation-pagination > button:first-child {
+    grid-column: 1 / -1;
+    min-height: 44px;
+    white-space: normal;
+    text-align: center;
+  }
+  .agro-operation-pagination > select { grid-column: 1; width: 100% !important; }
+  .agro-operation-pagination > button[aria-label="Página anterior"],
+  .agro-operation-pagination > button[aria-label="Próxima página"] {
+    padding: 0;
+    min-width: 44px;
+    width: 44px !important;
+  }
+  .agro-operation-pagination > small { text-align: center; white-space: nowrap; }
+
+  .agro-kpi { grid-template-columns: 36px minmax(0, 1fr); }
+  .agro-kpi-title { min-width: 0; font-size: 12px; }
+  .agro-kpi strong {
+    grid-column: 1 / -1;
+    font-size: clamp(22px, 6vw, 29px);
+    line-height: 1.15;
+    overflow-wrap: break-word;
+  }
+  .agro-kpi small { grid-column: 1 / -1; }
+  .agro-card-heading { min-width: 0; flex-wrap: wrap; }
+  .agro-card-heading h2 { overflow-wrap: break-word; }
+
+  .agro-profile-page { padding: 12px 0 !important; }
+  .agro-profile-page > div > header {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+  }
+  .agro-profile-page > div > header > div { min-width: 0; }
+  .agro-profile-page > div > header h1 {
+    font-size: clamp(21px, 6vw, 26px);
+    line-height: 1.15;
+    letter-spacing: -.02em;
+  }
+  .agro-profile-page > div > header > a:last-child {
+    grid-column: 1 / -1;
+    display: block;
+    width: 100%;
+    text-align: center;
+    min-height: 44px;
+    padding-top: 11px;
+  }
+  .agro-profile-page section,
+  .agro-profile-page input { min-width: 0; }
+
+  /* Fixed bottom nav: keep content actionable after scrolling on short phones. */
+  .agro-bottom-nav { min-height: 74px; }
+  .agro-bottom-nav a { min-width: 0; }
+}
+@media (max-width: 370px) {
+  .agro-hero h1,
+  .agro-hero-large h1 { font-size: 21px !important; }
+  .agro-hero > div { padding-inline: 14px; }
+  .agro-toolbar { gap: 8px; }
+  .agro-toolbar > input,
+  .agro-toolbar > select { font-size: 12px; }
+  .agro-profile-page > div > header h1 { font-size: 21px; }
+}
