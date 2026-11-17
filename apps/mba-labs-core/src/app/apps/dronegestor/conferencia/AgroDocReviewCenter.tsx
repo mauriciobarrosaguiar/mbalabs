@@ -480,25 +480,27 @@ export function AgroDocReviewCenter() {
           <RefreshCw size={17} />
           Atualizar
         </button>
-        <button
-          className="agro-button"
-          disabled={selected <= 0}
-          aria-label="Operação anterior"
-          onClick={() => setSelected((x) => x - 1)}
-        >
-          ‹
-        </button>
-        <small>
-          {items.length ? selected + 1 : 0} de {items.length}
-        </small>
-        <button
-          className="agro-button"
-          disabled={selected >= items.length - 1}
-          aria-label="Próxima operação"
-          onClick={() => setSelected((x) => x + 1)}
-        >
-          ›
-        </button>
+        <div className="agro-review-navigation" role="group" aria-label="Navegar entre operações">
+          <button
+            className="agro-button"
+            disabled={selected <= 0}
+            aria-label="Operação anterior"
+            onClick={() => setSelected((x) => x - 1)}
+          >
+            ‹
+          </button>
+          <small aria-live="polite">
+            {items.length ? selected + 1 : 0} de {items.length}
+          </small>
+          <button
+            className="agro-button"
+            disabled={selected >= items.length - 1}
+            aria-label="Próxima operação"
+            onClick={() => setSelected((x) => x + 1)}
+          >
+            ›
+          </button>
+        </div>
       </div>
       <AgroDocError error={error} />
       {loading ? (
