@@ -113,7 +113,7 @@ function reportMonth(date:string){
  return `${parts.find(p=>p.type==="year")?.value}-${parts.find(p=>p.type==="month")?.value}`;
 }
 function hhmm(value:string){
- const m=/^(\\d{1,3}):([0-5]\\d)$/.exec(value);
+ const m=/^(\d{1,3}):([0-5]\d)$/.exec(value);
  if(!m||Number(m[1])===0&&Number(m[2])===0)throw new Error("Informe o tempo efetivo HH:MM para cada operação (sem intervalos).");
  return Number(m[1])*100+Number(m[2]);
 }
