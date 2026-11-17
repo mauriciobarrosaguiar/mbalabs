@@ -67,14 +67,12 @@ export function AgroDocReports({ children }: { children: ReactNode }) {
     ),
     hasProfile = Boolean(
       profile.data?.profile.operadorNome &&
-      profile.data?.profile.registroMapa &&
-      profile.data?.profile.rtNome,
+      profile.data?.profile.registroMapa,
     );
   const ready = Boolean(
     reviews.data &&
     model.data?.model &&
     hasProfile &&
-    items.length &&
     !pending.length,
   );
   async function download() {
@@ -123,7 +121,7 @@ export function AgroDocReports({ children }: { children: ReactNode }) {
           value={month}
           onChange={(e) => setMonth(e.target.value)}
         />
-        <Link className="agro-button agro-report-operator" href={`${ROOT}/perfil-operacional`}>
+        <Link className="agro-button agro-report-operator" href={`${ROOT}/perfil-operacional`} title={profile.data?.profile.operadorNome || "Perfil do operador"} aria-label="Abrir perfil do operador">
           {profile.data?.profile.operadorNome || "Perfil do operador"}
         </Link>
         <button
