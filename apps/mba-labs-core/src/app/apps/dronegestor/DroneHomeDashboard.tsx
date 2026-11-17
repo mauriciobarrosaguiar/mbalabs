@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenCheck, ChevronRight, ClipboardList, Drone, FileSpreadsheet, FileText, FolderCheck, History, MapPinned, PlaneTakeoff, Rocket, Scale, Settings2, Sprout, Thermometer, Wind } from "lucide-react";
+import { BookOpenCheck, ChevronRight, ClipboardCheck, ClipboardList, Drone, FileSpreadsheet, FileText, FolderCheck, History, MapPinned, PlaneTakeoff, Rocket, Scale, Settings2, Sprout, Thermometer, Wind } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { DroneFirstOperationGuide } from "./DroneFirstOperationGuide";
 
@@ -70,6 +70,8 @@ export function DroneHomeDashboard({ userName, canManage }: { userName:string; c
         <Action href="/apps/dronegestor/gestao" icon={<ClipboardList size={25}/>} title={canManage?"Painel do gestor e OS":"Minhas ordens de serviço"} text={canManage?"Veja quem está aplicando, o que está parado, SARPAS pendente e OS que precisam de ação.":"Veja as ordens atribuídas a você e prepare a execução."}/>
         <Action href="/apps/dronegestor/documentos" icon={<PlaneTakeoff size={25}/>} title="SARPAS e documentos" text="Acompanhe autorização, SISANT e anexos obrigatórios da OS."/>
         <Action href="/apps/dronegestor/pacote-operacao" icon={<FolderCheck size={25}/>} title="Finalizar operação" text="Regularize pendências e encerre a OS somente quando o pacote estiver completo."/>
+        <Action href="/apps/dronegestor/diagnostico" icon={<ClipboardCheck size={25}/>} title="Diagnóstico e regularização" text="Registros da empresa, ANAC, MAPA, CREA, vencimentos e responsabilidades." />
+        {canManage && <Action href="/apps/dronegestor/conferencia" icon={<ClipboardCheck size={25}/>} title="Conferência AgroDoc" text="Aprove os voos e libere a exportação oficial do MAPA." />}
         <Action href="/apps/dronegestor/regulacao" icon={<Scale size={25}/>} title="Segurança e regras" text="Consulte MAPA, ANAC, DECEA, regra estadual e padrão interno."/>
         <Action href="/apps/dronegestor/fichas" icon={<History size={25}/>} title="Operações realizadas" text="Abra fichas, mapas, registros e histórico das aplicações."/>
         <Action href="/apps/dronegestor/produtos" icon={<BookOpenCheck size={25}/>} title="Produtos e bulas" text="Busque produto e informações técnicas revisadas."/>
