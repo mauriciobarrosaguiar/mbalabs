@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenCheck, ClipboardList, Drone, FileSpreadsheet, FileText, FolderCheck, Home, LogOut, Map, PlaneTakeoff, Settings2, SlidersHorizontal, X } from "lucide-react";
+import { BookOpenCheck, ClipboardCheck, ClipboardList, Drone, FileSpreadsheet, FileText, FolderCheck, Home, LogOut, Map, PlaneTakeoff, Settings2, SlidersHorizontal, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
 
@@ -19,6 +19,7 @@ const moreItems = [
   { href: "/apps/dronegestor/produtos", title: "Produtos e bulas", text: "Consulte cadastro e revisão técnica.", icon: BookOpenCheck },
   { href: "/apps/dronegestor/equipamentos", title: "Drones e equipamentos", text: "Cadastre os equipamentos e padrões.", icon: Settings2 },
   { href: "/apps/dronegestor/perfil-operacional", title: "Perfil operacional", text: "Dados da empresa, operador e RT.", icon: FileText },
+  { href: "/apps/dronegestor/conferencia", title: "Conferência AgroDoc", text: "Revise voos, aprove dados e corrija pendências antes do MAPA.", icon: ClipboardCheck },
   { href: "/apps/dronegestor/relatorio-mensal", title: "Relatório mensal MAPA", text: "Consolidação, PDF e XLSX mensal.", icon: FileSpreadsheet },
 ] as const;
 
