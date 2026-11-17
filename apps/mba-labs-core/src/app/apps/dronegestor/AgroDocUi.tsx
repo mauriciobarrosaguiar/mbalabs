@@ -38,7 +38,7 @@ export function AgroDocHero({
       <div>
         <h1>
           <Drone aria-hidden="true" />
-          {title}
+          <span className="agro-hero-title">{title}</span>
         </h1>
         <p>{description}</p>
       </div>
@@ -127,7 +127,7 @@ export function AgroDocTable({
   children: ReactNode;
 }) {
   return (
-    <div className="agro-table-scroll">
+    <div className="agro-table-scroll" role="region" aria-label="Tabela de dados: deslize horizontalmente para ver todas as colunas" tabIndex={0}>
       <table className="agro-table">
         <thead>
           <tr>
