@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { getSessionProfile } from "@/lib/core-data";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ async function context():Promise<{current:Context|null;response:NextResponse|nul
   const master=["super_admin","admin_master"].includes(type);
   const allowed=(session.appsLiberados??[]).some(app=>app.slug==="dronegestor"&&app.canAccess);
   if(!master&&!allowed)return{current:null,response:NextResponse.json({ok:false,error:"Acesso ao DroneGestor não liberado."},{status:403})};
-  return{current:{userId:session.profile.id,userName:session.profile.nome||"Piloto",userType:session.profile.tipo,empresaId:session.profile.empresa_id,companyHistory:master||["admin_empresa","gestor_operacional","responsavel_tecnico","rt"].includes(type)},response:null};
+  return{current:{userId:session.profile.id,userName:session.profile.nome||"Piloto",userType:session.profile.tipo,empresaId:session.profile.empresa_id,companyHistory:canManageDroneGestor({tipo:session.profile.tipo,isAdminMaster:master,permissoes:session.permissoes})},response:null};
 }
 function scope(query:any,current:Context){return current.companyHistory&&current.empresaId?query.eq("empresa_id",current.empresaId):query.eq("usuario_id",current.userId);}
 function ownerScope(query:any,current:Context){return current.empresaId?query.eq("empresa_id",current.empresaId):query.eq("usuario_id",current.userId);}
@@ -108,7 +109,8 @@ const OFFICIAL_COLUMNS=["UF","MUNICÍPIO","TIPO AERONAVE","PREFIXO AERONAVE","HO
  "SEMEADURA","COMBATE A INCÊNDIO (HORAS)","VOLUME (l/ha)","DOSAGEM","Unidade"];
 function reportMonth(date:string){
  const t=Date.parse(date);if(!Number.isFinite(t))return "";
- return new Intl.DateTimeFormat("en-CA",{timeZone:"America/Araguaina",year:"numeric",month:"2-digit"}).format(new Date(t)).slice(0,7);
+ const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Araguaina",year:"numeric",month:"2-digit"}).formatToParts(new Date(t));
+ return `${parts.find(p=>p.type==="year")?.value}-${parts.find(p=>p.type==="month")?.value}`;
 }
 function hhmm(value:string){
  const m=/^(\\d{1,3}):([0-5]\\d)$/.exec(value);
