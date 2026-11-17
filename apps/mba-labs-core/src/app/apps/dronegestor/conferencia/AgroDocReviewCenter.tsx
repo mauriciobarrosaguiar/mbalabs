@@ -439,7 +439,7 @@ export function AgroDocReviewCenter() {
         }
         description="Validação técnica e documental antes do relatório oficial do MAPA."
       />
-      <div className="agro-toolbar">
+      <div className="agro-toolbar agro-toolbar-review">
         <select
           aria-label="Selecionar operação para conferência"
           value={item?.id || ""}
