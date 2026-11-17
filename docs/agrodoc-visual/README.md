@@ -76,3 +76,17 @@ O arquivo de sessão contém credenciais e deve ficar fora do Git. Não há rota
 **Não fazer merge ou promover para produção antes de resolver os itens de homologação e revisar as diferenças visuais.**
 
 O preview da Vercel é protegido. A consulta autorizada confirmou a tela de login MBA Labs; sem sessão de homologação, os fluxos privados não foram executados no preview. A proteção não foi desativada.
+
+
+## Estado conferido em 17/11/2026 — retomada sem nova auditoria
+
+- Branch preservada: `feat/agrodoc-visual-1-1`; PR #194 aberta em rascunho sobre a PR #193.
+- Último commit de código verificado: `00831462eafbe92ab025c901b769fb37b009d781`.
+- Correções posteriores às capturas acima: títulos dos banners mobile, filtros, paginação, espaço da navegação inferior, indicação de rolagem das tabelas, remoção do upload MAPA duplicado, contagem real de OS, aviso meteorológico desatualizado e datas operacionais do Tocantins. As capturas anteriores não comprovam visualmente esses ajustes posteriores.
+- CI do próprio commit confirmado: execução `44062616844`, job `validate`, TypeScript e Production build concluídos com sucesso. Não foram repetidos testes já aprovados.
+- Vercel confirmou o deployment `dpl_4WWQMhJtoVMpbYFUQXhsP7raoPzB` como `READY`, com o SHA acima e `target: null` (preview).
+- Prévia desse código: https://mbalabs-562xw24ks-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor
+- Prévia da branch: https://mbalabs-git-feat-agrodoc-v-14353a-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor
+- Na retomada, nenhum processo local Next.js, Playwright ou npm estava em execução. Não há evidência de comando travado; o navegador de uma execução anterior não foi reinspecionado nesta retomada.
+- Não há sessão autenticada de homologação disponível nos arquivos de testes inspecionados. Permanecem pendentes os fluxos reais piloto/gestor/RT, isolamento na interface, validação visual com dados preenchidos e exportação com o XLSX oficial. Não foram declarados aprovados nem substituídos por simulação.
+- Nenhuma publicação em produção ou merge foi realizado.
