@@ -24,6 +24,8 @@ import {
 
 type Product = { nome?: string; dose?: number; unidade?: string };
 type Summary = {
+  climaCampoConfirmado?: boolean;
+  sarpasConfirmado?: boolean;
   ordemServicoId?: string;
   iniciadaEm?: string;
   ordemServicoNumero?: string;
@@ -318,7 +320,7 @@ function OperationRow({ item, done }: { item: Item; done: () => void }) {
           {message}
         </p>
       )}
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="agro-decision-actions mt-4 flex flex-wrap gap-2">
         <button
           disabled={busy || many}
           onClick={() => void save("aprovado")}
@@ -429,6 +431,7 @@ export function AgroDocReviewCenter() {
   return (
     <div>
       <AgroDocHero
+        variant="review"
         title={
           <>
             Conferência <em>AgroDoc</em>
@@ -617,6 +620,14 @@ export function AgroDocReviewCenter() {
                     summary.produtos[0].nome &&
                     Number(summary.produtos[0].dose) > 0,
                   ),
+                ],
+                [
+                  "Condições climáticas confirmadas no campo",
+                  summary?.climaCampoConfirmado === true,
+                ],
+                [
+                  "Liberação SARPAS registrada pelo piloto",
+                  summary?.sarpasConfirmado === true,
                 ],
                 [
                   "Horas efetivas revisadas",

@@ -228,6 +228,7 @@ export function AgroDocDiagnostic() {
   return (
     <div className="agro-diagnostic">
       <AgroDocHero
+        variant="diagnostic"
         title={
           <>
             Diagnóstico e <em>regularização</em>

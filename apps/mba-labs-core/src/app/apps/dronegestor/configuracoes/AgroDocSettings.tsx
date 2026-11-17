@@ -22,6 +22,7 @@ export function AgroDocSettings({ canManage }: { canManage: boolean }) {
   return (
     <>
       <AgroDocHero
+        variant="settings"
         title="Configurações"
         description="Preferências do módulo, integrações, permissões e modelo oficial."
       />

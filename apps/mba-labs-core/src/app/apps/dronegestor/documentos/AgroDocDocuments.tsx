@@ -166,6 +166,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
   return (
     <>
       <AgroDocHero
+        variant="documents"
         title={
           <>
             MBA <em>AgroDoc</em> · Documentos

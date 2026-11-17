@@ -41,7 +41,7 @@ As oito capturas desktop usam uma área de renderização isolada de **1448 × 1
 
 [Celular 360 × 800](capturas/responsive-360.jpg) · [Tablet 1024 × 768](capturas/responsive-1024.jpg).
 
-Na primeira inspeção, o diagnóstico excedia a altura da referência: nomes, larguras e densidade da tabela foram ajustados. Também foram ajustados o cabeçalho mobile, os ícones agrícolas e a representação em âmbar de operações ainda não aprovadas no gráfico MAPA. O menu mobile foi aberto e fechado no navegador.
+Na primeira inspeção, o diagnóstico excedia a altura da referência: nomes, larguras e densidade da tabela foram ajustados. Uma segunda comparação ajustou as alturas individuais dos banners, a densidade dos KPIs de Cadastros e a posição da ficha/foto de conferência. Também foram ajustados o cabeçalho mobile, os ícones agrícolas e a representação em âmbar de operações ainda não aprovadas no gráfico MAPA. O menu mobile foi aberto e fechado no navegador.
 
 ## Validação executada
 
@@ -74,3 +74,5 @@ O arquivo de sessão contém credenciais e deve ficar fora do Git. Não há rota
 8. **Responsividade autenticada:** as três resoluções foram inspecionadas no cenário isolado; falta percorrer todos os formulários preenchidos, com zoom, teclado e permissões reais. A suíte Playwright preparada precisa ser executada nessa sessão.
 
 **Não fazer merge ou promover para produção antes de resolver os itens de homologação e revisar as diferenças visuais.**
+
+O preview da Vercel é protegido. A consulta autorizada confirmou a tela de login MBA Labs; sem sessão de homologação, os fluxos privados não foram executados no preview. A proteção não foi desativada.

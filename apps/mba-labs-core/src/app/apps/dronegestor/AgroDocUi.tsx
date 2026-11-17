@@ -16,13 +16,25 @@ export function AgroDocHero({
   title,
   description,
   large = false,
+  variant = "default",
 }: {
   title: ReactNode;
   description: string;
   large?: boolean;
+  variant?:
+    | "default"
+    | "diagnostic"
+    | "operations"
+    | "review"
+    | "reports"
+    | "documents"
+    | "registry"
+    | "settings";
 }) {
   return (
-    <section className={`agro-hero ${large ? "agro-hero-large" : ""}`}>
+    <section
+      className={`agro-hero agro-hero-${variant} ${large ? "agro-hero-large" : ""}`}
+    >
       <div>
         <h1>
           <Drone aria-hidden="true" />

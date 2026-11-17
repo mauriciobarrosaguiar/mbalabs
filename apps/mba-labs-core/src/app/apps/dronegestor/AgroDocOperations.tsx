@@ -90,6 +90,7 @@ export function AgroDocOperations({
     return (
       <>
         <AgroDocHero
+          variant="operations"
           title="Minhas operações"
           description="Ordens atribuídas a você, execução em campo e acompanhamento dos registros."
         />
@@ -99,6 +100,7 @@ export function AgroDocOperations({
   return (
     <>
       <AgroDocHero
+        variant="operations"
         large
         title="Operações"
         description="Ordens de serviço, execução em campo e acompanhamento das aplicações."

@@ -36,6 +36,7 @@ export function AgroDocRegistry() {
   return (
     <>
       <AgroDocHero
+        variant="registry"
         title="Cadastros"
         description="Bases reutilizáveis da operação: drones, equipe, propriedades e clientes."
       />

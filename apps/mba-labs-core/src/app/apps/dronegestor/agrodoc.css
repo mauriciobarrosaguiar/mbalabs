@@ -1691,3 +1691,77 @@
     overflow-y: auto;
   }
 }
+/* Banner dimensions follow each supplied desktop reference. */
+@media (min-width: 1025px) {
+  .agro-hero-reports {
+    height: 193px;
+    min-height: 193px;
+  }
+  .agro-hero-documents {
+    height: 159px;
+    min-height: 159px;
+  }
+  .agro-hero-registry {
+    height: 149px;
+    min-height: 149px;
+  }
+  .agro-hero-settings {
+    height: 113px;
+    min-height: 113px;
+  }
+  .agro-hero-review {
+    height: 138px;
+    min-height: 138px;
+  }
+  .agro-hero-operations.agro-hero-large {
+    height: 207px;
+    min-height: 207px;
+  }
+  .agro-hero-settings > div {
+    padding-block: 18px;
+  }
+  .agro-hero-settings h1 {
+    font-size: 36px !important;
+  }
+  .agro-hero-settings p {
+    font-size: 16px;
+  }
+  .agro-hero-reports p {
+    font-size: 21px;
+    max-width: 430px;
+  }
+  .agro-hero-registry + .agro-kpis .agro-kpi {
+    min-height: 80px;
+    padding: 12px;
+  }
+  .agro-hero-registry + .agro-kpis .agro-kpi strong {
+    font-size: 32px;
+  }
+  .agro-register-sections .agro-empty {
+    min-height: 80px;
+  }
+  .agro-diagnostic .agro-hero {
+    margin-bottom: 10px;
+  }
+  .agro-diagnostic-table input,
+  .agro-diagnostic-table select {
+    min-height: 23px;
+    padding-block: 2px;
+  }
+  .agro-diagnostic .agro-diagnostic-table td {
+    padding-block: 3px;
+    height: 30px;
+  }
+  .agro-review-columns
+    > .agro-stack:first-child
+    > .agro-card:first-child
+    > .agro-card-heading {
+    display: none;
+  }
+  .agro-review-photo {
+    height: 176px;
+  }
+}
+.agro-decision-actions {
+  flex-direction: row-reverse;
+}

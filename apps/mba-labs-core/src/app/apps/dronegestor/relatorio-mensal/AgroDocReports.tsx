@@ -108,6 +108,7 @@ export function AgroDocReports({ children }: { children: ReactNode }) {
   return (
     <>
       <AgroDocHero
+        variant="reports"
         title={
           <>
             Relatórios <em>MAPA</em>
