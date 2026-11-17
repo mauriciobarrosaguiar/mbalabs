@@ -73,7 +73,7 @@ export function AgroDocOperations({
     );
   const pageItems = filtered.slice(page * size, (page + 1) * size);
   const today = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
+    timeZone: "America/Araguaina",
   }).format(new Date());
   const agenda = items.filter((x) => x.dataPrevista?.startsWith(today));
   function openEditor() {
