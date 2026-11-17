@@ -174,7 +174,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
         }
         description="Central de arquivos, evidências, relatórios e comprovantes."
       />
-      <div className="agro-toolbar">
+      <div className="agro-toolbar agro-toolbar-documents">
         <input
           type="search"
           placeholder="Buscar documento"
