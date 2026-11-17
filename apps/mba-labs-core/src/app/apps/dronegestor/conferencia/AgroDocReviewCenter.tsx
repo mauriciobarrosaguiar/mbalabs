@@ -6,13 +6,14 @@ import { ArrowLeft, CheckCircle2, ClipboardCheck, FileSpreadsheet, RefreshCw, Tr
 
 type Product={nome?:string;dose?:number;unidade?:string};
 type Summary={ordemServicoNumero?:string;piloto?:string;clienteNome?:string;fazendaNome?:string;municipio?:string;uf?:string;areaConcluidaHa?:number;areaHa?:number;drone?:string;registroAnac?:string;cultura?:string;tipoAtividade?:string;produtos?:Product[];finalizadaEm?:string};
-type Review={status:"aprovado"|"correcao";category?:string;classe?:string;tipoAeronave?:string;tipoServico?:string;observacao?:string;reviewedByName?:string;reviewedAt?:string};
+type Review={status:"aprovado"|"correcao";category?:string;classe?:string;tipoAeronave?:string;tipoServico?:string;horasAplicacao?:string;observacao?:string;reviewedByName?:string;reviewedAt?:string};
 type Item={id:string;summary:Summary;review:Review|null};
-type Draft={category:string;classe:string;tipoAeronave:string;tipoServico:string;observacao:string};
+type Draft={category:string;classe:string;tipoAeronave:string;tipoServico:string;horasAplicacao:string;observacao:string};
+const serviceOptions=["APLICAÇÃO DE AGROTÓXICO","APLICAÇÃO DE BIOINSUMO","APLICAÇÃO DE FERTILIZANTE","APLICAÇÃO ADJUVANTE","SEMEADURA","OUTROS"];
 const categoryOptions=[{value:"",label:"Selecione a categoria"},{value:"agrotoxico",label:"Agrotóxico"},{value:"bioinsumo",label:"Bioinsumo"},{value:"outros",label:"Fertilizante, adjuvante ou outro"},{value:"semeadura",label:"Semeadura"}];
 function currentMonth(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`}
 function dateLabel(value?:string){return value?new Date(value).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"Data não informada"}
-function initial(item:Item):Draft{return {category:item.review?.category||"",classe:item.review?.classe||"",tipoAeronave:item.review?.tipoAeronave||"ARP",tipoServico:item.review?.tipoServico||item.summary.tipoAtividade||"",observacao:item.review?.observacao||""}}
+function initial(item:Item):Draft{return {category:item.review?.category||"",classe:item.review?.classe||"",tipoAeronave:item.review?.tipoAeronave||"Drone",tipoServico:item.review?.tipoServico||"",horasAplicacao:item.review?.horasAplicacao||"",observacao:item.review?.observacao||""}}
 function OperationRow({item,done}:{item:Item;done:()=>void}){
   const [draft,setDraft]=useState<Draft>(()=>initial(item));
   const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
@@ -46,16 +47,20 @@ function OperationRow({item,done}:{item:Item;done:()=>void}){
     {many&&<p className="mt-2 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900"><TriangleAlert className="mt-0.5 shrink-0" size={15}/>Mais de um produto na mesma operação: exportação automática bloqueada até conferir como lançar sem duplicar área e horas.</p>}
     <div className="mt-4 grid gap-3 md:grid-cols-2">
       <label className="text-xs font-bold text-slate-700">Categoria do produto
-        <select value={draft.category} onChange={e=>setDraft({...draft,category:e.target.value,classe:""})} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
+        <select value={draft.category} onChange={e=>{const c=e.target.value;setDraft({...draft,category:c,classe:"",tipoServico:c==="agrotoxico"?"APLICAÇÃO DE AGROTÓXICO":c==="bioinsumo"?"APLICAÇÃO DE BIOINSUMO":c==="semeadura"?"SEMEADURA":""})}} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
           {categoryOptions.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}
         </select></label>
       <label className="text-xs font-bold text-slate-700">Classe (conforme produto/receituário)
         <input value={draft.classe} onChange={e=>setDraft({...draft,classe:e.target.value})} placeholder="Ex.: Herbicida, Fungicida" className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm" /></label>
       <label className="text-xs font-bold text-slate-700">Tipo de aeronave (modelo MAPA)
-        <input value={draft.tipoAeronave} onChange={e=>setDraft({...draft,tipoAeronave:e.target.value})} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"/></label>
+        <select value={draft.tipoAeronave} onChange={e=>setDraft({...draft,tipoAeronave:e.target.value})} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"><option value="Drone">Drone</option><option value="Convencional">Convencional</option></select></label>
       <label className="text-xs font-bold text-slate-700">Tipo de serviço (modelo MAPA)
-        <input value={draft.tipoServico} onChange={e=>setDraft({...draft,tipoServico:e.target.value})} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"/></label>
+        <select value={draft.tipoServico} onChange={e=>setDraft({...draft,tipoServico:e.target.value})} className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"><option value="">Selecione o serviço</option>{serviceOptions.map(o=><option value={o} key={o}>{o}</option>)}</select></label>
     </div>
+    <label className="mt-3 block text-xs font-bold text-slate-700">Tempo efetivo de aplicação (HH:MM, sem pausas)
+      <input value={draft.horasAplicacao} onChange={e=>setDraft({...draft,horasAplicacao:e.target.value})} inputMode="numeric" placeholder="Ex.: 02:30" className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"/>
+      <span className="mt-1 block font-normal text-slate-500">Não use apenas o intervalo entre início e fim se houve paralisação; confira o registro do drone.</span>
+    </label>
     <label className="mt-3 block text-xs font-bold text-slate-700">Observação / motivo de correção
       <textarea value={draft.observacao} onChange={e=>setDraft({...draft,observacao:e.target.value})} rows={2} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="Oriente o piloto a corrigir os dados, caso necessário." />
     </label>
