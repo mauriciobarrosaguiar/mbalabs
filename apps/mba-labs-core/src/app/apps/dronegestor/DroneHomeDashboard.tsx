@@ -1,106 +1,351 @@
 "use client";
-
+import { AgroDocDroneIcon as Drone } from "./AgroDocDroneIcon";
 import Link from "next/link";
-import { BookOpenCheck, ChevronRight, ClipboardCheck, ClipboardList, Drone, FileSpreadsheet, FileText, FolderCheck, History, MapPinned, PlaneTakeoff, Rocket, Scale, Settings2, Sprout, Thermometer, Wind } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { DroneFirstOperationGuide } from "./DroneFirstOperationGuide";
-
-type Correction = {id:string;ordemServicoNumero:string;fazendaNome:string;motivo:string;revisadoEm?:string};
-type Mission = { area?:number; cultura?:string; alvo?:string; ordemServicoNumero?:string; fazendaNome?:string; talhaoNome?:string };
-type Weather = { temperature?:number; windSpeed?:number; capturedAt?:string };
-type Snapshot = { mission?:Mission; weather?:Weather; missionStatus?:string; status?:string };
-
-function localJson<T>(key:string, fallback:T):T { try { const raw=localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; } }
-function fmt(value:unknown, digits=1) { const n=Number(value); return Number.isFinite(n) ? new Intl.NumberFormat("pt-BR",{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(n) : "—"; }
-
-export function DroneHomeDashboard({ userName, canManage }: { userName:string; canManage:boolean }) {
-  const [snapshot,setSnapshot]=useState<Snapshot>({});
-  const [corrections,setCorrections]=useState<Correction[]>([]);
-  const firstName=(userName||"Piloto").split(" ")[0];
-
-  useEffect(()=>{
-    const fromLocal:Snapshot={
-      mission: localJson<Mission>("dronegestor:mission:v2",{}),
-      weather: localJson<Weather>("dronegestor:weather",{}),
-      missionStatus: localJson<string>("dronegestor:missionStatus:v4","rascunho")
+import {
+  CalendarDays,
+  ChartNoAxesColumn,
+  ChevronRight,
+  ClipboardCheck,
+  FileText,
+  Folder,
+  Leaf,
+  Search,
+  Send,
+  ShieldCheck,
+  TriangleAlert,
+  Upload,
+  Camera,
+  CloudSun,
+} from "lucide-react";
+import {
+  AgroDocCard,
+  AgroDocHero,
+  AgroDocKpiCard,
+  AgroDocEmpty,
+  AgroDocFlow,
+  AgroDocError,
+  useAgroData,
+  ROOT,
+} from "./AgroDocUi";
+import { useEffect, useState } from "react";
+type History = {
+  items?: {
+    id: string;
+    created_at: string;
+    detalhes?: { summary?: { finalizadaEm?: string } };
+  }[];
+};
+type Diagnostic = {
+  diagnostico?: {
+    checklist?: Record<string, { status: string; validade?: string }>;
+  };
+};
+type Corrections = {
+  items: { id: string; ordemServicoNumero: string; motivo: string }[];
+};
+type State = {
+  state?: {
+    mission?: { ordemServicoId?: string };
+    weather?: { temperature?: number; windSpeed?: number; capturedAt?: string };
+  };
+};
+export function DroneHomeDashboard({
+  userName,
+  canManage,
+}: {
+  userName: string;
+  canManage: boolean;
+}) {
+  const history = useAgroData<History>(
+      "/api/dronegestor/state?history=1&limit=500",
+    ),
+    diagnostic = useAgroData<Diagnostic>("/api/dronegestor/diagnostico"),
+    corrections = useAgroData<Corrections>(
+      "/api/dronegestor/minhas-pendencias",
+    ),
+    weather = useAgroData<State>("/api/dronegestor/state");
+  const activeOs = weather.data?.state?.mission?.ordemServicoId;
+  const recentDocs = useAgroData<{
+    items: { id: string; nome: string; uploadedAt: string }[];
+  }>(
+    activeOs
+      ? `/api/dronegestor/documentos?osId=${encodeURIComponent(activeOs)}`
+      : null,
+  );
+  const [months, setMonths] = useState(6),
+    [online, setOnline] = useState(true);
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    update();
+    window.addEventListener("online", update);
+    window.addEventListener("offline", update);
+    return () => {
+      window.removeEventListener("online", update);
+      window.removeEventListener("offline", update);
     };
-    setSnapshot(fromLocal);
-    void fetch("/api/dronegestor/state",{cache:"no-store"}).then(async response=>{
-      if(!response.ok) return;
-      const payload=await response.json().catch(()=>null);
-      const state=payload?.state && typeof payload.state==="object" ? payload.state as Snapshot : null;
-      if(state) setSnapshot((current)=>({ ...current, ...state, mission: state.mission ?? current.mission, weather: state.weather ?? current.weather }));
-    }).catch(()=>undefined);
-    void fetch("/api/dronegestor/minhas-pendencias",{cache:"no-store"}).then(async r=>{
-      if(!r.ok)return;const data=await r.json().catch(()=>null);
-      if(Array.isArray(data?.items))setCorrections(data.items);
-    }).catch(()=>undefined);
-  },[]);
-
-  const mission=snapshot.mission??{};
-  const weather=snapshot.weather??{};
-  const ended=["finalizada","pendente_sync"].includes(String(snapshot.missionStatus||""));
-  const hasMission=!ended&&Boolean(Number(mission.area)>0 || mission.cultura || mission.ordemServicoNumero);
-  const resumeText=useMemo(()=>[
-    Number(mission.area)>0 ? `${fmt(mission.area)} ha` : "",
-    mission.cultura?.trim(),
-    mission.alvo?.trim()
-  ].filter(Boolean).join(" • "),[mission.area,mission.cultura,mission.alvo]);
-
-  return <main className="min-h-screen bg-[#f4f8f1] px-4 pb-8 pt-5 text-[#143d31] sm:px-6 sm:pt-8">
-    <div className="mx-auto w-full max-w-5xl">
-      <section className="overflow-hidden rounded-[30px] bg-[radial-gradient(circle_at_82%_18%,rgba(42,163,112,.30),transparent_32%),linear-gradient(155deg,#074e36_0%,#003b2a_100%)] px-5 py-6 text-white shadow-[0_18px_40px_rgba(3,73,49,.12)] sm:px-8 sm:py-8">
-        <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-[.18em] text-[#f0fbf3]"><Sprout size={16}/> DroneGestor</div>
-        <h1 className="mt-5 text-[42px] font-black leading-[.96] tracking-[-.045em] sm:text-5xl">Olá,<br className="sm:hidden"/> {firstName}.</h1>
-        <p className="mt-5 max-w-2xl text-[15px] leading-7 text-[#d5e5dc] sm:text-base">Escolha o que vai fazer — o DroneGestor conduz a operação passo a passo.</p>
-
-        <div className="mt-6 grid grid-cols-2 gap-3 sm:max-w-lg">
-          <Metric icon={<Thermometer size={21}/>} value={weather.temperature!==undefined ? `${fmt(weather.temperature)}°C` : "—"} label="Modelo meteorológico"/>
-          <Metric icon={<Wind size={21}/>} value={weather.windSpeed!==undefined ? `${fmt(weather.windSpeed)} km/h` : "—"} label="Vento modelo 10 m"/>
+  }, []);
+  const checklist = Object.values(
+      diagnostic.data?.diagnostico?.checklist || {},
+    ),
+    applicable = checklist.filter((x) => x.status !== "nao_aplica"),
+    done = applicable.filter((x) => x.status === "concluido").length;
+  const pending = checklist.filter(
+      (x) => !["concluido", "nao_aplica"].includes(x.status),
+    ).length,
+    upcoming = checklist.filter(
+      (x) =>
+        x.validade &&
+        Date.parse(x.validade) >= Date.now() &&
+        Date.parse(x.validade) <= Date.now() + 30 * 86400000,
+    ).length;
+  const items = history.data?.items || [],
+    now = new Date(),
+    labels = Array.from(
+      { length: months },
+      (_, i) => new Date(now.getFullYear(), now.getMonth() - months + 1 + i, 1),
+    );
+  const series = labels.map((d) => ({
+    label: d.toLocaleDateString("pt-BR", { month: "short" }),
+    n: items.filter((x) => {
+      const date = new Date(x.detalhes?.summary?.finalizadaEm || x.created_at);
+      return (
+        date.getMonth() === d.getMonth() &&
+        date.getFullYear() === d.getFullYear()
+      );
+    }).length,
+  }));
+  const max = Math.max(1, ...series.map((x) => x.n));
+  const w = weather.data?.state?.weather;
+  return (
+    <>
+      <div className="agro-home agro-home-desktop">
+        <AgroDocHero
+          large
+          title={
+            <>
+              MBA <em>AgroDoc</em>
+            </>
+          }
+          description="Gestão e regularização de operações com drones agrícolas"
+        />
+        <div className="agro-kpis">
+          <AgroDocKpiCard
+            icon={ShieldCheck}
+            title="Status da regularização"
+            value={
+              diagnostic.data
+                ? applicable.length
+                  ? `${Math.round((done / applicable.length) * 100)}%`
+                  : "Sem dados"
+                : "—"
+            }
+            note="Conforme diagnóstico registrado"
+            href={`${ROOT}/diagnostico`}
+          />
+          <AgroDocKpiCard
+            icon={Drone}
+            title="Operações do mês"
+            value={history.data ? series.at(-1)?.n : "—"}
+            note="Registros finalizados do período"
+            href={`${ROOT}/gestao`}
+          />
+          <AgroDocKpiCard
+            icon={TriangleAlert}
+            title="Pendências"
+            value={diagnostic.data ? pending : "—"}
+            note="Itens do diagnóstico a conferir"
+            href={`${ROOT}/diagnostico`}
+          />
+          <AgroDocKpiCard
+            icon={CalendarDays}
+            title="Próximos vencimentos"
+            value={diagnostic.data ? upcoming : "—"}
+            note="Vencimentos nos próximos 30 dias"
+            href={`${ROOT}/diagnostico`}
+          />
         </div>
-      </section>
-
-      <DroneFirstOperationGuide canManage={canManage}/>
-      {corrections.length>0&&<section className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
-        <strong className="block text-base font-black">Há {corrections.length} operação(ões) com correção solicitada</strong>
-        <p className="mt-1 text-xs">O gestor/RT deixou orientações sobre os registros. Consulte a OS e solicite reabertura para reenviar os dados corrigidos.</p>
-        <div className="mt-3 grid gap-2">{corrections.map(item=><div key={item.id} className="rounded-xl border border-amber-200 bg-white p-3 text-sm">
-          <b>OS {item.ordemServicoNumero||item.id.slice(0,8)} · {item.fazendaNome||"Operação"}</b>
-          <p className="mt-1 text-xs leading-5">{item.motivo||"Consultar com o responsável"}</p>
-        </div>)}</div>
-        <Link href="/apps/dronegestor/fichas" className="mt-3 inline-block rounded-xl bg-amber-800 px-4 py-2 text-xs font-black text-white no-underline">Ver minhas operações</Link>
-      </section>}
-
-      {hasMission && <Link href="/apps/dronegestor/campo" className="mt-4 flex items-center gap-4 rounded-[24px] border border-[#9fd8b9] bg-[#d7f4df] p-4 no-underline shadow-[0_10px_24px_rgba(25,111,77,.09)] sm:p-5">
-        <span className="grid size-14 shrink-0 place-items-center rounded-[20px] bg-[#087a55] text-white"><ClipboardList size={25}/></span>
-        <span className="min-w-0 flex-1"><strong className="block text-lg font-black text-[#104b38]">Retomar missão</strong><span className="mt-1 block truncate text-sm text-[#5f776d]">{resumeText || mission.ordemServicoNumero || "Operação em preparação"}</span></span>
-        <ChevronRight size={24} className="shrink-0 text-[#087a55]"/>
-      </Link>}
-
-      {ended && <Link href="/apps/dronegestor/pacote-operacao" className="mt-4 flex items-center gap-4 rounded-[24px] border border-amber-200 bg-amber-50 p-4 no-underline shadow-sm sm:p-5"><span className="grid size-14 shrink-0 place-items-center rounded-[20px] bg-amber-600 text-white"><FolderCheck size={24}/></span><span className="min-w-0 flex-1"><strong className="block text-base font-black text-amber-950">Aplicação de campo concluída</strong><span className="mt-1 block text-sm text-amber-800">Confira documentos e pendências para encerrar a OS.</span></span><ChevronRight size={22} className="shrink-0 text-amber-700"/></Link>}
-
-      <div className="mb-3 mt-7 flex items-end justify-between gap-3 px-1"><h2 className="text-sm font-black uppercase tracking-[.18em] text-[#64756c]">O que você quer fazer</h2></div>
-      <section className="grid gap-3 sm:grid-cols-2">
-        <Action href="/apps/dronegestor/campo" icon={<Rocket size={25}/>} title="Começar ou continuar operação" text="Calda, segurança, equipamento, SARPAS, voo e conclusão em campo." primary/>
-        <Action href="/apps/dronegestor/gestao" icon={<ClipboardList size={25}/>} title={canManage?"Painel do gestor e OS":"Minhas ordens de serviço"} text={canManage?"Veja quem está aplicando, o que está parado, SARPAS pendente e OS que precisam de ação.":"Veja as ordens atribuídas a você e prepare a execução."}/>
-        <Action href="/apps/dronegestor/documentos" icon={<PlaneTakeoff size={25}/>} title="SARPAS e documentos" text="Acompanhe autorização, SISANT e anexos obrigatórios da OS."/>
-        <Action href="/apps/dronegestor/pacote-operacao" icon={<FolderCheck size={25}/>} title="Finalizar operação" text="Regularize pendências e encerre a OS somente quando o pacote estiver completo."/>
-        <Action href="/apps/dronegestor/diagnostico" icon={<ClipboardCheck size={25}/>} title="Diagnóstico e regularização" text="Registros da empresa, ANAC, MAPA, CREA, vencimentos e responsabilidades." />
-        {canManage && <Action href="/apps/dronegestor/conferencia" icon={<ClipboardCheck size={25}/>} title="Conferência AgroDoc" text="Aprove os voos e libere a exportação oficial do MAPA." />}
-        <Action href="/apps/dronegestor/regulacao" icon={<Scale size={25}/>} title="Segurança e regras" text="Consulte MAPA, ANAC, DECEA, regra estadual e padrão interno."/>
-        <Action href="/apps/dronegestor/fichas" icon={<History size={25}/>} title="Operações realizadas" text="Abra fichas, mapas, registros e histórico das aplicações."/>
-        <Action href="/apps/dronegestor/produtos" icon={<BookOpenCheck size={25}/>} title="Produtos e bulas" text="Busque produto e informações técnicas revisadas."/>
-        <Action href="/apps/dronegestor/relatorio-mensal" icon={<FileSpreadsheet size={25}/>} title="Relatório mensal MAPA" text="Consolide o mês, imprima e gere o XLSX para conferência/remessa."/>
-        {canManage && <Action href="/apps/dronegestor/equipamentos" icon={<Settings2 size={25}/>} title="Drones e equipamentos" text="Cadastre o drone uma vez e reutilize os parâmetros."/>}
-        {canManage && <Action href="/apps/dronegestor/perfil-operacional" icon={<FileText size={25}/>} title="Perfil operacional" text="Dados da empresa, operador e responsável técnico."/>}
-      </section>
-
-      <section className="mt-7 rounded-[26px] border border-[#dce8df] bg-white p-5 shadow-sm">
-        <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-2xl bg-[#e9f5ed] text-[#087a55]"><MapPinned size={21}/></span><div><strong className="block text-sm font-black text-[#103d2f]">Fluxo simples para quem está no campo</strong><p className="mt-1 text-xs leading-5 text-[#718078]">Local → drone → OS/piloto → calda → segurança → documentos/liberação → aplicação → pacote final. O sistema indica o próximo passo sem exigir que o piloto decore o processo.</p></div></div>
-      </section>
-    </div>
-  </main>;
+        <AgroDocError error={history.error || diagnostic.error} />
+        <AgroDocCard
+          title="Fluxo da regularização e operação com drones"
+          action={
+            <Link href={`${ROOT}/regulacao`}>Ver detalhes do fluxo ↗</Link>
+          }
+        >
+          <AgroDocFlow />
+        </AgroDocCard>
+        <div className="agro-home-bottom">
+          <AgroDocCard
+            title="Operações por mês"
+            icon={ChartNoAxesColumn}
+            action={
+              <select
+                aria-label="Período do gráfico"
+                value={months}
+                onChange={(e) => setMonths(Number(e.target.value))}
+              >
+                <option value={6}>Últimos 6 meses</option>
+                <option value={3}>Últimos 3 meses</option>
+              </select>
+            }
+          >
+            <div
+              className="agro-chart"
+              aria-label="Operações finalizadas por mês"
+            >
+              {series.map((x) => (
+                <div key={x.label}>
+                  <b>{history.data ? x.n : "—"}</b>
+                  <i style={{ height: `${(x.n / max) * 100}%` }} />
+                  <small>{x.label}</small>
+                </div>
+              ))}
+            </div>
+            <small style={{ marginTop: 20, color: "#5a685f" }}>
+              Histórico disponível: até 500 registros.{" "}
+              {canManage
+                ? "Visão conforme acesso da empresa."
+                : "Somente suas operações."}
+            </small>
+          </AgroDocCard>
+          <AgroDocCard title="Correções pendentes" icon={TriangleAlert}>
+            {corrections.data?.items.length ? (
+              corrections.data.items.slice(0, 3).map((x) => (
+                <Link className="agro-row" key={x.id} href={`${ROOT}/fichas`}>
+                  <FileText />
+                  <div>
+                    <b>{x.ordemServicoNumero || "Operação"}</b>
+                    <small>{x.motivo}</small>
+                  </div>
+                  <ChevronRight />
+                </Link>
+              ))
+            ) : (
+              <AgroDocEmpty>
+                {corrections.error || "Nenhuma correção solicitada para você."}
+              </AgroDocEmpty>
+            )}
+            <Link className="agro-soft-link" href={`${ROOT}/fichas`}>
+              Ver minhas operações <ChevronRight size={16} />
+            </Link>
+          </AgroDocCard>
+          <AgroDocCard title="Últimos documentos" icon={FileText}>
+            {recentDocs.data?.items.length ? (
+              recentDocs.data.items.slice(0, 3).map((d) => (
+                <Link
+                  className="agro-row"
+                  key={d.id}
+                  href={`${ROOT}/documentos?osId=${encodeURIComponent(activeOs || "")}`}
+                >
+                  <FileText />
+                  <div>
+                    <b>{d.nome}</b>
+                    <small>
+                      {new Date(d.uploadedAt).toLocaleDateString("pt-BR")}
+                    </small>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <AgroDocEmpty>
+                {recentDocs.error ||
+                  "Selecione uma OS para consultar os documentos autorizados."}
+              </AgroDocEmpty>
+            )}
+            <Link className="agro-soft-link" href={`${ROOT}/documentos`}>
+              Ver todos os documentos <ChevronRight size={16} />
+            </Link>
+          </AgroDocCard>
+        </div>
+      </div>
+      <div className="agro-pilot-mobile">
+        <div className="agro-pilot-hero">
+          <div className="agro-pilot-brand">
+            <Leaf /> MBA <em>AgroDoc</em>
+          </div>
+          <div className="agro-pilot-weather">
+            <b>Condições de voo</b>
+            <p>
+              {w?.temperature !== undefined
+                ? `${w.temperature} °C`
+                : "Temperatura não registrada"}{" "}
+              ·{" "}
+              {w?.windSpeed !== undefined
+                ? `${w.windSpeed} km/h`
+                : "Vento não registrado"}
+            </p>
+            <small>
+              {w?.capturedAt
+                ? `Modelo meteorológico · ${new Date(w.capturedAt).toLocaleString("pt-BR")}`
+                : "Confirme as condições no local antes do voo."}
+            </small>
+          </div>
+        </div>
+        <Link className="agro-pilot-register" href={`${ROOT}/campo`}>
+          <Drone /> Registrar operação <ChevronRight />
+        </Link>
+        {!online && (
+          <p role="status" className="agro-form-note">
+            Sem conexão. Continue no campo e acompanhe o estado de sincronização
+            antes de sair.
+          </p>
+        )}
+        <h2>Status das operações</h2>
+        <div className="agro-pilot-counts">
+          <Link href={`${ROOT}/fichas`}>
+            <b>{history.data ? items.length : "—"}</b>Finalizadas
+          </Link>
+          <Link href={`${ROOT}/gestao`}>
+            <b>Ver OS</b>Em andamento
+          </Link>
+          <Link href={`${ROOT}/fichas`}>
+            <b>{corrections.data?.items.length ?? "—"}</b>Com correção
+          </Link>
+        </div>
+        <Link className="agro-pilot-notice" href={`${ROOT}/fichas`}>
+          <TriangleAlert />
+          <div>
+            <b>Correções pendentes</b>
+            <small>
+              {corrections.data
+                ? `${corrections.data.items.length} operação(ões) para conferir`
+                : "Consultar minhas pendências"}
+            </small>
+          </div>
+          <ChevronRight />
+        </Link>
+        <Link className="agro-pilot-files" href={`${ROOT}/documentos`}>
+          <Upload />
+          <div>
+            <b>Enviar documentos</b>
+            <small>Receituário, mapas, fotos e evidências</small>
+          </div>
+          <ChevronRight />
+        </Link>
+        <section className="agro-pilot-flow">
+          <h2>Fluxo guiado da operação</h2>
+          <div className="agro-pilot-steps">
+            {[
+              { icon: Drone, label: "Dados da operação", path: "campo" },
+              { icon: CloudSun, label: "Condições climáticas", path: "campo" },
+              { icon: Camera, label: "Evidências", path: "documentos" },
+              {
+                icon: Send,
+                label: "Enviar para conferência",
+                path: "pacote-operacao",
+              },
+            ].map(({ icon: Icon, label, path }) => (
+              <Link key={path + label} href={`${ROOT}/${path}`}>
+                <Icon />
+                {label}
+              </Link>
+            ))}
+          </div>
+        </section>
+        <p style={{ marginTop: 16, fontSize: 12, color: "#5a7162" }}>
+          Olá, {userName.split(" ")[0]}. Seus registros e anexos seguem
+          vinculados à sua conta.
+        </p>
+      </div>
+    </>
+  );
 }
-
-function Metric({icon,value,label}:{icon:React.ReactNode;value:string;label:string}) { return <div className="rounded-[22px] bg-white/[.08] p-4"><span className="text-[#78d9a8]">{icon}</span><strong className="mt-3 block text-[22px] font-black tracking-[-.02em] text-white">{value}</strong><span className="mt-1 block text-[11px] leading-4 text-[#aec6ba]">{label}</span></div>; }
-function Action({href,icon,title,text,primary=false}:{href:string;icon:React.ReactNode;title:string;text:string;primary?:boolean}) { return <Link href={href} className={`group flex items-center gap-4 rounded-[24px] border p-4 no-underline shadow-[0_7px_20px_rgba(26,80,59,.055)] transition active:scale-[.99] sm:p-5 ${primary?"border-[#b7dfc5] bg-white":"border-[#dce6df] bg-white"}`}><span className={`grid size-12 shrink-0 place-items-center rounded-[18px] ${primary?"bg-[#e7f4eb] text-[#087a55]":"bg-[#f0f5f1] text-[#34735c]"}`}>{icon}</span><span className="min-w-0 flex-1"><strong className="block text-[16px] font-black leading-5 text-[#123d30]">{title}</strong><span className="mt-1 block text-[13px] leading-5 text-[#738078]">{text}</span></span><ChevronRight size={21} className="shrink-0 text-[#27805f]"/></Link>; }
