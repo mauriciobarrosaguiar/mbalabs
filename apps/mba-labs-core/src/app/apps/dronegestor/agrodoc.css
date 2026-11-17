@@ -1971,3 +1971,15 @@
   .agro-toolbar > select { font-size: 12px; }
   .agro-profile-page > div > header h1 { font-size: 21px; }
 }
+
+/* Horizontal data tables remain scrollable inside cards, not across the entire page. */
+.agro-mobile-table-hint { display: none; }
+@media (max-width: 767px) {
+  .agro-mobile-table-hint {
+    display: block;
+    color: #466b58;
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0 0 7px;
+  }
+}
