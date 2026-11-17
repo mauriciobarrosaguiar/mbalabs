@@ -43,6 +43,7 @@ type Diagnostic = {
 type Corrections = {
   items: { id: string; ordemServicoNumero: string; motivo: string }[];
 };
+type AssignedOrders = {items?: {entityId:string;data?:{status?:string}}[]};
 type State = {
   state?: {
     mission?: { ordemServicoId?: string };
@@ -63,7 +64,8 @@ export function DroneHomeDashboard({
     corrections = useAgroData<Corrections>(
       "/api/dronegestor/minhas-pendencias",
     ),
-    weather = useAgroData<State>("/api/dronegestor/state");
+    weather = useAgroData<State>("/api/dronegestor/state"),
+    assignedOrders = useAgroData<AssignedOrders>("/api/dronegestor/cadastros?type=os");
   const activeOs = weather.data?.state?.mission?.ordemServicoId;
   const recentDocs = useAgroData<{
     items: { id: string; nome: string; uploadedAt: string }[];
@@ -116,6 +118,15 @@ export function DroneHomeDashboard({
   }));
   const max = Math.max(1, ...series.map((x) => x.n));
   const w = weather.data?.state?.weather;
+  const weatherTimestamp = w?.capturedAt ? Date.parse(w.capturedAt) : Number.NaN;
+  const weatherFresh = Number.isFinite(weatherTimestamp) && weatherTimestamp <= Date.now() && (Date.now()-weatherTimestamp) < 30*60*1000;
+  const activeOrderStatuses = new Set(["aberta","preparacao","em_preparacao","em_execucao","suspensa"]);
+  const orderIds = new Set<string>();
+  const activeOrdersCount = assignedOrders.data ? (assignedOrders.data.items ?? []).filter(x => {
+    if (!x.entityId || orderIds.has(x.entityId)) return false;
+    orderIds.add(x.entityId);
+    return activeOrderStatuses.has(String(x.data?.status || ""));
+  }).length : "—";
   return (
     <>
       <div className="agro-home agro-home-desktop">
@@ -265,18 +276,16 @@ export function DroneHomeDashboard({
           <div className="agro-pilot-weather">
             <b>Condições de voo</b>
             <p>
-              {w?.temperature !== undefined
-                ? `${w.temperature} °C`
-                : "Temperatura não registrada"}{" "}
-              ·{" "}
-              {w?.windSpeed !== undefined
-                ? `${w.windSpeed} km/h`
-                : "Vento não registrado"}
+              {weatherFresh
+                ? `${w?.temperature ?? "—"} °C · ${w?.windSpeed ?? "—"} km/h`
+                : "Dados meteorológicos desatualizados"}
             </p>
             <small>
-              {w?.capturedAt
-                ? `Modelo meteorológico · ${new Date(w.capturedAt).toLocaleString("pt-BR")}`
-                : "Confirme as condições no local antes do voo."}
+              {weatherFresh && w?.capturedAt
+                ? `Modelo meteorológico · ${new Date(w.capturedAt).toLocaleString("pt-BR")} · Confirme no local`
+                : w?.capturedAt
+                  ? `Último registro: ${new Date(w.capturedAt).toLocaleString("pt-BR")}. Atualize antes do voo.`
+                  : "Sem registro recente. Confirme as condições no local antes do voo."}
             </small>
           </div>
         </div>
@@ -295,7 +304,7 @@ export function DroneHomeDashboard({
             <b>{history.data ? items.length : "—"}</b>Finalizadas
           </Link>
           <Link href={`${ROOT}/gestao`}>
-            <b>Ver OS</b>Em andamento
+            <b>{activeOrdersCount}</b>Em andamento
           </Link>
           <Link href={`${ROOT}/fichas`}>
             <b>{corrections.data?.items.length ?? "—"}</b>Com correção
