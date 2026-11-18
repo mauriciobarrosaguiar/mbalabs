@@ -58,7 +58,7 @@ create unique index if not exists agrodoc_cloud_files_idempotency
   where sha256 is not null and status in ('pending','synced');
 create unique index if not exists agrodoc_cloud_pending_fingerprint
   on public.agrodoc_cloud_files(owner_type, owner_id, os_id, category, client_fingerprint)
-  where client_fingerprint is not null and status = 'pending';
+  where client_fingerprint is not null and status in ('pending','synced');
 create index if not exists agrodoc_cloud_files_os
   on public.agrodoc_cloud_files(owner_type,owner_id,os_id,created_at desc);
 create table if not exists public.agrodoc_cloud_events (

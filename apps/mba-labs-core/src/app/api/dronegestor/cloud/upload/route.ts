@@ -70,6 +70,19 @@ export async function POST(request:NextRequest) {
     const c=await cloudContext();
     await checkUploadPermission(c);
     const body=await request.json().catch(()=>({})) as Input;
+    if(body.action==="restart"){
+      const doc=await fetchRecord(c,String(body.documentId||""));
+      await checkOs(c,doc.os_id);
+      if(doc.status!=="pending")throw new CloudError("Esta tentativa não está pendente.",409);
+      const {error}=await cloudScope(cloudDb().from("agrodoc_cloud_files").update({
+        status:"failed",upload_session_encrypted:null,
+        last_error:"Sessão de envio expirada; substituída por nova tentativa.",
+        updated_at:new Date().toISOString()
+      }),c).eq("id",doc.id).eq("status","pending");
+      if(error)throw error;
+      await cloudEvent(c,"upload_session_restarted",doc.id);
+      return NextResponse.json({ok:true,restarted:true});
+    }
     if(body.action==="complete"){
       const doc=await fetchRecord(c,String(body.documentId||""));
       await checkOs(c,doc.os_id);
@@ -110,7 +123,7 @@ export async function POST(request:NextRequest) {
       const {data:duplicates,error:e}=await cloudScope(db.from("agrodoc_cloud_files").select("id,status,upload_session_encrypted"),c)
                 .eq("os_id",osId).eq("category",category)
         .eq(sha?"sha256":"client_fingerprint",sha||fingerprint)
-        .in("status",sha?["pending","synced"]:["pending"]).limit(1);
+        .in("status",["pending","synced"]).limit(1);
       if(e)throw e;
       if(duplicates?.length)return NextResponse.json({
         ok:true,duplicate:true,id:duplicates[0].id,status:duplicates[0].status,

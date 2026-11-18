@@ -17,7 +17,7 @@ async function request(body:Record<string,unknown>):Promise<UploadResult>{
 }
 export async function uploadAgroDocToDrive(input:{
   file:File;osId:string;category:string;onProgress?:(value:number)=>void
-}){
+}, retrying=false){
   const {file,osId,category,onProgress}=input;
   const mimeType=MIME[file.name.split(".").pop()?.toLowerCase()||""];
   if(!mimeType)throw new Error("Tipo inválido. Use PDF, imagens, XLSX, MP4, MOV, ZIP, KML ou KMZ.");
@@ -38,7 +38,11 @@ export async function uploadAgroDocToDrive(input:{
       const range=status.headers.get("range");
       if(range){const match=/bytes=0-(\d+)/.exec(range);if(!match)throw new Error("Faixa inválida.");position=Number(match[1])+1;}
     }else if(status.ok)position=file.size;
-    else throw new Error("Sessão expirada. Verifique envios pendentes.");
+    else if([404,410].includes(status.status)&&!retrying){
+      await request({action:"restart",documentId:start.id});
+      onProgress?.(0);
+      return uploadAgroDocToDrive(input,true);
+    }else throw new Error("Sessão de envio inválida. Atualize a lista de pendências.");
   }
   const chunk=4*1024*1024;
   while(position<file.size){
@@ -51,6 +55,11 @@ export async function uploadAgroDocToDrive(input:{
         body:file.slice(position,end)
       });
     }catch{throw new Error("Internet interrompida. Selecione o mesmo arquivo para retomar.");}
+    if([404,410].includes(response.status)&&!retrying){
+      await request({action:"restart",documentId:start.id});
+      onProgress?.(0);
+      return uploadAgroDocToDrive(input,true);
+    }
     if(response.status!==308&&!response.ok)throw new Error("Drive recusou envio HTTP "+response.status);
     if(response.status===308){
       const range=response.headers.get("range");
