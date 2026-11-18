@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { AgroDocOperationalSettings } from "./AgroDocOperationalSettings";
+import { AgroDocCloudStorage } from "./AgroDocCloudStorage";
 import {
   Bell,
   Settings,
@@ -31,6 +32,7 @@ export function AgroDocSettings({ canManage }: { canManage: boolean }) {
           {[
             { id: "agro-general", label: "Geral", icon: Settings },
             { id: "agro-integrations", label: "Integrações", icon: LinkIcon },
+            { id: "agro-cloud", label: "Armazenamento em nuvem", icon: Folder },
             { id: "agro-notifications", label: "Notificações", icon: Bell },
             { id: "agro-permissions", label: "Permissões", icon: Users },
             {
@@ -109,6 +111,7 @@ export function AgroDocSettings({ canManage }: { canManage: boolean }) {
               </Link>
             </AgroDocCard>
           </div>
+          <div id="agro-cloud"><AgroDocCloudStorage /></div>
           <div id="agro-official">
             <OfficialMapTemplateManager />
             <p style={{ fontSize: 12, color: "#586c5d", padding: "0 16px" }}>

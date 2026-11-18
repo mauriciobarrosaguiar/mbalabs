@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { uploadAgroDocToDrive } from "@/lib/agrodoc-cloud-upload-client";
 import { useState, useEffect, type ReactNode, useRef } from "react";
 import {
   Folder,
@@ -35,7 +36,7 @@ type Doc = {
 };
 const folders = [
   { label: "Todos", types: [] },
-  { label: "Relatórios operacionais", types: ["relatorio_mapa"] },
+  { label: "Relatórios operacionais", types: ["relatorio_mapa","relatorio_operacional"] },
   {
     label: "Comprovantes",
     types: [
@@ -48,7 +49,8 @@ const folders = [
   },
   { label: "Mapas de aplicação", types: ["mapa_aplicacao"] },
   { label: "Receituários agronômicos", types: ["receituario"] },
-  { label: "Fotos e evidências", types: ["outro", "avaliacao_risco"] },
+  { label: "Fotos e evidências", types: ["outro", "avaliacao_risco","foto","video"] },
+  { label: "Histórico de voo", types: ["historico_voo"] },
 ];
 export function AgroDocDocuments({ children }: { children: ReactNode }) {
   const orders = useAgroData<{ items: Order[] }>(
@@ -65,8 +67,16 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
     [type, setType] = useState("outro"),
     [file, setFile] = useState<File | null>(null),
     [busy, setBusy] = useState(false),
+    [progress,setProgress] = useState<number|null>(null),
+    [cloudAvailable,setCloudAvailable] = useState(false),
     [reload, setReload] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    fetch("/api/dronegestor/cloud",{cache:"no-store"})
+      .then(async r=>r.ok?await r.json():null)
+      .then(p=>setCloudAvailable(p?.google?.status==="connected"))
+      .catch(()=>setCloudAvailable(false));
+  },[]);
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("osId");
     if (id) setOs(id);
@@ -114,20 +124,24 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
     setBusy(true);
     setError("");
     try {
-      const fd = new FormData();
-      fd.append("arquivo", file);
-      fd.append("tipo", type);
-      fd.append("ordemServicoId", os);
-      fd.append(
-        "ordemServicoNumero",
-        orders.data?.items.find((x) => x.entityId === os)?.data.numero || "",
-      );
-      const r = await fetch("/api/dronegestor/documentos", {
-          method: "POST",
-          body: fd,
-        }),
-        p = await r.json();
-      if (!r.ok) throw new Error(p.error || "Falha ao enviar.");
+      const statusResponse=await fetch("/api/dronegestor/cloud",{cache:"no-store"});
+      if(!statusResponse.ok)throw new Error("Não foi possível confirmar o armazenamento escolhido. Tente novamente.");
+      const status=await statusResponse.json();
+      setCloudAvailable(status?.google?.status==="connected");
+      if(status?.google?.status!=="connected" && file.size > 10*1024*1024)throw new Error("Sem Google Drive conectado, o limite atual do Supabase é de 10 MB.");
+      if(status?.google?.status==="connected"){
+        setProgress(0);
+        await uploadAgroDocToDrive({file,osId:os,category:type,onProgress:setProgress});
+      }else{
+        const fd=new FormData();
+        fd.append("arquivo",file);
+        fd.append("tipo",type);
+        fd.append("ordemServicoId",os);
+        fd.append("ordemServicoNumero",orders.data?.items.find((x)=>x.entityId===os)?.data.numero||"");
+        const r=await fetch("/api/dronegestor/documentos",{method:"POST",body:fd});
+        const p=await r.json();
+        if(!r.ok)throw new Error(p.error||"Falha ao enviar.");
+      }
       setReload((v) => v + 1);
       setFile(null);
       setUpload(false);
@@ -135,6 +149,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
       setError(e instanceof Error ? e.message : "Erro no upload");
     } finally {
       setBusy(false);
+      setProgress(null);
     }
   }
   async function openDocument(doc: Doc, download = false) {
@@ -405,7 +420,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
           <b>Arraste arquivos ou clique para anexar</b>
         </button>
         <small>
-          PDF, JPG, PNG, WebP e XLSX · até 10 MB por arquivo · OS obrigatória
+          Arquivos autorizados · Google Drive até 2 GB; Supabase até 10 MB · OS obrigatória
         </small>
       </div>
       {upload && (
@@ -427,6 +442,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
               "seguro",
               "exame_piloto_anac",
               "avaliacao_risco",
+              ...(cloudAvailable?["foto","video","historico_voo","relatorio_operacional"]:[]),
             ].map((t) => (
               <option key={t}>{t}</option>
             ))}
@@ -434,24 +450,26 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
           <input
             ref={fileRef}
             type="file"
-            accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx"
+            accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.mp4,.mov,.zip,.kml,.kmz"
             onChange={(e) => setFile(e.target.files?.[0] || null)}
           />
           {file && <p>{file.name}</p>}
+          {!cloudAvailable && <p className="agro-form-note">Sem Drive conectado, anexos são armazenados no Supabase (até 10 MB).</p>}
+          {progress!==null && <p role="status">Google Drive: {progress}% enviado</p>}
           <button
             className="agro-button agro-button-primary"
             disabled={
               !file ||
               !os ||
               busy ||
-              Boolean(file && file.size > 10 * 1024 * 1024)
+              Boolean(file && file.size > 2 * 1024 * 1024 * 1024)
             }
             onClick={() => void send()}
           >
             {busy ? "Enviando..." : "Enviar arquivo"}
           </button>
-          {file && file.size > 10 * 1024 * 1024 && (
-            <p role="alert">Arquivo maior que 10 MB.</p>
+          {file && file.size > 2 * 1024 * 1024 * 1024 && (
+            <p role="alert">Arquivo maior que 2 GB.</p>
           )}
           <button className="agro-button" onClick={() => setUpload(false)}>
             Cancelar
