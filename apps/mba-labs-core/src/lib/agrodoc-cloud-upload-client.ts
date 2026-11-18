@@ -17,7 +17,7 @@ async function request(body:Record<string,unknown>):Promise<UploadResult>{
 }
 export async function uploadAgroDocToDrive(input:{
   file:File;osId:string;category:string;onProgress?:(value:number)=>void
-}, retrying=false){
+}, retrying=false):Promise<UploadResult>{
   const {file,osId,category,onProgress}=input;
   const mimeType=MIME[file.name.split(".").pop()?.toLowerCase()||""];
   if(!mimeType)throw new Error("Tipo inválido. Use PDF, imagens, XLSX, MP4, MOV, ZIP, KML ou KMZ.");
@@ -75,4 +75,6 @@ export async function uploadAgroDocToDrive(input:{
     try{const p=await request({action:"complete",documentId:start.id});onProgress?.(100);return p;}
     catch(e){if(n===2)throw e;await new Promise(ok=>setTimeout(ok,800*(n+1)));}
   }
+
+  throw new Error("Confirmação do upload não foi concluída.");
 }
