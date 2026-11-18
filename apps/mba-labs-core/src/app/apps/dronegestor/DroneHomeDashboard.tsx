@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenCheck, ChevronRight, ClipboardList, Drone, FileSpreadsheet, FileText, FolderCheck, History, MapPinned, PlaneTakeoff, Rocket, Scale, Settings2, Sprout, Thermometer, Wind } from "lucide-react";
+import { BookOpenCheck, ChevronRight, ClipboardCheck, ClipboardList, Drone, FileSpreadsheet, FileText, FolderCheck, History, MapPinned, PlaneTakeoff, Rocket, Scale, Settings2, Sprout, Thermometer, Wind } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { DroneFirstOperationGuide } from "./DroneFirstOperationGuide";
 
+type Correction = {id:string;ordemServicoNumero:string;fazendaNome:string;motivo:string;revisadoEm?:string};
 type Mission = { area?:number; cultura?:string; alvo?:string; ordemServicoNumero?:string; fazendaNome?:string; talhaoNome?:string };
 type Weather = { temperature?:number; windSpeed?:number; capturedAt?:string };
 type Snapshot = { mission?:Mission; weather?:Weather; missionStatus?:string; status?:string };
@@ -14,6 +15,7 @@ function fmt(value:unknown, digits=1) { const n=Number(value); return Number.isF
 
 export function DroneHomeDashboard({ userName, canManage }: { userName:string; canManage:boolean }) {
   const [snapshot,setSnapshot]=useState<Snapshot>({});
+  const [corrections,setCorrections]=useState<Correction[]>([]);
   const firstName=(userName||"Piloto").split(" ")[0];
 
   useEffect(()=>{
@@ -28,6 +30,10 @@ export function DroneHomeDashboard({ userName, canManage }: { userName:string; c
       const payload=await response.json().catch(()=>null);
       const state=payload?.state && typeof payload.state==="object" ? payload.state as Snapshot : null;
       if(state) setSnapshot((current)=>({ ...current, ...state, mission: state.mission ?? current.mission, weather: state.weather ?? current.weather }));
+    }).catch(()=>undefined);
+    void fetch("/api/dronegestor/minhas-pendencias",{cache:"no-store"}).then(async r=>{
+      if(!r.ok)return;const data=await r.json().catch(()=>null);
+      if(Array.isArray(data?.items))setCorrections(data.items);
     }).catch(()=>undefined);
   },[]);
 
@@ -55,6 +61,15 @@ export function DroneHomeDashboard({ userName, canManage }: { userName:string; c
       </section>
 
       <DroneFirstOperationGuide canManage={canManage}/>
+      {corrections.length>0&&<section className="mt-4 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950">
+        <strong className="block text-base font-black">Há {corrections.length} operação(ões) com correção solicitada</strong>
+        <p className="mt-1 text-xs">O gestor/RT deixou orientações sobre os registros. Consulte a OS e solicite reabertura para reenviar os dados corrigidos.</p>
+        <div className="mt-3 grid gap-2">{corrections.map(item=><div key={item.id} className="rounded-xl border border-amber-200 bg-white p-3 text-sm">
+          <b>OS {item.ordemServicoNumero||item.id.slice(0,8)} · {item.fazendaNome||"Operação"}</b>
+          <p className="mt-1 text-xs leading-5">{item.motivo||"Consultar com o responsável"}</p>
+        </div>)}</div>
+        <Link href="/apps/dronegestor/fichas" className="mt-3 inline-block rounded-xl bg-amber-800 px-4 py-2 text-xs font-black text-white no-underline">Ver minhas operações</Link>
+      </section>}
 
       {hasMission && <Link href="/apps/dronegestor/campo" className="mt-4 flex items-center gap-4 rounded-[24px] border border-[#9fd8b9] bg-[#d7f4df] p-4 no-underline shadow-[0_10px_24px_rgba(25,111,77,.09)] sm:p-5">
         <span className="grid size-14 shrink-0 place-items-center rounded-[20px] bg-[#087a55] text-white"><ClipboardList size={25}/></span>
@@ -70,6 +85,8 @@ export function DroneHomeDashboard({ userName, canManage }: { userName:string; c
         <Action href="/apps/dronegestor/gestao" icon={<ClipboardList size={25}/>} title={canManage?"Painel do gestor e OS":"Minhas ordens de serviço"} text={canManage?"Veja quem está aplicando, o que está parado, SARPAS pendente e OS que precisam de ação.":"Veja as ordens atribuídas a você e prepare a execução."}/>
         <Action href="/apps/dronegestor/documentos" icon={<PlaneTakeoff size={25}/>} title="SARPAS e documentos" text="Acompanhe autorização, SISANT e anexos obrigatórios da OS."/>
         <Action href="/apps/dronegestor/pacote-operacao" icon={<FolderCheck size={25}/>} title="Finalizar operação" text="Regularize pendências e encerre a OS somente quando o pacote estiver completo."/>
+        <Action href="/apps/dronegestor/diagnostico" icon={<ClipboardCheck size={25}/>} title="Diagnóstico e regularização" text="Registros da empresa, ANAC, MAPA, CREA, vencimentos e responsabilidades." />
+        {canManage && <Action href="/apps/dronegestor/conferencia" icon={<ClipboardCheck size={25}/>} title="Conferência AgroDoc" text="Aprove os voos e libere a exportação oficial do MAPA." />}
         <Action href="/apps/dronegestor/regulacao" icon={<Scale size={25}/>} title="Segurança e regras" text="Consulte MAPA, ANAC, DECEA, regra estadual e padrão interno."/>
         <Action href="/apps/dronegestor/fichas" icon={<History size={25}/>} title="Operações realizadas" text="Abra fichas, mapas, registros e histórico das aplicações."/>
         <Action href="/apps/dronegestor/produtos" icon={<BookOpenCheck size={25}/>} title="Produtos e bulas" text="Busque produto e informações técnicas revisadas."/>

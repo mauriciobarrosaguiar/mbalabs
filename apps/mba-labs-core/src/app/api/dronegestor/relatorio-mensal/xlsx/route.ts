@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
 import { getSessionProfile } from "@/lib/core-data";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ async function context():Promise<{current:Context|null;response:NextResponse|nul
   const master=["super_admin","admin_master"].includes(type);
   const allowed=(session.appsLiberados??[]).some(app=>app.slug==="dronegestor"&&app.canAccess);
   if(!master&&!allowed)return{current:null,response:NextResponse.json({ok:false,error:"Acesso ao DroneGestor não liberado."},{status:403})};
-  return{current:{userId:session.profile.id,userName:session.profile.nome||"Piloto",userType:session.profile.tipo,empresaId:session.profile.empresa_id,companyHistory:master||["admin_empresa","responsavel_tecnico","rt"].includes(type)},response:null};
+  return{current:{userId:session.profile.id,userName:session.profile.nome||"Piloto",userType:session.profile.tipo,empresaId:session.profile.empresa_id,companyHistory:canManageDroneGestor({tipo:session.profile.tipo,isAdminMaster:master,permissoes:session.permissoes})},response:null};
 }
 function scope(query:any,current:Context){return current.companyHistory&&current.empresaId?query.eq("empresa_id",current.empresaId):query.eq("usuario_id",current.userId);}
 function ownerScope(query:any,current:Context){return current.empresaId?query.eq("empresa_id",current.empresaId):query.eq("usuario_id",current.userId);}
@@ -96,35 +97,65 @@ function setAdjacent(ws:ExcelJS.Worksheet,labels:string[],value:string){
     if(labels.some(label=>t.includes(label))){const target=ws.getCell(row,col+1);if(!cellString(target.value).trim())target.value=value;return;}
   }
 }
-function populateOfficialTemplate(workbook:ExcelJS.Workbook,rows:ReportRow[],p:Record<string,any>,month:string){
-  let found:{ws:ExcelJS.Worksheet;row:number;map:Record<string,number>}|null=null;
-  for(const ws of workbook.worksheets){const h=headerMap(ws);if(h){found={ws,row:h.row,map:h.map};break;}}
-  if(!found)return false;
-  const {ws,row:headerRow,map}=found;
-  setAdjacent(ws,["operador aeroagricola","razao social","operador"],text(p.operadorNome));
-  setAdjacent(ws,["registro mapa","sipeagro"],text(p.registroMapa));
-  setAdjacent(ws,["processo sei"],text(p.processoSei));
-  setAdjacent(ws,["responsavel tecnico"],text(p.rtNome));
-  setAdjacent(ws,["competencia","mes referencia"],month);
-  const keys:[keyof ReportRow,string][]=[["municipioUf","municipioUf"],["arp","arp"],["area","area"],["horas","horas"],["atividade","atividade"],["produto","produto"],["volume","volume"],["dose","dose"]];
-  const templateRow=ws.getRow(headerRow+1);
-  const dataRows=rows.length?rows:[{municipioUf:"NENHUMA ATIVIDADE REALIZADA",arp:"",area:0,horas:0,atividade:"",produto:"",volume:0,dose:""}];
-  dataRows.forEach((item,index)=>{
-    const row=headerRow+1+index;
-    for(const [key,mapKey] of keys){
-      const col=map[mapKey];
-      if(!col)continue;
-      const cell=ws.getCell(row,col);
-      if(row!==headerRow+1&&templateRow.getCell(col).style)cell.style={...templateRow.getCell(col).style};
-      const value=item[key];
-      cell.value=typeof value==="number"?(value||null):value;
-      if(typeof value==="number")cell.numFmt="0.00";
-    }
-  });
-  ws.pageSetup.orientation="landscape";
-  ws.pageSetup.fitToPage=true;
-  ws.pageSetup.fitToWidth=1;
-  return true;
+type OfficialRow = {
+ uf:string;municipio:string;tipoAeronave:string;prefixo:string;horasAplicacao:number;
+ cultura:string;tipoServico:string;classeAgro:string;classeBio:string;area:number;
+ agrotoxico:string;bioinsumo:string;outros:string;semeadura:string;
+ horasIncendio:number|null;volumeLHa:number|null;dosagem:number;unidade:string;
+};
+const MONTH_SHEETS=["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"] as const;
+const OFFICIAL_COLUMNS=["UF","MUNICÍPIO","TIPO AERONAVE","PREFIXO AERONAVE","HORAS APLICAÇÃO","CULTURA","TIPO DE SERVIÇO",
+ "CLASSE AGROTÓXICOS","CLASSE BIOINSUMO","ÁREA (ha)","AGROTÓXICO","BIOINSUMO","FERTILIZANTES/ADJUVANTES/OUTROS",
+ "SEMEADURA","COMBATE A INCÊNDIO (HORAS)","VOLUME (l/ha)","DOSAGEM","Unidade"];
+function reportMonth(date:string){
+ const t=Date.parse(date);if(!Number.isFinite(t))return "";
+ const parts=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Araguaina",year:"numeric",month:"2-digit"}).formatToParts(new Date(t));
+ return `${parts.find(p=>p.type==="year")?.value}-${parts.find(p=>p.type==="month")?.value}`;
+}
+function hhmm(value:string){
+ const m=/^(\d{1,3}):([0-5]\d)$/.exec(value);
+ if(!m||Number(m[1])===0&&Number(m[2])===0)throw new Error("Informe o tempo efetivo HH:MM para cada operação (sem intervalos).");
+ return Number(m[1])*100+Number(m[2]);
+}
+function populateOfficialTemplate(workbook:ExcelJS.Workbook,rows:OfficialRow[],p:Record<string,any>,month:string){
+ const match=/^2026-(0[1-9]|1[0-2])$/.exec(month);
+ if(!match)throw new Error("Este modelo é exclusivo de 2026. Para outro ano, cadastre o modelo atualizado do MAPA.");
+ const jan=workbook.getWorksheet("JAN"),total=workbook.getWorksheet("TOTAL");
+ const ws=workbook.getWorksheet(MONTH_SHEETS[Number(match[1])-1]);
+ if(!jan||!total||!ws||!workbook.getWorksheet("UF_MUN")||!workbook.getWorksheet("Outras Listas")||!workbook.getWorksheet("Plan2"))
+   throw new Error("O arquivo carregado não corresponde à estrutura oficial de 2026.");
+ for(let col=1;col<=18;col++){
+   if(normalizedWords(cellString(ws.getCell(5,col).value))!==normalizedWords(OFFICIAL_COLUMNS[col-1]))
+     throw new Error(`Modelo MAPA incompatível: cabeçalho ${ws.name}!${col}5 divergente.`);
+ }
+ if(rows.length>995)throw new Error("Mais de 995 lançamentos no mês. Não é possível preencher a planilha sem alterar o modelo.");
+ // Nunca misturar dados preexistentes ou de outra empresa. O arquivo base deve estar vazio.
+ for(const sheetName of MONTH_SHEETS){
+   const sheet=workbook.getWorksheet(sheetName)!;
+   for(let row=6;row<=1000;row++)for(let col=1;col<=18;col++){
+     const v=sheet.getCell(row,col).value;
+     if(v!==null&&v!==undefined&&v!=="")
+       throw new Error(`O modelo contém um lançamento prévio em ${sheetName} linha ${row}. Cadastre um modelo limpo.`);
+   }
+ }
+ // Dados de exemplo no arquivo não podem ser propagados: substituí-los sempre.
+ jan.getCell("C1").value=text(p.operadorNome);
+ jan.getCell("I1").value=text(p.email);
+ jan.getCell("C3").value=text(p.registroMapa);
+ jan.getCell("I3").value=text(p.telefone);
+ if(!text(p.operadorNome)||!text(p.registroMapa))throw new Error("Cadastre nome do operador e registro MAPA no Perfil operacional antes de gerar a planilha.");
+ ws.getCell("A4").value=rows.length?"OPERAÇÕES NO MÊS":"NENHUMA ATIVIDADE REALIZADA";
+ const entries=(row:OfficialRow)=>[
+   row.uf,row.municipio,row.tipoAeronave,row.prefixo,row.horasAplicacao,row.cultura,row.tipoServico,
+   row.classeAgro||null,row.classeBio||null,row.area,row.agrotoxico||null,row.bioinsumo||null,row.outros||null,
+   row.semeadura||null,row.horasIncendio,row.volumeLHa,row.dosagem,row.unidade
+ ];
+ rows.forEach((item,i)=>{
+   const values=entries(item);const target=ws.getRow(i+6);
+   for(let col=1;col<=18;col++)target.getCell(col).value=values[col-1];
+ });
+ workbook.calcProperties.fullCalcOnLoad=true;
+ return workbook;
 }
 
 function buildFallback(rows:ReportRow[],p:Record<string,any>,month:string){
@@ -164,65 +195,73 @@ function buildFallback(rows:ReportRow[],p:Record<string,any>,month:string){
 }
 
 export async function GET(request:NextRequest){
-  try{
-    const access=await context();
-    if(access.response)return access.response;
-    const current=access.current!,admin=createSupabaseAdminClient() as any;
-    const month=text(request.nextUrl.searchParams.get("month"))||new Date().toISOString().slice(0,7);
-    const range=monthRange(month);
-
-    // O mês de competência é definido por summary.finalizadaEm (término real da aplicação),
-    // e não por core_logs.created_at (momento da sincronização/insert no servidor).
-    let query=admin.from("core_logs")
-      .select("id,detalhes,created_at")
-      .eq("app_slug","dronegestor")
-      .eq("acao",FINALIZED_ACTION)
-      .gte("detalhes->summary->>finalizadaEm",range.start)
-      .lt("detalhes->summary->>finalizadaEm",range.end)
-      .order("created_at",{ascending:true})
-      .limit(500);
-    query=scope(query,current);
-
-    const [{data,error},p,template]=await Promise.all([query,profile(admin,current),officialTemplate(admin,current)]);
-    if(error)throw error;
-
-    const rows:ReportRow[]=[];
-    for(const item of data??[]){
-      const summary=obj(item?.detalhes?.summary);
-      const products=Array.isArray(summary.produtos)&&summary.produtos.length?summary.produtos:[{}];
-      const area=num(summary.areaConcluidaHa??summary.areaHa);
-      const hours=durationHours(summary.iniciadaEm,summary.finalizadaEm);
-      const volume=num(summary.totalCaldaRealL??summary.totalCaldaL);
-      products.forEach((raw:any,index:number)=>{
-        const product=obj(raw);
-        rows.push({
-          municipioUf:[text(summary.municipio),text(summary.uf)].filter(Boolean).join("/")||"—",
-          arp:[text(summary.drone),text(summary.registroAnac)].filter(Boolean).join(" • ")||"—",
-          area:index===0?area:0,
-          horas:index===0?hours:0,
-          atividade:text(summary.tipoAtividade)||"—",
-          produto:text(product.nome)||"—",
-          volume:index===0?volume:0,
-          dose:`${num(product.dose).toFixed(2)} ${text(product.unidade)}`.trim()
-        });
-      });
-    }
-
-    let workbook:ExcelJS.Workbook;
-    let model="padrao-campos";
-    if(template){
-      const official=new ExcelJS.Workbook();
-      try{
-        await official.xlsx.load(template.bytes as any);
-        if(populateOfficialTemplate(official,rows,p,month)){workbook=official;model="oficial-uploadado";}
-        else workbook=buildFallback(rows,p,month);
-      }catch{workbook=buildFallback(rows,p,month);}
-    }else workbook=buildFallback(rows,p,month);
-
-    const buffer=await workbook.xlsx.writeBuffer();
-    const filename=model==="oficial-uploadado"?`relatorio-mensal-MAPA-oficial-${month}.xlsx`:`dronegestor-relatorio-mapa-${month}.xlsx`;
-    return new NextResponse(Buffer.from(buffer),{status:200,headers:{"Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet","Content-Disposition":"attachment; filename=\""+filename+"\"","Cache-Control":"private, no-store","X-DroneGestor-Modelo":model}});
-  }catch(error){
-    return NextResponse.json({ok:false,error:error instanceof Error?error.message:"Falha ao gerar XLSX."},{status:500});
-  }
+ try{
+   const access=await context();if(access.response)return access.response;
+   const current=access.current!,admin=createSupabaseAdminClient() as any;
+   if(!current.companyHistory)return NextResponse.json({error:"Somente gestor/RT autorizado pode exportar a planilha MAPA."},{status:403});
+   const month=text(request.nextUrl.searchParams.get("month"))||new Date().toISOString().slice(0,7);
+   monthRange(month);
+   if(!/^2026-(0[1-9]|1[0-2])$/.test(month))
+     return NextResponse.json({error:"Para esta exportação utilize o modelo MAPA 2026 e selecione um mês de 2026."},{status:422});
+   let events=admin.from("core_logs").select("id,detalhes,created_at").eq("app_slug","dronegestor")
+     .eq("acao",FINALIZED_ACTION).order("created_at",{ascending:true}).limit(3000);
+   let approvals=admin.from("core_logs").select("detalhes,created_at").eq("app_slug","dronegestor")
+     .eq("acao","operacao_revisao_mapa_2026_v1").order("created_at",{ascending:true}).limit(5000);
+   const [{data,error},revisions,p,template]=await Promise.all([
+     scope(events,current),scope(approvals,current),profile(admin,current),officialTemplate(admin,current)]);
+   if(error)throw error;if(revisions.error)throw revisions.error;
+   if(!template)return NextResponse.json({error:"Cadastre uma única vez o XLSX oficial de 2026 em Relatório mensal MAPA."},{status:422});
+   if((data??[]).length===3000)return NextResponse.json({error:"Histórico excedeu o limite seguro de extração. Solicite paginação."},{status:422});
+   if((revisions.data??[]).length===5000)return NextResponse.json({error:"Revisões excederam o limite seguro de extração. Solicite paginação."},{status:422});
+   const reviewById=new Map<string,Record<string,any>>();
+   for(const event of revisions.data??[]){
+     const r=obj(event.detalhes),id=text(r.operationEventId);
+     if(id)reviewById.set(id,r);
+   }
+   const selected=(data??[]).filter((event:any)=>{
+     const summary=obj(event.detalhes?.summary);
+     const timestamp=text(summary.finalizadaEm)||text(event.detalhes?.finalizedAt)||text(event.created_at);
+     return reportMonth(timestamp)===month;
+   });
+   const pending=selected.filter((event:any)=>reviewById.get(String(event.id))?.status!=="aprovado");
+   if(pending.length)return NextResponse.json({error:`Existem ${pending.length} operações sem aprovação válida. Revise-as na Central de conferência antes de exportar.`,pending:pending.length},{status:422});
+   const rows:OfficialRow[]=[];
+   for(const event of selected){
+     const s=obj(event.detalhes?.summary),review=reviewById.get(String(event.id))??{};
+     const products=Array.isArray(s.produtos)?s.produtos:[];
+     if(products.length!==1)throw new Error("Operação com vários produtos ou sem produto: conferência manual obrigatória antes de exportar.");
+     const product=obj(products[0]),category=text(review.category),service=text(review.tipoServico).toUpperCase();
+     if(!["agrotoxico","bioinsumo","outros","semeadura"].includes(category))throw new Error("Categoria de produto ausente na revisão.");
+     if(!["APLICAÇÃO DE AGROTÓXICO","APLICAÇÃO DE BIOINSUMO","APLICAÇÃO DE FERTILIZANTE","APLICAÇÃO ADJUVANTE","SEMEADURA","OUTROS"].includes(service))
+       throw new Error("Tipo de serviço fora das opções suportadas do modelo MAPA.");
+     const area=num(s.areaConcluidaHa??s.areaHa),dose=num(product.dose),volume=num(s.volumeLHa),unit=text(product.unidade);
+     const duration=hhmm(text(review.horasAplicacao));
+     if(area<=0||dose<=0||!text(s.municipio)||!text(s.uf)||!text(s.registroAnac)||!unit)
+       throw new Error(`Dados incompletos na OS ${text(s.ordemServicoNumero)||event.id}. Corrija antes de exportar.`);
+     const expected=category==="agrotoxico"?"APLICAÇÃO DE AGROTÓXICO":category==="bioinsumo"?"APLICAÇÃO DE BIOINSUMO":category==="semeadura"?"SEMEADURA":null;
+     if(expected&&service!==expected)throw new Error(`Tipo de serviço incompatível com a categoria na OS ${text(s.ordemServicoNumero)||event.id}.`);
+     rows.push({
+       uf:text(s.uf).toUpperCase(),municipio:text(s.municipio).toUpperCase(),
+       tipoAeronave:text(review.tipoAeronave)||"Drone",prefixo:text(s.registroAnac),horasAplicacao:duration,
+       cultura:text(s.cultura).toUpperCase(),tipoServico:service,
+       classeAgro:category==="agrotoxico"?text(review.classe):"",
+       classeBio:category==="bioinsumo"?text(review.classe):"",
+       area,agrotoxico:category==="agrotoxico"?text(product.nome):"",
+       bioinsumo:category==="bioinsumo"?text(product.nome):"",
+       outros:category==="outros"?text(product.nome):"",
+       semeadura:category==="semeadura"?text(product.nome):"",
+       horasIncendio:null,volumeLHa:category==="semeadura"?null:volume||null,
+       dosagem:dose,unidade:unit
+     });
+   }
+   const book=new ExcelJS.Workbook();
+   await book.xlsx.load(template.bytes as any);
+   populateOfficialTemplate(book,rows,p,month);
+   const buffer=await book.xlsx.writeBuffer();
+   return new NextResponse(Buffer.from(buffer),{headers:{
+      "Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition":`attachment; filename="relatorio-MAPA-oficial-2026-${month}.xlsx"`,
+      "Cache-Control":"private, no-store","X-DroneGestor-Modelo":"oficial-2026-validado"
+   }});
+ }catch(e){return NextResponse.json({error:e instanceof Error?e.message:"Não foi possível exportar a planilha oficial."},{status:422})}
 }

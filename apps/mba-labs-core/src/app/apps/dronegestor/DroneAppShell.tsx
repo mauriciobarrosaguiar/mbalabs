@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenCheck, ClipboardList, Drone, FileSpreadsheet, FileText, FolderCheck, Home, LogOut, Map, PlaneTakeoff, Settings2, SlidersHorizontal, X } from "lucide-react";
+import { BookOpenCheck, ClipboardCheck, ClipboardList, ShieldCheck, Drone, FileSpreadsheet, FileText, FolderCheck, Home, LogOut, Map, PlaneTakeoff, Settings2, SlidersHorizontal, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
 
@@ -13,12 +13,14 @@ const primary = [
 ] as const;
 
 const moreItems = [
+  { href: "/apps/dronegestor/diagnostico", title: "Diagnóstico e regularização", text: "Identifique obrigações, responsáveis e documentos vencidos.", icon: ShieldCheck },
   { href: "/apps/dronegestor/documentos", title: "SARPAS e documentos", text: "Autorização, SISANT e anexos da operação.", icon: PlaneTakeoff },
   { href: "/apps/dronegestor/pacote-operacao", title: "Finalizar operação", text: "Confira pendências, salve para regularizar ou encerre a OS quando estiver completa.", icon: FolderCheck },
   { href: "/apps/dronegestor/gestao", title: "Clientes, áreas e OS", text: "Prepare a operação antes de ir ao campo.", icon: ClipboardList },
   { href: "/apps/dronegestor/produtos", title: "Produtos e bulas", text: "Consulte cadastro e revisão técnica.", icon: BookOpenCheck },
   { href: "/apps/dronegestor/equipamentos", title: "Drones e equipamentos", text: "Cadastre os equipamentos e padrões.", icon: Settings2 },
   { href: "/apps/dronegestor/perfil-operacional", title: "Perfil operacional", text: "Dados da empresa, operador e RT.", icon: FileText },
+  { href: "/apps/dronegestor/conferencia", title: "Conferência AgroDoc", text: "Revise voos, aprove dados e corrija pendências antes do MAPA.", icon: ClipboardCheck },
   { href: "/apps/dronegestor/relatorio-mensal", title: "Relatório mensal MAPA", text: "Consolidação, PDF e XLSX mensal.", icon: FileSpreadsheet },
 ] as const;
 

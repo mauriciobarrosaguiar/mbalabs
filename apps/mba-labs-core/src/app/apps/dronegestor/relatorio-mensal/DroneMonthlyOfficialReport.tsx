@@ -34,6 +34,8 @@ export function DroneMonthlyOfficialReport({userName}:{userName:string}) {
   const [error,setError] = useState("");
   const [header,setHeader] = useState<HeaderData>({operador:"",registroMapa:"",processoSei:"",responsavelTecnico:""});
   const [headerReady,setHeaderReady] = useState(false);
+  const [exporting,setExporting] = useState(false);
+  const [exportError,setExportError] = useState("");
 
   useEffect(()=>{ setHeader(loadHeader()); setHeaderReady(true); },[]);
   useEffect(()=>{ if(headerReady) localStorage.setItem(HEADER_KEY,JSON.stringify(header)); },[header,headerReady]);
@@ -55,6 +57,20 @@ export function DroneMonthlyOfficialReport({userName}:{userName:string}) {
     finally { setLoading(false); }
   }
   useEffect(()=>{ void load(); },[month]);
+
+  async function exportOriginal(){
+    setExportError("");setExporting(true);
+    try{
+      const res=await fetch(`/api/dronegestor/relatorio-mensal/xlsx?month=${encodeURIComponent(month)}`,{cache:"no-store"});
+      if(!res.ok){const payload=await res.json().catch(()=>null);throw new Error(payload?.error||"Falha ao gerar planilha oficial.");}
+      if(res.headers.get("X-DroneGestor-Modelo")!=="oficial-2026-validado")throw new Error("O arquivo gerado não está identificado como modelo oficial.");
+      const file=await res.blob();
+      const url=URL.createObjectURL(file),a=document.createElement("a");
+      a.href=url;a.download=`relatorio-MAPA-oficial-2026-${month}.xlsx`;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+    }catch(e){setExportError(e instanceof Error?e.message:"Erro ao exportar XLSX.");}
+    finally{setExporting(false);}
+  }
 
   const rows=useMemo<ReportRow[]>(()=>{
     const out:ReportRow[]=[];
@@ -85,10 +101,12 @@ export function DroneMonthlyOfficialReport({userName}:{userName:string}) {
     <style>{`@media print { body{background:white!important} .no-print{display:none!important} .print-sheet{box-shadow:none!important;border:0!important;margin:0!important;max-width:none!important;padding:0!important} @page{size:A4 landscape;margin:10mm} input{border:0!important;padding:0!important;background:white!important} }`}</style>
     <div className="no-print mx-auto mb-4 flex w-full max-w-7xl flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-3"><Link href="/apps/dronegestor" className="grid size-11 place-items-center rounded-xl border border-slate-300 bg-white text-slate-700" aria-label="Voltar"><ArrowLeft size={19}/></Link><div><strong className="block text-xl">Relatório mensal MAPA</strong><span className="text-sm text-slate-600">Campos oficiais para conferência, impressão e XLSX</span></div></div>
-      <div className="flex flex-wrap gap-2"><input type="month" value={month} onChange={(e)=>setMonth(e.target.value)} className="min-h-11 rounded-xl border border-slate-300 bg-white px-3"/><button onClick={()=>void load()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 font-black"><RefreshCcw size={16}/>Atualizar</button><a href={`/api/dronegestor/relatorio-mensal/xlsx?month=${encodeURIComponent(month)}`} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 font-black text-emerald-900 no-underline"><Download size={17}/>Baixar XLSX</a><button onClick={()=>window.print()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 font-black text-white"><Printer size={17}/>Imprimir / PDF</button></div>
+      <div className="flex flex-wrap gap-2"><input type="month" value={month} onChange={(e)=>setMonth(e.target.value)} className="min-h-11 rounded-xl border border-slate-300 bg-white px-3"/><button onClick={()=>void load()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 font-black"><RefreshCcw size={16}/>Atualizar</button><Link href="/apps/dronegestor/conferencia" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 text-sm font-black text-slate-800 no-underline">Conferir voos</Link><button disabled={exporting} onClick={()=>void exportOriginal()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 font-black text-emerald-900 disabled:opacity-50"><Download size={17}/>{exporting?"Gerando...":"Baixar XLSX oficial"}</button><button onClick={()=>window.print()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-700 px-4 font-black text-white"><Printer size={17}/>Imprimir / PDF</button></div>
     </div>
 
-    <section className="no-print mx-auto mb-4 w-full max-w-7xl rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><TriangleAlert className="mr-2 inline" size={18}/><strong>Importante:</strong> o MAPA informa que, em 2026, a remessa oficial deve usar a planilha versão 01-01-2026 e ser enviada no processo SEI “Relatório Mensal Aviação Agrícola”. Esta tela e o XLSX gerado pelo DroneGestor organizam os campos obrigatórios do art. 11 da Portaria MAPA 298/2021; enquanto o arquivo oficial 01-01-2026 não estiver incorporado ao sistema, faça a conferência final antes do protocolo. <a href={MAPA_MONTHLY_URL} target="_blank" rel="noreferrer" className="ml-1 inline-flex items-center gap-1 font-black underline">Abrir página oficial <ExternalLink size={13}/></a></section>
+    <section className="no-print mx-auto mb-4 w-full max-w-7xl rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950"><TriangleAlert className="mr-2 inline" size={18}/><strong>Importante:</strong> o MAPA informa que, em 2026, a remessa oficial deve usar a planilha versão 01-01-2026 e ser enviada no processo SEI “Relatório Mensal Aviação Agrícola”. O XLSX oficial só será gerado se houver um modelo de 2026 cadastrado e todas as operações da competência estiverem aprovadas. A aprovação não substitui conferência nem protocolo no SEI. <a href={MAPA_MONTHLY_URL} target="_blank" rel="noreferrer" className="ml-1 inline-flex items-center gap-1 font-black underline">Abrir página oficial <ExternalLink size={13}/></a></section>
+
+    {exportError&&<div role="alert" className="no-print mx-auto mb-4 max-w-7xl rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-800">{exportError}</div>}
 
     <section className="print-sheet mx-auto w-full max-w-7xl rounded-2xl border border-slate-300 bg-white p-5 shadow-sm sm:p-7">
       <header className="border-b-2 border-slate-950 pb-4 text-center"><div className="text-xs font-black uppercase tracking-[.14em]">Ministério da Agricultura e Pecuária — Aviação Agrícola</div><h1 className="mt-1 text-2xl font-black">RELATÓRIO MENSAL DE ATIVIDADES — ARP (DRONE)</h1><p className="mt-1 text-sm">Competência: <strong className="capitalize">{monthLabel}</strong> • Base legal: Portaria MAPA nº 298/2021, art. 11</p></header>
