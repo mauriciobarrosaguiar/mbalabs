@@ -25,6 +25,18 @@ export async function GET() {
         files:[],events:[]
       });
     }
+    if (!context.can_manage) {
+      // Pilotos precisam saber apenas se o Drive da empresa esta ativo.
+      // A central administrativa e seu historico nunca devem listar
+      // dados de OS de outros pilotos.
+      return NextResponse.json({
+        ok:true,canManage:false,
+        google:{status:connection?.status || "disconnected",account:"",lastTestedAt:null,error:null},
+        dropbox:{status:"unavailable"},
+        counts:{synced:0,pending:0,failed:0,partial:false},
+        files:[],events:[]
+      });
+    }
     const {data:files,error:filesError} = await cloudScope(
       db.from("agrodoc_cloud_files").select("id,os_id,original_name,size_bytes,status,created_at,last_error,attempts"), context
     ).order("created_at",{ascending:false}).limit(100);
