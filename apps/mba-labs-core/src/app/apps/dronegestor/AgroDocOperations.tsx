@@ -196,7 +196,7 @@ export function AgroDocOperations({
       <div className="agro-two-col">
         <AgroDocCard
           title="Lista de operações"
-          action={<small>{filtered.length} operações</small>}
+          action={<small>{filtered.length} {filtered.length === 1 ? "operação" : "operações"}</small>}
         >
           <AgroDocTable
             head={[
