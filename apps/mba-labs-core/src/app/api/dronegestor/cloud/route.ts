@@ -12,7 +12,19 @@ export async function GET() {
   try {
     const context = await cloudContext();
     const db = cloudDb();
-    const connection = await cloudConnection(context);
+    let connection;
+    try { connection = await cloudConnection(context); }
+    catch(error) {
+      const code=String((error as {code?:string})?.code||"");
+      if(!["42P01","PGRST205"].includes(code))throw error;
+      return NextResponse.json({
+        ok:true,canManage:context.can_manage,setupRequired:true,
+        google:{status:"disconnected",account:"",lastTestedAt:null,error:"Migração de armazenamento ainda não configurada."},
+        dropbox:{status:"unavailable"},
+        counts:{synced:0,pending:0,failed:0,partial:false},
+        files:[],events:[]
+      });
+    }
     const {data:files,error:filesError} = await cloudScope(
       db.from("agrodoc_cloud_files").select("id,os_id,original_name,size_bytes,status,created_at,last_error,attempts"), context
     ).order("created_at",{ascending:false}).limit(100);
