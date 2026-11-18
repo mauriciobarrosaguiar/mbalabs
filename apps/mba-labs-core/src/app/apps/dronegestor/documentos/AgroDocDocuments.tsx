@@ -187,7 +187,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
           value={os}
           onChange={(e) => setOs(e.target.value)}
         >
-          <option value="">Selecione uma OS</option>
+          <option value="">Selecionar OS</option>
           {orders.data?.items.map((x) => (
             <option key={x.entityId} value={x.entityId}>
               {x.data.numero || x.entityId}
