@@ -41,6 +41,7 @@ create table if not exists public.agrodoc_cloud_files (
   size_bytes bigint not null check (size_bytes > 0),
   sha256 text,
   provider_file_id text,
+  provider_md5 text,
   provider_folder_id text,
   upload_session_encrypted text,
   uploaded_by uuid not null,

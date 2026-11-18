@@ -113,10 +113,10 @@ export async function POST(request:NextRequest) {
         sessionUrl:duplicates[0].upload_session_encrypted?decryptCloud(duplicates[0].upload_session_encrypted):null
       });
     }
-    const {token}=await googleAccessToken(c);
+    const {token,connection}=await googleAccessToken(c);
     const propertyId=String(os.data.fazendaId||os.data.propriedadeId||"nao-informada").slice(0,120);
     const propertyName=String(os.data.fazendaNome||os.data.propriedadeNome||"Propriedade").slice(0,120);
-    const folderId=await driveOperationFolder(c,token,osId,propertyId,propertyName,TYPES[category]);
+    const folderId=await driveOperationFolder(c,token,osId,propertyId,propertyName,TYPES[category],connection.account_subject||"");
     const docId=crypto.randomUUID();
     const now=new Date().toISOString();
     const {error:insertionError}=await db.from("agrodoc_cloud_files").insert({

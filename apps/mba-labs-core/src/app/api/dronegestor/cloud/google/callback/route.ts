@@ -32,7 +32,7 @@ export async function GET(request:NextRequest){
     });
     if(!me.ok)throw new Error("Não foi possível identificar a conta autorizada.");
     const account=await me.json() as {email?:string;sub?:string};
-    const root=await ensureDriveFolder(context,String(tokens.access_token),"root","MBA AgroDoc");
+    const root=await ensureDriveFolder(context,String(tokens.access_token),"root","MBA AgroDoc",undefined,account.sub||"");
     const now=new Date().toISOString();
     const existing=await cloudDb().from("agrodoc_cloud_connections").select("refresh_token_encrypted")
       .eq("owner_type",context.owner_type).eq("owner_id",context.owner_id).eq("provider","google_drive").maybeSingle();

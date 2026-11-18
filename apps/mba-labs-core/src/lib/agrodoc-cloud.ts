@@ -114,7 +114,8 @@ function encodeDriveQuery(value: string) { return value.replace(/\\/g, "\\\\").r
 export function safeCloudName(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._ -]/g, "-").trim().slice(0, 120) || "Sem nome";
 }
-export async function ensureDriveFolder(context: CloudContext, token: string, key: string, name: string, parentId?: string) {
+export async function ensureDriveFolder(context: CloudContext, token: string, key: string, name: string, parentId?: string, accountSubject = "") {
+  key = "account:" + (accountSubject || "unknown") + ":" + key;
   let q = cloudScope(cloudDb().from("agrodoc_cloud_folders").select("provider_folder_id"), context);
   const { data, error } = await q.eq("provider", "google_drive").eq("folder_key", key).maybeSingle();
   if (error) throw error;
@@ -138,16 +139,16 @@ export async function ensureDriveFolder(context: CloudContext, token: string, ke
   if (writeError) throw writeError;
   return id!;
 }
-export async function driveOperationFolder(context: CloudContext, token: string, osId: string, propertyId: string, propertyName: string, category: string) {
-  const root = await ensureDriveFolder(context, token, "root", "MBA AgroDoc");
+export async function driveOperationFolder(context: CloudContext, token: string, osId: string, propertyId: string, propertyName: string, category: string, accountSubject = "") {
+  const root = await ensureDriveFolder(context, token, "root", "MBA AgroDoc", undefined, accountSubject);
   const year = String(new Date().getFullYear());
-  const yearId = await ensureDriveFolder(context, token, "year:" + year, year, root);
+  const yearId = await ensureDriveFolder(context, token, "year:" + year, year, root, accountSubject);
   const propertyKey = propertyId || "nao-informada";
   const propertyFolder = await ensureDriveFolder(context, token, "year:"+year+":property:"+propertyKey,
-    safeCloudName(propertyName || "Propriedade") + " (" + safeCloudName(propertyKey).slice(0, 20) + ")", yearId);
+    safeCloudName(propertyName || "Propriedade") + " (" + safeCloudName(propertyKey).slice(0, 20) + ")", yearId, accountSubject);
   const os = await ensureDriveFolder(context, token, "year:"+year+":os:"+osId,
-    "OS-" + safeCloudName(osId), propertyFolder);
-  return ensureDriveFolder(context, token, "year:"+year+":os:"+osId+":category:"+category, category, os);
+    "OS-" + safeCloudName(osId), propertyFolder, accountSubject);
+  return ensureDriveFolder(context, token, "year:"+year+":os:"+osId+":category:"+category, category, os, accountSubject);
 }
 export async function cloudEvent(context:CloudContext, action:string, fileId?:string, details?:Record<string,unknown>) {
   await cloudDb().from("agrodoc_cloud_events").insert({
