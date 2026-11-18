@@ -31,6 +31,7 @@ export async function GET() {
       // dados de OS de outros pilotos.
       return NextResponse.json({
         ok:true,canManage:false,
+        oauthConfigured:Boolean(process.env.AGRODOC_GOOGLE_CLIENT_ID && process.env.AGRODOC_GOOGLE_CLIENT_SECRET && process.env.AGRODOC_GOOGLE_REDIRECT_URI && process.env.AGRODOC_CLOUD_ENCRYPTION_KEY),
         google:{status:connection?.status || "disconnected",account:"",lastTestedAt:null,error:null},
         dropbox:{status:"unavailable"},
         counts:{synced:0,pending:0,failed:0,partial:false},
