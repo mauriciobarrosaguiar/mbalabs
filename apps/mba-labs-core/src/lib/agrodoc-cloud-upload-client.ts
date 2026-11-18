@@ -24,7 +24,10 @@ export async function uploadAgroDocToDrive(input:{
   const hash=file.size<=50*1024*1024
     ?Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",await file.arrayBuffer())))
       .map(x=>x.toString(16).padStart(2,"0")).join(""):"";
-  const start=await request({action:"start",osId,category,name:file.name,mimeType,size:file.size,sha256:hash});
+  const fingerprintData=new TextEncoder().encode(file.name+":"+file.size+":"+file.lastModified);
+  const fingerprint=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",fingerprintData)))
+    .map(x=>x.toString(16).padStart(2,"0")).join("");
+  const start=await request({action:"start",osId,category,name:file.name,mimeType,size:file.size,sha256:hash,fingerprint});
   if(start.status==="synced"){onProgress?.(100);return start;}
   if(!start.sessionUrl||!start.id)throw new Error("Sessão de upload não disponível.");
   const url=start.sessionUrl;

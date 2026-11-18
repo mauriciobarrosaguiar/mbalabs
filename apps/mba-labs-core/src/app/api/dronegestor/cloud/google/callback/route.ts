@@ -34,10 +34,11 @@ export async function GET(request:NextRequest){
     const account=await me.json() as {email?:string;sub?:string};
     const root=await ensureDriveFolder(context,String(tokens.access_token),"root","MBA AgroDoc",undefined,account.sub||"");
     const now=new Date().toISOString();
-    const existing=await cloudDb().from("agrodoc_cloud_connections").select("refresh_token_encrypted")
+    const existing=await cloudDb().from("agrodoc_cloud_connections").select("refresh_token_encrypted,account_subject")
       .eq("owner_type",context.owner_type).eq("owner_id",context.owner_id).eq("provider","google_drive").maybeSingle();
     if(existing.error)throw existing.error;
-    const refresh=tokens.refresh_token?encryptCloud(String(tokens.refresh_token)):existing.data?.refresh_token_encrypted;
+    const refresh=tokens.refresh_token?encryptCloud(String(tokens.refresh_token)):
+      (existing.data?.account_subject===account.sub?existing.data?.refresh_token_encrypted:null);
     if(!refresh)throw new Error("Google não devolveu autorização de longo prazo. Reconecte e autorize novamente.");
     const {error}=await cloudDb().from("agrodoc_cloud_connections").upsert({
       owner_type:context.owner_type,owner_id:context.owner_id,provider:"google_drive",
@@ -54,6 +55,6 @@ export async function GET(request:NextRequest){
   }catch(error){
     result=NextResponse.redirect(redirect("drive_error",error instanceof Error?error.message:"Erro na conexão."));
   }
-  result.cookies.delete("agrodoc_drive_oauth");
+  result.cookies.set("agrodoc_drive_oauth","",{httpOnly:true,secure:true,sameSite:"lax",path:"/api/dronegestor/cloud/google",maxAge:0});
   return result;
 }

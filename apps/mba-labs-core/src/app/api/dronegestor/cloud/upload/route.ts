@@ -19,7 +19,7 @@ const TYPES: Record<string,string> = {
   foto:"Fotos",video:"Vídeos",historico_voo:"Histórico de voo",
   relatorio_operacional:"Relatórios operacionais"
 };
-type Input={action?:string;osId?:string;documentId?:string;category?:string;name?:string;mimeType?:string;size?:number;sha256?:string};
+type Input={action?:string;osId?:string;documentId?:string;category?:string;name?:string;mimeType?:string;size?:number;sha256?:string;fingerprint?:string};
 function responseError(error:unknown) {
   const osError=droneOsErrorResponse(error);
   return NextResponse.json({ok:false,error:osError?.message||(error instanceof Error ? error.message:"Falha no envio.")},
@@ -98,15 +98,19 @@ export async function POST(request:NextRequest) {
     const mimeType=String(body.mimeType||"");
     const size=Number(body.size);
     const sha=String(body.sha256||"").toLowerCase();
+    const fingerprint=String(body.fingerprint||"").toLowerCase();
     if(!osId||!TYPES[category]||!name||name.length>240||!MIME[mimeType])throw new CloudError("OS, categoria ou formato de arquivo inválido.");
     if(!Number.isSafeInteger(size)||size<1||size>2*1024*1024*1024)throw new CloudError("Arquivo excede o limite de 2 GB por envio.");
     if(sha && !/^[a-f0-9]{64}$/.test(sha))throw new CloudError("Hash SHA-256 inválido.");
+    if(fingerprint && !/^[a-f0-9]{64}$/.test(fingerprint))throw new CloudError("Identificador de tentativa inválido.");
     const os=await checkOs(c,osId);
     const db=cloudDb();
     // A mesma OS, categoria e hash não deve criar duplicatas por repetição de envio.
-    if(sha){
+    if(sha||fingerprint){
       const {data:duplicates,error:e}=await cloudScope(db.from("agrodoc_cloud_files").select("id,status,upload_session_encrypted"),c)
-        .eq("os_id",osId).eq("category",category).eq("sha256",sha).in("status",["pending","synced"]).limit(1);
+                .eq("os_id",osId).eq("category",category)
+        .eq(sha?"sha256":"client_fingerprint",sha||fingerprint)
+        .in("status",sha?["pending","synced"]:["pending"]).limit(1);
       if(e)throw e;
       if(duplicates?.length)return NextResponse.json({
         ok:true,duplicate:true,id:duplicates[0].id,status:duplicates[0].status,
@@ -122,7 +126,7 @@ export async function POST(request:NextRequest) {
     const {error:insertionError}=await db.from("agrodoc_cloud_files").insert({
       id:docId,owner_type:c.owner_type,owner_id:c.owner_id,provider:"google_drive",
       os_id:osId,property_id:propertyId,category,original_name:name,mime_type:mimeType,
-      size_bytes:size,sha256:sha||null,provider_folder_id:folderId,uploaded_by:c.user_id,
+      size_bytes:size,sha256:sha||null,client_fingerprint:fingerprint||null,provider_folder_id:folderId,uploaded_by:c.user_id,
       status:"pending",attempts:1,created_at:now,updated_at:now
     });
     if(insertionError) {

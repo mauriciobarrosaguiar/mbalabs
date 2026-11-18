@@ -40,6 +40,7 @@ create table if not exists public.agrodoc_cloud_files (
   mime_type text not null,
   size_bytes bigint not null check (size_bytes > 0),
   sha256 text,
+  client_fingerprint text,
   provider_file_id text,
   provider_md5 text,
   provider_folder_id text,
@@ -55,6 +56,9 @@ create table if not exists public.agrodoc_cloud_files (
 create unique index if not exists agrodoc_cloud_files_idempotency
   on public.agrodoc_cloud_files(owner_type, owner_id, os_id, category, sha256)
   where sha256 is not null and status in ('pending','synced');
+create unique index if not exists agrodoc_cloud_pending_fingerprint
+  on public.agrodoc_cloud_files(owner_type, owner_id, os_id, category, client_fingerprint)
+  where client_fingerprint is not null and status = 'pending';
 create index if not exists agrodoc_cloud_files_os
   on public.agrodoc_cloud_files(owner_type,owner_id,os_id,created_at desc);
 create table if not exists public.agrodoc_cloud_events (
