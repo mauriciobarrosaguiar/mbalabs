@@ -33,11 +33,11 @@ export async function cloudContext(): Promise<CloudContext> {
     owner_type: session.profile.empresa_id ? "empresa" : "usuario",
     owner_id: session.profile.empresa_id || session.profile.id,
     user_id: session.profile.id,
-    can_manage: canManageDroneGestor({ tipo: session.profile.tipo, isAdminMaster: master, permissoes: session.permissoes })
+    can_manage: !session.profile.empresa_id || canManageDroneGestor({ tipo: session.profile.tipo, isAdminMaster: master, permissoes: session.permissoes })
   };
 }
 export function requireCloudManager(context: CloudContext) {
-  if (!context.can_manage) throw new CloudError("Somente a gestão pode alterar a conexão da empresa.", 403);
+  if (!context.can_manage && context.owner_type !== "usuario") throw new CloudError("Somente a gestão pode alterar a conexão da empresa.", 403);
 }
 export function cloudScope(query: any, context: CloudContext) {
   return query.eq("owner_type", context.owner_type).eq("owner_id", context.owner_id);

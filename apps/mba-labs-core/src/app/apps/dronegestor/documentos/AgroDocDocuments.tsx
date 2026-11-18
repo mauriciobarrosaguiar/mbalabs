@@ -67,6 +67,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
     [file, setFile] = useState<File | null>(null),
     [busy, setBusy] = useState(false),
     [progress,setProgress] = useState<number|null>(null),
+    [cloudAvailable,setCloudAvailable] = useState(false),
     [reload, setReload] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -117,7 +118,10 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
     setError("");
     try {
       const statusResponse=await fetch("/api/dronegestor/cloud",{cache:"no-store"});
-      const status=statusResponse.ok?await statusResponse.json():null;
+      if(!statusResponse.ok)throw new Error("Não foi possível confirmar o armazenamento escolhido. Tente novamente.");
+      const status=await statusResponse.json();
+      setCloudAvailable(status?.google?.status==="connected");
+      if(status?.google?.status!=="connected" && file.size > 10*1024*1024)throw new Error("Sem Google Drive conectado, o limite atual do Supabase é de 10 MB.");
       if(status?.google?.status==="connected"){
         setProgress(0);
         await uploadAgroDocToDrive({file,osId:os,category:type,onProgress:setProgress});
@@ -442,6 +446,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
             onChange={(e) => setFile(e.target.files?.[0] || null)}
           />
           {file && <p>{file.name}</p>}
+          {!cloudAvailable && <p className="agro-form-note">Sem Drive conectado, anexos são armazenados no Supabase (até 10 MB).</p>}
           {progress!==null && <p role="status">Google Drive: {progress}% enviado</p>}
           <button
             className="agro-button agro-button-primary"
