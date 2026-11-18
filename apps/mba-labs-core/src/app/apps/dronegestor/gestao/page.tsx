@@ -1,3 +1,4 @@
+import { AgroDocOperations } from "../AgroDocOperations";
 import { requireAppAccess } from "@/lib/core-data";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { DroneGestaoClientV3 } from "./DroneGestaoClientV3";
@@ -9,9 +10,8 @@ export const dynamic = "force-dynamic";
 export default async function DroneGestorGestaoPage() {
   const current = await requireAppAccess("dronegestor", "/apps/dronegestor/gestao");
   const canManage = canManageDroneGestor({ tipo: current.tipo, isAdminMaster: current.isAdminMaster, permissoes: current.permissoes });
-  return <>
-    {canManage && <DroneManagerOperationsPanel />}
+  return <AgroDocOperations canManage={canManage}>
     <DroneOsPilotStep canManage={canManage} />
     <div id="drone-os-management"><DroneGestaoClientV3 canManage={canManage} /></div>
-  </>;
+  </AgroDocOperations>;
 }

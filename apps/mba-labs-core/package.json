@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:cotacoes": "node --experimental-strip-types --test tests/cotacoes-*.test.mjs",
-    "prebuild": "npm run test:cotacoes"
+    "prebuild": "npm run test:cotacoes",
+    "test:agrodoc": "node --experimental-strip-types --test tests/dronegestor-*.test.mjs",
+    "test:agrodoc:visual": "playwright test --config=playwright.agrodoc.config.ts"
   },
   "dependencies": {
     "@mba-labs/shared": "*",
@@ -24,6 +26,7 @@
     "next": "16.3.3",
     "next-themes": "^0.4.6",
     "pdf-lib": "^1.17.1",
+    "qrcode": "^1.5.4",
     "radix-ui": "^1.4.3",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -31,10 +34,10 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "tw-animate-css": "^1.4.0",
-    "zod": "^4.4.3",
-    "qrcode": "^1.5.4"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^20.19.26",
     "@types/react": "^19.2.7",

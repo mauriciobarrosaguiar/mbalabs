@@ -25,3 +25,8 @@ app/database/database.db
 .env.*
 !.env.example
 !.env*.example
+
+# AgroDoc browser homologation artifacts and private authenticated sessions
+apps/mba-labs-core/test-results/
+apps/mba-labs-core/playwright-report/
+apps/mba-labs-core/.auth/

@@ -1,3 +1,4 @@
+import "./agrodoc.css";
 import type { ReactNode } from "react";
 import { getSessionProfile } from "@/lib/core-data";
 import { DroneActiveOperationBridge } from "./DroneActiveOperationBridge";
@@ -9,7 +10,7 @@ export default async function DroneGestorLayout({ children }: { children: ReactN
   return (
     <div className="dronegestor-ui min-h-screen overflow-x-hidden bg-[#f4f8f1] text-slate-950">
       <DroneActiveOperationBridge deviceOwner={deviceOwner} />
-      <DroneAppShell>{children}</DroneAppShell>
+      <DroneAppShell userName={session.profile?.nome || "Minha conta"}>{children}</DroneAppShell>
       <style>{`
         .dronegestor-ui {
           width: 100%;
