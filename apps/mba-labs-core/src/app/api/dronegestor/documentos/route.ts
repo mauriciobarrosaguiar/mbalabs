@@ -158,7 +158,21 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query;
     if (error) throw error;
     const items = (await Promise.all((data ?? []).map((row: any) => signed(admin, row)))).filter(Boolean);
-    return NextResponse.json({ ok: true, items });
+    let cloudQuery = admin.from("agrodoc_cloud_files")
+      .select("id,category,original_name,created_at,os_id,status")
+      .eq("os_id",osId).eq("status","synced").order("created_at",{ascending:false}).limit(200);
+    cloudQuery = current.empresaId
+      ? cloudQuery.eq("owner_type","empresa").eq("owner_id",current.empresaId)
+      : cloudQuery.eq("owner_type","usuario").eq("owner_id",current.userId);
+    const cloud=await cloudQuery;
+    if(cloud.error && !["42P01","PGRST205"].includes(String(cloud.error.code)))throw cloud.error;
+    const cloudItems=(cloud.data||[]).map((row:any)=>({
+      id:row.id,tipo:row.category,nome:row.original_name,numero:"",validade:"",observacao:"",
+      ordemServicoId:row.os_id,ordemServicoNumero:"",
+      uploadedAt:row.created_at,uploadedBy:"Usuário autorizado",
+      url:"/api/dronegestor/cloud/file?id="+encodeURIComponent(row.id)
+    }));
+    return NextResponse.json({ok:true,items:[...cloudItems,...items]});
   } catch (error) {
     const accessError = droneOsErrorResponse(error);
     if (accessError)

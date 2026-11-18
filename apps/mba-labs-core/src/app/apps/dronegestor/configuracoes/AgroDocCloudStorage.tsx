@@ -24,7 +24,7 @@ export function AgroDocCloudStorage(){
      <small>{data.google.account||"Conta não autorizada"}</small>
      <small>Último teste: {data.google.lastTestedAt?new Date(data.google.lastTestedAt).toLocaleString("pt-BR"):"não realizado"}</small>
    </div>{data.canManage&&<div className="agro-actions">
-     <a className="agro-button agro-button-primary" href="/api/dronegestor/cloud/google/start">{data.google.status==="connected"?"Trocar / reconectar conta":"Conectar Google Drive"}</a>
+     <a className="agro-button agro-button-primary" href="/api/dronegestor/cloud/google/start" onClick={(e)=>{if(data.google.status==="connected"&&!confirm("Ao trocar a conta, os documentos da conta anterior podem ficar indisponíveis até ela ser reconectada. Deseja continuar?"))e.preventDefault();}}>{data.google.status==="connected"?"Trocar / reconectar conta":"Conectar Google Drive"}</a>
      {data.google.status==="connected"&&<><button className="agro-button" disabled={busy} onClick={()=>void action("test")}>Testar</button><button className="agro-button" disabled={busy} onClick={()=>void action("disconnect")}>Desconectar</button></>}
    </div>}</div>
    <div className="agro-row"><Cloud size={24}/><div><b>Dropbox — Integração indisponível</b><small>Nenhuma conta fictícia conectada.</small></div></div>

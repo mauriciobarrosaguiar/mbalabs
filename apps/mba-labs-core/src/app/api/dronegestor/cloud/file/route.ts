@@ -20,7 +20,7 @@ export async function GET(request:NextRequest){
     return new NextResponse(file.body,{
       headers:{
         "Content-Type":data.mime_type,
-        "Content-Disposition":"attachment; filename*=UTF-8''"+encodeURIComponent(String(data.original_name)),
+        "Content-Disposition":"inline; filename*=UTF-8''"+encodeURIComponent(String(data.original_name)),
         "Cache-Control":"private, no-store",
         "X-Content-Type-Options":"nosniff"
       }
