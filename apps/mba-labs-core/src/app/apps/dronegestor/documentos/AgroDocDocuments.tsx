@@ -36,7 +36,7 @@ type Doc = {
 };
 const folders = [
   { label: "Todos", types: [] },
-  { label: "Relatórios operacionais", types: ["relatorio_mapa"] },
+  { label: "Relatórios operacionais", types: ["relatorio_mapa","relatorio_operacional"] },
   {
     label: "Comprovantes",
     types: [
@@ -49,7 +49,8 @@ const folders = [
   },
   { label: "Mapas de aplicação", types: ["mapa_aplicacao"] },
   { label: "Receituários agronômicos", types: ["receituario"] },
-  { label: "Fotos e evidências", types: ["outro", "avaliacao_risco"] },
+  { label: "Fotos e evidências", types: ["outro", "avaliacao_risco","foto","video"] },
+  { label: "Histórico de voo", types: ["historico_voo"] },
 ];
 export function AgroDocDocuments({ children }: { children: ReactNode }) {
   const orders = useAgroData<{ items: Order[] }>(
@@ -70,6 +71,12 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
     [cloudAvailable,setCloudAvailable] = useState(false),
     [reload, setReload] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    fetch("/api/dronegestor/cloud",{cache:"no-store"})
+      .then(async r=>r.ok?await r.json():null)
+      .then(p=>setCloudAvailable(p?.google?.status==="connected"))
+      .catch(()=>setCloudAvailable(false));
+  },[]);
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("osId");
     if (id) setOs(id);
@@ -435,6 +442,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
               "seguro",
               "exame_piloto_anac",
               "avaliacao_risco",
+              ...(cloudAvailable?["foto","video","historico_voo","relatorio_operacional"]:[]),
             ].map((t) => (
               <option key={t}>{t}</option>
             ))}

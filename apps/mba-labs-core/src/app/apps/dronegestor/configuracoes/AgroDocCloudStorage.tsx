@@ -2,7 +2,7 @@
 import {useCallback,useEffect,useState} from "react";
 import {AgroDocCard,AgroDocError} from "../AgroDocUi";
 import {Cloud,RefreshCw} from "lucide-react";
-type Snapshot={canManage:boolean;setupRequired?:boolean;google:{status:string;account:string;lastTestedAt:string|null;error:string|null};counts:{synced:number;pending:number;failed:number;partial:boolean};
+type Snapshot={canManage:boolean;setupRequired?:boolean;oauthConfigured?:boolean;google:{status:string;account:string;lastTestedAt:string|null;error:string|null};counts:{synced:number;pending:number;failed:number;partial:boolean};
 files:Array<{id:string;original_name:string;os_id:string;status:string;created_at:string;last_error:string|null;attempts:number}>};
 export function AgroDocCloudStorage(){
  const [data,setData]=useState<Snapshot|null>(null),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(""),[message,setMessage]=useState("");
@@ -20,11 +20,12 @@ export function AgroDocCloudStorage(){
   {loading&&!data?<p>Consultando conexão...</p>:null}
   {data&&<>
    {data.setupRequired&&<p role="alert">A configuração do banco de armazenamento está pendente. O envio tradicional ao Supabase continua disponível.</p>}
+   {!data.setupRequired&&!data.oauthConfigured&&<p role="alert">O OAuth Google Drive ainda precisa ser configurado pelo administrador técnico. O Supabase continua disponível.</p>}
    <div className="agro-row"><Cloud size={24}/><div>
      <b>Google Drive — {data.google.status==="connected"?"Conectado":"Desconectado"}</b>
      <small>{data.google.account||"Conta não autorizada"}</small>
      <small>Último teste: {data.google.lastTestedAt?new Date(data.google.lastTestedAt).toLocaleString("pt-BR"):"não realizado"}</small>
-   </div>{data.canManage&&!data.setupRequired&&<div className="agro-actions">
+   </div>{data.canManage&&!data.setupRequired&&data.oauthConfigured&&<div className="agro-actions">
      <a className="agro-button agro-button-primary" href="/api/dronegestor/cloud/google/start" onClick={(e)=>{if(data.google.status==="connected"&&!confirm("Ao trocar a conta, os documentos da conta anterior podem ficar indisponíveis até ela ser reconectada. Deseja continuar?"))e.preventDefault();}}>{data.google.status==="connected"?"Trocar / reconectar conta":"Conectar Google Drive"}</a>
      {data.google.status==="connected"&&<><button className="agro-button" disabled={busy} onClick={()=>void action("test")}>Testar</button><button className="agro-button" disabled={busy} onClick={()=>void action("disconnect")}>Desconectar</button></>}
    </div>}</div>

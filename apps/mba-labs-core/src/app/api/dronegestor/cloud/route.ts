@@ -18,7 +18,7 @@ export async function GET() {
       const code=String((error as {code?:string})?.code||"");
       if(!["42P01","PGRST205"].includes(code))throw error;
       return NextResponse.json({
-        ok:true,canManage:context.can_manage,setupRequired:true,
+        ok:true,canManage:context.can_manage,setupRequired:true,oauthConfigured:false,
         google:{status:"disconnected",account:"",lastTestedAt:null,error:"Migração de armazenamento ainda não configurada."},
         dropbox:{status:"unavailable"},
         counts:{synced:0,pending:0,failed:0,partial:false},
@@ -37,6 +37,7 @@ export async function GET() {
     return NextResponse.json({
       ok:true,
       canManage:context.can_manage,
+      oauthConfigured:Boolean(process.env.AGRODOC_GOOGLE_CLIENT_ID && process.env.AGRODOC_GOOGLE_CLIENT_SECRET && process.env.AGRODOC_GOOGLE_REDIRECT_URI && process.env.AGRODOC_CLOUD_ENCRYPTION_KEY),
       google:{
         status:connection?.status || "disconnected", account:connection?.account_email || "",
         lastTestedAt:connection?.last_tested_at || null, error:connection?.last_error || null
