@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHash } from "node:crypto";
 import { getSessionProfile } from "@/lib/core-data";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
@@ -221,6 +222,17 @@ export async function POST(request: NextRequest) {
     if (!detected)
       return NextResponse.json({ ok: false, error: "Envie PDF, JPG, PNG, WebP ou XLSX." }, { status: 400 });
 
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    let duplicates = admin.from("core_logs").select("id,detalhes,created_at")
+      .eq("app_slug","dronegestor").eq("acao",ACTION)
+      .contains("detalhes",{ordemServicoId:osId,tipo,sha256})
+      .order("created_at",{ascending:false}).limit(1);
+    duplicates = scopeDroneOsQuery(duplicates,current);
+    const existing=await duplicates.maybeSingle();
+    if(existing.error)throw existing.error;
+    if(existing.data)return NextResponse.json({
+      ok:true,duplicate:true,item:await signed(admin,existing.data)
+    });
     const id = crypto.randomUUID();
     const owner = current.empresaId ? `empresa-${safe(current.empresaId)}` : `usuario-${safe(current.userId)}`;
     const storagePath = `${owner}/${safe(osId)}/${tipo}/${Date.now()}-${id}.${detected.ext}`;
@@ -245,6 +257,7 @@ export async function POST(request: NextRequest) {
       uploadedBy: current.userName,
       contentType: detected.mime,
       bytes: bytes.length,
+      sha256,
     };
     const inserted = await admin
       .from("core_logs")
