@@ -25,11 +25,9 @@ import { ROOT } from "./AgroDocUi";
 const pages = [
   { path: "campo", title: "Modo campo", icon: Drone },
   { path: "historico", title: "Histórico de operações", icon: Folder },
-  { path: "ferramentas", title: "Misturador, vazão e custos", icon: ChartNoAxesColumn },
-  { path: "calculadora", title: "Calda e produtos", icon: Leaf },
+  { path: "ferramentas", title: "MBA Calda e calculadoras", icon: ChartNoAxesColumn },
   { path: "equipamentos", title: "Drones e equipamentos", icon: Drone },
-  { path: "pilotos", title: "Pilotos", icon: UserRound },
-  { path: "equipe", title: "Equipes", icon: UserRound },
+  { path: "equipe", title: "Minha equipe", icon: UserRound },
   { path: "regulacao", title: "Legislação e fontes", icon: BookOpen },
   { path: "", title: "Visão geral", icon: Home },
   {
@@ -38,7 +36,7 @@ const pages = [
     icon: ShieldCheck,
   },
   { path: "gestao", title: "Operações", icon: Drone },
-  { path: "conferencia", title: "Conferência AgroDoc", icon: ClipboardCheck },
+  { path: "conferencia", title: "Conferência de operações", icon: ClipboardCheck },
   {
     path: "relatorio-mensal",
     title: "Relatórios MAPA",
@@ -52,8 +50,8 @@ const pages = [
 const navigation = [
  { title: "Visão geral", paths: [""] },
  { title: "Operações", paths: ["gestao", "campo", "historico"] },
- { title: "Ferramentas", paths: ["calculadora", "ferramentas"] },
- { title: "Gestão", paths: ["cadastros", "equipamentos", "pilotos", "equipe"] },
+ { title: "Ferramentas", paths: ["ferramentas"] },
+ { title: "Gestão", paths: ["cadastros", "equipamentos", "equipe"] },
  { title: "Regularização", paths: ["diagnostico", "documentos", "regulacao", "relatorio-mensal", "conferencia"] },
  { title: "Piloto Pro", paths: ["piloto-pro"] },
  { title: "Configurações", paths: ["configuracoes"] },
