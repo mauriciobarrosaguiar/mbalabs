@@ -19,3 +19,11 @@ Usa Auth Admin updateUserById somente no servidor. Não envia notificações nem
 Reteste produtivo irá conferir presença dos campos e preservação com ambos vazios. Não redefinir credenciais reais durante teste automatizado; usuário realiza entrada/confirmacão/submissão da senha diretamente no navegador. Testes do Auth usam fixture, não comprovam troca real em produção.
 
 Nenhuma migration, política RLS, senha real ou recurso pago foi alterado nesta implementação. A pendência core_logs permanece conforme relatórios anteriores.
+
+## Reteste após publicação
+
+PR #202 incorporada; main db3f455e159dc95711672aacbe17d4aabb8dacc1, deploy dpl_6Ba7wJR94mKqJuUYc6iFEddxJV1u READY com domínio www.mbalabs.com.br.
+
+Conta empresarial Pulveriza 63 abriu o funcionário fictício HOMOLOGAÇÃO P63 - Gestor operacional. A página exibiu Nova senha, Confirmar nova senha e Alterar senha abaixo da edição dos dados. Clique com ambos os campos vazios retornou “Nenhuma nova senha informada. A senha atual foi mantida.” Captura nova-senha-publicada.jpg registra os campos em produção.
+
+Nenhuma senha foi digitada ou redefinida. O teste da troca efetiva permanece dependente da entrada e submissão pelo usuário. Não se declara validação integral do Auth em produção.
