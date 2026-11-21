@@ -268,3 +268,9 @@ test("e-mail com curingas é consultado literalmente", async () => {
   await createOrLinkPilotAccount(admin,current,appId,{...input,email:'pilot_%@example.invalid'});
   assert.equal(emailFilter,'pilot\\_\\%@example.invalid');
 });
+test("somente contexto interno autorizado admite administrador da empresa", async () => {
+  const denied=createAdmin();await assert.rejects(createOrLinkPilotAccount(denied.admin,current,appId,input,'admin_empresa',true),e=>e.status===400);
+  const allowed=createAdmin();await createOrLinkPilotAccount(allowed.admin,{...current,allowCompanyAdministrator:true},appId,input,'admin_empresa',true);
+  assert.equal(operations(allowed.events,'core_usuarios','insert')[0].payload.tipo_global,'usuario');
+  assert.equal(operations(allowed.events,'core_usuario_app_permissoes','upsert')[0].payload.perfil_app,'admin_empresa');
+});

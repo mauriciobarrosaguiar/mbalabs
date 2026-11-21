@@ -1,5 +1,6 @@
 export type PilotAccountContext = {
   empresaId: string | null;
+  allowCompanyAdministrator?: boolean;
 };
 
 export type PilotAccountInput = {
@@ -49,7 +50,7 @@ export async function createOrLinkPilotAccount(
   requireNewPermission = false,
 ) {
   if (!current.empresaId) throw new PilotAccountError("Vincule uma empresa antes de criar acessos.", 400);
-  if (!["gestor_operacional", "responsavel_tecnico", "piloto", "aplicador_caar", "visualizador"].includes(role)) throw new PilotAccountError("Perfil de funcionário inválido.", 400);
+  if (!(role === "admin_empresa" && current.allowCompanyAdministrator === true) && !["gestor_operacional", "responsavel_tecnico", "piloto", "aplicador_caar", "visualizador"].includes(role)) throw new PilotAccountError("Perfil de funcionário inválido.", 400);
   const existingResult = await admin
     .from("core_usuarios")
     .select("id,empresa_id,status,auth_user_id,tipo,tipo_global")

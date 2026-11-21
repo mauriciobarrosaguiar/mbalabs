@@ -59,7 +59,7 @@ export function DroneOsPilotStep({canManage}:{canManage:boolean}){
     try{
       const response=await fetch("/api/dronegestor/cadastros",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({type:"os",entityId:selected.entityId,data:{pilotoResponsavelId:pilotId,pilotoResponsavelNome:pilotName}}),cache:"no-store"});
       const payload=await response.json().catch(()=>null);if(!response.ok)throw new Error(payload?.error||"Falha ao vincular piloto.");
-      setMessage(`${selected.data.numero||"OS"} vinculada a ${pilotName}.`);await load();
+      setMessage(`${selected.data.numero||"OS"} vinculada a ${pilotName}.`);window.dispatchEvent(new Event("dronegestor:cadastros-updated"));
     }catch(error){setMessage(error instanceof Error?error.message:"Falha ao vincular piloto.")}finally{setSaving(false)}
   }
 
