@@ -96,6 +96,7 @@ export function DronePilotsManager() {
   const [form, setForm] = useState<PilotForm>(empty);
   const [pilotId, setPilotId] = useState("");
   const [canManage, setCanManage] = useState(false);
+  const [canAdministerTeam,setCanAdministerTeam]=useState(false);
   const [canCreatePilot,setCanCreatePilot]=useState(false);
   const [teamUnavailable,setTeamUnavailable]=useState(false);
   const [currentUserId, setCurrentUserId] = useState("");
@@ -130,6 +131,7 @@ export function DronePilotsManager() {
       setOrders(nextOrders);
       setCanManage(Boolean(pilotPayload.canManage));
       setCanCreatePilot(Boolean(pilotPayload.canCreatePilot));
+      setCanAdministerTeam(Boolean(pilotPayload.canAdministerTeam));
       setTeamUnavailable(Boolean(pilotPayload.teamUnavailable));
       if(pilotPayload.teamUnavailable)setMessage(pilotPayload.teamMessage||"Equipe indisponível: confira o vínculo da empresa.");
       setCurrentUserId(String(pilotPayload.currentUserId || ""));
@@ -236,7 +238,7 @@ export function DronePilotsManager() {
   }
 
   async function savePermissions(pilot: Pilot, next: Permissions) {
-    if (!canManage || saving) return;
+    if (!canAdministerTeam || saving) return;
     setSaving(true);
     setMessage("");
     try {
@@ -290,7 +292,7 @@ export function DronePilotsManager() {
   }
 
   async function remove(id: string) {
-    if (!canManage || !window.confirm("Inativar este piloto? O acesso dele ao DroneGestor será bloqueado e o histórico será preservado.")) {
+    if (!canAdministerTeam || !window.confirm("Inativar este piloto? O acesso dele ao DroneGestor será bloqueado e o histórico será preservado.")) {
       return;
     }
     setSaving(true);
@@ -538,7 +540,7 @@ export function DronePilotsManager() {
               <PilotCard
                 key={item.id}
                 item={item}
-                canManage={canManage && !teamUnavailable}
+                canManage={canAdministerTeam && !teamUnavailable}
                 saving={saving}
                 expanded={expanded === item.id}
                 onToggle={() => setExpanded((current) => (current === item.id ? "" : item.id))}

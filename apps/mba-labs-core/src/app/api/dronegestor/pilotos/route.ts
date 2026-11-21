@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { createOrLinkPilotAccount, PilotAccountError } from "@/lib/dronegestor-pilot-account";
+import { canAdministerDroneCompany } from "@/lib/dronegestor-company-access";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 
@@ -37,6 +38,7 @@ type Context = {
   usuarioNome: string;
   empresaId: string | null;
   canManage: boolean;
+  canAdministerTeam: boolean;
 };
 
 const defaultPermissions: Permissions = {
@@ -50,11 +52,10 @@ const defaultPermissions: Permissions = {
 };
 
 class ApiError extends Error {
-  constructor(
-    message: string,
-    readonly status = 400,
-  ) {
+  readonly status: number;
+  constructor(message: string, status = 400) {
     super(message);
+    this.status = status;
   }
 }
 
@@ -110,6 +111,7 @@ async function context(): Promise<{ current: Context | null; response: NextRespo
     return { current: null, response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }) };
   }
 
+  if (data.profile.status !== "ativo") return { current: null, response: NextResponse.json({ ok: false, error: "Acesso inativo." }, { status: 403 }) };
   const type = normalize(data.profile.tipo);
   const master = ["super_admin", "admin_master"].includes(type);
   const allowed = (data.appsLiberados ?? []).some((app) => app.slug === "dronegestor" && app.canAccess);
@@ -122,6 +124,7 @@ async function context(): Promise<{ current: Context | null; response: NextRespo
       usuarioId: data.profile.id,
       usuarioNome: data.profile.nome || "Gestor",
       empresaId: data.profile.empresa_id,
+      canAdministerTeam: canAdministerDroneCompany({ tipo: data.profile.tipo, isAdminMaster: master, permissoes: data.permissoes }),
       canManage: canManageDroneGestor({ tipo: data.profile.tipo, isAdminMaster: master, permissoes: data.permissoes }),
     },
     response: null,
@@ -178,7 +181,7 @@ async function linkUser(admin: any, current: Context, pilot: Pilot, appId: strin
   const userResult = await admin
     .from("core_usuarios")
     .select("id,status,empresa_id")
-    .ilike("email", pilot.email)
+    .ilike("email", pilot.email.replace(/[\\%_]/g, "\\$&"))
     .eq("empresa_id", current.empresaId)
     .limit(1)
     .maybeSingle();
@@ -217,7 +220,7 @@ export async function GET() {
       // manager from seeing their own identity or preparing a solo OS.
       // It never authorizes creating, editing or linking collaborators.
       if(current.canManage && error instanceof ApiError && error.status===403) {
-        return NextResponse.json({ok:true,items:[],canManage:current.canManage,canCreatePilot:false,teamUnavailable:true,teamMessage:error.message,currentUserId:current.usuarioId,currentUserName:current.usuarioNome,defaultPermissions});
+        return NextResponse.json({ok:true,items:[],canManage:current.canManage,canCreatePilot:false,canAdministerTeam:false,teamUnavailable:true,teamMessage:error.message,currentUserId:current.usuarioId,currentUserName:current.usuarioNome,defaultPermissions});
       }
       throw error;
     }
@@ -243,7 +246,8 @@ export async function GET() {
       ok: true,
       items,
       canManage: current.canManage,
-      canCreatePilot: current.canManage && Boolean(current.empresaId),
+      canAdministerTeam: current.canAdministerTeam,
+      canCreatePilot: current.canAdministerTeam && Boolean(current.empresaId),
       teamUnavailable: false,
       defaultPermissions,
       currentUserId: current.usuarioId,
@@ -259,8 +263,8 @@ export async function POST(request: NextRequest) {
     const access = await context();
     if (access.response) return access.response;
     const current = access.current!;
-    if (!current.canManage) {
-      return NextResponse.json({ ok: false, error: "Somente o gestor ou o RT pode cadastrar pilotos." }, { status: 403 });
+    if (!current.canAdministerTeam) {
+      return NextResponse.json({ ok: false, error: "Somente o administrador da empresa pode cadastrar pilotos." }, { status: 403 });
     }
 
     const body = await request.json();
@@ -351,8 +355,8 @@ export async function PATCH(request: NextRequest) {
     const access = await context();
     if (access.response) return access.response;
     const current = access.current!;
-    if (!current.canManage) {
-      return NextResponse.json({ ok: false, error: "Somente o gestor ou o RT pode alterar pilotos." }, { status: 403 });
+    if (!current.canAdministerTeam) {
+      return NextResponse.json({ ok: false, error: "Somente o administrador da empresa pode alterar acessos de pilotos." }, { status: 403 });
     }
 
     const body = await request.json();
@@ -379,8 +383,8 @@ export async function DELETE(request: NextRequest) {
     const access = await context();
     if (access.response) return access.response;
     const current = access.current!;
-    if (!current.canManage) {
-      return NextResponse.json({ ok: false, error: "Somente o gestor ou o RT pode inativar pilotos." }, { status: 403 });
+    if (!current.canAdministerTeam) {
+      return NextResponse.json({ ok: false, error: "Somente o administrador da empresa pode inativar pilotos." }, { status: 403 });
     }
 
     const body = await request.json();
