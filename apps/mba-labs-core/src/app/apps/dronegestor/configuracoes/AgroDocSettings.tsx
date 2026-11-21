@@ -54,7 +54,7 @@ export function AgroDocSettings({ canManage }: { canManage: boolean }) {
                 {
                   name: "ANAC / SISANT",
                   text: "Dados de aeronaves e operadores",
-                  url: "https://sistemas.anac.gov.br/sisant",
+                  url: "https://www.gov.br/anac/pt-br/assuntos/drones",
                   icon: ShieldCheck,
                 },
                 {
@@ -156,7 +156,7 @@ export function AgroDocSettings({ canManage }: { canManage: boolean }) {
                         : "Piloto: operações e documentos autorizados."}
                     </small>
                   </div>
-                  <Link href={`${ROOT}/pilotos`}>Equipe →</Link>
+                  <Link href={`${ROOT}/equipe`}>Minha equipe →</Link>
                 </div>
               </AgroDocCard>
             </div>
