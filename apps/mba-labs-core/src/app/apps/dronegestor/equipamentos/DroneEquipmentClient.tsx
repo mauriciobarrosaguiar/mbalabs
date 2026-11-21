@@ -122,20 +122,20 @@ export function DroneEquipmentClient({ canManage }: { canManage: boolean }) {
           <div className="flex items-start justify-between gap-4">
             <div>
               <span className="inline-flex items-center gap-2 text-sm font-black text-emerald-800"><Drone size={18}/> {editingId ? "Editar drone" : "Cadastrar drone"}</span>
-              <h2 className="mt-2 text-2xl font-black text-slate-950">Preencha uma vez. Reutilize em todas as aplicações.</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">Os dados técnicos abaixo serão preenchidos automaticamente quando o piloto selecionar este equipamento.</p>
+              <h2 className="mt-2 text-2xl font-black text-slate-950">Dados do equipamento</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-500">Os dados cadastrados serão reutilizados na operação.</p>
             </div>
             {editingId && <button type="button" onClick={cancelEdit} className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 text-slate-600" aria-label="Cancelar edição"><X size={18}/></button>}
           </div>
 
           <form onSubmit={submit} className="mt-5 grid gap-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <TextField label="Nome fácil *" placeholder="Ex.: T50 - Drone 01" value={draft.nome} onChange={(v) => setDraft({ ...draft, nome: v })}/>
+              <TextField label="Apelido do equipamento *" placeholder="Ex.: T50 - Drone 01" value={draft.nome} onChange={(v) => setDraft({ ...draft, nome: v })}/>
               <TextField label="Marca" placeholder="DJI" value={draft.marca} onChange={(v) => setDraft({ ...draft, marca: v })}/>
               <TextField label="Modelo *" placeholder="Ex.: Agras T50" value={draft.modelo} onChange={(v) => setDraft({ ...draft, modelo: v })}/>
               <TextField label="Nº de série" placeholder="Opcional" value={draft.numeroSerie} onChange={(v) => setDraft({ ...draft, numeroSerie: v })}/>
               <TextField label="Identificação / registro ANAC *" value={draft.registroAnac} onChange={(v) => setDraft({ ...draft, registroAnac: v })}/>
-              <NumberField label="Capacidade do tanque *" suffix="L" value={draft.tanqueL} onChange={(v) => setDraft({ ...draft, tanqueL: v })}/>
+              <NumberField label="Capacidade cadastrada do tanque *" suffix="L" value={draft.tanqueL} onChange={(v) => setDraft({ ...draft, tanqueL: v })}/>
               <TextField label="Bico / atomizador padrão *" placeholder="Ex.: atomizador original" value={draft.pontaModelo} onChange={(v) => setDraft({ ...draft, pontaModelo: v })}/>
               <NumberField label="Faixa padrão" suffix="m" value={draft.faixaPadraoM} onChange={(v) => setDraft({ ...draft, faixaPadraoM: v })}/>
               <NumberField label="Velocidade padrão" suffix="km/h" value={draft.velocidadePadraoKmh} onChange={(v) => setDraft({ ...draft, velocidadePadraoKmh: v })}/>
