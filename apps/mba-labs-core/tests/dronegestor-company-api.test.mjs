@@ -16,7 +16,7 @@ const pilotRoutes=await import('../src/app/api/dronegestor/pilotos/route.ts');ho
 const session = (tipo='admin_empresa') => ({user:{id:'auth-admin'},profile:{id:'admin-A',tipo,status:'ativo',empresa_id:'company-A'},appsLiberados:[{slug:'dronegestor',canAccess:true}],permissoes:[]});
 const body = {nome:'HOMOLOGAÇÃO funcionário',email:'employee@example.invalid',perfil:'piloto',senhaAcesso:'SenhaSomenteTeste123'};
 const req = b => new Request('http://localhost/api/dronegestor/empresa/usuarios',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)});
-beforeEach(()=>Object.assign(state,{session:session(),factories:0,queries:[],created:[],logs:[],rolledBack:0,company:{id:'company-A',nome:'Empresa HOMOLOGAÇÃO',status:'ativa'},contract:{id:'contract-A',status:'ativo',data_vencimento:null},permissions:[{usuario_id:'employee-1',perfil_app:'piloto',status:'ativo'}],users:[{id:'employee-1',nome:'HOMOLOGAÇÃO',email:'employee@example.invalid',status:'ativo'}],logError:null,updates:[],editUser:null,editPermission:null,pilotRows:[],updateErrorTable:null}));
+beforeEach(()=>Object.assign(state,{session:session(),factories:0,queries:[],created:[],logs:[],rolledBack:0,company:{id:'company-A',nome:'Empresa HOMOLOGAÇÃO',status:'ativa'},contract:{id:'contract-A',status:'ativo',data_vencimento:null},permissions:[{usuario_id:'employee-1',perfil_app:'piloto',status:'ativo'}],users:[{id:'employee-1',nome:'HOMOLOGAÇÃO',email:'employee@example.invalid',status:'ativo'}],logError:null,updates:[],editUser:null,editPermission:null,pilotRows:[],updateErrorTable:null,otherPermissions:[],authCalls:[],authError:null,completionLogError:null}));
 test('sem sessão ou usuário inativo não chega ao cliente privilegiado',async()=>{
   state.session=null;assert.equal((await GET()).status,401);
   state.session=session();state.session.profile.status='bloqueado';assert.equal((await POST(req(body))).status,403);
@@ -105,4 +105,45 @@ test('falha de mudança de papel restaura contato sem gravar auditoria',async()=
 });
 test('corrigir contato do administrador que também pilota preserva cadastro operacional ativo',async()=>{
  const edit=prepareEdit('admin_empresa');assert.equal((await PATCH(req(edit))).status,200);assert.equal(state.logs[1].detalhes.ativo,true);assert.equal(state.logs[1].detalhes.id,'pilot-1');
+});
+
+function passwordRequest(extra={}) {
+ const edit=prepareEdit();state.editUser.auth_user_id='auth-employee';
+ return {action:'senha',id:edit.id,novaSenha:'SomenteTeste!123',confirmarSenha:'SomenteTeste!123',...extra};
+}
+test('senha valida tamanho, confirmação e campos permitidos antes de escrever',async()=>{
+ for(const extra of [{novaSenha:''},{novaSenha:'curta',confirmarSenha:'curta'},{confirmarSenha:'diferente'},{novaSenha:'x'.repeat(201),confirmarSenha:'x'.repeat(201)},{empresaId:'outra'},{tipo:'super_admin'}])assert.equal((await PATCH(req(passwordRequest(extra)))).status,400);
+ assert.equal(state.authCalls.length,0);assert.equal(state.logs.length,0);
+});
+test('piloto, RT e gestor não podem redefinir senhas',async()=>{
+ for(const role of ['piloto','responsavel_tecnico','gestor_operacional','visualizador']){state.session=session(role);assert.equal((await PATCH(req(passwordRequest()))).status,403);}
+ assert.equal(state.authCalls.length,0);
+});
+test('senha exige alvo da empresa e vínculo DroneGestor, sem aceitar auth id externo',async()=>{
+ let b=passwordRequest();state.editUser=null;assert.equal((await PATCH(req(b))).status,404);
+ b=passwordRequest();state.editPermission=null;assert.equal((await PATCH(req(b))).status,404);
+ assert.equal((await PATCH(req(passwordRequest({auth_user_id:'outro'})))).status,400);assert.equal(state.authCalls.length,0);
+});
+test('administrador não redefine senha de outro administrador nem de conta global',async()=>{
+ let b=passwordRequest();state.editPermission.perfil_app='admin_empresa';assert.equal((await PATCH(req(b))).status,403);
+ b=passwordRequest();state.editUser.tipo_global='super_admin';assert.equal((await PATCH(req(b))).status,403);assert.equal(state.authCalls.length,0);
+});
+test('conta compartilhada com outro app exige alteração pelo titular',async()=>{
+ const b=passwordRequest();state.otherPermissions=[{id:'other-app'}];assert.equal((await PATCH(req(b))).status,403);assert.equal(state.authCalls.length,0);
+});
+test('alteração de senha usa somente auth id do alvo autorizado e não grava segredo',async()=>{
+ const b=passwordRequest();const response=await PATCH(req(b));assert.equal(response.status,200);
+ assert.deepEqual(state.authCalls,[{id:'auth-employee',input:{password:b.novaSenha}}]);assert.equal(state.updates.length,0);
+ assert.equal(JSON.stringify(state.logs).includes(b.novaSenha),false);assert.equal(JSON.stringify(await response.json()).includes(b.novaSenha),false);
+ assert.deepEqual(state.logs.map(x=>x.acao),['funcionario_senha_solicitada_v1','funcionario_senha_alterada_v1']);
+});
+test('falha de auditoria inicial preserva senha e erro do provedor não é exposto',async()=>{
+ let b=passwordRequest();state.logError=Error('audit failure');assert.equal((await PATCH(req(b))).status,500);assert.equal(state.authCalls.length,0);
+ state.logError=null;state.authError=Error('segredo do provedor');const r=await PATCH(req(b));assert.equal(r.status,503);assert.equal(JSON.stringify(await r.json()).includes('segredo do provedor'),false);assert.equal(state.logs.at(-1).acao,'funcionario_senha_falhou_v1');
+});
+test('auditoria final indisponível informa senha já alterada em vez de falso erro',async()=>{
+ const b=passwordRequest();state.completionLogError=Error('audit final');const r=await PATCH(req(b));assert.equal(r.status,200);assert.equal((await r.json()).auditoriaPendente,true);assert.equal(state.authCalls.length,1);
+});
+test('administrador empresarial pode alterar a própria senha sem mudar permissões',async()=>{
+ const b=passwordRequest();state.session.profile.id=b.id;state.editPermission.perfil_app='admin_empresa';assert.equal((await PATCH(req(b))).status,200);assert.equal(state.authCalls.length,1);assert.equal(state.updates.length,0);
 });
