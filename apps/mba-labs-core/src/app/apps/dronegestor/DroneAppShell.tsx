@@ -3,6 +3,7 @@ import { AgroDocDroneIcon as Drone } from "./AgroDocDroneIcon";
 import Link from "next/link";
 import {
   Bell,
+  Calculator,
   BookOpen,
   CircleHelp,
   Folder,
@@ -46,6 +47,7 @@ const pages = [
   { path: "cadastros", title: "Cadastros", icon: Layers },
   { path: "piloto-pro", title: "Piloto Pro", icon: BookOpen },
   { path: "produtos", title: "Defensivos e AGROFIT", icon: Leaf },
+  { path: "perfil-operacional", title: "Perfil operacional", icon: UserRound },
   { path: "configuracoes", title: "Configurações", icon: Settings },
 ];
 const navigation = [
@@ -55,7 +57,7 @@ const navigation = [
  { title: "Gestão", paths: ["cadastros", "equipamentos", "equipe"] },
  { title: "Regularização", paths: ["diagnostico", "documentos", "regulacao", "relatorio-mensal", "conferencia"] },
  { title: "Piloto Pro", paths: ["piloto-pro", "produtos"] },
- { title: "Configurações", paths: ["configuracoes"] },
+ { title: "Configurações", paths: ["perfil-operacional", "configuracoes"] },
 ];
 const managerPaths = new Set(["conferencia", "cadastros", "pilotos", "equipe", "configuracoes"]);
 export function DroneAppShell({
@@ -112,6 +114,7 @@ export function DroneAppShell({
           })}
         </nav>
       </aside>
+      {menu && <button className="agro-menu-dismiss fixed inset-0 z-[80] bg-black/40" aria-label="Fechar menu" onClick={()=>setMenu(false)}/>}
       <div className="agro-workspace">
         <header className="agro-header">
           <Link href={ROOT} className="agro-mobile-brand">
@@ -121,6 +124,7 @@ export function DroneAppShell({
           <button
             className="agro-menu-button"
             aria-label="Abrir menu"
+            aria-expanded={menu}
             onClick={() => setMenu((v) => !v)}
           >
             <Menu />
@@ -212,14 +216,14 @@ export function DroneAppShell({
         <div className="agro-page-content">{children}</div>
       </div>
       <nav
-        className={`agro-bottom-nav ${path.startsWith(`${ROOT}/campo`) ? "agro-bottom-nav-field" : ""}`}
+        className="agro-bottom-nav"
         aria-label="Navegação do piloto"
       >
         {[
           { path: "", title: "Início", icon: Home },
           { path: "gestao", title: "Operações", icon: Drone },
-          { path: "documentos", title: "Documentos", icon: Folder },
-          { path: "perfil-operacional", title: "Perfil", icon: UserRound },
+          { path: "ferramentas", title: "Calda", icon: Calculator },
+          { path: "piloto-pro", title: "Piloto Pro", icon: BookOpen },
         ].map(({ path: p, title, icon: Icon }) => (
           <Link
             key={p}
@@ -232,6 +236,7 @@ export function DroneAppShell({
             {title}
           </Link>
         ))}
+        <button type="button" className="agro-mobile-more" aria-expanded={menu} onClick={()=>setMenu(v=>!v)}><Menu/>Mais</button>
       </nav>
     </div>
   );
