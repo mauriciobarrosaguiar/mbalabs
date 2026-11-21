@@ -2055,3 +2055,6 @@
  .agro-shell .agro-page-compact>div>section{border-radius:14px;}
 }
 @media print{.agro-shell .agro-bottom-nav,.agro-shell .agro-field-shortcuts{display:none!important;}}
+
+@media(max-width:767px){.agro-shell .agro-toolbar-reports>.agro-report-month{grid-column:1/-1;}.agro-shell .agro-report-month input{width:100%;}.agro-shell .agro-field-shortcuts{grid-template-columns:repeat(5,minmax(0,1fr));}.agro-shell .agro-page-content{scroll-margin-bottom:80px;}}
+@media(min-width:768px){.agro-menu-dismiss{display:none;}}
