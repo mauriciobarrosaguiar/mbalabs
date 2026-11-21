@@ -130,14 +130,14 @@ export function DroneProductLibraryClient({ canManage }: { canManage: boolean })
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-emerald-100 text-emerald-700"><BookOpenCheck size={22}/></span>
           <div>
             <h2 className="text-xl font-black text-slate-950">Consultar produto</h2>
-            <p className="mt-1 text-sm leading-6 text-slate-600">Busque pelo nome comercial, registro ou ingrediente ativo. O sistema consulta a base oficial e mostra se a informação já foi revisada pelo RT.</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">Busque por nome, registro ou ingrediente ativo. Confira a fonte e a revisão do RT.</p>
           </div>
         </div>
 
         <form onSubmit={search} className="mt-5 flex gap-2">
           <label className="sr-only" htmlFor="drone-product-search">Buscar produto</label>
           <input id="drone-product-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ex.: glifosato, produto ou nº de registro" className="min-h-12 min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-4 text-slate-950 outline-none placeholder:text-slate-400 focus:border-emerald-500"/>
-          <button disabled={loading} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 font-black text-white disabled:opacity-60" type="submit">{loading ? <Loader2 className="animate-spin" size={18}/> : <Search size={18}/>}<span className="hidden sm:inline">Buscar</span></button>
+          <button disabled={loading} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 font-black text-white disabled:opacity-60" type="submit">{loading ? <Loader2 className="animate-spin" size={18}/> : <Search size={18}/>}<span className="inline">Buscar</span></button>
         </form>
 
         <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
