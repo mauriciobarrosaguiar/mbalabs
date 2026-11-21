@@ -51,3 +51,30 @@ Nenhuma das seis fases completas recebeu aceite. Não existe base para anunciar 
 - Credenciais OAuth e consentimento de cada empresa, amostras DJI e modelo MAPA oficial revisado precisam ser fornecidos/configurados na etapa correspondente.
 - Testes de navegador bloqueados no executor por restrição de socket; fallback remoto não alcançou localhost. Harness preparado, sem screenshots fabricados.
 - A missão permanece em andamento: esta entrega é incremental e não representa 100% nem autorização para produção.
+
+
+## Continuação — correções das 23 capturas (21/11/2026)
+
+| Requisito | Entrega nesta rodada | Aceite pendente |
+| --- | --- | --- |
+| MBA Calda | Releitura da implementação Android em mba-calda-native-android; nova interface web por etapas, múltiplos produtos, doses por ha e por 100 L, cargas parciais, capacidade cadastrada ou personalizada, consulta AGROFIT. Modo campo usa os dados da missão e a mesma função matemática. Calculadora pública preservada. | Testes visuais/autenticados e integração completa OS. |
+| Visual e navegação | Cabeçalhos principais MBA DroneGestor; histórico claro; submenu de ferramentas unificado; Minha equipe; categorias Piloto Pro e link da biblioteca de produtos; retirada de contador de etapas legado no campo. | Revisão das páginas remanescentes, responsividade real, todos os perfis. |
+| Solo/equipe | Gestor autorizado em Solo explícito pode preparar OS própria sem cadastrar outro piloto. Autorização de criação de colaboradores continua dependendo do contrato. Erro de equipe indisponível tratado separadamente. | Validar com contas reais isoladas; corrigir eventuais vínculos comerciais somente mediante autorização. |
+| Segurança operacional | Prontidão local exige SARPAS autorizado com protocolo e GPS válido, sem substituir validação do servidor; demais bloqueios existentes preservados. | Fluxo exato de oito fases, interrupção segura com área parcial e retomada ainda não homologados/implementados integralmente. |
+| Drive | Instruções OAuth acessíveis em Configurações; código existente reaproveitado. Metadata Vercel não revelou chaves específicas AGRODOC. | Credenciais, callback QA, migration de armazenamento e teste real de conexão, upload, download, renovação e isolamento. |
+| SARPAS | Adaptador server-only preparado, com rotas oficiais documentadas, feature flag, tratamento de erros e status restrito a gestor. Configuração mostra etapas do credenciamento. Envio oficial bloqueado. | Credenciamento, token delegado, persistência segura por operador, autorização, consulta real, protocolo e testes com DECEA. |
+| Demais órgãos | Links oficiais atualizados, ANAC com acesso pelo gov.br, AGROFIT reaproveitado no cálculo e biblioteca. | Não afirmar API transacional para órgãos sem confirmação; validar links e consultas reais; rotina diária de importação ainda não implementada. |
+| MAPA | Exportador/modelo anterior preservado. | XLSX oficial não localizado/validado nesta execução, não simular protocolo SEI. |
+| Piloto Pro | Categorias e navegação em cards, sem inventar mídia ou fichas. | E-book integral, fotos autorizadas, telas interativas, especificações por modelo e conteúdo revisado. |
+
+### Segurança / ambiente
+Consulta somente leitura em produção confirmou novamente core_logs_insert e core_logs_select com autorização ampla por empresa. Migration 20260815140001_restrict_dronegestor_logs_by_role.sql continua pendente de validação isolada. Nenhum projeto QA dedicado ao DroneGestor foi identificado. Variáveis Supabase específicas da branch não foram identificadas nos metadados; não é seguro assumir que preview está isolado. Não realizar gravação de homologação nesse preview sem confirmar o banco. Nenhuma migration aplicada nem dado produtivo alterado. Dois testes matemáticos acrescentados; 33 testes antigos pertencem à execução anterior, não constituem aprovação dos commits atuais. Aguardar evidência CI/preview antes do aceite; E2E autenticado não realizado. Nenhuma solicitação oficial enviada.
+
+### Dependências do proprietário
+1. Criar/autorizar banco Supabase de homologação separado, com contas Gestor/Piloto/RT e perfis adicionais para aceite.
+2. Ativar Google Drive API no Google Cloud e criar OAuth Web com callback específico do ambiente; configurar AGRODOC_GOOGLE_CLIENT_ID, AGRODOC_GOOGLE_CLIENT_SECRET, AGRODOC_GOOGLE_REDIRECT_URI e AGRODOC_CLOUD_ENCRYPTION_KEY diretamente na Vercel, sem expor valores.
+3. Solicitar credenciamento oficial DECEA como Provider Eco UTM, usando https://ajuda.decea.mil.br/assuntos/sarpas-api?lang=pt-br e configurar chave somente no servidor após aprovação.
+4. Disponibilizar arquivo XLSX oficial MAPA, edição original do e-book e mídias com autorização.
+5. Homologar antes de qualquer publicação em produção.
+
+Entrega incremental. PR permanece em rascunho. Não representa missão 100% concluída.
