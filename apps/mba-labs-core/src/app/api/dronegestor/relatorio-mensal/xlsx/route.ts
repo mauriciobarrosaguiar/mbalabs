@@ -203,9 +203,9 @@ export async function GET(request:NextRequest){
    monthRange(month);
    if(!/^2026-(0[1-9]|1[0-2])$/.test(month))
      return NextResponse.json({error:"Para esta exportação utilize o modelo MAPA 2026 e selecione um mês de 2026."},{status:422});
-   let events=admin.from("core_logs").select("id,detalhes,created_at").eq("app_slug","dronegestor")
+   const events=admin.from("core_logs").select("id,detalhes,created_at").eq("app_slug","dronegestor")
      .eq("acao",FINALIZED_ACTION).order("created_at",{ascending:true}).limit(3000);
-   let approvals=admin.from("core_logs").select("detalhes,created_at").eq("app_slug","dronegestor")
+   const approvals=admin.from("core_logs").select("detalhes,created_at").eq("app_slug","dronegestor")
      .eq("acao","operacao_revisao_mapa_2026_v1").order("created_at",{ascending:true}).limit(5000);
    const [{data,error},revisions,p,template]=await Promise.all([
      scope(events,current),scope(approvals,current),profile(admin,current),officialTemplate(admin,current)]);

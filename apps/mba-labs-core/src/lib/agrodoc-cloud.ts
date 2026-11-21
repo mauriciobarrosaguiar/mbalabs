@@ -116,7 +116,7 @@ export function safeCloudName(value: string) {
 }
 export async function ensureDriveFolder(context: CloudContext, token: string, key: string, name: string, parentId?: string, accountSubject = "") {
   key = "account:" + (accountSubject || "unknown") + ":" + key;
-  let q = cloudScope(cloudDb().from("agrodoc_cloud_folders").select("provider_folder_id"), context);
+  const q = cloudScope(cloudDb().from("agrodoc_cloud_folders").select("provider_folder_id"), context);
   const { data, error } = await q.eq("provider", "google_drive").eq("folder_key", key).maybeSingle();
   if (error) throw error;
   if (data?.provider_folder_id) return String(data.provider_folder_id);

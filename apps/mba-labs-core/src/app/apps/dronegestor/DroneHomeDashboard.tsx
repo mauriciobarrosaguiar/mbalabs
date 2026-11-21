@@ -74,6 +74,8 @@ export function DroneHomeDashboard({
       ? `/api/dronegestor/documentos?osId=${encodeURIComponent(activeOs)}`
       : null,
   );
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 60000); return () => window.clearInterval(interval); }, []);
   const [months, setMonths] = useState(6),
     [online, setOnline] = useState(true);
   useEffect(() => {
@@ -97,11 +99,11 @@ export function DroneHomeDashboard({
     upcoming = checklist.filter(
       (x) =>
         x.validade &&
-        Date.parse(x.validade) >= Date.now() &&
-        Date.parse(x.validade) <= Date.now() + 30 * 86400000,
+        Date.parse(x.validade) >= clock &&
+        Date.parse(x.validade) <= clock + 30 * 86400000,
     ).length;
   const items = history.data?.items || [],
-    now = new Date(),
+    now = new Date(clock),
     labels = Array.from(
       { length: months },
       (_, i) => new Date(now.getFullYear(), now.getMonth() - months + 1 + i, 1),
@@ -119,7 +121,7 @@ export function DroneHomeDashboard({
   const max = Math.max(1, ...series.map((x) => x.n));
   const w = weather.data?.state?.weather;
   const weatherTimestamp = w?.capturedAt ? Date.parse(w.capturedAt) : Number.NaN;
-  const weatherFresh = Number.isFinite(weatherTimestamp) && weatherTimestamp <= Date.now() && (Date.now()-weatherTimestamp) < 30*60*1000;
+  const weatherFresh = Number.isFinite(weatherTimestamp) && weatherTimestamp <= clock && (clock-weatherTimestamp) < 30*60*1000;
   const activeOrderStatuses = new Set(["aberta","preparacao","em_preparacao","em_execucao","suspensa"]);
   const orderIds = new Set<string>();
   const activeOrdersCount = assignedOrders.data ? (assignedOrders.data.items ?? []).filter(x => {
