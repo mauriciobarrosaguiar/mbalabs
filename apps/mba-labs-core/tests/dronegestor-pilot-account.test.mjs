@@ -233,3 +233,38 @@ test("rollback de vínculo existente restaura exatamente a permissão anterior",
   assert.deepEqual(restore.payload, { perfil_app: previousPermission.perfil_app, status: previousPermission.status });
   assert.deepEqual(restore.filters, [["eq", "id", previousPermission.id]]);
 });
+
+test("não rebaixa nem vincula administradores globais/empresariais como funcionários", async () => {
+  for (const tipo of ['super_admin','admin_master','admin_empresa']) {
+    const {admin,events}=createAdmin({existingUser:{id:'protected',empresa_id:current.empresaId,status:'ativo',tipo,tipo_global:tipo}});
+    await assert.rejects(createOrLinkPilotAccount(admin,current,appId,input,'responsavel_tecnico',true),e=>e.status===403);
+    assert.equal(operations(events,'core_usuario_app_permissoes','upsert').length,0);
+  }
+});
+test("novo cadastro de funcionário não sobrescreve permissão existente", async () => {
+  const {admin,events}=createAdmin({existingUser:{id:'existing',empresa_id:current.empresaId,status:'ativo'},previousPermission:{id:'permission',perfil_app:'gestor_operacional',status:'ativo'}});
+  await assert.rejects(createOrLinkPilotAccount(admin,current,appId,input,'piloto',true),e=>e.status===409);
+  assert.equal(operations(events,'core_usuario_app_permissoes','upsert').length,0);
+});
+test("perfil RT fica restrito ao app e mantém usuário global comum", async () => {
+  const {admin,events}=createAdmin();await createOrLinkPilotAccount(admin,current,appId,input,'responsavel_tecnico',true);
+  assert.equal(operations(events,'core_usuarios','insert')[0].payload.tipo_global,'usuario');
+  assert.equal(operations(events,'core_usuario_app_permissoes','upsert')[0].payload.perfil_app,'responsavel_tecnico');
+});
+test("empresa ausente e perfil de administrador são recusados antes de criar contas", async () => {
+  const {admin,events}=createAdmin();
+  await assert.rejects(createOrLinkPilotAccount(admin,{empresaId:null},appId,input),e=>e.status===400);
+  await assert.rejects(createOrLinkPilotAccount(admin,current,appId,input,'super_admin',true),e=>e.status===400);
+  assert.equal(events.length,0);
+});
+test("protege administrador específico do app mesmo com usuário global comum", async () => {
+  const {admin,events}=createAdmin({existingUser:{id:'admin',empresa_id:current.empresaId,status:'ativo',tipo:'usuario'},previousPermission:{id:'permission',perfil_app:'admin_empresa',status:'ativo'}});
+  await assert.rejects(createOrLinkPilotAccount(admin,current,appId,input),e=>e.status===403);
+  assert.equal(operations(events,'core_usuario_app_permissoes','upsert').length,0);
+});
+test("e-mail com curingas é consultado literalmente", async () => {
+  const {admin}=createAdmin();let emailFilter='';const original=admin.from;
+  admin.from=table=>{const q=original(table);const ilike=q.ilike.bind(q);q.ilike=(key,value)=>{emailFilter=value;return ilike(key,value);};return q;};
+  await createOrLinkPilotAccount(admin,current,appId,{...input,email:'pilot_%@example.invalid'});
+  assert.equal(emailFilter,'pilot\\_\\%@example.invalid');
+});

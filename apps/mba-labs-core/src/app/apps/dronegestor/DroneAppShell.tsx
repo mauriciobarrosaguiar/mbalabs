@@ -24,6 +24,8 @@ import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import { ROOT } from "./AgroDocUi";
 const pages = [
+  { path: "administracao", title: "Administração do sistema", icon: ShieldCheck },
+  { path: "funcionarios", title: "Funcionários e acessos", icon: UserRound },
   { path: "campo", title: "Modo campo", icon: Drone },
   { path: "historico", title: "Histórico de operações", icon: Folder },
   { path: "ferramentas", title: "MBA Calda e calculadoras", icon: ChartNoAxesColumn },
@@ -54,23 +56,27 @@ const navigation = [
  { title: "Visão geral", paths: [""] },
  { title: "Operações", paths: ["gestao", "campo", "historico"] },
  { title: "Ferramentas", paths: ["ferramentas"] },
- { title: "Gestão", paths: ["cadastros", "equipamentos", "equipe"] },
+ { title: "Gestão", paths: ["cadastros", "equipamentos", "equipe", "funcionarios"] },
  { title: "Regularização", paths: ["diagnostico", "documentos", "regulacao", "relatorio-mensal", "conferencia"] },
  { title: "Piloto Pro", paths: ["piloto-pro", "produtos"] },
- { title: "Configurações", paths: ["perfil-operacional", "configuracoes"] },
+ { title: "Configurações", paths: ["perfil-operacional", "configuracoes", "administracao"] },
 ];
 const managerPaths = new Set(["conferencia", "cadastros", "pilotos", "equipe", "configuracoes"]);
 export function DroneAppShell({
   children,
   userName = "Minha conta",
   canManage = false,
+  isSystemAdmin = false,
+  canAdministerCompany = false,
 }: {
   children: ReactNode;
   userName?: string;
   canManage?: boolean;
+  isSystemAdmin?: boolean;
+  canAdministerCompany?: boolean;
 }) {
   const path = usePathname();
-  const availablePages = pages.filter(p => canManage || !managerPaths.has(p.path));
+  const availablePages = pages.filter(p => (canManage || !managerPaths.has(p.path)) && (p.path !== "administracao" || isSystemAdmin) && (p.path !== "funcionarios" || canAdministerCompany));
   const [collapsed, setCollapsed] = useState(false);
   const [menu, setMenu] = useState(false),
     [query, setQuery] = useState(""),

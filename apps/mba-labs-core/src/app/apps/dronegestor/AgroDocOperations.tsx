@@ -1,7 +1,7 @@
 "use client";
 import { AgroDocDroneIcon as Drone } from "./AgroDocDroneIcon";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   CalendarDays,
   Clock,
@@ -52,7 +52,7 @@ export function AgroDocOperations({
   children: ReactNode;
   canManage: boolean;
 }) {
-  const { data, error } = useAgroData<Payload>(
+  const { data, error, refresh } = useAgroData<Payload>(
     canManage ? "/api/dronegestor/painel-gestor" : null,
   );
   const [query, setQuery] = useState(""),
@@ -62,6 +62,10 @@ export function AgroDocOperations({
     [size, setSize] = useState(6),
     [selected, setSelected] = useState<Item | null>(null),
     [editor, setEditor] = useState(false);
+  useEffect(() => {
+    window.addEventListener("dronegestor:cadastros-updated", refresh);
+    return () => window.removeEventListener("dronegestor:cadastros-updated", refresh);
+  }, [refresh]);
   const items = data?.items || [],
     filtered = items.filter(
       (x) =>

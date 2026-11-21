@@ -1,0 +1,135 @@
+- complementary:
+  - link "MBA Labs ®":
+    - /url: /dashboard
+    - text: MBA Labs
+    - superscript: ®
+  - generic: MBA DroneGestor
+  - text: Drones Agrícolas ·
+  - text: Operações · Piloto Pro
+  - button "Recolher menu" [expanded]
+  - navigation "MBA DroneGestor":
+    - generic "Visão geral"
+    - generic "Operações"
+    - generic "Ferramentas"
+    - generic "Gestão"
+    - generic "Regularização"
+    - link "Diagnóstico e regularização":
+      - /url: /apps/dronegestor/diagnostico
+      - generic: Diagnóstico e regularização
+    - link "Documentos":
+      - /url: /apps/dronegestor/documentos
+      - generic: Documentos
+    - link "Legislação e fontes":
+      - /url: /apps/dronegestor/regulacao
+      - generic: Legislação e fontes
+    - link "Relatórios MAPA":
+      - /url: /apps/dronegestor/relatorio-mensal
+      - generic: Relatórios MAPA
+    - link "Conferência de operações":
+      - /url: /apps/dronegestor/conferencia
+      - generic: Conferência de operações
+    - generic "Piloto Pro"
+    - generic "Configurações"
+- banner:
+  - textbox "Buscar páginas no MBA Labs":
+    - /placeholder: Buscar no MBA Labs
+  - button "Abrir pendências":
+  - link "Ajuda e regras":
+    - /url: /apps/dronegestor/regulacao
+  - generic "Mauricio Barros De Aguiar Minha conta MBA Labs":
+    - text: Mauricio Barros De Aguiar
+    - generic: Minha conta MBA Labs
+- heading "MBA DroneGestor · Documentos" [level=1]:
+  - text: MBA
+  - emphasis: DroneGestor
+  - text: · Documentos
+- paragraph: Central de arquivos, evidências, relatórios e comprovantes.
+- searchbox "Buscar documento"
+- combobox "Operação vinculada":
+  - option "Selecionar OS"
+  - option "OS-20261121-53437" [selected]
+  - option "OS-20261118-471F7"
+  - option "OS-20260815-2D1B8"
+- combobox "Tipo de documento":
+  - option "Todos" [selected]
+  - option "Relatórios operacionais"
+  - option "Comprovantes"
+  - option "Mapas de aplicação"
+  - option "Receituários agronômicos"
+  - option "Fotos e evidências"
+  - option "Histórico de voo"
+- button "Enviar documento":
+  - text: Enviar documento
+- article:
+  - generic: Documentos da operação
+  - strong: "1"
+- link "Pendências de anexo Consultar Checklist documental da OS":
+  - /url: "#agro-document-checklist"
+  - generic: Pendências de anexo
+  - strong: Consultar
+  - generic: Checklist documental da OS
+- article:
+  - generic: Armazenamento
+  - strong: Privado
+  - generic: Métrica de volume não disponível
+- heading "Pastas principais" [level=2]:
+  - text: Pastas principais
+- button "Relatórios operacionais 0 arquivos nesta OS":
+  - text: Relatórios operacionais
+  - generic: 0 arquivos nesta OS
+- button "Comprovantes 0 arquivos nesta OS":
+  - text: Comprovantes
+  - generic: 0 arquivos nesta OS
+- button "Mapas de aplicação 0 arquivos nesta OS":
+  - text: Mapas de aplicação
+  - generic: 0 arquivos nesta OS
+- button "Receituários agronômicos 0 arquivos nesta OS":
+  - text: Receituários agronômicos
+  - generic: 0 arquivos nesta OS
+- button "Fotos e evidências 1 arquivos nesta OS":
+  - text: Fotos e evidências
+  - generic: 1 arquivos nesta OS
+- button "Histórico de voo 0 arquivos nesta OS":
+  - text: Histórico de voo
+  - generic: 0 arquivos nesta OS
+- heading "Últimos arquivos" [level=2]:
+  - text: Últimos arquivos
+- 'region "Tabela de dados: deslize horizontalmente para ver todas as colunas"':
+  - table:
+    - rowgroup:
+      - row "Arquivo Operação Data Ações":
+        - columnheader "Arquivo"
+        - columnheader "Operação"
+        - columnheader "Data"
+        - columnheader "Ações"
+    - rowgroup:
+      - row "HOMOLOGACAO_CODEX_20261121.png OS-20261121-53437 21/11/2026 Visualizar HOMOLOGACAO_CODEX_20261121.png Baixar HOMOLOGACAO_CODEX_20261121.png":
+        - cell "HOMOLOGACAO_CODEX_20261121.png":
+          - button "HOMOLOGACAO_CODEX_20261121.png"
+        - cell "OS-20261121-53437"
+        - cell "21/11/2026"
+        - cell "Visualizar HOMOLOGACAO_CODEX_20261121.png Baixar HOMOLOGACAO_CODEX_20261121.png":
+          - button "Visualizar HOMOLOGACAO_CODEX_20261121.png":
+          - button "Baixar HOMOLOGACAO_CODEX_20261121.png":
+- heading "HOMOLOGACAO_CODEX_20261121.png" [level=2]:
+  - text: HOMOLOGACAO_CODEX_20261121.png
+- img "HOMOLOGACAO_CODEX_20261121.png"
+- generic: Tipo
+- generic: outro
+- generic: OS vinculada
+- generic: OS-20261121-53437
+- generic: Data
+- generic: 21/11/2026
+- generic: Responsável
+- generic: Mauricio Barros De Aguiar
+- button "Visualizar":
+  - text: Visualizar
+- button "Baixar":
+  - text: Baixar
+- paragraph: Acesso temporário e privado. O destinatário deve ter acesso à OS.
+- button "Copiar link interno":
+  - text: Copiar link interno
+- button "Arraste arquivos ou clique para anexar"
+- generic: Arquivos autorizados · Google Drive até 2 GB; Supabase até 10 MB · OS obrigatória
+- generic "Checklist documental e autorização SARPAS da operação ativa"
+- alert

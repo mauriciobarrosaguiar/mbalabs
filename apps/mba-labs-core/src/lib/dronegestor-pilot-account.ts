@@ -45,11 +45,15 @@ export async function createOrLinkPilotAccount(
   current: PilotAccountContext,
   appId: string,
   input: PilotAccountInput,
+  role: string = "piloto",
+  requireNewPermission = false,
 ) {
+  if (!current.empresaId) throw new PilotAccountError("Vincule uma empresa antes de criar acessos.", 400);
+  if (!["gestor_operacional", "responsavel_tecnico", "piloto", "aplicador_caar", "visualizador"].includes(role)) throw new PilotAccountError("Perfil de funcionário inválido.", 400);
   const existingResult = await admin
     .from("core_usuarios")
-    .select("id,empresa_id,status,auth_user_id")
-    .ilike("email", input.email)
+    .select("id,empresa_id,status,auth_user_id,tipo,tipo_global")
+    .ilike("email", input.email.replace(/[\\%_]/g, "\\$&"))
     .limit(1)
     .maybeSingle();
   if (existingResult.error) throw existingResult.error;
@@ -60,6 +64,10 @@ export async function createOrLinkPilotAccount(
   }
   if (existing && existing.status !== "ativo") {
     throw new PilotAccountError("Este acesso está inativo ou bloqueado. Reative o usuário antes de vinculá-lo como piloto.", 409);
+  }
+
+  if (existing && [existing.tipo, existing.tipo_global].some(type => ["super_admin", "admin_master", "admin_empresa"].includes(String(type ?? "").trim().toLowerCase()))) {
+    throw new PilotAccountError("Este usuário é administrado pelo gestor do sistema.", 403);
   }
 
   let authUserId = "";
@@ -121,12 +129,22 @@ export async function createOrLinkPilotAccount(
     throw previousPermission.error;
   }
 
+  if (previousPermission.data?.perfil_app === "admin_empresa") {
+    if (createdAccount) await rollbackCreatedAccount(admin, coreUserId, authUserId);
+    throw new PilotAccountError("O administrador da empresa só pode ser alterado pelo gestor do sistema.", 403);
+  }
+
+  if (requireNewPermission && previousPermission.data) {
+    if (createdAccount) await rollbackCreatedAccount(admin, coreUserId, authUserId);
+    throw new PilotAccountError("Este funcionário já possui vínculo com o DroneGestor. Gerencie o acesso existente.", 409);
+  }
+
   const permissionResult = await admin.from("core_usuario_app_permissoes").upsert(
     {
       usuario_id: coreUserId,
       empresa_id: current.empresaId,
       app_id: appId,
-      perfil_app: "piloto",
+      perfil_app: role,
       status: "ativo",
     },
     { onConflict: "usuario_id,app_id" },

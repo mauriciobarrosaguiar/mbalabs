@@ -1,0 +1,78 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> mba-labs-core@0.1.0 test:agrodoc
+> node --experimental-strip-types --test tests/dronegestor-*.test.mjs
+
+(node:25) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/conferencia/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ sem sessão não consulta nem aprova (4.543357ms)
+✔ piloto não pode aprovar nem listar conferência gerencial (1.03922ms)
+✔ gestor aprova e registra autoria e escopo da empresa (3.175707ms)
+✔ registro fora do escopo não pode receber decisão (0.703689ms)
+✔ multiproduto bloqueia aprovação sem duplicar área ou horas (0.876707ms)
+✔ correção exige motivo e mantém vínculo e autoria (1.352167ms)
+✔ horas efetivas inválidas bloqueiam aprovação (0.574277ms)
+(node:26) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/lib/dronegestor-calculations.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cargas completas, parcial e área menor que tanque (2.196687ms)
+✔ decimal exato não gera carga fantasma; parcial pequena é preservada (0.323532ms)
+✔ conversões preservam dimensão de massa e volume (0.528589ms)
+✔ vazão e rendimento incluem paradas explicitamente (0.412465ms)
+✔ financeiro diferencia ausência de retorno e retorno calculável (0.305656ms)
+✔ rejeita zero, infinitos, negativos e eficiência inválida (0.295982ms)
+✔ MBA Calda: vários produtos, mistura completa e parcial (0.243674ms)
+✔ dose por 100 L não depende da área e mantém a unidade de massa/volume (0.215241ms)
+(node:27) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/relatorio-mensal/modelo-oficial/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ modelo MAPA exige autenticação (4.375727ms)
+✔ piloto não pode cadastrar modelo MAPA (0.76393ms)
+✔ gestor e RT com perfil específico chegam à validação do arquivo (6.164731ms)
+(node:33) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/lib/dronegestor-pilot-account.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cria Auth, usuário da empresa e permissão de piloto sem persistir a senha no perfil (1.778253ms)
+✔ bloqueia senha inicial curta antes de criar qualquer conta (0.439045ms)
+✔ bloqueia e-mail pertencente a outra empresa (0.226107ms)
+✔ bloqueia usuário inativo da própria empresa (0.245967ms)
+✔ remove a conta Auth quando o perfil interno não é criado (0.264915ms)
+✔ remove Auth e perfil interno quando a permissão do aplicativo falha (0.337754ms)
+✔ vincula usuário ativo da mesma empresa sem criar outra conta Auth (0.196633ms)
+✔ rollback de vínculo existente restaura exatamente a permissão anterior (1.143516ms)
+(node:39) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/lib/dronegestor-preflight-guard.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ resposta antiga não libera missão após uma edição local (0.929076ms)
+✔ respostas fora de ordem e troca de OS são descartadas (0.220449ms)
+(node:40) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/lib/dronegestor-role.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ permissão do app habilita gestor e RT (1.146891ms)
+✔ piloto e permissão negada não concedem gestão (0.263864ms)
+(node:41) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/lib/dronegestor-sync-guard.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ edição durante upload permanece pendente (1.870731ms)
+✔ resposta da conta anterior não deve alterar revisão da conta atual (0.863097ms)
+✔ mesmo snapshot e proprietário podem ser confirmados (0.185877ms)
+✔ upload em voo não confirma edição posterior como sincronizada (89.06304ms)
+✔ resposta atrasada após troca de conta não altera estado da nova conta (26.238178ms)
+✔ conflito da conta anterior também é descartado (22.058223ms)
+✔ acknowledgement do snapshot inalterado limpa pendência (18.986281ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 37
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 682.518769
