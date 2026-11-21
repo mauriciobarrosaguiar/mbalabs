@@ -9,14 +9,14 @@ const fmt=(v:number)=>new Intl.NumberFormat("pt-BR",{maximumFractionDigits:4}).f
 export function DroneMixerCalculator(){
  const [slot,setSlot]=useState<HTMLElement|null>(null),[mission,setMission]=useState<Mission>({}),[mixer,setMixer]=useState(""),[progress,setProgress]=useState(0);
  useEffect(()=>{
-  let last="", lastOwner="";
+  let last="", lastOwner="", lastOs="";
   const sync=()=>{
    const owner=localStorage.getItem("dronegestor:deviceOwner:v1")||"";
    if(owner!==lastOwner){lastOwner=owner;last="";setMixer("");setMission({});}
    if(localStorage.getItem("dronegestor:view:v3")!=="calda"){setSlot(null);return;}
    const raw=localStorage.getItem("dronegestor:mission:v2")||"{}",p=localStorage.getItem("dronegestor:progress:v2")||"0";
    const stamp=raw+"|"+p;
-   if(stamp!==last){last=stamp;try{setMission(JSON.parse(raw));setProgress(Math.max(0,Number(JSON.parse(p))||0));}catch{setMission({});}}
+   if(stamp!==last){last=stamp;try{const parsed=JSON.parse(raw) as Mission;if(parsed.ordemServicoId!==lastOs){lastOs=parsed.ordemServicoId||"";setMixer("");}setMission(parsed);setProgress(Math.max(0,Number(JSON.parse(p))||0));}catch{setMission({});}}
    const title=Array.from(document.querySelectorAll("strong")).find(e=>e.textContent?.trim()==="Cálculo de calda");
    const root=title?.parentElement?.parentElement;
    if(!root?.parentElement)return;
