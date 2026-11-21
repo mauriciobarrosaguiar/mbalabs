@@ -147,7 +147,7 @@ export function QuickCaldaCalculatorV3() {
           <div className="grid gap-6">
             <NumberInput step="1" label="Área total" value={area} onChange={setArea} suffix="ha" placeholder="49"/>
             <NumberInput step="2" label="Tanque" value={tank} onChange={setTank} suffix="L" placeholder="100"/>
-            <NumberInput step="3" label="Vazão" value={flow} onChange={setFlow} suffix="L/ha" placeholder="10"/>
+            <NumberInput step="3" label="Taxa de aplicação" value={flow} onChange={setFlow} suffix="L/ha" placeholder="10"/>
           </div>
         </section>
 
