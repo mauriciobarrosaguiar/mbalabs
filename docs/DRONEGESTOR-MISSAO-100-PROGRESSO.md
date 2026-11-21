@@ -29,7 +29,7 @@ Ler este arquivo e o diff antes de executar novamente. Não repetir testes aprov
 | Tarefa | Situação | Arquivos principais | Evidência / pendência |
 | --- | --- | --- | --- |
 | Permissão do modelo MAPA | Validada com fixture do handler | api/dronegestor/relatorio-mensal/modelo-oficial/route.ts | 401, 403 piloto, gestor/RT chegam à validação de arquivo; teste Supabase pendente |
-| Preservar edições durante upload e descartar resposta de outra conta | Validada regra unitária; integração pendente | campo/DronePersistenceSync.tsx, lib/dronegestor-sync-guard.ts | Três testes unitários; dois aparelhos ainda não testados |
+| Preservar edições durante upload e descartar resposta de outra conta | Validada regra unitária; integração pendente | campo/DronePersistenceSync.tsx, lib/dronegestor-sync-guard.ts | Três testes unitários e quatro testes do sincronizador real com rede/storage controlados; dois aparelhos ainda não testados |
 | Central de misturador, vazão, rendimento e custos | Implementada; matemática validada | ferramentas/*, lib/dronegestor-calculations.ts | Seis testes; navegador bloqueado |
 | Carga decimal e parcial na calculadora existente | Validada matemática | calculadora/QuickCaldaCalculatorV3.tsx | Reutiliza calculateLoads; carga decimal não gera abastecimento extra |
 | Menu expansível e recolhível com identidade DroneGestor | Implementado sem homologação visual | DroneAppShell.tsx, layout.tsx, agrodoc.css | Apenas rotas existentes; gestão filtrada por perfil |
@@ -39,7 +39,7 @@ Ler este arquivo e o diff antes de executar novamente. Não repetir testes aprov
 
 ## Cobertura e trabalho ainda não aceito
 
-Os 29 testes automatizados da suíte DroneGestor passaram. Build e TypeScript passaram. Lint do módulo ficou sem erros, com avisos legados; lint global também contém erros fora deste escopo. Evidências em docs/evidence/dronegestor. Não são testes E2E autenticados.
+Os 33 testes automatizados da suíte DroneGestor passaram. Build e TypeScript passaram. Lint do módulo ficou sem erros, com avisos legados; lint global também contém erros fora deste escopo. Evidências em docs/evidence/dronegestor. Não são testes E2E autenticados.
 
 Ainda não foram concluídos: tabelas operacionais próprias e migração; RLS homologada; IndexedDB/PWA integral; dashboard completo com filtros; fluxo integral OS e interrupção; mapas profissionais e KMZ; catálogo de modelos oficiais; estoque, manutenção e financeiro integrado; importação integral do e-book; imagens interativas e fontes revisadas; assistente RAG; simulador; portal; Dropbox; notificações; relatórios oficiais homologados; testes de desempenho, todos os perfis e seis resoluções.
 

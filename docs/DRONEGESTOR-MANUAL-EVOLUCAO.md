@@ -32,7 +32,7 @@ npm run build
 npx eslint src/app/apps/dronegestor src/app/api/dronegestor src/lib/dronegestor-*.ts src/lib/agrodoc-cloud.ts
 ```
 
-Testes existentes de conferência e contas de pilotos foram preservados. Os novos testes cobrem cálculo, regra de sincronização, resolução de papel e autorização real do handler MAPA com dependências simuladas.
+Testes existentes de conferência e contas de pilotos foram preservados. Os novos testes cobrem cálculo, regra de sincronização, resolução de papel e autorização real do handler MAPA com dependências simuladas. Quatro testes adicionais executam o sincronizador real em memória, com armazenamento e rede controlados, para verificar edições concorrentes e respostas após troca de conta. Não são testes de integração com Supabase ou entre aparelhos.
 
 O harness em `tests/components` serve exclusivamente componentes isolados, com Link substituído por âncora. Não testa autenticação e não é uma rota da aplicação. Para gerar o bundle:
 
