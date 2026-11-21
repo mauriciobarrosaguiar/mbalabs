@@ -434,7 +434,7 @@ export function AgroDocReviewCenter() {
         variant="review"
         title={
           <>
-            Conferência <em>AgroDoc</em>
+            Conferência <em>de operações</em>
           </>
         }
         description="Validação técnica e documental antes do relatório oficial do MAPA."
