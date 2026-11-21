@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { AgroDocOperationalSettings } from "./AgroDocOperationalSettings";
 import { AgroDocCloudStorage } from "./AgroDocCloudStorage";
+import { SarpasProviderSetup } from "./SarpasProviderSetup";
 import {
   Bell,
   Settings,
@@ -59,10 +60,14 @@ export function AgroDocSettings({ canManage }: { canManage: boolean }) {
                 },
                 {
                   name: "DECEA / SARPAS",
-                  text: "Solicitações e autorizações de voo",
+                  text: "Solicitações e autorizações de voo no portal oficial",
                   url: "https://sarpas.decea.mil.br/",
                   icon: ExternalLink,
                 },
+                { name: "ANATEL / Certifica", text: "Orientações de homologação de equipamentos", url: "https://www.gov.br/mcom/pt-br/noticias/2026/setembro/homologacao-e-certificacao-de-produtos-de-telecomunicacoes-passam-a-ser-realizadas-no-sistema-certifica/", icon: ShieldCheck },
+                { name: "IBAMA / CTF", text: "Consultas de regularidade quando aplicável", url: "https://www.gov.br/ibama/pt-br/servicos/consultas/ctf", icon: ShieldCheck },
+                { name: "AGROFIT", text: "Dados abertos de produtos registrados", url: "https://dados.agricultura.gov.br/dataset/sistema-de-agrotoxicos-fitossanitarios-agrofit", icon: FileSpreadsheet },
+                { name: "MAPA / relatórios SEI", text: "Modelo oficial e instruções de remessa", url: "https://www.gov.br/agricultura/pt-br/assuntos/insumos-agropecuarios/aviacao-agricola/relatorios-mensais/relatorios-mensais", icon: FileSpreadsheet },
                 {
                   name: "MAPA",
                   text: "Modelo, regras e conformidade da operação",
@@ -111,6 +116,7 @@ export function AgroDocSettings({ canManage }: { canManage: boolean }) {
               </Link>
             </AgroDocCard>
           </div>
+          {canManage && <SarpasProviderSetup/>}
           <div id="agro-cloud"><AgroDocCloudStorage /></div>
           <div id="agro-official">
             <OfficialMapTemplateManager />
