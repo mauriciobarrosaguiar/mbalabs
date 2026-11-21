@@ -1,5 +1,6 @@
 import "./agrodoc.css";
 import type { ReactNode } from "react";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { getSessionProfile } from "@/lib/core-data";
 import { DroneActiveOperationBridge } from "./DroneActiveOperationBridge";
 import { DroneAppShell } from "./DroneAppShell";
@@ -10,7 +11,7 @@ export default async function DroneGestorLayout({ children }: { children: ReactN
   return (
     <div className="dronegestor-ui min-h-screen overflow-x-hidden bg-[#f4f8f1] text-slate-950">
       <DroneActiveOperationBridge deviceOwner={deviceOwner} />
-      <DroneAppShell userName={session.profile?.nome || "Minha conta"}>{children}</DroneAppShell>
+      <DroneAppShell canManage={canManageDroneGestor({tipo: session.profile?.tipo, permissoes: session.permissoes})} userName={session.profile?.nome || "Minha conta"}>{children}</DroneAppShell>
       <style>{`
         .dronegestor-ui {
           width: 100%;

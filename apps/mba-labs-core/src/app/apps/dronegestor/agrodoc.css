@@ -1983,3 +1983,17 @@
     margin: 0 0 7px;
   }
 }
+
+/* Group only implemented routes; API authorization remains server-side. */
+.agro-sidebar nav details { margin-bottom: .4rem; }
+.agro-sidebar nav summary { cursor: pointer; padding: .7rem .85rem; font-size: .76rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: #c3e5d8; }
+.agro-sidebar nav details a { margin-top: .2rem; }
+.agro-collapse-toggle { margin: .5rem 0; padding: .65rem; border: 1px solid #4a7561; border-radius: .6rem; color: #fff; background: transparent; }
+@media (min-width: 1025px) {
+ .agro-shell-collapsed .agro-sidebar { width: 115px; padding-inline: .5rem; }
+ .agro-shell-collapsed .agro-workspace { margin-left: 115px; }
+ .agro-shell-collapsed .agro-product, .agro-shell-collapsed .agro-logo, .agro-shell-collapsed nav a span { display: none; }
+ .agro-shell-collapsed .agro-sidebar nav summary { font-size: .6rem; padding-inline: .2rem; }
+ .agro-shell-collapsed .agro-sidebar nav a { justify-content: center; }
+}
+@media (max-width: 1024px) { .agro-collapse-toggle { display: none; } }

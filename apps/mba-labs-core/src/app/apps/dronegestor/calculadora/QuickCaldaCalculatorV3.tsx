@@ -10,6 +10,7 @@ import {
   Trash2
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { calculateLoads } from "@/lib/dronegestor-calculations";
 
 type DoseUnit = "mL/ha" | "L/ha" | "g/ha" | "kg/ha" | "mL/100L" | "g/100L";
 type Product = { id: string; name: string; dose: string; unit: DoseUnit };
@@ -70,11 +71,12 @@ export function QuickCaldaCalculatorV3() {
     const flowLHa = number(flow);
     const totalSprayL = areaHa * flowLHa;
     const areaPerTank = tankL > 0 && flowLHa > 0 ? tankL / flowLHa : 0;
-    const fullLoads = tankL > 0 ? Math.floor(totalSprayL / tankL) : 0;
-    const remainderL = tankL > 0 ? totalSprayL - fullLoads * tankL : 0;
-    const hasPartial = remainderL > 0.0001;
-    const loads = totalSprayL > 0 && tankL > 0 ? Math.ceil(totalSprayL / tankL) : 0;
-    const lastTankL = loads ? (hasPartial ? remainderL : tankL) : 0;
+    let loading: ReturnType<typeof calculateLoads> | null = null;
+    try { if (areaHa > 0 && tankL > 0 && flowLHa > 0) loading = calculateLoads(areaHa, flowLHa, tankL); } catch { /* Invalid limits keep results unavailable. */ }
+    const fullLoads = loading?.fullLoads ?? 0;
+    const hasPartial = Boolean(loading?.partialLoads);
+    const loads = loading?.loads ?? 0;
+    const lastTankL = loading?.lastL ?? 0;
     const lastAreaHa = flowLHa > 0 ? lastTankL / flowLHa : 0;
 
     const productResults: CalculatedProduct[] = products.map((product, index) => {
@@ -90,7 +92,7 @@ export function QuickCaldaCalculatorV3() {
     });
 
     return {
-      ready: areaHa > 0 && tankL > 0 && flowLHa > 0,
+      ready: Boolean(loading),
       areaHa,
       tankL,
       flowLHa,
