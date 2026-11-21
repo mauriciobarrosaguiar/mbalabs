@@ -51,3 +51,14 @@ export function calculateFinance(input: { areaHa: number; priceHa: number; varia
     roiPercent: input.investment > 0 ? profit / input.investment * 100 : null,
     paybackMonths: input.investment > 0 && monthlyProfit > 0 ? input.investment / monthlyProfit : null };
 }
+
+/** Quantity for a confirmed final volume. Supports existing concentration units without converting mass to volume. */
+export type ApplicationDoseUnit = DoseUnit | 'mL/100L' | 'g/100L';
+export function calculateProductForVolume(dose: number, unit: ApplicationDoseUnit, volumeL: number, rateLHa: number) {
+  positive(volumeL, 'Volume final'); positive(rateLHa, 'Taxa de aplicação'); nonnegative(dose, 'Dose');
+  if (unit === 'mL/100L' || unit === 'g/100L') {
+    const amount = dose * volumeL / 100;
+    return { amount, unit: unit === 'mL/100L' ? 'mL' : 'g' };
+  }
+  return calculateProduct(dose, unit, volumeL / rateLHa);
+}
