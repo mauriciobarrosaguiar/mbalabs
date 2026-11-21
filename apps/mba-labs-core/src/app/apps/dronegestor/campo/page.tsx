@@ -5,7 +5,6 @@ import { DroneEquipmentPicker } from "./DroneEquipmentPicker";
 import { DroneFinishLabelBridge } from "./DroneFinishLabelBridge";
 import { DroneGestorAppV3 } from "./DroneGestorAppV3";
 import { DroneGuidedFieldMode } from "./DroneGuidedFieldMode";
-import { DroneLegacyStepHider } from "./DroneLegacyStepHider";
 import { DroneMissionContextReset } from "./DroneMissionContextReset";
 import { DroneMissionGateHint } from "./DroneMissionGateHint";
 import { DroneMixerCalculator } from "./DroneMixerCalculator";
@@ -33,7 +32,6 @@ export default async function DroneGestorCampoPage() {
     <DroneEquipmentPicker canManage={canManage} />
     <DroneSimpleFlowUX />
     <DroneOperationNextStep />
-    <DroneLegacyStepHider />
     <DroneMissionGateHint />
     <DroneRegulatoryGuard canManage={canManage} />
     <DroneProductMissionPicker />
