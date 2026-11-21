@@ -78,3 +78,15 @@ Consulta somente leitura em produção confirmou novamente core_logs_insert e co
 5. Homologar antes de qualquer publicação em produção.
 
 Entrega incremental. PR permanece em rascunho. Não representa missão 100% concluída.
+
+
+## Homologação mobile — 19 novas capturas (21/11/2026)
+- Interface compartilhada: cabeçalho de 58 px em mobile, banners compactos, KPIs menores, navegação inferior única (Início, Operações, Calda, Piloto Pro e Mais), menu lateral com acesso ao perfil, documentos e saída. Espaço inferior reservado. Grades de duas colunas opt-in somente para áreas de baixa complexidade.
+- Início: separar OS ativas e em execução usando status reais; atalhos para OS, modo campo, calda, biblioteca, documentos, regularização e histórico. Dados meteorológicos identificados como referência, sem usar valores antigos como atuais.
+- Modo campo: preparação integrada ao layout, retirada da barra inferior própria fixa, atalhos locais preservados, identidade e hierarquia corrigidas; indicador de navegação não marca etapas anteriores como validadas. A tela imersiva de aplicação continua existente, com os bloqueios preservados.
+- MBA Calda: abas compactas, cartões de capacidades e resultados em duas colunas, cálculo e unidades anteriores preservados.
+- Equipamentos, legislação e defensivos: cabeçalhos compartilhados; equipe e perfil simplificados; histórico com rótulos de datas; conferência renomeada; competência MAPA em largura integral no mobile; orientação para selecionar OS antes de anexar.
+- Piloto Pro: categorias em duas colunas e informação de revisão expansível; ainda sem importação do e-book e imagens autorizadas.
+- CI: workflow separado DroneGestor validation executa npm --prefix apps/mba-labs-core run test:agrodoc. O CI anterior executou 136 testes de Cotações, não os testes específicos do DroneGestor.
+- Pendências críticas: RLS e QA isolado ainda não homologados; reestruturar as oito fases no servidor/cliente e finalizar aplicação parcial com justificativa, sem alterar status indevidamente; catálogo oficial de drones; integração OAuth/DECEA; XLSX oficial; biblioteca integral. Não declarar essas entregas concluídas.
+- Alterações de código registradas na PR #197. Sem merge, sem aplicação de migration, sem gravação no banco de produção. Evidência visual autenticada das novas alterações ainda pendente. Validar 360/390/768/1024/1440/1920, acessibilidade, scroll com teclado aberto, navegação e condições de operação.
