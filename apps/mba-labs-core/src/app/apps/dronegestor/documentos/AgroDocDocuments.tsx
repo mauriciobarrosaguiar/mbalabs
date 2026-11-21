@@ -184,7 +184,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
         variant="documents"
         title={
           <>
-            MBA <em>AgroDoc</em> · Documentos
+            MBA <em>DroneGestor</em> · Documentos
           </>
         }
         description="Central de arquivos, evidências, relatórios e comprovantes."
