@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { droneGestorRole } from "@/lib/dronegestor-role";
+import { dronePilotPlanningIssue } from "@/lib/dronegestor-planning";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   DroneOsAccessError,
@@ -531,6 +532,8 @@ export async function PUT(request: NextRequest) {
     const osId = textValue(mission.ordemServicoId);
     if (osId) {
       const osAccess = await requireDroneOsAccess(admin, accessContext(current), osId);
+      const planIssue = await dronePilotPlanningIssue(admin, accessContext(current), osAccess.data, mission);
+      if(planIssue) throw new DroneOsAccessError(planIssue, 403);
       if (
         current.empresaId &&
         osAccess.assignedPilotId &&
@@ -625,6 +628,8 @@ export async function POST(request: NextRequest) {
       summary.ordemServicoId,
     );
     const osData = osAccess.data;
+    const planIssue = await dronePilotPlanningIssue(admin, accessContext(current), osData, objectValue(state.mission));
+    if(planIssue) throw new DroneOsAccessError(planIssue, 403);
     const assigned = textValue(osData.pilotoResponsavelId || osData.pilotoId);
     if (current.empresaId) {
       if (!assigned)
