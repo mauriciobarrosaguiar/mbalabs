@@ -36,7 +36,7 @@ export function DroneOsPilotStep({canManage}:{canManage:boolean}){
       const[pp,op]=await Promise.all([p.json().catch(()=>null),o.json().catch(()=>null)]);
       if(!p.ok)throw new Error(pp?.error||"Falha ao carregar pilotos.");if(!o.ok)throw new Error(op?.error||"Falha ao carregar OS.");
       const open=((op?.items||[]) as Order[]).filter(item=>["aberta","preparacao","em_preparacao"].includes(item.data.status||"aberta"));
-      setPilots((pp?.items||[]) as Pilot[]);setOrders(open);setCurrentUserId(String(pp?.currentUserId||""));setCurrentUserName(String(pp?.currentUserName||"Gestor"));setOrderId(current=>current&&open.some(item=>item.entityId===current)?current:(open.find(item=>!item.data.pilotoResponsavelId)?.entityId||open[0]?.entityId||""));
+      setPilots((pp?.items||[]) as Pilot[]);if(pp?.teamUnavailable)setMessage("Equipe indisponível: "+String(pp.teamMessage||"verifique o vínculo da empresa.")+" No modo Solo, você pode preparar sua própria OS.");setOrders(open);setCurrentUserId(String(pp?.currentUserId||""));setCurrentUserName(String(pp?.currentUserName||"Gestor"));setOrderId(current=>current&&open.some(item=>item.entityId===current)?current:(open.find(item=>!item.data.pilotoResponsavelId)?.entityId||open[0]?.entityId||""));
     }catch(error){setMessage(error instanceof Error?error.message:"Falha ao carregar responsáveis.")}finally{setLoading(false)}
   }
   useEffect(()=>{void load()},[canManage]);
