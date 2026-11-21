@@ -29,7 +29,7 @@ const tips:Record<View,Tip>={
   estrategia:{title:"Orientação de segurança",text:"Confirme receita, bula e orientação técnica antes de seguir para o mapa e clima."},
   seguranca:{title:"Segurança no local",text:"Registre mapa, área sensível e clima medido no talhão antes de liberar o equipamento."},
   controle:{title:"Confira os ajustes",text:"Compare os valores calculados com o controle do drone e corrija divergências."},
-  calibracao:{title:"Calibre na ordem",text:"Eliminar o ar → calibrar fluxômetro → calibrar bomba."},
+  calibracao:{title:"Calibre conforme o modelo",text:"Siga a sequência de preparação, retirada de ar e calibração indicada pelo fabricante."},
   checklist:{title:"Faça a conferência física",text:"Marque somente depois de verificar cada item no equipamento e na área."},
   sarpas:{title:"Liberação para voo",text:"Confira o sistema oficial. O quadro abaixo mostra exatamente o que ainda impede o início."},
   execucao:{title:"Registre o que aconteceu",text:"A cada carga, informe hectares e volume realmente utilizados. Registre qualquer ocorrência."},
@@ -88,9 +88,9 @@ function readReadiness():Readiness {
   if(settings.exigirConfirmacao!==false&&!risk) pending.push("Confirmação final de risco");
   if(!completeBooleans(calibration)) pending.push("Calibração completa");
   if(!completeBooleans(checklist)) pending.push("Checklist pré-voo completo");
-  const sarpasOk=mission.sarpasConfirmado===true&&Boolean(mission.sarpasSituacao)&&(mission.sarpasSituacao!=="autorizado"||String(mission.sarpasNumero||"").trim());
+  const sarpasOk=mission.sarpasConfirmado===true&&mission.sarpasSituacao==="autorizado"&&Boolean(String(mission.sarpasNumero||"").trim());
   if(!sarpasOk) pending.push("Situação SARPAS conferida");
-  const gpsOk=Number.isFinite(Number(weather.latitude))&&Number.isFinite(Number(weather.longitude));
+  const gpsOk=weather.latitude!=null&&weather.longitude!=null&&weather.latitude!==""&&weather.longitude!==""&&Number.isFinite(Number(weather.latitude))&&Number.isFinite(Number(weather.longitude))&&Math.abs(Number(weather.latitude))<=90&&Math.abs(Number(weather.longitude))<=180;
   if(!gpsOk) pending.push("Ponto GPS da operação");
   if(localStorage.getItem("dronegestor:syncConflict:v4")) pending.push("Conflito de sincronização");
 
@@ -143,7 +143,7 @@ export function DroneSimpleFlowUX(){
       <div className={`rounded-2xl border p-4 shadow-sm ${readiness.ready?"border-emerald-200 bg-emerald-50":"border-amber-200 bg-amber-50"}`}>
         <div className="flex items-start gap-3">
           <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${readiness.ready?"bg-emerald-600 text-white":"bg-amber-100 text-amber-800"}`}>{readiness.ready?<CheckCircle2 size={20}/>:<TriangleAlert size={20}/>}</span>
-          <div className="min-w-0 flex-1"><strong className={`block text-sm font-black ${readiness.ready?"text-emerald-950":"text-amber-950"}`}>{readiness.ready?"Pronto para iniciar a aplicação":"Ainda não liberar o voo"}</strong><p className="mt-1 text-xs leading-5 text-slate-700">{readiness.ready?"Todas as verificações locais necessárias para liberar o botão de início estão completas.":"Resolva os itens abaixo. O botão de iniciar continuará bloqueado até a conferência."}</p></div>
+          <div className="min-w-0 flex-1"><strong className={`block text-sm font-black ${readiness.ready?"text-emerald-950":"text-amber-950"}`}>{readiness.ready?"Conferências locais completas":"Ainda não liberar o voo"}</strong><p className="mt-1 text-xs leading-5 text-slate-700">{readiness.ready?"Conferências locais completas. O início depende também da validação do servidor e da autorização oficial aplicável.":"Resolva os itens abaixo. O botão de iniciar continuará bloqueado até a conferência."}</p></div>
         </div>
         {!readiness.ready&&<div className="mt-3 grid gap-1.5">{readiness.pending.map((item)=><div key={item} className="flex items-start gap-2 rounded-xl bg-white/75 px-3 py-2 text-xs font-bold text-amber-950"><span className="mt-1 size-1.5 shrink-0 rounded-full bg-amber-500"/>{item}</div>)}</div>}
       </div>
