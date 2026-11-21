@@ -11,12 +11,12 @@ const hooks = registerHooks({resolve(s,c,n){
   if(s==='next/server')return n('next/server.js',c);
   return n(s,c);
 }});
-const {GET,POST} = await import('../src/app/api/dronegestor/empresa/usuarios/route.ts');
+const {GET,POST,PATCH} = await import('../src/app/api/dronegestor/empresa/usuarios/route.ts');
 const pilotRoutes=await import('../src/app/api/dronegestor/pilotos/route.ts');hooks.deregister();
 const session = (tipo='admin_empresa') => ({user:{id:'auth-admin'},profile:{id:'admin-A',tipo,status:'ativo',empresa_id:'company-A'},appsLiberados:[{slug:'dronegestor',canAccess:true}],permissoes:[]});
 const body = {nome:'HOMOLOGAÇÃO funcionário',email:'employee@example.invalid',perfil:'piloto',senhaAcesso:'SenhaSomenteTeste123'};
 const req = b => new Request('http://localhost/api/dronegestor/empresa/usuarios',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)});
-beforeEach(()=>Object.assign(state,{session:session(),factories:0,queries:[],created:[],logs:[],rolledBack:0,company:{id:'company-A',nome:'Empresa HOMOLOGAÇÃO',status:'ativa'},contract:{id:'contract-A',status:'ativo',data_vencimento:null},permissions:[{usuario_id:'employee-1',perfil_app:'piloto',status:'ativo'}],users:[{id:'employee-1',nome:'HOMOLOGAÇÃO',email:'employee@example.invalid',status:'ativo'}],logError:null}));
+beforeEach(()=>Object.assign(state,{session:session(),factories:0,queries:[],created:[],logs:[],rolledBack:0,company:{id:'company-A',nome:'Empresa HOMOLOGAÇÃO',status:'ativa'},contract:{id:'contract-A',status:'ativo',data_vencimento:null},permissions:[{usuario_id:'employee-1',perfil_app:'piloto',status:'ativo'}],users:[{id:'employee-1',nome:'HOMOLOGAÇÃO',email:'employee@example.invalid',status:'ativo'}],logError:null,updates:[],editUser:null,editPermission:null,pilotRows:[],updateErrorTable:null}));
 test('sem sessão ou usuário inativo não chega ao cliente privilegiado',async()=>{
   state.session=null;assert.equal((await GET()).status,401);
   state.session=session();state.session.profile.status='bloqueado';assert.equal((await POST(req(body))).status,403);
@@ -65,4 +65,44 @@ test('rotas antigas de pilotos também impedem RT e piloto de delegar acessos',a
     for(const action of ['POST','PATCH','DELETE'])assert.equal((await pilotRoutes[action](req(body))).status,403);
   }
   assert.equal(state.factories,0);
+});
+
+const employeeId='11111111-1111-4111-8111-111111111111';
+function prepareEdit(role='piloto') {
+ state.editUser={id:employeeId,nome:'HOMOLOGAÇÃO original',email:'employee@example.invalid',telefone:'123',status:'ativo',tipo:'usuario',tipo_global:'usuario'};
+ state.editPermission={id:'permission-1',perfil_app:role,status:'ativo'};
+ state.pilotRows=[{detalhes:{id:'pilot-1',usuarioId:employeeId,ativo:true,permissoes:{editarParametros:false},cpf:'',createdAt:'2026-01-01'}}];
+ return {id:employeeId,nome:'HOMOLOGAÇÃO corrigido',telefone:'456',perfil:role};
+}
+test('edição exige administrador e rejeita senha, tenant, email e status',async()=>{
+ const edit=prepareEdit();
+ for(const role of ['piloto','responsavel_tecnico','gestor_operacional','visualizador']){state.session=session(role);assert.equal((await PATCH(req(edit))).status,403);}
+ state.session=session();for(const key of ['empresaId','appId','email','senhaAcesso','status','tipo_global'])assert.equal((await PATCH(req({...edit,[key]:'injetado'}))).status,400);
+ assert.equal(state.updates.length,0);
+});
+test('funcionário inexistente ou sem vínculo não pode ser editado',async()=>{
+ const edit=prepareEdit();state.editUser=null;assert.equal((await PATCH(req(edit))).status,404);prepareEdit();state.editPermission=null;assert.equal((await PATCH(req(edit))).status,404);assert.equal(state.updates.length,0);
+});
+test('edição altera contato e papel somente na empresa e app autorizados',async()=>{
+ const edit=prepareEdit();assert.equal((await PATCH(req(edit))).status,200);assert.deepEqual(state.updates[0].payload,{nome:edit.nome,telefone:edit.telefone});assert.deepEqual(state.updates[1].payload,{perfil_app:'piloto'});
+ for(const q of state.updates)assert.ok(q.filters.some(([k,v])=>k==='empresa_id'&&v==='company-A'));
+ assert.ok(state.updates[1].filters.some(([k,v])=>k==='app_id'&&v==='app-drone'));assert.equal(state.logs[1].detalhes.id,'pilot-1');assert.equal(state.logs[1].detalhes.nome,edit.nome);assert.equal(state.logs[1].detalhes.permissoes.editarParametros,false);
+});
+test('administrador permite corrigir contato mas não trocar papel',async()=>{
+ const edit=prepareEdit('admin_empresa');assert.equal((await PATCH(req({...edit,perfil:'piloto'}))).status,403);assert.equal((await PATCH(req(edit))).status,200);prepareEdit();assert.equal((await PATCH(req({...edit,perfil:'super_admin'}))).status,400);
+});
+test('retirada de papel de piloto inativa cadastro operacional sem apagar histórico',async()=>{
+ const edit=prepareEdit();assert.equal((await PATCH(req({...edit,perfil:'visualizador'}))).status,200);assert.equal(state.logs[1].detalhes.ativo,false);assert.equal(state.logs[1].detalhes.id,'pilot-1');
+});
+test('promoção a piloto cria registro conservador e não reativa conta bloqueada',async()=>{
+ const edit=prepareEdit('visualizador');state.pilotRows=[];state.editUser.status='bloqueado';assert.equal((await PATCH(req({...edit,perfil:'piloto'}))).status,200);assert.equal(state.logs[1].detalhes.ativo,false);assert.equal(state.logs[1].detalhes.permissoes.registrarSarpas,false);
+});
+test('falha de auditoria restaura contato e papel anteriores',async()=>{
+ const edit=prepareEdit();state.logError=Error('audit failed');assert.equal((await PATCH(req({...edit,perfil:'visualizador'}))).status,500);assert.deepEqual(state.updates[2].payload,{nome:'HOMOLOGAÇÃO original',telefone:'123'});assert.deepEqual(state.updates[3].payload,{perfil_app:'piloto'});
+});
+test('falha de mudança de papel restaura contato sem gravar auditoria',async()=>{
+ const edit=prepareEdit();state.updateErrorTable='core_usuario_app_permissoes';assert.equal((await PATCH(req(edit))).status,500);assert.deepEqual(state.updates[2].payload,{nome:'HOMOLOGAÇÃO original',telefone:'123'});assert.equal(state.logs.length,0);
+});
+test('corrigir contato do administrador que também pilota preserva cadastro operacional ativo',async()=>{
+ const edit=prepareEdit('admin_empresa');assert.equal((await PATCH(req(edit))).status,200);assert.equal(state.logs[1].detalhes.ativo,true);assert.equal(state.logs[1].detalhes.id,'pilot-1');
 });

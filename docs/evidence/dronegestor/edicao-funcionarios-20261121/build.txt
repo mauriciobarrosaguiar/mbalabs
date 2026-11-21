@@ -1,0 +1,553 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> mba-labs-core@0.1.0 prebuild
+> npm run test:cotacoes
+
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> mba-labs-core@0.1.0 test:cotacoes
+> node --experimental-strip-types --test tests/cotacoes-*.test.mjs
+
+(node:158) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/auth/quotation-access.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ comprador ativo cria apenas na empresa da sessão (2.781127ms)
+✔ empresa A não lê cotação da empresa B nem recebe seus dados (0.396261ms)
+✔ master não cria cotação (0.194209ms)
+✔ master não opera cotação nem consulta banco (0.222482ms)
+✔ sessão ausente é recusada (0.242972ms)
+✔ usuário inativo é recusado (0.284554ms)
+✔ sem vínculo não cria cotação (0.165507ms)
+✔ módulo não contratado não cria cotação (0.166468ms)
+✔ cotação inexistente retorna 404 (0.159387ms)
+✔ falha de banco não vira autorização (0.428538ms)
+✔ farmácia suspensa não cria nem acessa cotação (0.162642ms)
+✔ vínculo inativo não cria nem acessa cotação (0.167359ms)
+✔ representante externo não cria cotação de comprador (0.097426ms)
+✔ perfil financeiro não cria cotação (0.089093ms)
+✔ cotação excluída por data não pode ser operada (0.096624ms)
+✔ cotação com status excluída não pode ser operada (0.097265ms)
+✔ financeiro pode consultar mas não gerenciar cotação (0.110185ms)
+✔ conferente pode consultar mas não gerenciar cotação (0.134391ms)
+✔ comprador e administrador ativos podem gerenciar sua cotação (0.209573ms)
+✔ admin preserva títulos React antes da hidratação (8.333604ms)
+✔ corretor global mantém o comportamento anterior no cliente e outros módulos (8.674512ms)
+(node:160) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/app/api/cotacoes/produtos-importar/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ usuário de farmácia não pode apagar catálogo central nem consultar relatórios globais (2.955507ms)
+✔ exclusão selecionada atinge somente catálogo mestre, preserva dados de cliente (2.268762ms)
+✔ exclusão total requer confirmação exata e preserva produtos privados da farmácia (0.346507ms)
+✔ relatório admin inclui cotação, vendedor, distribuidora e oferta registrada (13.863188ms)
+✔ relatório exportado filtra empresa e preserva identidade da cotação (2.584333ms)
+✔ migração protege limite por tenant e mês contra criação concorrente (0.819021ms)
+✔ pendentes e itens sem oferta preservam produto e quantidade solicitados (0.457532ms)
+✔ CSV respeita filtros de representante, distribuidora e período brasileiro (1.672524ms)
+✔ respostas antigas permanecem sem transformar novo convite em respondido (1.210304ms)
+✔ referências inconsistentes não misturam dados de empresas (2.395402ms)
+✔ filtro por distribuidora de outra empresa não inclui homônimos históricos (0.572323ms)
+✔ CSV neutraliza fórmulas e preserva preço zero (0.440067ms)
+✔ rota de relatórios chega à seção real e exige SUPER_ADMIN (85.383261ms)
+✔ todas as seções do menu resolvem e seções desconhecidas continuam 404 (103.766232ms)
+(node:167) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/app/api/cotacoes/crud/%5Bentity%5D/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ exclui produto individual livre definitivamente, sem inativar (3.38016ms)
+✔ exclui 10 produtos livres, preservando produto usado em cotação (1.618393ms)
+✔ exclusão individual remove do catálogo mas mantém histórico de preços (0.740875ms)
+✔ representante sem histórico é excluído, mas fornecedor com pedido permanece (0.949335ms)
+✔ distribuidora vinculada à aprovação de pedido mínimo permanece (0.716288ms)
+✔ não exclui nada se a seleção contiver cadastro de outra empresa (0.425134ms)
+✔ não exclui registros globais sob sessão de farmácia (0.245736ms)
+✔ sem permissão ou vínculo inativo: exclusão negada (0.292927ms)
+✔ recusa identificadores inválidos ou lotes com mais de 100 (0.576219ms)
+✔ 100 registros por lote e 1000 produtos em 10 solicitações isoladas (63.692368ms)
+✔ edição de produto da própria empresa permanece disponível (1.181732ms)
+✔ não é possível excluir novamente um cadastro já removido do catálogo (0.226198ms)
+✔ exclusão em massa mistura livres e históricos de três classes sem perder vínculos (1.051578ms)
+(node:173) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/app/api/cotacoes/crud/%5Bentity%5D/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cadastro rejeita EAN curto sem criar produto nem laboratório (5.390036ms)
+✔ cadastro rejeita EAN com letras sem gravar laboratório (0.277093ms)
+✔ campos obrigatórios são validados antes de efeitos no laboratório (0.226287ms)
+✔ EAN de 8 a 14 dígitos continua aceito com escopo da sessão (1.110586ms)
+✔ financeiro e conferente não alteram cadastros (0.373316ms)
+✔ vínculo inativo não altera cadastro mesmo com perfil ativo (0.378244ms)
+✔ inativar produto próprio não exige reenviar EAN ou laboratório (0.471734ms)
+(node:174) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/services/pharmacy-analysis.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ análise resolve nomes de duas distribuidoras pelo identificador sem alterar mínimos (3.083748ms)
+(node:176) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/app/api/cotacoes/produtos-importar/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ importação sem sessão retorna 401, sem erro interno (1.720014ms)
+✔ conferente recebe 403 ao importar, sem erro interno (0.230574ms)
+✔ comprador autorizado ainda recebe validação 400 para lote vazio (0.254169ms)
+(node:222) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/csv-delimiter.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ CSV real em ponto e vírgula com muitas vírgulas em produtos sem aspas (1.84475ms)
+✔ CSV semicolon with quoted comma in medicine names (0.307369ms)
+✔ CSV comma with semicolons in quoted names (0.315601ms)
+✔ TSV keeps TAB separator (0.186177ms)
+✔ double quoted escapes inside quoted fields (0.24839ms)
+✔ preamble before the real header (0.18758ms)
+✔ unknown headings fall back to delimiter in first line (0.247069ms)
+(node:228) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/product-xlsx-reader.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ XLSX lê EAN, descrição, laboratório e tipo na ordem original das colunas (69.158146ms)
+✔ XLSX sem produtos produz erro explícito (12.995936ms)
+✔ XLSX em branco produz erro explícito (0.445905ms)
+✔ XLSX com prefixo x: do gerador de planilhas importa quatro colunas sem perder EAN (19.774701ms)
+(node:235) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/services/minimum-order.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:235) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+✔ itens carregados do banco preservam a distribuidora para a revisão de mínimo (3.900865ms)
+✔ não gera exceção quando o valor da distribuidora atinge o mínimo (1.985399ms)
+✔ abaixo do mínimo identifica valor, diferença e fornecedor correto (0.821345ms)
+✔ a revisão de quantidades recalcula o mínimo instantaneamente (0.473405ms)
+✔ dois fornecedores da mesma distribuidora são verificados por pedido separadamente (0.252877ms)
+✔ um pedido com duas distribuidoras verifica cada subtotal independente (0.219067ms)
+✔ retirar todos os itens de uma distribuidora não autoriza exceção sem compra (4.324517ms)
+✔ itens sem vinculação de distribuidora não herdam mínimo de outras farmácias (0.22124ms)
+✔ migração protege a aprovação e cria registro de auditoria atômico (0.760394ms)
+(node:236) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/services/purchase-orders.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ menor preço válido vence e total corresponde à quantidade (2.021714ms)
+✔ rascunho não participa do julgamento (0.26838ms)
+✔ preço zero ou negativo não gera vencedor (0.244093ms)
+✔ representante sem resposta não impede análise de quem enviou (1.245296ms)
+✔ oferta explicitamente sem estoque não pode vencer (0.307929ms)
+✔ quantidade adjudicada não pode exceder a disponibilidade confirmada (0.357233ms)
+✔ empate: maior estoque confirmado prevalece sobre ordem de resposta (0.295371ms)
+✔ preço não finito não pode gerar pedido (0.171145ms)
+✔ pedido mínimo atualmente gera apenas alerta e não elimina vencedor (caracterização) (0.598843ms)
+✔ parciais distribuem somente o saldo sem ultrapassar a demanda (1.377163ms)
+✔ parcial desativada exige atendimento integral (0.310653ms)
+✔ saldo descoberto permanece explícito (0.1878ms)
+✔ oferta antiga somente com preço mantém compatibilidade (0.204385ms)
+✔ estoque zero explícito é excluído mesmo com preço preenchido (0.120409ms)
+✔ parcial declarada sem quantidade não presume atendimento integral (0.170464ms)
+✔ quantidades inválidas são excluídas do ranking e dos pedidos (0.267879ms)
+✔ demanda inválida não gera pedido (0.219537ms)
+✔ análise para pedidos preserva as duas parcelas vencedoras (1.042565ms)
+✔ parcial isolada gera pedido só da quantidade disponível (0.219827ms)
+✔ repetição do mesmo resultado não duplica linha de pedido (0.225156ms)
+(node:250) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/data/public-response-repository.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ link inválido não expõe cotação (1.38201ms)
+✔ link inválido não permite gravação (0.743849ms)
+✔ módulo diferente não expõe cotação (0.207119ms)
+✔ cotação excluída não expõe dados (0.238656ms)
+✔ link expirado bloqueia escrita (0.693734ms)
+✔ resposta enviada bloqueia reenvio e edição (0.345665ms)
+✔ link revogado bloqueia escrita (0.273578ms)
+✔ cotação finalizada bloqueia resposta posterior (0.296772ms)
+✔ rascunho salva e reabre apenas os dados da sessão (1.443321ms)
+✔ envio final marca sessão e atualiza acompanhamento (1.202082ms)
+✔ item estrangeiro enviado no corpo é ignorado (0.363992ms)
+✔ declaração sem estoque, mesmo sem preço, permanece registrada como zero (0.42881ms)
+✔ quantidade parcial informada limita estoque gravado sem alterar preço unitário (0.38924ms)
+✔ não permite quantidade parcial quando o comprador a proibiu (0.274169ms)
+✔ proíbe substituição por equivalente sem permissão do comprador (0.226788ms)
+✔ permite equivalente explicitamente autorizado globalmente e pelo item (0.320728ms)
+✔ vincula nome exato de distribuidora apenas ao cadastro do tenant da cotação (0.357613ms)
+✔ não vincula distribuidora se houver nome ambíguo na mesma empresa (0.225226ms)
+✔ mínimo ativo recusa distribuidora ausente antes de gravar a resposta (0.320598ms)
+✔ mínimo ativo recusa distribuidora outra farmácia antes de gravar a resposta (0.206668ms)
+✔ mínimo ativo recusa distribuidora ambígua antes de gravar a resposta (0.18774ms)
+✔ mínimo ativo aceita distribuidora única da própria farmácia (0.301369ms)
+✔ mínimo ativo preserva rascunho e resposta somente sem estoque sem distribuidora (0.438013ms)
+✔ distribuidora excluída não pode ser utilizada para nova resposta com pedido mínimo (0.246307ms)
+(node:262) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/services/purchase-history.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ histórico usa quantidade faturada e mantém faltas parciais e totais (8.965437ms)
+✔ rascunhos, cancelados e pedidos de outra farmácia não compõem compras (0.729708ms)
+✔ item de outra farmácia é descartado e faturamento integral legado é preservado (0.154631ms)
+(node:264) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/formatters.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ prazo de calendário preserva o dia em UTC e nos fusos brasileiros (2.796229ms)
+✔ horários reais continuam convertidos ao fuso local (0.280858ms)
+✔ resumo de faturamento conta a recusa mesmo com todos os itens em pedidos (0.17445ms)
+(node:278) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/whatsapp/message-templates.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/07c11c3477d1/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:278) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+✔ cotação operacional e pedido vencedor carregam aviso antes do conteúdo comercial (1.154311ms)
+✔ cotações comerciais conservam exatamente as mensagens existentes (1.139259ms)
+✔ identificação de teste aceita espaços e caixa, sem marcar títulos comerciais semelhantes (0.215962ms)
+✔ os dois fluxos de envio buscam o nome real da cotação e passam o aviso ao transporte (19.719279ms)
+(node:279) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ QA registra solicitação pendente sem provider, sem telefone real e sem envio externo (2.513918ms)
+✔ flag de teste falha fechada em produção e em Supabase diferente do QA (1.530963ms)
+✔ sem flag mantém validação normal de telefone e não simula sucesso (1.933242ms)
+ℹ tests 136
+ℹ suites 0
+ℹ pass 136
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2571.961943
+
+> mba-labs-core@0.1.0 build
+> next build
+
+▲ Next.js 16.3.3 (Turbopack)
+✓ Running next.config.ts took 49ms
+- Experiments (use with caution):
+  · serverActions
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 7.2s
+  Running TypeScript ...
+  Finished TypeScript in 4.1s ...
+  Collecting page data using 8 workers ...
+  Generating static pages using 8 workers (0/41) ...
+  Generating static pages using 8 workers (10/41)
+  Generating static pages using 8 workers (20/41)
+  Generating static pages using 8 workers (30/41)
+✓ Generating static pages using 8 workers (41/41) in 487ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /acesso-bloqueado
+├ ○ /admin
+├ ƒ /admin/[resource]
+├ ○ /admin/apps/novo
+├ ƒ /admin/configuracoes
+├ ƒ /admin/configuracoes/asaas
+├ ○ /admin/configuracoes/whatsapp
+├ ƒ /admin/dashboard
+├ ƒ /admin/empresas/[id]
+├ ƒ /admin/empresas/[id]/apps
+├ ○ /admin/empresas/nova
+├ ƒ /admin/pagamentos
+├ ƒ /admin/site
+├ ○ /admin/usuarios/novo
+├ ƒ /alterar-senha
+├ ƒ /api/auth/log
+├ ƒ /api/auth/resolve
+├ ƒ /api/bikecomanda/state
+├ ƒ /api/conteudo-ia/gerar
+├ ƒ /api/conteudo-ia/perfil
+├ ƒ /api/cotacoes/admin/relatorios
+├ ƒ /api/cotacoes/backup/supabase
+├ ƒ /api/cotacoes/company-context
+├ ƒ /api/cotacoes/crud/[entity]
+├ ƒ /api/cotacoes/distributor-offers
+├ ƒ /api/cotacoes/export/licitacao/[id]
+├ ƒ /api/cotacoes/export/pedido/[token]
+├ ƒ /api/cotacoes/export/pedidos-gerados
+├ ƒ /api/cotacoes/export/pedidos/[quotationId]
+├ ƒ /api/cotacoes/health/supabase
+├ ƒ /api/cotacoes/produtos-importar
+├ ƒ /api/cotacoes/public-order/[token]
+├ ƒ /api/cotacoes/public-response/[token]
+├ ƒ /api/cotacoes/public/supplier-response/[token]
+├ ƒ /api/cotacoes/purchase-orders/[quotationId]
+├ ƒ /api/cotacoes/purchase-orders/[quotationId]/bulk-review
+├ ƒ /api/cotacoes/purchase-orders/[quotationId]/review
+├ ƒ /api/cotacoes/quotations
+├ ƒ /api/cotacoes/shortage-items
+├ ƒ /api/cotacoes/supplier-sessions
+├ ƒ /api/cotacoes/webhooks/efi/pix
+├ ƒ /api/cotacoes/webhooks/evolution/status
+├ ƒ /api/cotacoes/whatsapp-conexao
+├ ƒ /api/cotacoes/whatsapp-envios
+├ ƒ /api/cotacoes/whatsapp/health
+├ ƒ /api/cotacoes/winner-pendencies/[quotationId]
+├ ƒ /api/dronegestor/administracao
+├ ƒ /api/dronegestor/cadastros
+├ ƒ /api/dronegestor/calculadora/version
+├ ƒ /api/dronegestor/cloud
+├ ƒ /api/dronegestor/cloud/file
+├ ƒ /api/dronegestor/cloud/google/callback
+├ ƒ /api/dronegestor/cloud/google/start
+├ ƒ /api/dronegestor/cloud/upload
+├ ƒ /api/dronegestor/conferencia
+├ ƒ /api/dronegestor/config
+├ ƒ /api/dronegestor/diagnostico
+├ ƒ /api/dronegestor/documentos
+├ ƒ /api/dronegestor/empresa/usuarios
+├ ƒ /api/dronegestor/equipamentos
+├ ƒ /api/dronegestor/fechamento
+├ ƒ /api/dronegestor/mapa
+├ ƒ /api/dronegestor/mapa-geometria
+├ ƒ /api/dronegestor/minhas-pendencias
+├ ƒ /api/dronegestor/operacao-os
+├ ƒ /api/dronegestor/pacote-operacao/pdf
+├ ƒ /api/dronegestor/painel-gestor
+├ ƒ /api/dronegestor/perfil-operacional
+├ ƒ /api/dronegestor/piloto-documentos
+├ ƒ /api/dronegestor/pilotos
+├ ƒ /api/dronegestor/preflight
+├ ƒ /api/dronegestor/produtos
+├ ƒ /api/dronegestor/relatorio-mensal/modelo-oficial
+├ ƒ /api/dronegestor/relatorio-mensal/xlsx
+├ ƒ /api/dronegestor/sarpas
+├ ƒ /api/dronegestor/sarpas/provider/status
+├ ƒ /api/dronegestor/state
+├ ƒ /api/elshaday/app/version
+├ ƒ /api/elshaday/biblia
+├ ƒ /api/elshaday/biblia/favoritos
+├ ƒ /api/elshaday/biblia/progresso
+├ ƒ /api/elshaday/financeiro/export
+├ ƒ /api/elshaday/membros/modelo-importacao
+├ ƒ /api/elshaday/membros/sync-role
+├ ƒ /api/elshaday/webhooks/[provider]
+├ ƒ /api/elshaday/webhooks/asaas
+├ ƒ /api/google-empresas/checklist-documentos
+├ ƒ /api/google-empresas/oauth/callback
+├ ƒ /api/google-empresas/oauth/iniciar
+├ ƒ /api/health
+├ ƒ /api/lavagestor/agendamentos/converter
+├ ƒ /api/lavagestor/agendamentos/status
+├ ƒ /api/lavagestor/checklists/fotos/[foto_id]
+├ ƒ /api/lavagestor/recibos/enviar
+├ ƒ /api/lavagestor/storage/callback/[provider]
+├ ƒ /api/lavagestor/storage/connect/[provider]
+├ ƒ /api/lavagestor/storage/disconnect
+├ ƒ /api/lavagestor/storage/sync
+├ ƒ /api/lavagestor/storage/test
+├ ƒ /api/lavagestor/whatsapp/webhook/[provider]
+├ ƒ /api/lexgestor/conectores/local-upload
+├ ƒ /api/lexgestor/documentos/preview
+├ ƒ /api/lexgestor/documentos/upload
+├ ƒ /api/lexgestor/pdf/watermark
+├ ƒ /api/lexgestor/processos/[processoId]/sync
+├ ƒ /api/lexgestor/processos/audit
+├ ƒ /api/lexgestor/relatorios/export
+├ ƒ /api/lexgestor/relatorios/pdf
+├ ƒ /api/lexgestor/storage/callback/[provider]
+├ ƒ /api/lexgestor/storage/connect/[provider]
+├ ƒ /api/lexgestor/storage/disconnect
+├ ƒ /api/lexgestor/storage/test
+├ ƒ /api/portal-associativo/comprovantes/upload
+├ ƒ /api/portal-associativo/documentos/[id]/open
+├ ƒ /api/portal-associativo/documentos/upload
+├ ƒ /api/portal-associativo/export
+├ ƒ /api/portal-associativo/importacao/modelo
+├ ƒ /api/portal-associativo/inadimplentes/notificacao
+├ ƒ /api/portal-associativo/logo/remove
+├ ƒ /api/portal-associativo/logo/upload
+├ ƒ /api/portal-associativo/recibo
+├ ƒ /api/portal-associativo/recibos/[id]
+├ ƒ /api/portal-associativo/reunioes/[id]/ata
+├ ƒ /api/portal-associativo/storage/callback/[provider]
+├ ƒ /api/portal-associativo/storage/connect/[provider]
+├ ƒ /api/portal-associativo/storage/disconnect
+├ ƒ /api/portal-associativo/storage/test
+├ ƒ /api/setup-admin
+├ ƒ /api/webhooks/asaas
+├ ƒ /api/whatsapp-envios
+├ ƒ /api/whatsapp/health
+├ ○ /app
+├ ○ /app/dronegestor
+├ ○ /apple-icon
+├ ƒ /apps/[slug]
+├ ƒ /apps/bike-comanda
+├ ƒ /apps/bikecomanda
+├ ○ /apps/conteudo-ia
+├ ƒ /apps/dronegestor
+├ ƒ /apps/dronegestor/administracao
+├ ƒ /apps/dronegestor/cadastros
+├ ƒ /apps/dronegestor/calculadora
+├ ƒ /apps/dronegestor/campo
+├ ƒ /apps/dronegestor/conferencia
+├ ƒ /apps/dronegestor/configuracoes
+├ ƒ /apps/dronegestor/diagnostico
+├ ƒ /apps/dronegestor/documentos
+├ ƒ /apps/dronegestor/equipamentos
+├ ƒ /apps/dronegestor/equipe
+├ ƒ /apps/dronegestor/ferramentas
+├ ƒ /apps/dronegestor/fichas
+├ ƒ /apps/dronegestor/funcionarios
+├ ƒ /apps/dronegestor/gestao
+├ ƒ /apps/dronegestor/historico
+├ ƒ /apps/dronegestor/pacote-operacao
+├ ƒ /apps/dronegestor/perfil-operacional
+├ ƒ /apps/dronegestor/piloto-pro
+├ ƒ /apps/dronegestor/pilotos
+├ ƒ /apps/dronegestor/produtos
+├ ƒ /apps/dronegestor/regulacao
+├ ƒ /apps/dronegestor/relatorio-mensal
+├ ƒ /apps/mbacotacoes
+├ ƒ /bikecomanda
+├ ƒ /bikecomanda/[...slug]
+├ ƒ /cadastro-membro
+├ ○ /calda-facil
+├ ○ /chama-diarista
+├ ƒ /conteudo-ia
+├ ƒ /cotacao/pedido/[token]
+├ ƒ /cotacao/responder/[token]
+├ ƒ /cotacoes
+├ ƒ /cotacoes/[...slug]
+├ ƒ /cotacoes/configuracoes
+├ ƒ /cotacoes/configuracoes/whatsapp
+├ ƒ /cotacoes/cotacao/pedido/[token]
+├ ƒ /cotacoes/cotacao/responder/[token]
+├ ƒ /cotacoes/gestao/[[...slug]]
+├ ƒ /cotacoes/gestao/infra-whatsapp
+├ ƒ /cotacoes/licitacao/pedido/[token]
+├ ƒ /cotacoes/licitacao/responder/[token]
+├ ƒ /cotacoes/pedido/[token]
+├ ƒ /cotacoes/responder/[token]
+├ ƒ /dashboard
+├ ○ /dronegestor
+├ ƒ /elshaday
+├ ƒ /elshaday/acessos
+├ ƒ /elshaday/biblia
+├ ƒ /elshaday/configuracoes
+├ ƒ /elshaday/configuracoes/cargos
+├ ƒ /elshaday/configuracoes/ministerios
+├ ƒ /elshaday/contribuir
+├ ƒ /elshaday/eventos
+├ ƒ /elshaday/eventos/[id]
+├ ƒ /elshaday/financeiro
+├ ƒ /elshaday/financeiro/lancamentos/[id]
+├ ƒ /elshaday/financeiro/provedores
+├ ƒ /elshaday/financeiro/relatorios
+├ ƒ /elshaday/galeria
+├ ƒ /elshaday/galeria/[id]
+├ ƒ /elshaday/gestao
+├ ƒ /elshaday/membros
+├ ƒ /elshaday/membros/[id]
+├ ƒ /elshaday/pregacoes
+├ ƒ /elshaday/pregacoes/[id]
+├ ƒ /elshaday/publico
+├ ƒ /elshaday/videos
+├ ƒ /empresa/apps
+├ ƒ /empresa/assinatura
+├ ƒ /empresa/dashboard
+├ ƒ /empresa/usuarios
+├ ƒ /google-empresas
+├ ƒ /google-empresas/[id]
+├ ƒ /google-empresas/autorizar/[token]
+├ ƒ /google-empresas/nova
+├ ƒ /lavagestor
+├ ƒ /lavagestor/agendamentos
+├ ƒ /lavagestor/automacoes
+├ ƒ /lavagestor/busca
+├ ƒ /lavagestor/checklists/[lavagem_id]
+├ ƒ /lavagestor/clientes
+├ ƒ /lavagestor/clientes/[id]
+├ ƒ /lavagestor/comissoes
+├ ƒ /lavagestor/configuracoes
+├ ƒ /lavagestor/convenios
+├ ƒ /lavagestor/dashboard
+├ ƒ /lavagestor/estoque
+├ ƒ /lavagestor/fila
+├ ƒ /lavagestor/financeiro
+├ ƒ /lavagestor/funcionarios
+├ ƒ /lavagestor/iamob
+├ ƒ /lavagestor/lavagens
+├ ƒ /lavagestor/notas-fiscais
+├ ƒ /lavagestor/nova-lavagem
+├ ƒ /lavagestor/operacao
+├ ƒ /lavagestor/operacao/entrada
+├ ƒ /lavagestor/operacao/fila
+├ ƒ /lavagestor/operacao/saida
+├ ƒ /lavagestor/pagamentos
+├ ƒ /lavagestor/pagamentos-integrados
+├ ƒ /lavagestor/placa
+├ ƒ /lavagestor/pos-venda
+├ ƒ /lavagestor/recibos/[id]
+├ ƒ /lavagestor/relatorios
+├ ƒ /lavagestor/servicos
+├ ƒ /lavagestor/setup-facil
+├ ƒ /lavagestor/tickets/[lavagem_id]
+├ ƒ /lavagestor/usuarios
+├ ƒ /lavagestor/vales
+├ ƒ /lavagestor/veiculos
+├ ƒ /lavagestor/veiculos/[id]
+├ ƒ /lavagestor/whatsapp
+├ ƒ /lexgestor
+├ ƒ /lexgestor/casos
+├ ƒ /lexgestor/casos/[casoId]
+├ ƒ /lexgestor/casos/novo
+├ ƒ /lexgestor/checklists
+├ ƒ /lexgestor/clientes
+├ ƒ /lexgestor/clientes/[id]
+├ ƒ /lexgestor/clientes/[id]/editar
+├ ƒ /lexgestor/clientes/novo
+├ ƒ /lexgestor/conectores
+├ ƒ /lexgestor/configuracoes
+├ ƒ /lexgestor/dashboard
+├ ƒ /lexgestor/documentos
+├ ƒ /lexgestor/documentos/[documentoId]
+├ ƒ /lexgestor/equipe
+├ ƒ /lexgestor/processos
+├ ƒ /lexgestor/processos/[processoId]
+├ ƒ /lexgestor/processos/novo
+├ ƒ /lexgestor/relatorios
+├ ƒ /licitacao/pedido/[token]
+├ ƒ /licitacao/responder/[token]
+├ ƒ /login
+├ ○ /manifest.webmanifest
+├ ƒ /mba-escola
+├ ƒ /mba-escola/admin
+├ ƒ /mba-escola/admin/seguranca
+├ ƒ /mba-escola/agenda
+├ ƒ /mba-escola/gestao
+├ ƒ /mba-escola/manifest.webmanifest
+├ ○ /offline
+├ ƒ /perfil-pendente
+├ ○ /politica-de-privacidade
+├ ƒ /portal-associativo
+├ ƒ /portal-associativo/avisos
+├ ƒ /portal-associativo/cobrancas/[id]
+├ ƒ /portal-associativo/configuracoes
+├ ƒ /portal-associativo/documentos
+├ ƒ /portal-associativo/financeiro
+├ ƒ /portal-associativo/implantacao
+├ ƒ /portal-associativo/importacao
+├ ƒ /portal-associativo/inadimplentes
+├ ƒ /portal-associativo/loteamentos
+├ ƒ /portal-associativo/painel-associado
+├ ƒ /portal-associativo/pessoas
+├ ƒ /portal-associativo/pessoas/[id]
+├ ƒ /portal-associativo/projetos
+├ ƒ /portal-associativo/relatorios
+├ ƒ /portal-associativo/reunioes
+├ ƒ /portal-associativo/transferencias
+├ ƒ /portal-associativo/unidades
+├ ƒ /portal-associativo/unidades/[id]
+├ ƒ /pwa/icon-192
+├ ƒ /pwa/icon-512
+├ ƒ /recuperar-senha
+├ ƒ /sair
+├ ƒ /selecionar-app
+├ ƒ /setup-admin
+└ ○ /termos-de-uso
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

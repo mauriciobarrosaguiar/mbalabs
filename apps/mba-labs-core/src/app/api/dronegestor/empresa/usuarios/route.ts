@@ -34,7 +34,7 @@ async function context() {
 }
 
 function failure(error: unknown) {
-  return NextResponse.json({ ok: false, error: error instanceof PilotAccountError ? error.message : "Não foi possível concluir o cadastro de funcionários. Tente novamente." }, { status: error instanceof PilotAccountError ? error.status : 500, headers });
+  return NextResponse.json({ ok: false, error: error instanceof PilotAccountError ? error.message : "Não foi possível concluir a alteração de funcionários. Tente novamente." }, { status: error instanceof PilotAccountError ? error.status : 500, headers });
 }
 
 export async function GET() {
@@ -44,10 +44,10 @@ export async function GET() {
     if (permissions.error) throw permissions.error;
     const ids = (permissions.data ?? []).map((item: { usuario_id: string }) => item.usuario_id);
     if (!ids.length) return NextResponse.json({ ok: true, empresaNome: company.nome_fantasia || company.nome, items: [] }, { headers });
-    const users = await admin.from("core_usuarios").select("id,nome,email,status").eq("empresa_id", empresaId).in("id", ids);
+    const users = await admin.from("core_usuarios").select("id,nome,email,telefone,status").eq("empresa_id", empresaId).in("id", ids);
     if (users.error) throw users.error;
     const byId = new Map((permissions.data ?? []).map((item: any) => [item.usuario_id, item]));
-    const items = (users.data ?? []).map((user: any) => { const permission = byId.get(user.id) as any; return { id: user.id, nome: user.nome, email: user.email, perfil: permission.perfil_app, status: user.status === "ativo" ? permission.status : user.status }; });
+    const items = (users.data ?? []).map((user: any) => { const permission = byId.get(user.id) as any; return { id: user.id, nome: user.nome, email: user.email, telefone: user.telefone || "", perfil: permission.perfil_app, status: user.status === "ativo" ? permission.status : user.status }; });
     return NextResponse.json({ ok: true, empresaNome: company.nome_fantasia || company.nome, items }, { headers });
   } catch (error) { return failure(error); }
 }
@@ -75,5 +75,56 @@ export async function POST(request: NextRequest) {
     const saved = await admin.from("core_logs").insert(logs);
     if (saved.error) { await account.rollback(); throw new PilotAccountError("O cadastro não foi concluído e o acesso criado foi desfeito.", 500); }
     return NextResponse.json({ ok: true, createdAccount: account.createdAccount }, { status: 201, headers });
+  } catch (error) { return failure(error); }
+}
+
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const { admin, usuarioId, empresaId, appId } = await context();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some(key => !["id", "nome", "telefone", "perfil"].includes(key))) throw new PilotAccountError("Informe somente os dados editáveis do funcionário.", 400);
+    const id = text(body.id, 36), nome = text(body.nome), telefone = text(body.telefone, 40);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || !nome) throw new PilotAccountError("Informe funcionário e nome válidos.", 400);
+    const userResult = await admin.from("core_usuarios").select("id,nome,email,telefone,status,tipo,tipo_global").eq("id", id).eq("empresa_id", empresaId).maybeSingle();
+    if (userResult.error) throw userResult.error;
+    const permissionResult = await admin.from("core_usuario_app_permissoes").select("id,perfil_app,status").eq("usuario_id", id).eq("empresa_id", empresaId).eq("app_id", appId).maybeSingle();
+    if (permissionResult.error) throw permissionResult.error;
+    const user = userResult.data, permission = permissionResult.data;
+    if (!user || !permission) throw new PilotAccountError("Funcionário não encontrado nesta empresa.", 404);
+    const protectedAccount = permission.perfil_app === "admin_empresa" || [user.tipo, user.tipo_global].some(type => ["super_admin", "admin_master", "admin_empresa"].includes(String(type)));
+    if (protectedAccount && body.perfil !== permission.perfil_app) throw new PilotAccountError("O perfil administrativo só pode ser alterado pelo gestor do sistema.", 403);
+    if (!protectedAccount && !isDroneEmployeeRole(body.perfil)) throw new PilotAccountError("Escolha um perfil de funcionário válido.", 400);
+    // No authentication, email, global status or other-app permission is changed here.
+    const pilotRows = await admin.from("core_logs").select("detalhes").eq("empresa_id", empresaId).eq("app_slug", "dronegestor").eq("acao", "piloto_operacional_v1").contains("detalhes", { usuarioId: id }).order("created_at", { ascending: false }).limit(1);
+    if (pilotRows.error) throw pilotRows.error;
+    const previousPilot = (pilotRows.data ?? []).find((row: any) => row.detalhes?.usuarioId === id)?.detalhes;
+    const now = new Date().toISOString(), pilotRole = ["piloto", "aplicador_caar"].includes(body.perfil);
+    const logs: Array<Record<string, unknown>> = [{ empresa_id: empresaId, usuario_id: usuarioId, app_slug: "dronegestor", acao: "funcionario_acesso_editado_v1", detalhes: { usuarioId: id, perfilAnterior: permission.perfil_app, perfil: body.perfil } }];
+    if (previousPilot || pilotRole) logs.push({ empresa_id: empresaId, usuario_id: usuarioId, app_slug: "dronegestor", acao: "piloto_operacional_v1", detalhes: {
+      ...(previousPilot ?? { id: crypto.randomUUID(), cpf: "", observacoes: "", createdAt: now, permissoes: { executarOs: true, editarParametros: false, editarSeguranca: true, registrarSarpas: false, anexarEvidencias: true, finalizarOperacao: true, verRelatorios: false } }),
+      nome, telefone, email: user.email, usuarioId: id, updatedAt: now,
+      // Changing the role must never silently reactivate a blocked pilot/account.
+      ativo: (pilotRole || protectedAccount) && user.status === "ativo" && permission.status === "ativo" && previousPilot?.ativo !== false,
+    } });
+    const changedUser = await admin.from("core_usuarios").update({ nome, telefone: telefone || null }).eq("id", id).eq("empresa_id", empresaId);
+    if (changedUser.error) throw changedUser.error;
+    const restoreUser = () => admin.from("core_usuarios").update({ nome: user.nome, telefone: user.telefone }).eq("id", id).eq("empresa_id", empresaId);
+    const changedPermission = await admin.from("core_usuario_app_permissoes").update({ perfil_app: body.perfil }).eq("id", permission.id).eq("empresa_id", empresaId).eq("app_id", appId);
+    if (changedPermission.error) {
+      const restored = await restoreUser();
+      if (restored.error) throw new PilotAccountError("Falha ao restaurar os dados. Confira o cadastro com o suporte antes de repetir.", 500);
+      throw changedPermission.error;
+    }
+    const audit = await admin.from("core_logs").insert(logs);
+    if (audit.error) {
+      const [restoredUser, restoredPermission] = await Promise.all([
+        restoreUser(),
+        admin.from("core_usuario_app_permissoes").update({ perfil_app: permission.perfil_app }).eq("id", permission.id).eq("empresa_id", empresaId).eq("app_id", appId),
+      ]);
+      if (restoredUser.error || restoredPermission.error) throw new PilotAccountError("Falha ao restaurar os dados. Confira o cadastro com o suporte antes de repetir.", 500);
+      throw new PilotAccountError("A edição não foi concluída. Os dados anteriores foram restaurados.", 500);
+    }
+    return NextResponse.json({ ok: true }, { headers });
   } catch (error) { return failure(error); }
 }
