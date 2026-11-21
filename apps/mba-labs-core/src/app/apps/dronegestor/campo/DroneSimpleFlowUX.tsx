@@ -17,10 +17,12 @@ const STATUS_KEY="dronegestor:missionStatus:v4";
 const phases:Phase[]=[
   {number:1,label:"Operação",detail:"OS e dados",views:["nova"]},
   {number:2,label:"Calda",detail:"Produtos e cargas",views:["calda"]},
-  {number:3,label:"Segurança",detail:"Mapa, clima e risco",views:["estrategia","seguranca"]},
-  {number:4,label:"Equipamento",detail:"Ajustes e checklist",views:["controle","calibracao","checklist"]},
-  {number:5,label:"Liberação",detail:"SARPAS e conferência",views:["sarpas"]},
-  {number:6,label:"Aplicar",detail:"Execução e finalização",views:["execucao","relatorios"]}
+  {number:3,label:"Segurança",detail:"Orientação, mapa e clima",views:["estrategia","seguranca"]},
+  {number:4,label:"Controle",detail:"Conferência dos ajustes",views:["controle"]},
+  {number:5,label:"Calibração",detail:"Conferência do equipamento",views:["calibracao"]},
+  {number:6,label:"Checklist",detail:"Inspeção física pré-voo",views:["checklist"]},
+  {number:7,label:"Liberação",detail:"SARPAS e conferência",views:["sarpas"]},
+  {number:8,label:"Aplicação",detail:"Execução e finalização",views:["execucao","relatorios"]}
 ];
 const tips:Record<View,Tip>={
   inicio:{title:"O que fazer agora?",text:"Escolha uma OS ou retome a operação que já estava em andamento."},
@@ -55,7 +57,6 @@ const replacements=new Map<string,string>([
   ["Não aplicável ao caso após conferência","Não aplicável — somente após conferência do caso"],
   ["Usar nuvem","Usar versão salva na nuvem"],
   ["Manter aparelho","Usar versão deste aparelho"],
-  ["O mapa/polígono completo do talhão e o relatório mensal oficial ainda são módulos separados em implantação; este rascunho não os substitui.","Mapa, pacote da operação e relatório mensal estão disponíveis no DroneGestor. Este rascunho continua sendo apenas uma conferência operacional."]
 ]);
 
 function readJson<T>(key:string,fallback:T):T { try { const raw=localStorage.getItem(key); return raw?JSON.parse(raw) as T:fallback; } catch { return fallback; } }
@@ -102,7 +103,7 @@ function simplifyVisibleLabels(view:View){
   if(typeof document==="undefined")return;
   const root=document.querySelector(".agro-field-workspace");if(!root)return;
   const active=phaseFor(view), walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT); let node=walker.nextNode();
-  while(node){ const current=node.nodeValue?.trim()||"", replacement=replacements.get(current); if(replacement&&node.nodeValue) node.nodeValue=node.nodeValue.replace(current,replacement); else if(/^Etapa\s+\d+\s+de\s+8$/i.test(current)&&active&&node.nodeValue) node.nodeValue=node.nodeValue.replace(current,`Fase ${active.number} de 6 • ${active.label}`); node=walker.nextNode(); }
+  while(node){ const current=node.nodeValue?.trim()||"", replacement=replacements.get(current); if(replacement&&node.nodeValue) node.nodeValue=node.nodeValue.replace(current,replacement); else if(/^Etapa\s+\d+\s+de\s+8$/i.test(current)&&active&&node.nodeValue) node.nodeValue=node.nodeValue.replace(current,`Fase ${active.number} de ${phases.length} • ${active.label}`); node=walker.nextNode(); }
 }
 
 export function DroneSimpleFlowUX(){

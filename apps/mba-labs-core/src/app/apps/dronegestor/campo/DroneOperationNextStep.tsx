@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2, ChevronDown, ChevronUp, Circle, Loader2, LockKeyhole, PlaneTakeoff, RefreshCw, TriangleAlert } from "lucide-react";
+import { createPreflightRequestGuard } from "@/lib/dronegestor-preflight-guard";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type Item={id:string;label:string;ok:boolean;detail:string;nextView?:string};
@@ -24,35 +25,38 @@ function openField(view:string){localStorage.setItem("dronegestor:view:v3",view)
 export function DroneOperationNextStep(){
   const[release,setRelease]=useState<Release>(EMPTY),[local,setLocal]=useState<LocalState>(EMPTY_LOCAL),[hydrated,setHydrated]=useState(false),[loading,setLoading]=useState(false),[expanded,setExpanded]=useState(false),[notice,setNotice]=useState("");
   const lastSignature=useRef("");
+  const requestGuard=useRef(createPreflightRequestGuard(()=>JSON.stringify(snapshot())));
 
   async function refresh(force=false){
     const nextLocal=localState();setLocal(nextLocal);
-    if(!nextLocal.osId){setRelease(EMPTY);return}
+    if(!nextLocal.osId){requestGuard.current.invalidate();lastSignature.current="";setRelease(EMPTY);setLoading(false);return}
     const snap=snapshot(),signature=JSON.stringify(snap);
     if(!force&&signature===lastSignature.current)return;
-    lastSignature.current=signature;setLoading(true);
+    lastSignature.current=signature;const ticket=requestGuard.current.begin(signature);setRelease(EMPTY);setLoading(true);
     try{
       const response=await fetch("/api/dronegestor/preflight",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({osId:nextLocal.osId,snapshot:snap}),cache:"no-store"});
       const payload=await response.json().catch(()=>null);
       if(!response.ok)throw new Error(payload?.error||"Não foi possível conferir a liberação.");
+      if(!requestGuard.current.isCurrent(ticket))return;
       setRelease({ready:Boolean(payload?.ready),nextId:String(payload?.nextId||""),nextView:String(payload?.nextView||""),items:Array.isArray(payload?.items)?payload.items:[],error:payload?.error,osStatus:String(payload?.osStatus||""),pilotName:String(payload?.pilotName||"")});
-    }catch(error){setRelease(current=>({...current,ready:false,error:error instanceof Error?error.message:"Falha ao conferir a liberação."}))}
-    finally{setLoading(false)}
+    }catch(error){if(requestGuard.current.isCurrent(ticket))setRelease({...EMPTY,error:error instanceof Error?error.message:"Falha ao conferir a liberação."})}
+    finally{if(requestGuard.current.isCurrent(ticket))setLoading(false)}
   }
 
   useEffect(()=>{
+    const guard=requestGuard.current;
     setHydrated(true);void refresh(true);
     const timer=window.setInterval(()=>void refresh(false),650);
     const force=()=>void refresh(true);
     window.addEventListener("focus",force);window.addEventListener("pageshow",force);window.addEventListener("dronegestor:sarpas-updated",force);
-    return()=>{window.clearInterval(timer);window.removeEventListener("focus",force);window.removeEventListener("pageshow",force);window.removeEventListener("dronegestor:sarpas-updated",force)};
+    return()=>{guard.invalidate();window.clearInterval(timer);window.removeEventListener("focus",force);window.removeEventListener("pageshow",force);window.removeEventListener("dronegestor:sarpas-updated",force)};
   },[]);
 
   useEffect(()=>{
     const guard=(event:Event)=>{
       const el=event.target instanceof Element?event.target.closest("button"):null;if(!el)return;
       const label=(el.textContent||"").trim();if(!label.includes("Iniciar operação"))return;
-      if(release.ready)return;
+      if(release.ready&&!loading)return;
       event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();
       const next=release.items.find(item=>!item.ok);
       setNotice(loading?"Aguarde a conferência do DroneGestor.":next?`Antes de iniciar: ${next.detail}`:release.error||"Ainda existe uma pendência antes do voo.");

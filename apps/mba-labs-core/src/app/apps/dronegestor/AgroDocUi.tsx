@@ -1,7 +1,7 @@
 "use client";
 import { AgroDocDroneIcon as Drone } from "./AgroDocDroneIcon";
 import Link from "next/link";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import {
   type LucideIcon,
   ChevronRight,
@@ -220,7 +220,8 @@ export function useAgroData<T>(url: string | null) {
       active = false;
     };
   }, [url, reload]);
-  return { data, error, refresh: () => setReload((v) => v + 1) };
+  const refresh = useCallback(() => setReload((v) => v + 1), []);
+  return { data, error, refresh };
 }
 export function AgroDocError({ error }: { error: string }) {
   return error ? (
