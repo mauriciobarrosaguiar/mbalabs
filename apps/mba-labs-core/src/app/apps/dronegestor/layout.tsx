@@ -78,7 +78,7 @@ export default async function DroneGestorLayout({ children }: { children: ReactN
           .dronegestor-ui textarea { font-size: 16px; }
 
           .dronegestor-ui h1 {
-            font-size: clamp(1.65rem, 7.8vw, 2.25rem) !important;
+            font-size: clamp(1.375rem, 6vw, 1.625rem) !important;
             line-height: 1.05 !important;
             letter-spacing: -0.035em;
           }
@@ -97,8 +97,8 @@ export default async function DroneGestorLayout({ children }: { children: ReactN
           .dronegestor-ui .drone-field-flow p[class*="text-[11px]"] { font-size: .78rem !important; line-height: 1.15rem !important; }
           .dronegestor-ui .drone-field-flow p[class*="text-xs"] { line-height: 1.2rem; }
 
-          .dronegestor-ui [class*="grid-cols-2"]:not(.drone-mobile-nav) { grid-template-columns: minmax(0, 1fr) !important; }
-          .dronegestor-ui [class*="sm:grid-cols-2"] { grid-template-columns: minmax(0, 1fr); }
+          .dronegestor-ui [class*="grid-cols-2"]:not(.drone-mobile-nav):not(.agro-compact-grid) { grid-template-columns: minmax(0, 1fr) !important; }
+          .dronegestor-ui [class*="sm:grid-cols-2"]:not(.agro-compact-grid) { grid-template-columns: minmax(0, 1fr); }
 
           /* Gestão: somente o grupo direto de quatro abas administrativas vira grade 2x2. */
           .dronegestor-ui main > div > div.flex.gap-2.overflow-x-auto:has(> button:nth-child(4)):not(:has(> button:nth-child(5))) {
@@ -152,7 +152,7 @@ export default async function DroneGestorLayout({ children }: { children: ReactN
         }
 
         @media (max-width: 380px) {
-          .dronegestor-ui h1 { font-size: clamp(1.55rem, 7.8vw, 1.95rem) !important; }
+          .dronegestor-ui h1 { font-size: clamp(1.375rem, 6vw, 1.5rem) !important; }
           .dronegestor-ui main > div > div.flex.gap-2.overflow-x-auto:has(> button:nth-child(4)):not(:has(> button:nth-child(5))) > button { font-size: .9rem; }
         }
 
