@@ -20,7 +20,8 @@ export function AgroDocCloudStorage(){
   {loading&&!data?<p>Consultando conexão...</p>:null}
   {data&&<>
    {data.setupRequired&&<p role="alert">A configuração do banco de armazenamento está pendente. O envio tradicional ao Supabase continua disponível.</p>}
-   {!data.setupRequired&&!data.oauthConfigured&&<p role="alert">O OAuth Google Drive ainda precisa ser configurado pelo administrador técnico. O Supabase continua disponível.</p>}
+   {!data.oauthConfigured&&<p role="alert">O OAuth Google Drive ainda precisa ser configurado pelo administrador técnico. O Supabase continua disponível.</p>}
+   {data.canManage&&(data.setupRequired||!data.oauthConfigured)&&<details className="rounded-xl border border-emerald-200 bg-white p-3"><summary className="cursor-pointer font-bold text-emerald-900">Como configurar o Google Drive</summary><ol className="ml-5 mt-3 list-decimal text-sm leading-6"><li>Ative a Google Drive API no Google Cloud.</li><li>Configure a tela de consentimento e um cliente OAuth do tipo Aplicativo Web.</li><li>Cadastre o endereço HTTPS de retorno do ambiente aprovado. Produção: https://www.mbalabs.com.br/api/dronegestor/cloud/google/callback</li><li>O administrador técnico configura AGRODOC_GOOGLE_CLIENT_ID, AGRODOC_GOOGLE_CLIENT_SECRET, AGRODOC_GOOGLE_REDIRECT_URI e AGRODOC_CLOUD_ENCRYPTION_KEY na Vercel, sem compartilhar segredos.</li><li>Após validar a migration e isolar o banco de teste, o botão Conectar Google Drive ficará disponível.</li></ol><a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-lg border border-emerald-200 p-2 font-semibold text-emerald-800">Abrir Google Cloud</a></details>}
    <div className="agro-row"><Cloud size={24}/><div>
      <b>Google Drive — {data.google.status==="connected"?"Conectado":"Desconectado"}</b>
      <small>{data.google.account||"Conta não autorizada"}</small>
