@@ -210,7 +210,17 @@ export async function GET() {
     if (access.response) return access.response;
     const current = access.current!;
     const admin = createSupabaseAdminClient() as any;
-    const appId = await getDroneGestorApp(admin, current);
+    let appId:string;
+    try {appId=await getDroneGestorApp(admin,current);}
+    catch(error) {
+      // A missing team contract must not prevent the already authorized
+      // manager from seeing their own identity or preparing a solo OS.
+      // It never authorizes creating, editing or linking collaborators.
+      if(current.canManage && error instanceof ApiError && error.status===403) {
+        return NextResponse.json({ok:true,items:[],canManage:current.canManage,canCreatePilot:false,teamUnavailable:true,teamMessage:error.message,currentUserId:current.usuarioId,currentUserName:current.usuarioNome,defaultPermissions});
+      }
+      throw error;
+    }
 
     let query = admin
       .from("core_logs")
@@ -233,6 +243,8 @@ export async function GET() {
       ok: true,
       items,
       canManage: current.canManage,
+      canCreatePilot: current.canManage && Boolean(current.empresaId),
+      teamUnavailable: false,
       defaultPermissions,
       currentUserId: current.usuarioId,
       currentUserName: current.usuarioNome,
