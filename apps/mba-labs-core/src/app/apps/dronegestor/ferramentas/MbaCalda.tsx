@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
-import { calculateLoads, calculateProduct, type DoseUnit } from "@/lib/dronegestor-calculations";
+import { calculateLoads, calculateProductForVolume, type ApplicationDoseUnit } from "@/lib/dronegestor-calculations";
 import { AgroDocHero } from "../AgroDocUi";
 
-type Product = { id:number; name:string; dose:string; unit:DoseUnit };
+type Product = { id:number; name:string; dose:string; unit:ApplicationDoseUnit };
 type Equipment = { id:string; entityId?:string; data:{nome:string; modelo:string; tanqueL:number} };
-const units: DoseUnit[] = ["mL/ha","L/ha","g/ha","kg/ha"];
+const units: ApplicationDoseUnit[] = ["mL/ha","L/ha","g/ha","kg/ha","mL/100L","g/100L"];
 const fmt = (n:number) => new Intl.NumberFormat("pt-BR",{maximumFractionDigits:4}).format(n);
 const parse = (s:string) => s.trim() ? Number(s.replace(",",".")) : NaN;
 const inputClass = "min-h-12 rounded-xl border border-emerald-200 px-3 py-2 text-lg font-bold";
@@ -40,8 +40,8 @@ export function MbaCalda() {
   const productRows=products.map(p=>{
     try {
       if(!usable||!p.name.trim()||!p.dose.trim()||parse(p.dose)<=0) return null;
-      const amount=(v:number)=>{const x=calculateProduct(parse(p.dose),p.unit,v/r);return fmt(x.amount)+" "+x.unit;};
-      return {id:p.id,name:p.name,first:amount(effective),full:amount(m),tank:t>0?amount(Math.min(t,mission?.totalL??m)):"—",lastMix:mission?amount(mission.lastL):"—",lastTank:drone?amount(drone.lastL):perMix?amount(perMix.lastL):"—",total:mission?amount(mission.totalL):"—"};
+      const amount=(v:number)=>{const x=calculateProductForVolume(parse(p.dose),p.unit,v,r);return fmt(x.amount)+" "+x.unit;};
+      return {id:p.id,name:p.name,first:amount(effective),full:amount(m),tank:t>0?amount(t):"—",lastMix:mission?amount(mission.lastL):"—",lastTank:drone?amount(drone.lastL):perMix?amount(perMix.lastL):"—",total:mission?amount(mission.totalL):"—"};
     }catch{return null;}
   });
   const complete=usable&&products.every((_,i)=>productRows[i]!==null);
@@ -61,18 +61,18 @@ export function MbaCalda() {
     </div>
     <Field label="Área total da missão (opcional)" value={area} set={setArea} unit="ha"/>
     {mission&&!error&&<div className="rounded-2xl border bg-white p-4 text-sm leading-7"><strong>Plano da missão</strong><p>Calda total: {fmt(mission.totalL)} L • misturas completas: {mission.fullLoads} • parciais: {mission.partialLoads}</p><p>Última mistura: {fmt(mission.lastL)} L</p>{drone&&<p>Tanques completos: {drone.fullLoads} • carga parcial: {drone.partialLoads} • última carga: {fmt(drone.lastL)} L</p>}<p className="text-slate-600">As cargas totais pressupõem aproveitamento do saldo de calda da mesma missão, somente quando tecnicamente permitido. Se preparar ou descarregar cada mistura separadamente, o número de cargas pode mudar.</p></div>}
-    <Step n={3} title="Produtos e doses por hectare"/>
+    <Step n={3} title="Produtos e doses prescritas"/>
     {products.map((p,i)=><section key={p.id} className="grid gap-3 rounded-2xl border border-emerald-100 bg-white p-4">
       <div className="flex justify-between gap-2"><strong>Produto {i+1}</strong><button type="button" disabled={products.length===1} onClick={()=>setProducts(old=>old.filter(x=>x.id!==p.id))} className="text-sm font-semibold text-red-700 disabled:opacity-40">Remover</button></div>
       <label className="grid gap-1 text-sm">Nome<input className={inputClass} value={p.name} onChange={e=>update(p.id,{name:e.target.value})} placeholder="Nome comercial"/></label>
-      <div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1 text-sm">Dose prescrita<input className={inputClass} value={p.dose} inputMode="decimal" onChange={e=>update(p.id,{dose:e.target.value})}/></label><label className="grid gap-1 text-sm">Unidade<select className={inputClass} value={p.unit} onChange={e=>update(p.id,{unit:e.target.value as DoseUnit})}>{units.map(u=><option key={u}>{u}</option>)}</select></label></div>
+      <div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1 text-sm">Dose prescrita<input className={inputClass} value={p.dose} inputMode="decimal" onChange={e=>update(p.id,{dose:e.target.value})}/></label><label className="grid gap-1 text-sm">Unidade<select className={inputClass} value={p.unit} onChange={e=>update(p.id,{unit:e.target.value as ApplicationDoseUnit})}>{units.map(u=><option key={u}>{u}</option>)}</select></label></div>
     </section>)}
     <button type="button" className="min-h-12 rounded-xl border border-emerald-200 bg-emerald-50 font-bold text-emerald-900" onClick={()=>{setProducts(old=>[...old,{id:nextId,name:"",dose:"",unit:"mL/ha"}]);setNextId(old=>old+1);}}>+ Adicionar outro produto</button>
     {error&&<p role="alert" className="rounded-xl bg-red-50 p-4 text-red-800">{error}</p>}
     <Step n={4} title="Quanto colocar no misturador?"/>
     <section aria-live="polite" className="grid gap-3 rounded-2xl bg-emerald-950 p-5 text-white">
       <h2 className="text-xl font-black">POR MISTURADOR — {usable?fmt(effective):"—"} L de calda final</h2>
-      {!complete?<p className="text-sm text-emerald-100">Preencha a capacidade, a taxa e todos os produtos com doses positivas.</p>:productRows.map(p=>p&&<article key={p.id} className="rounded-xl bg-white/10 p-4"><h3 className="font-bold">{p.name}</h3><strong className="block text-3xl text-white">{p.first}</strong><p className="mt-2 text-sm text-emerald-100">Mistura cheia: {p.full} • por tanque: {p.tank}</p>{mission&&<p className="text-sm text-emerald-100">Última mistura: {p.lastMix} • última carga: {p.lastTank} • total da missão: {p.total}</p>}</article>)}
+      {!complete?<p className="text-sm text-emerald-100">Preencha a capacidade, a taxa e todos os produtos com doses positivas.</p>:productRows.map(p=>p&&<article key={p.id} className="rounded-xl bg-white/10 p-4"><h3 className="font-bold">{p.name}</h3><strong className="block text-3xl text-white">{p.first}</strong><p className="mt-2 text-sm text-emerald-100">Mistura cheia: {p.full} • por tanque cheio (referência): {p.tank}</p>{mission&&<p className="text-sm text-emerald-100">Última mistura: {p.lastMix} • última carga: {p.lastTank} • total da missão: {p.total}</p>}</article>)}
     </section>
     <p className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">Cálculo matemático, não prescrição. Confira receituário, bula, compatibilidade, EPI, ordem de mistura e orientação técnica. Complete até o volume final, sem ultrapassar a capacidade útil.</p>
   </div>;
