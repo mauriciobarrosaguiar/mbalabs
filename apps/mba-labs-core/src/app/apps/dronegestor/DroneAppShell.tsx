@@ -45,6 +45,7 @@ const pages = [
   { path: "documentos", title: "Documentos", icon: Folder },
   { path: "cadastros", title: "Cadastros", icon: Layers },
   { path: "piloto-pro", title: "Piloto Pro", icon: BookOpen },
+  { path: "produtos", title: "Defensivos e AGROFIT", icon: Leaf },
   { path: "configuracoes", title: "Configurações", icon: Settings },
 ];
 const navigation = [
@@ -53,7 +54,7 @@ const navigation = [
  { title: "Ferramentas", paths: ["ferramentas"] },
  { title: "Gestão", paths: ["cadastros", "equipamentos", "equipe"] },
  { title: "Regularização", paths: ["diagnostico", "documentos", "regulacao", "relatorio-mensal", "conferencia"] },
- { title: "Piloto Pro", paths: ["piloto-pro"] },
+ { title: "Piloto Pro", paths: ["piloto-pro", "produtos"] },
  { title: "Configurações", paths: ["configuracoes"] },
 ];
 const managerPaths = new Set(["conferencia", "cadastros", "pilotos", "equipe", "configuracoes"]);
