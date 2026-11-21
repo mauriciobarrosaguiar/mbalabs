@@ -113,6 +113,7 @@ export function DroneAppShell({
             </details>;
           })}
         </nav>
+        <div className="agro-mobile-account"><Link href="/dashboard" onClick={()=>setMenu(false)}>Voltar à MBA Labs</Link><form action="/sair" method="post"><button type="submit"><LogOut size={17}/> Sair</button></form></div>
       </aside>
       {menu && <button className="agro-menu-dismiss fixed inset-0 z-[80] bg-black/40" aria-label="Fechar menu" onClick={()=>setMenu(false)}/>}
       <div className="agro-workspace">
@@ -229,7 +230,7 @@ export function DroneAppShell({
             key={p}
             href={`${ROOT}${p ? `/${p}` : ""}`}
             aria-current={
-              path === `${ROOT}${p ? `/${p}` : ""}` ? "page" : undefined
+              (path === `${ROOT}${p ? `/${p}` : ""}` || (p==="gestao"&&path.startsWith(`${ROOT}/campo`))) ? "page" : undefined
             }
           >
             <Icon />
