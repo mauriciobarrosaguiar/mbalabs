@@ -83,6 +83,7 @@ export async function PATCH(request: NextRequest) {
   try {
     const { admin, usuarioId, empresaId, appId } = await context();
     const body = await request.json().catch(() => null);
+    if (body?.action === "senha") return await changeEmployeePassword(admin, { usuarioId, empresaId, appId }, body);
     if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some(key => !["id", "nome", "telefone", "perfil"].includes(key))) throw new PilotAccountError("Informe somente os dados editáveis do funcionário.", 400);
     const id = text(body.id, 36), nome = text(body.nome), telefone = text(body.telefone, 40);
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) || !nome) throw new PilotAccountError("Informe funcionário e nome válidos.", 400);
@@ -127,4 +128,41 @@ export async function PATCH(request: NextRequest) {
     }
     return NextResponse.json({ ok: true }, { headers });
   } catch (error) { return failure(error); }
+}
+
+
+async function changeEmployeePassword(admin: any, current: { usuarioId: string; empresaId: string; appId: string }, body: Record<string, unknown>) {
+  if (Object.keys(body).some(key => !["action", "id", "novaSenha", "confirmarSenha"].includes(key))) throw new PilotAccountError("Informe somente os dados da alteração de senha.", 400);
+  const id = text(body.id, 36);
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new PilotAccountError("Selecione um funcionário válido.", 400);
+  const password = typeof body.novaSenha === "string" ? body.novaSenha : "";
+  if (password.length < 8 || password.length > 200) throw new PilotAccountError("A nova senha deve ter entre 8 e 200 caracteres.", 400);
+  if (password !== body.confirmarSenha) throw new PilotAccountError("A confirmação da senha não confere.", 400);
+  const userResult = await admin.from("core_usuarios").select("id,auth_user_id,tipo,tipo_global").eq("id", id).eq("empresa_id", current.empresaId).maybeSingle();
+  if (userResult.error) throw userResult.error;
+  const permissionResult = await admin.from("core_usuario_app_permissoes").select("id,perfil_app,status").eq("usuario_id", id).eq("empresa_id", current.empresaId).eq("app_id", current.appId).maybeSingle();
+  if (permissionResult.error) throw permissionResult.error;
+  const user = userResult.data, permission = permissionResult.data;
+  if (!user || !permission) throw new PilotAccountError("Funcionário não encontrado nesta empresa.", 404);
+  const types = [user.tipo, user.tipo_global].map(type => String(type ?? "").trim().toLowerCase());
+  if (types.some(type => ["super_admin", "admin_master"].includes(type)) || (id !== current.usuarioId && (permission.perfil_app === "admin_empresa" || types.includes("admin_empresa")))) throw new PilotAccountError("A senha deste administrador deve ser alterada pelo próprio titular.", 403);
+  if (!user.auth_user_id) throw new PilotAccountError("Este funcionário não possui login vinculado.", 409);
+  // An app administrator must not gain access to another app through a shared credential.
+  if (id !== current.usuarioId) {
+    const otherApps = await admin.from("core_usuario_app_permissoes").select("id").eq("usuario_id", id).neq("app_id", current.appId).eq("status", "ativo").limit(1);
+    if (otherApps.error) throw otherApps.error;
+    if (otherApps.data?.length) throw new PilotAccountError("Este login também acessa outros aplicativos. A senha deve ser alterada pelo próprio titular.", 403);
+  }
+  const auditRow = (acao: string) => ({ empresa_id: current.empresaId, usuario_id: current.usuarioId, app_slug: "dronegestor", acao, detalhes: { usuarioId: id } });
+  // Audit intent before changing an irreversible credential; never store passwords or provider errors.
+  const intent = await admin.from("core_logs").insert([auditRow("funcionario_senha_solicitada_v1")]);
+  if (intent.error) throw new PilotAccountError("Não foi possível registrar a solicitação. A senha foi preservada.", 500);
+  const updated = await admin.auth.admin.updateUserById(user.auth_user_id, { password });
+  if (updated.error) {
+    await admin.from("core_logs").insert([auditRow("funcionario_senha_falhou_v1")]);
+    throw new PilotAccountError("Não foi possível alterar a senha. Confira os requisitos e tente novamente.", 503);
+  }
+  const completed = await admin.from("core_logs").insert([auditRow("funcionario_senha_alterada_v1")]);
+  // Do not report a failed password change when Auth has already changed it.
+  return NextResponse.json({ ok: true, auditoriaPendente: !!completed.error }, { headers });
 }
