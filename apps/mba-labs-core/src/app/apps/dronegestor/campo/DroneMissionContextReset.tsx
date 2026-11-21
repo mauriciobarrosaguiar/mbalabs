@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect } from "react";
+import { mergeDroneMissionPlan } from "@/lib/dronegestor-planning";
 
 const RESET_MARKER = "dronegestor:contextResetForOs:v1";
 
@@ -71,7 +72,7 @@ export function DroneMissionContextReset() {
         sarpasConfirmado: false
       };
 
-      localStorage.setItem("dronegestor:mission:v2", JSON.stringify(cleanMission));
+      localStorage.setItem("dronegestor:mission:v2", JSON.stringify(current.planejamentoAtualizadoEm ? mergeDroneMissionPlan(cleanMission, { missaoPlanejada: current, planejamentoAtualizadoEm: current.planejamentoAtualizadoEm }) : cleanMission));
       localStorage.setItem("dronegestor:calibration:v2", JSON.stringify({ ar: false, fluxometro: false, bomba: false }));
       localStorage.setItem("dronegestor:checklist:v2", JSON.stringify({ area:false, pessoasAnimais:false, obstaculos:false, drone:false, controle:false, pulverizacao:false, clima:false, documentos:false }));
       localStorage.setItem("dronegestor:occurrences:v2", JSON.stringify([]));
