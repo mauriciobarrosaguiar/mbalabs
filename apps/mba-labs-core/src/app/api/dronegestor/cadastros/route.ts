@@ -67,6 +67,15 @@ async function requireAssignablePilot(admin: any, current: ApiContext, pilotId: 
   const { data, error } = await admin.from("core_usuarios").select("id,status,empresa_id").eq("id", pilotId).eq("empresa_id", current.empresaId).eq("status", "ativo").limit(1).maybeSingle();
   if (error) throw error;
   if (!data) throw new Error("O piloto selecionado não possui usuário ativo nesta empresa.");
+  // Solo: allow an already authorized manager to assign their own active user,
+  // not another person. Company membership was verified above.
+  if (current.canManage && pilotId === current.usuarioId && ["admin_empresa","gestor_operacional"].includes(current.usuarioTipo)) {
+    let profileQuery = admin.from("core_logs").select("detalhes").eq("app_slug","dronegestor").eq("acao","perfil_operacional_v1").order("created_at",{ascending:false}).limit(1);
+    profileQuery=scopeQuery(profileQuery,current);
+    const profile=await profileQuery.maybeSingle();
+    if(profile.error) throw profile.error;
+    if(profile.data?.detalhes?.profile?.modoOperacao==="solo") return;
+  }
   let pilotQuery = admin.from("core_logs").select("id,detalhes").eq("app_slug", "dronegestor").eq("acao", PILOT_ACTION).contains("detalhes", { usuarioId: pilotId, ativo: true }).limit(1);
   pilotQuery = scopeQuery(pilotQuery, current);
   const pilot = await pilotQuery.maybeSingle();
