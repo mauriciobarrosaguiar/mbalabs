@@ -2058,3 +2058,6 @@
 
 @media(max-width:767px){.agro-shell .agro-toolbar-reports>.agro-report-month{grid-column:1/-1;}.agro-shell .agro-report-month input{width:100%;}.agro-shell .agro-field-shortcuts{grid-template-columns:repeat(5,minmax(0,1fr));}.agro-shell .agro-page-content{scroll-margin-bottom:80px;}}
 @media(min-width:768px){.agro-menu-dismiss{display:none;}}
+
+.agro-mobile-account{display:none;}
+@media(max-width:767px){.agro-shell .agro-field-phase{padding:0 0 8px;}.agro-shell .agro-mobile-account{display:grid;gap:8px;padding:12px 8px;color:#fff;font-size:13px;}.agro-shell .agro-mobile-account a,.agro-shell .agro-mobile-account button{display:flex;align-items:center;gap:8px;min-height:44px;color:#fff;}.agro-shell .agro-mobile-account form button{width:100%;}.agro-shell .agro-sidebar-open{background-color:#052f25;}.agro-shell .agro-bottom-nav a{white-space:nowrap;}.agro-shell .agro-header{position:sticky;top:0;}}
