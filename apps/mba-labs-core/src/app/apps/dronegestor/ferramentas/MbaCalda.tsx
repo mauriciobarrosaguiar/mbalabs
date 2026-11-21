@@ -8,9 +8,9 @@ type Equipment = { id:string; entityId?:string; data:{nome:string; modelo:string
 const units: ApplicationDoseUnit[] = ["mL/ha","L/ha","g/ha","kg/ha","mL/100L","g/100L"];
 const fmt = (n:number) => new Intl.NumberFormat("pt-BR",{maximumFractionDigits:4}).format(n);
 const parse = (s:string) => s.trim() ? Number(s.replace(",",".")) : NaN;
-const inputClass = "min-h-12 rounded-xl border border-emerald-200 px-3 py-2 text-lg font-bold";
+const inputClass = "min-h-11 rounded-xl border border-emerald-200 px-2 py-2 text-base font-bold";
 function Field({label,value,set,unit}:{label:string;value:string;set:(v:string)=>void;unit:string}) {
-  return <label className="grid gap-2 rounded-2xl border border-emerald-100 bg-white p-4 text-sm font-bold text-emerald-950">{label}<span className="flex items-center gap-2"><input className={inputClass} inputMode="decimal" value={value} onChange={e=>set(e.target.value)}/><span className="shrink-0">{unit}</span></span></label>;
+  return <label className="grid gap-2 rounded-xl border border-emerald-100 bg-white p-3 text-sm font-bold text-emerald-950">{label}<span className="flex items-center gap-2"><input className={inputClass} inputMode="decimal" value={value} onChange={e=>set(e.target.value)}/><span className="shrink-0">{unit}</span></span></label>;
 }
 function Step({n,title}:{n:number;title:string}) {
   return <h2 className="flex items-center gap-3 text-lg font-black text-emerald-950"><span className="grid size-10 shrink-0 place-items-center rounded-full bg-emerald-700 text-white">{n}</span>{title}</h2>;
@@ -48,15 +48,15 @@ export function MbaCalda() {
   });
   const complete=usable&&products.every((_,i)=>productRows[i]!==null);
   function update(id:number,patch:Partial<Product>){setProducts(old=>old.map(p=>p.id===id?{...p,...patch}:p));}
-  return <div className="grid gap-5">
+  return <div className="grid gap-3">
     <section className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-950">Informe o volume final da calda, não o volume inicial de água. A taxa em L/ha não é a vazão da bomba em L/min.</section>
     <Step n={1} title="Quantos hectares o misturador faz?"/>
-    <div className="grid gap-3 sm:grid-cols-2"><Field label="Misturador útil" value={mixer} set={setMixer} unit="L"/><Field label="Taxa de aplicação" value={rate} set={setRate} unit="L/ha"/></div>
+    <div className="agro-compact-grid grid grid-cols-2 gap-2"><Field label="Misturador útil" value={mixer} set={setMixer} unit="L"/><Field label="Taxa de aplicação" value={rate} set={setRate} unit="L/ha"/></div>
     <div className="rounded-2xl border border-emerald-200 bg-[#e5f5db] p-5"><p className="text-sm font-bold text-emerald-800">Área atendida por mistura cheia</p><strong className="text-4xl font-black text-emerald-900">{usable?fmt(m/r):"—"} ha</strong><p className="mt-2 text-sm text-emerald-900">Volume final ÷ taxa de aplicação.</p></div>
     <Step n={2} title="Quantos tanques do drone ele abastece?"/>
     <label className="grid gap-2 rounded-2xl border bg-white p-4 text-sm font-semibold">Drone cadastrado (opcional)<select className="min-h-12 rounded-xl border px-3" value={selected} onChange={e=>{setSelected(e.target.value);const d=equipment.find(x=>(x.entityId||x.id)===e.target.value);if(d)setTank(String(d.data.tanqueL));}}><option value="">Capacidade personalizada</option>{equipment.map(e=><option key={e.entityId||e.id} value={e.entityId||e.id}>{e.data.nome} — {e.data.modelo} ({e.data.tanqueL} L cadastrado)</option>)}</select>{equipmentError&&<small>{equipmentError}</small>}</label>
     <Field label="Capacidade útil do tanque (confirme antes de calcular)" value={tank} set={setTank} unit="L"/>
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="agro-compact-grid grid grid-cols-2 gap-2">
       <div className="rounded-2xl border bg-white p-4"><small>Tanques completos por mistura cheia</small><strong className="block text-3xl text-emerald-900">{!error&&perMix?perMix.fullLoads:"—"}</strong></div>
       <div className="rounded-2xl border bg-white p-4"><small>Saldo para carga parcial ou próxima mistura</small><strong className="block text-3xl text-emerald-900">{!error&&perMix?fmt(perMix.partialL):"—"} L</strong></div>
     </div>
