@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { BookOpen, Search, ChevronDown, ArrowRight } from "lucide-react";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 const ROOT = "/apps/dronegestor";
 const chapters = [
@@ -25,10 +25,28 @@ const chapters = [
 const groups = ["Todos", ...new Set(chapters.map(c => c.group))];
 const normalize = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
 
-export function PilotoProLibrary() {
+function subscribe(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener("piloto-pro:reading", callback);
+  return () => { window.removeEventListener("storage", callback); window.removeEventListener("piloto-pro:reading", callback); };
+}
+type ReadingState = { favorites: string[]; read: string[]; history: Record<string,string> };
+export function PilotoProLibrary({ owner }: { owner: string }) {
+  const storageKey = `piloto-pro:reading:v1:${encodeURIComponent(owner)}`;
+  const [storageError, setStorageError] = useState("");
+  const raw = useSyncExternalStore(subscribe, () => { try { return localStorage.getItem(storageKey) || ""; } catch { return ""; } }, () => "");
+  let reading: ReadingState = { favorites: [], read: [], history: {} };
+  try { const parsed = JSON.parse(raw); reading = { favorites: Array.isArray(parsed.favorites) ? parsed.favorites : [], read: Array.isArray(parsed.read) ? parsed.read : [], history: parsed.history && typeof parsed.history === "object" ? parsed.history : {} }; } catch { /* Empty or malformed local preferences. */ }
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  function updateReading(next: ReadingState) {
+    try { localStorage.setItem(storageKey, JSON.stringify(next)); window.dispatchEvent(new Event("piloto-pro:reading")); setStorageError(""); }
+    catch { setStorageError("Não foi possível salvar a leitura neste aparelho. Verifique o armazenamento do navegador."); }
+  }
+  function toggle(id: string, key: "favorites" | "read") { updateReading({ ...reading, [key]: reading[key].includes(id) ? reading[key].filter(x => x !== id) : [...reading[key], id] }); }
+
   const [query, setQuery] = useState("");
   const [group, setGroup] = useState("Todos");
-  const filtered = chapters.filter(c => (group === "Todos" || c.group === group) && normalize([c.title,c.summary,c.group,...c.body].join(" ")).includes(normalize(query.trim())));
+  const filtered = chapters.filter(c => (!favoritesOnly || reading.favorites.includes(c.id)) && (group === "Todos" || c.group === group) && normalize([c.title,c.summary,c.group,...c.body].join(" ")).includes(normalize(query.trim())));
   return (
     <main className="mx-auto grid w-full max-w-5xl gap-5 px-4 py-5 sm:px-6">
       <header className="rounded-3xl bg-emerald-950 p-6 text-white sm:p-8">
@@ -42,15 +60,20 @@ export function PilotoProLibrary() {
       <section aria-label="Filtros da biblioteca" className="grid gap-3">
         <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3"><Search size={19} className="shrink-0 text-emerald-700"/><input aria-label="Buscar conteúdo do Piloto Pro" className="min-w-0 flex-1 bg-transparent text-sm outline-none" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar: calda, SARPAS, faixa, T25P..."/></label>
         <div className="flex flex-wrap gap-2">{groups.map(g=><button key={g} type="button" aria-pressed={group===g} onClick={()=>setGroup(g)} className={`min-h-10 rounded-full border px-3 py-2 text-xs font-bold ${group===g?"border-emerald-800 bg-emerald-800 text-white":"border-slate-200 bg-white text-slate-700"}`}>{g}</button>)}</div>
+        <div className="flex flex-wrap gap-2"><button className="rounded-xl border bg-white p-3 text-sm" aria-pressed={favoritesOnly} onClick={()=>setFavoritesOnly(v=>!v)}>Somente favoritos</button><button className="rounded-xl border bg-white p-3 text-sm" onClick={()=>window.print()}>Imprimir capítulos abertos</button></div>
+        <p className="text-sm text-emerald-900">{reading.read.filter(id=>chapters.some(c=>c.id===id)).length} de {chapters.length} capítulos marcados como lidos. Preferências salvas neste aparelho.</p>
+        {storageError && <p role="alert" className="text-sm text-red-800">{storageError}</p>}
         <p className="text-xs text-slate-600" aria-live="polite">{filtered.length} de {chapters.length} capítulos</p>
       </section>
       <section className="grid gap-3" aria-label="Capítulos">
-        {filtered.map(c=><details key={c.id} className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        {filtered.map(c=><details key={c.id} onToggle={event=>{if(event.currentTarget.open)updateReading({...reading,history:{...reading.history,[c.id]:new Date().toISOString()}});}} className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <summary className="flex cursor-pointer list-none items-start justify-between gap-3">
             <div><span className="text-xs font-bold uppercase tracking-wide text-emerald-700">{c.group}</span><h2 className="mt-1 text-lg font-bold text-slate-950">{c.title}</h2><p className="mt-1 text-sm leading-5 text-slate-600">{c.summary}</p></div>
             <ChevronDown size={20} className="mt-1 shrink-0 text-emerald-700 group-open:rotate-180"/>
           </summary>
           <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4 text-sm leading-6 text-slate-700">
+            <div className="flex flex-wrap gap-2"><button className="rounded-xl border px-3 py-2 font-bold" aria-pressed={reading.favorites.includes(c.id)} onClick={()=>toggle(c.id,"favorites")}>{reading.favorites.includes(c.id)?"Remover favorito":"Favoritar"}</button><button className="rounded-xl border px-3 py-2 font-bold" aria-pressed={reading.read.includes(c.id)} onClick={()=>toggle(c.id,"read")}>{reading.read.includes(c.id)?"Marcar como não lido":"Marcar como lido"}</button></div>
+            <p className="text-xs text-slate-500">Versão temática 0.1 · Importação do e-book pendente{reading.history[c.id] ? ` · Última abertura: ${new Date(reading.history[c.id]).toLocaleDateString("pt-BR")}` : ""}</p>
             {c.body.map(p=><p key={p}>{p}</p>)}
             {c.path && <Link className="inline-flex w-fit items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 font-bold text-emerald-800" href={ROOT+"/"+c.path}>{c.action}<ArrowRight size={15}/></Link>}
           </div>
