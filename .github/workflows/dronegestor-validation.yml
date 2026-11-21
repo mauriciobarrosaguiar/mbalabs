@@ -1,0 +1,24 @@
+name: DroneGestor validation
+on:
+  pull_request:
+    paths:
+      - 'apps/mba-labs-core/src/app/apps/dronegestor/**'
+      - 'apps/mba-labs-core/src/app/api/dronegestor/**'
+      - 'apps/mba-labs-core/src/lib/dronegestor*'
+      - 'apps/mba-labs-core/tests/dronegestor-*.test.mjs'
+      - '.github/workflows/dronegestor-validation.yml'
+permissions:
+  contents: read
+jobs:
+  dronegestor-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: DroneGestor tests
+        run: npm --prefix apps/mba-labs-core run test:agrodoc
