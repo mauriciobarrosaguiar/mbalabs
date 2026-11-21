@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { getSessionProfile } from "@/lib/core-data";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 
@@ -9,7 +10,7 @@ const MAX=10*1024*1024;
 type Context={userId:string;empresaId:string|null;canManage:boolean;userName:string};
 function normalize(v:string){return v.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replaceAll(" ","_")}
 function safe(v:string){return v.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9_-]+/g,"-").slice(0,80)||"geral"}
-async function context():Promise<{current:Context|null;response:NextResponse|null}>{const s=await getSessionProfile();if(!s.user||!s.profile)return{current:null,response:NextResponse.json({ok:false,error:"Autenticação necessária."},{status:401})};const t=normalize(s.profile.tipo||""),master=["super_admin","admin_master"].includes(t),allowed=(s.appsLiberados??[]).some(a=>a.slug==="dronegestor"&&a.canAccess);if(!master&&!allowed)return{current:null,response:NextResponse.json({ok:false,error:"Acesso ao DroneGestor não liberado."},{status:403})};return{current:{userId:s.profile.id,empresaId:s.profile.empresa_id,canManage:master||["admin_empresa","responsavel_tecnico","rt"].includes(t),userName:s.profile.nome||"Usuário"},response:null}}
+async function context():Promise<{current:Context|null;response:NextResponse|null}>{const s=await getSessionProfile();if(!s.user||!s.profile)return{current:null,response:NextResponse.json({ok:false,error:"Autenticação necessária."},{status:401})};const t=normalize(s.profile.tipo||""),master=["super_admin","admin_master"].includes(t),allowed=(s.appsLiberados??[]).some(a=>a.slug==="dronegestor"&&a.canAccess);if(!master&&!allowed)return{current:null,response:NextResponse.json({ok:false,error:"Acesso ao DroneGestor não liberado."},{status:403})};return{current:{userId:s.profile.id,empresaId:s.profile.empresa_id,canManage:canManageDroneGestor({tipo:s.profile.tipo,isAdminMaster:master,permissoes:s.permissoes}),userName:s.profile.nome||"Usuário"},response:null}}
 function scope(q:any,c:Context){return c.empresaId?q.eq("empresa_id",c.empresaId):q.eq("usuario_id",c.userId)}
 async function latest(admin:any,c:Context){let q=admin.from("core_logs").select("id,detalhes,created_at").eq("app_slug","dronegestor").eq("acao",ACTION).order("created_at",{ascending:false}).limit(1);q=scope(q,c);const{data,error}=await q.maybeSingle();if(error)throw error;return data}
 

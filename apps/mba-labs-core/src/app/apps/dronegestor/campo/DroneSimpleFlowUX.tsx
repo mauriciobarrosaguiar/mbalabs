@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Check, CheckCircle2, CircleHelp, FileText, FolderCheck, PlaneTakeoff, TriangleAlert } from "lucide-react";
+import { CheckCircle2, CircleHelp, FileText, FolderCheck, PlaneTakeoff, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { DroneGeoMapEvidence } from "./DroneGeoMapEvidence";
 import { DroneMapEvidence } from "./DroneMapEvidence";
@@ -29,7 +29,7 @@ const tips:Record<View,Tip>={
   estrategia:{title:"Orientação de segurança",text:"Confirme receita, bula e orientação técnica antes de seguir para o mapa e clima."},
   seguranca:{title:"Segurança no local",text:"Registre mapa, área sensível e clima medido no talhão antes de liberar o equipamento."},
   controle:{title:"Confira os ajustes",text:"Compare os valores calculados com o controle do drone e corrija divergências."},
-  calibracao:{title:"Calibre na ordem",text:"Eliminar o ar → calibrar fluxômetro → calibrar bomba."},
+  calibracao:{title:"Calibre conforme o modelo",text:"Siga a sequência de preparação, retirada de ar e calibração indicada pelo fabricante."},
   checklist:{title:"Faça a conferência física",text:"Marque somente depois de verificar cada item no equipamento e na área."},
   sarpas:{title:"Liberação para voo",text:"Confira o sistema oficial. O quadro abaixo mostra exatamente o que ainda impede o início."},
   execucao:{title:"Registre o que aconteceu",text:"A cada carga, informe hectares e volume realmente utilizados. Registre qualquer ocorrência."},
@@ -88,9 +88,9 @@ function readReadiness():Readiness {
   if(settings.exigirConfirmacao!==false&&!risk) pending.push("Confirmação final de risco");
   if(!completeBooleans(calibration)) pending.push("Calibração completa");
   if(!completeBooleans(checklist)) pending.push("Checklist pré-voo completo");
-  const sarpasOk=mission.sarpasConfirmado===true&&Boolean(mission.sarpasSituacao)&&(mission.sarpasSituacao!=="autorizado"||String(mission.sarpasNumero||"").trim());
+  const sarpasOk=mission.sarpasConfirmado===true&&mission.sarpasSituacao==="autorizado"&&Boolean(String(mission.sarpasNumero||"").trim());
   if(!sarpasOk) pending.push("Situação SARPAS conferida");
-  const gpsOk=Number.isFinite(Number(weather.latitude))&&Number.isFinite(Number(weather.longitude));
+  const gpsOk=weather.latitude!=null&&weather.longitude!=null&&weather.latitude!==""&&weather.longitude!==""&&Number.isFinite(Number(weather.latitude))&&Number.isFinite(Number(weather.longitude))&&Math.abs(Number(weather.latitude))<=90&&Math.abs(Number(weather.longitude))<=180;
   if(!gpsOk) pending.push("Ponto GPS da operação");
   if(localStorage.getItem("dronegestor:syncConflict:v4")) pending.push("Conflito de sincronização");
 
@@ -99,8 +99,9 @@ function readReadiness():Readiness {
 }
 
 function simplifyVisibleLabels(view:View){
-  if(typeof document==="undefined"||!document.body)return;
-  const active=phaseFor(view), walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT); let node=walker.nextNode();
+  if(typeof document==="undefined")return;
+  const root=document.querySelector(".agro-field-workspace");if(!root)return;
+  const active=phaseFor(view), walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT); let node=walker.nextNode();
   while(node){ const current=node.nodeValue?.trim()||"", replacement=replacements.get(current); if(replacement&&node.nodeValue) node.nodeValue=node.nodeValue.replace(current,replacement); else if(/^Etapa\s+\d+\s+de\s+8$/i.test(current)&&active&&node.nodeValue) node.nodeValue=node.nodeValue.replace(current,`Fase ${active.number} de 6 • ${active.label}`); node=walker.nextNode(); }
 }
 
@@ -121,19 +122,19 @@ export function DroneSimpleFlowUX(){
   const active=useMemo(()=>phaseFor(view),[view]);
   const tip=tips[view];
   const showMap=["estrategia","seguranca","execucao","relatorios"].includes(view);
-  const progress=active?Math.round(active.number/6*100):0;
+  const progress=active?Math.round(active.number/phases.length*100):0;
   const closed=["finalizada","pendente_sync"].includes(readiness.status);
 
   return <>
-    {active && <section className="bg-[#f4f8f1] px-3 pt-3 sm:px-5 sm:pt-5">
-      <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-[24px] bg-[linear-gradient(145deg,#07533a,#00432f)] p-4 text-white shadow-[0_12px_30px_rgba(3,70,48,.10)] sm:p-5">
+    {active && <section className="agro-field-phase bg-slate-50 px-3 pt-3 sm:px-5 sm:pt-5">
+      <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-xl bg-emerald-950 p-3 text-white sm:p-4">
         <div className="flex items-start justify-between gap-3">
-          <div><span className="text-[11px] font-black uppercase tracking-[.14em] text-[#8fe0b4]">Fase {active.number} de 6</span><h2 className="mt-1 text-xl font-black leading-6">{active.label}</h2><p className="mt-1 text-xs text-[#c8ddd2]">{active.detail}</p></div>
+          <div><span className="text-[11px] font-black uppercase tracking-[.14em] text-[#8fe0b4]">Fase {active.number} de {phases.length}</span><h2 className="mt-1 text-xl font-black leading-6">{active.label}</h2><p className="mt-1 text-xs text-[#c8ddd2]">{active.detail}</p></div>
           <div className="grid size-11 shrink-0 place-items-center rounded-full bg-white/10 text-lg font-black">{active.number}</div>
         </div>
         <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#65dca0] transition-all" style={{width:`${progress}%`}}/></div>
         <div className="mobile-hide-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1">
-          {phases.map((phase)=>{ const done=phase.number<active.number, current=phase.number===active.number; return <div key={phase.number} className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[10px] font-black ${current?"bg-[#65dca0] text-[#063b29]":done?"bg-white/12 text-white":"bg-black/10 text-white/55"}`}><span className="grid size-4 place-items-center rounded-full bg-white/10">{done?<Check size={10} strokeWidth={3}/>:phase.number}</span><span>{phase.label}</span></div>; })}
+          {phases.map((phase)=>{ const current=phase.number===active.number; return <div key={phase.number} className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[10px] font-black ${current?"bg-[#65dca0] text-[#063b29]":"bg-white/10 text-white/80"}`}><span className="grid size-4 place-items-center rounded-full bg-white/10">{phase.number}</span><span>{phase.label}</span></div>; })}
         </div>
       </div>
       <div className="mx-auto mt-2 flex w-full max-w-3xl gap-2 rounded-2xl border border-[#cfe4d7] bg-white px-3 py-3 shadow-sm"><CircleHelp size={18} className="mt-0.5 shrink-0 text-[#087a55]"/><div><strong className="block text-xs font-black text-[#123d30]">{tip.title}</strong><p className="mt-0.5 text-[11px] leading-4 text-[#6c7a72]">{tip.text}</p></div></div>
@@ -143,7 +144,7 @@ export function DroneSimpleFlowUX(){
       <div className={`rounded-2xl border p-4 shadow-sm ${readiness.ready?"border-emerald-200 bg-emerald-50":"border-amber-200 bg-amber-50"}`}>
         <div className="flex items-start gap-3">
           <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${readiness.ready?"bg-emerald-600 text-white":"bg-amber-100 text-amber-800"}`}>{readiness.ready?<CheckCircle2 size={20}/>:<TriangleAlert size={20}/>}</span>
-          <div className="min-w-0 flex-1"><strong className={`block text-sm font-black ${readiness.ready?"text-emerald-950":"text-amber-950"}`}>{readiness.ready?"Pronto para iniciar a aplicação":"Ainda não liberar o voo"}</strong><p className="mt-1 text-xs leading-5 text-slate-700">{readiness.ready?"Todas as verificações locais necessárias para liberar o botão de início estão completas.":"Resolva os itens abaixo. O botão de iniciar continuará bloqueado até a conferência."}</p></div>
+          <div className="min-w-0 flex-1"><strong className={`block text-sm font-black ${readiness.ready?"text-emerald-950":"text-amber-950"}`}>{readiness.ready?"Conferências locais completas":"Ainda não liberar o voo"}</strong><p className="mt-1 text-xs leading-5 text-slate-700">{readiness.ready?"Conferências locais completas. O início depende também da validação do servidor e da autorização oficial aplicável.":"Resolva os itens abaixo. O botão de iniciar continuará bloqueado até a conferência."}</p></div>
         </div>
         {!readiness.ready&&<div className="mt-3 grid gap-1.5">{readiness.pending.map((item)=><div key={item} className="flex items-start gap-2 rounded-xl bg-white/75 px-3 py-2 text-xs font-bold text-amber-950"><span className="mt-1 size-1.5 shrink-0 rounded-full bg-amber-500"/>{item}</div>)}</div>}
       </div>

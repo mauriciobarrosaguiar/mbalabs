@@ -9,6 +9,8 @@ import {
   FileText,
   Folder,
   Leaf,
+  Calculator,
+  BookOpen,
   Search,
   Send,
   ShieldCheck,
@@ -74,6 +76,8 @@ export function DroneHomeDashboard({
       ? `/api/dronegestor/documentos?osId=${encodeURIComponent(activeOs)}`
       : null,
   );
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => { const interval = window.setInterval(() => setClock(Date.now()), 60000); return () => window.clearInterval(interval); }, []);
   const [months, setMonths] = useState(6),
     [online, setOnline] = useState(true);
   useEffect(() => {
@@ -97,11 +101,11 @@ export function DroneHomeDashboard({
     upcoming = checklist.filter(
       (x) =>
         x.validade &&
-        Date.parse(x.validade) >= Date.now() &&
-        Date.parse(x.validade) <= Date.now() + 30 * 86400000,
+        Date.parse(x.validade) >= clock &&
+        Date.parse(x.validade) <= clock + 30 * 86400000,
     ).length;
   const items = history.data?.items || [],
-    now = new Date(),
+    now = new Date(clock),
     labels = Array.from(
       { length: months },
       (_, i) => new Date(now.getFullYear(), now.getMonth() - months + 1 + i, 1),
@@ -119,7 +123,7 @@ export function DroneHomeDashboard({
   const max = Math.max(1, ...series.map((x) => x.n));
   const w = weather.data?.state?.weather;
   const weatherTimestamp = w?.capturedAt ? Date.parse(w.capturedAt) : Number.NaN;
-  const weatherFresh = Number.isFinite(weatherTimestamp) && weatherTimestamp <= Date.now() && (Date.now()-weatherTimestamp) < 30*60*1000;
+  const weatherFresh = Number.isFinite(weatherTimestamp) && weatherTimestamp <= clock && (clock-weatherTimestamp) < 30*60*1000;
   const activeOrderStatuses = new Set(["aberta","preparacao","em_preparacao","em_execucao","suspensa"]);
   const orderIds = new Set<string>();
   const activeOrdersCount = assignedOrders.data ? (assignedOrders.data.items ?? []).filter(x => {
@@ -127,6 +131,7 @@ export function DroneHomeDashboard({
     orderIds.add(x.entityId);
     return activeOrderStatuses.has(String(x.data?.status || ""));
   }).length : "—";
+  const inFieldCount = assignedOrders.data ? new Set((assignedOrders.data.items??[]).filter(x=>x.data?.status==="em_execucao").map(x=>x.entityId)).size : "—";
   return (
     <>
       <div className="agro-home agro-home-desktop">
@@ -134,7 +139,7 @@ export function DroneHomeDashboard({
           large
           title={
             <>
-              MBA <em>AgroDoc</em>
+              MBA <em>DroneGestor</em>
             </>
           }
           description="Gestão e regularização de operações com drones agrícolas"
@@ -271,10 +276,10 @@ export function DroneHomeDashboard({
       <div className="agro-pilot-mobile">
         <div className="agro-pilot-hero">
           <div className="agro-pilot-brand">
-            <Leaf /> MBA <em>AgroDoc</em>
+            <Leaf /> MBA <em>DroneGestor</em>
           </div>
           <div className="agro-pilot-weather">
-            <b>Condições de voo</b>
+            <b>Condições meteorológicas</b>
             <p>
               {weatherFresh
                 ? `${w?.temperature ?? "—"} °C · ${w?.windSpeed ?? "—"} km/h`
@@ -289,8 +294,8 @@ export function DroneHomeDashboard({
             </small>
           </div>
         </div>
-        <Link className="agro-pilot-register" href={`${ROOT}/campo`}>
-          <Drone /> Registrar operação <ChevronRight />
+        <Link className="agro-pilot-register" href={`${ROOT}/gestao`}>
+          <Drone /> {canManage ? "Nova OS ou continuar" : "Minhas operações"} <ChevronRight />
         </Link>
         {!online && (
           <p role="status" className="agro-form-note">
@@ -304,8 +309,9 @@ export function DroneHomeDashboard({
             <b>{history.data ? items.length : "—"}</b>Finalizadas
           </Link>
           <Link href={`${ROOT}/gestao`}>
-            <b>{activeOrdersCount}</b>Em andamento
+            <b>{activeOrdersCount}</b>OS ativas
           </Link>
+          <Link href={`${ROOT}/campo`}><b>{inFieldCount}</b>Em campo</Link>
           <Link href={`${ROOT}/fichas`}>
             <b>{corrections.data?.items.length ?? "—"}</b>Com correção
           </Link>
@@ -331,16 +337,18 @@ export function DroneHomeDashboard({
           <ChevronRight />
         </Link>
         <section className="agro-pilot-flow">
-          <h2>Fluxo guiado da operação</h2>
+          <h2>Acesso rápido</h2>
           <div className="agro-pilot-steps">
             {[
-              { icon: Drone, label: "Dados da operação", path: "campo" },
-              { icon: CloudSun, label: "Condições climáticas", path: "campo" },
-              { icon: Camera, label: "Evidências", path: "documentos" },
+              { icon: Drone, label: "Modo campo", path: "campo" },
+              { icon: Calculator, label: "MBA Calda", path: "ferramentas" },
+              { icon: BookOpen, label: "Piloto Pro", path: "piloto-pro" },
+              { icon: Camera, label: "Documentos", path: "documentos" },
+              { icon: ShieldCheck, label: "Regularização", path: "diagnostico" },
               {
                 icon: Send,
-                label: "Enviar para conferência",
-                path: "pacote-operacao",
+                label: "Histórico",
+                path: "historico",
               },
             ].map(({ icon: Icon, label, path }) => (
               <Link key={path + label} href={`${ROOT}/${path}`}>

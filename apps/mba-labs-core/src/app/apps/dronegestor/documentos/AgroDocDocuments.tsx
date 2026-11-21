@@ -184,7 +184,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
         variant="documents"
         title={
           <>
-            MBA <em>AgroDoc</em> · Documentos
+            MBA <em>DroneGestor</em> · Documentos
           </>
         }
         description="Central de arquivos, evidências, relatórios e comprovantes."
@@ -228,6 +228,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
           <Upload size={18} />
           Enviar documento
         </button>
+        {!os && <p className="agro-form-note" role="status" style={{gridColumn:"1 / -1"}}>Selecione uma ordem de serviço para habilitar o envio de documentos.</p>}
       </div>
       <div className="agro-kpis agro-kpis-three">
         <AgroDocKpiCard

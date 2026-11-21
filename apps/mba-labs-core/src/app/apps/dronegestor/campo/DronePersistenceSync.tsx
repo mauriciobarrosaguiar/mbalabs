@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { droneSyncAcknowledgement } from "@/lib/dronegestor-sync-guard";
 
 const REVISION_KEY = "dronegestor:syncRevision:v4";
 const LEGACY_REVISION_KEY = "dronegestor:serverRevision:v4";
@@ -99,13 +100,18 @@ function saveConflict(remoteRevision: number, remoteState: Record<string, unknow
 }
 
 async function pushState(baseRevision: number) {
+  const sentOwner = localStorage.getItem("dronegestor:deviceOwner:v1");
+  const sentState = snapshotDroneLocalState();
+  const sentFingerprint = fingerprint(sentState);
   const response = await fetch("/api/dronegestor/state", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ state: snapshotDroneLocalState(), baseRevision }),
+    body: JSON.stringify({ state: sentState, baseRevision }),
     cache: "no-store"
   });
   const payload = await response.json().catch(() => null);
+  const acknowledgement = droneSyncAcknowledgement(sentOwner, localStorage.getItem("dronegestor:deviceOwner:v1"), sentFingerprint, fingerprint(snapshotDroneLocalState()));
+  if (!acknowledgement.sameOwner) throw new Error("A sessão mudou durante a sincronização.");
   if (response.status === 409) {
     saveConflict(Number(payload?.revision || 0), payload?.state && typeof payload.state === "object" ? payload.state : null);
     return { conflict: true, revision: Number(payload?.revision || 0) };
@@ -113,7 +119,7 @@ async function pushState(baseRevision: number) {
   if (!response.ok) throw new Error(payload?.error || "Falha ao sincronizar DroneGestor.");
   const revision = Number(payload?.revision || baseRevision + 1);
   setLocalRevision(revision);
-  markDirty(false);
+  markDirty(!acknowledgement.unchanged);
   localStorage.removeItem(CONFLICT_KEY);
   return { conflict: false, revision };
 }
@@ -138,6 +144,7 @@ export function markDroneStateChanged() {
 export function DronePersistenceSync() {
   useEffect(() => {
     let disposed = false;
+    const mountedOwner = localStorage.getItem("dronegestor:deviceOwner:v1");
     let syncing = false;
     let initialized = false;
     let baseline = fingerprint(snapshotDroneLocalState());
@@ -151,7 +158,7 @@ export function DronePersistenceSync() {
           return;
         }
         const payload = await response.json();
-        if (disposed) return;
+        if (disposed || mountedOwner !== localStorage.getItem("dronegestor:deviceOwner:v1")) return;
         const remoteRevision = Number(payload?.revision || 0);
         const currentRevision = localRevision();
         const remoteState = payload?.state && typeof payload.state === "object" ? payload.state as Record<string, unknown> : null;
@@ -194,7 +201,7 @@ export function DronePersistenceSync() {
     }
 
     async function sync() {
-      if (disposed || syncing || !initialized || !navigator.onLine || getDroneSyncConflict()) return;
+      if (disposed || mountedOwner !== localStorage.getItem("dronegestor:deviceOwner:v1") || syncing || !initialized || !navigator.onLine || getDroneSyncConflict()) return;
       const currentFingerprint = fingerprint(snapshotDroneLocalState());
       if (currentFingerprint !== baseline) {
         baseline = currentFingerprint;
@@ -207,7 +214,7 @@ export function DronePersistenceSync() {
         if (result.conflict) return;
         baseline = fingerprint(snapshotDroneLocalState());
       } catch {
-        markDirty(true);
+        if (mountedOwner === localStorage.getItem("dronegestor:deviceOwner:v1")) markDirty(true);
       } finally {
         syncing = false;
       }

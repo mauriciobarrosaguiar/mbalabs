@@ -12,6 +12,6 @@ export default async function DroneGestorGestaoPage() {
   const canManage = canManageDroneGestor({ tipo: current.tipo, isAdminMaster: current.isAdminMaster, permissoes: current.permissoes });
   return <AgroDocOperations canManage={canManage}>
     <DroneOsPilotStep canManage={canManage} />
-    <div id="drone-os-management"><DroneGestaoClientV3 canManage={canManage} /></div>
+    <div id="drone-os-management"><DroneGestaoClientV3 canManage={canManage} currentUserId={current.usuario.id} currentUserName={current.usuario.nome || "Operador"} /></div>
   </AgroDocOperations>;
 }

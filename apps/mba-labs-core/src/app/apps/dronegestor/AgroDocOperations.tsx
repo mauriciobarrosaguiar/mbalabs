@@ -131,7 +131,7 @@ export function AgroDocOperations({
             </option>
           ))}
         </select>
-        <input
+        <label className="agro-date-label">Mês (opcional)<input
           type="month"
           aria-label="Período das operações"
           value={month}
@@ -139,14 +139,14 @@ export function AgroDocOperations({
             setMonth(e.target.value);
             setPage(0);
           }}
-        />
+        /></label>
         {canManage ? (
           <button
             className="agro-button agro-button-primary"
             onClick={openEditor}
           >
             <Plus size={20} />
-            Nova operação
+            Nova ordem de serviço
           </button>
         ) : (
           <Link

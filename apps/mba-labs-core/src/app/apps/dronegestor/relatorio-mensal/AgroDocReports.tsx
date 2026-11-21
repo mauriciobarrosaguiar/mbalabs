@@ -115,12 +115,12 @@ export function AgroDocReports({ children }: { children: ReactNode }) {
         description="Consolidação mensal, conferência e exportação do modelo oficial 2026."
       />
       <div className="agro-toolbar agro-toolbar-reports">
-        <input
+        <label className="agro-date-label agro-report-month">Competência<input
           type="month"
           aria-label="Competência do relatório"
           value={month}
           onChange={(e) => setMonth(e.target.value)}
-        />
+        /></label>
         <Link className="agro-button agro-report-operator" href={`${ROOT}/perfil-operacional`} title={profile.data?.profile.operadorNome || "Perfil do operador"} aria-label="Abrir perfil do operador">
           {profile.data?.profile.operadorNome || "Perfil do operador"}
         </Link>

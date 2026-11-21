@@ -96,6 +96,8 @@ export function DronePilotsManager() {
   const [form, setForm] = useState<PilotForm>(empty);
   const [pilotId, setPilotId] = useState("");
   const [canManage, setCanManage] = useState(false);
+  const [canCreatePilot,setCanCreatePilot]=useState(false);
+  const [teamUnavailable,setTeamUnavailable]=useState(false);
   const [currentUserId, setCurrentUserId] = useState("");
   const [currentUserName, setCurrentUserName] = useState("Gestor");
   const [orderId, setOrderId] = useState("");
@@ -127,6 +129,9 @@ export function DronePilotsManager() {
       setItems(nextPilots);
       setOrders(nextOrders);
       setCanManage(Boolean(pilotPayload.canManage));
+      setCanCreatePilot(Boolean(pilotPayload.canCreatePilot));
+      setTeamUnavailable(Boolean(pilotPayload.teamUnavailable));
+      if(pilotPayload.teamUnavailable)setMessage(pilotPayload.teamMessage||"Equipe indisponível: confira o vínculo da empresa.");
       setCurrentUserId(String(pilotPayload.currentUserId || ""));
       setCurrentUserName(String(pilotPayload.currentUserName || "Gestor"));
       setOrderId((current) =>
@@ -184,7 +189,7 @@ export function DronePilotsManager() {
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!canManage || saving) return;
+    if (!canManage || !canCreatePilot || saving) return;
     if (form.senhaAcesso.length < 8) {
       setMessage("A senha inicial precisa ter pelo menos 8 caracteres.");
       return;
@@ -335,12 +340,12 @@ export function DronePilotsManager() {
               </span>
               <div>
                 <strong className="block text-lg">
-                  {items.length} {items.length === 1 ? "piloto ativo" : "pilotos ativos"}
+                  {teamUnavailable?"Equipe indisponível":`${items.length} ${items.length === 1 ? "piloto ativo" : "pilotos ativos"}`}
                 </strong>
                 <span className="text-xs text-[#718078]">Cada piloto usa seu próprio acesso.</span>
               </div>
             </div>
-            {canManage && (
+            {canManage && canCreatePilot && (
               <button
                 type="button"
                 onClick={openNewPilot}
@@ -352,7 +357,7 @@ export function DronePilotsManager() {
             )}
           </div>
 
-          {open && canManage && (
+          {open && canManage && canCreatePilot && (
             <form ref={formRef} onSubmit={submit} className="mt-4 grid scroll-mt-3 gap-3 border-t border-[#e4ece7] pt-4">
               <div className="rounded-2xl bg-[#eef8f1] p-3 text-sm leading-5 text-[#315d4d]">
                 <strong className="block">O acesso será criado agora.</strong>
@@ -525,7 +530,7 @@ export function DronePilotsManager() {
         ) : items.length === 0 ? (
           <div className="rounded-[26px] border border-dashed border-[#cbded2] bg-white p-8 text-center">
             <strong>Nenhum piloto cadastrado.</strong>
-            <p className="mt-2 text-sm leading-5 text-[#718078]">Toque em “Cadastrar piloto”. O acesso dele será criado aqui mesmo.</p>
+            <p className="mt-2 text-sm leading-5 text-[#718078]">{canCreatePilot?"Toque em Cadastrar piloto para criar um acesso.":"No modo Solo você não precisa cadastrar outro piloto. Para equipe, confirme o vínculo e a licença com o administrador."}</p>
           </div>
         ) : (
           <div className="grid gap-2">
@@ -533,7 +538,7 @@ export function DronePilotsManager() {
               <PilotCard
                 key={item.id}
                 item={item}
-                canManage={canManage}
+                canManage={canManage && !teamUnavailable}
                 saving={saving}
                 expanded={expanded === item.id}
                 onToggle={() => setExpanded((current) => (current === item.id ? "" : item.id))}

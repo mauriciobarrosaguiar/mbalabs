@@ -33,9 +33,9 @@ export async function GET(req:NextRequest){
     const c=access.user!,month=value(req.nextUrl.searchParams.get("month"),7);
     if(!MONTH.test(month))return NextResponse.json({error:"Informe uma competência AAAA-MM válida."},{status:400});
     const admin=createSupabaseAdminClient() as any;
-    let operations=admin.from("core_logs").select("id,usuario_id,created_at,detalhes")
+    const operations=admin.from("core_logs").select("id,usuario_id,created_at,detalhes")
       .eq("app_slug","dronegestor").eq("acao",FINALIZED).order("created_at",{ascending:false}).limit(3000);
-    let reviews=admin.from("core_logs").select("id,created_at,detalhes,usuario_id")
+    const reviews=admin.from("core_logs").select("id,created_at,detalhes,usuario_id")
       .eq("app_slug","dronegestor").eq("acao",REVIEW_ACTION).order("created_at",{ascending:true}).limit(5000);
     const [opResult,reviewResult]=await Promise.all([scoped(operations,c),scoped(reviews,c)]);
     if(opResult.error)throw opResult.error;if(reviewResult.error)throw reviewResult.error;

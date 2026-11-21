@@ -1,0 +1,12 @@
+import test, {beforeEach} from 'node:test';
+import assert from 'node:assert/strict';
+import {registerHooks} from 'node:module';
+import {state} from './helpers/agrodoc-review-fixture.mjs';
+const fixture=new URL('./helpers/agrodoc-review-fixture.mjs',import.meta.url).href;
+const hooks=registerHooks({resolve(s,c,n){if(['@/lib/core-data','@mba-labs/shared/supabase/server'].includes(s))return{url:fixture,shortCircuit:true};if(s==='@/lib/dronegestor-role')return{url:new URL('../src/lib/dronegestor-role.ts',import.meta.url).href,shortCircuit:true};if(s==='next/server')return n('next/server.js',c);return n(s,c)}});
+const {POST}=await import('../src/app/api/dronegestor/relatorio-mensal/modelo-oficial/route.ts'); hooks.deregister();
+const req=()=>new Request('http://localhost/api/dronegestor/relatorio-mensal/modelo-oficial',{method:'POST',body:new FormData()});
+beforeEach(()=>{state.reads=0;state.session={user:{id:'u'},profile:{id:'u',tipo:'usuario',empresa_id:'A'},appsLiberados:[{slug:'dronegestor',canAccess:true}],permissoes:[]};});
+test('modelo MAPA exige autenticação',async()=>{state.session=null;assert.equal((await POST(req())).status,401);assert.equal(state.reads,0);});
+test('piloto não pode cadastrar modelo MAPA',async()=>{state.session.permissoes=[{appSlug:'dronegestor',perfil:'piloto'}];assert.equal((await POST(req())).status,403);assert.equal(state.reads,0);});
+test('gestor e RT com perfil específico chegam à validação do arquivo',async()=>{for(const perfil of ['gestor_operacional','responsavel_tecnico']){state.session.permissoes=[{appSlug:'dronegestor',perfil}];assert.equal((await POST(req())).status,400);}assert.equal(state.reads,0);});

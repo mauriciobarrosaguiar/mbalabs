@@ -3,6 +3,8 @@ import { AgroDocDroneIcon as Drone } from "./AgroDocDroneIcon";
 import Link from "next/link";
 import {
   Bell,
+  Calculator,
+  BookOpen,
   CircleHelp,
   Folder,
   Home,
@@ -22,6 +24,12 @@ import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import { ROOT } from "./AgroDocUi";
 const pages = [
+  { path: "campo", title: "Modo campo", icon: Drone },
+  { path: "historico", title: "Histórico de operações", icon: Folder },
+  { path: "ferramentas", title: "MBA Calda e calculadoras", icon: ChartNoAxesColumn },
+  { path: "equipamentos", title: "Drones e equipamentos", icon: Drone },
+  { path: "equipe", title: "Minha equipe", icon: UserRound },
+  { path: "regulacao", title: "Legislação e fontes", icon: BookOpen },
   { path: "", title: "Visão geral", icon: Home },
   {
     path: "diagnostico",
@@ -29,7 +37,7 @@ const pages = [
     icon: ShieldCheck,
   },
   { path: "gestao", title: "Operações", icon: Drone },
-  { path: "conferencia", title: "Conferência AgroDoc", icon: ClipboardCheck },
+  { path: "conferencia", title: "Conferência de operações", icon: ClipboardCheck },
   {
     path: "relatorio-mensal",
     title: "Relatórios MAPA",
@@ -37,23 +45,40 @@ const pages = [
   },
   { path: "documentos", title: "Documentos", icon: Folder },
   { path: "cadastros", title: "Cadastros", icon: Layers },
+  { path: "piloto-pro", title: "Piloto Pro", icon: BookOpen },
+  { path: "produtos", title: "Defensivos e AGROFIT", icon: Leaf },
+  { path: "perfil-operacional", title: "Perfil operacional", icon: UserRound },
   { path: "configuracoes", title: "Configurações", icon: Settings },
 ];
+const navigation = [
+ { title: "Visão geral", paths: [""] },
+ { title: "Operações", paths: ["gestao", "campo", "historico"] },
+ { title: "Ferramentas", paths: ["ferramentas"] },
+ { title: "Gestão", paths: ["cadastros", "equipamentos", "equipe"] },
+ { title: "Regularização", paths: ["diagnostico", "documentos", "regulacao", "relatorio-mensal", "conferencia"] },
+ { title: "Piloto Pro", paths: ["piloto-pro", "produtos"] },
+ { title: "Configurações", paths: ["perfil-operacional", "configuracoes"] },
+];
+const managerPaths = new Set(["conferencia", "cadastros", "pilotos", "equipe", "configuracoes"]);
 export function DroneAppShell({
   children,
   userName = "Minha conta",
+  canManage = false,
 }: {
   children: ReactNode;
   userName?: string;
+  canManage?: boolean;
 }) {
   const path = usePathname();
+  const availablePages = pages.filter(p => canManage || !managerPaths.has(p.path));
+  const [collapsed, setCollapsed] = useState(false);
   const [menu, setMenu] = useState(false),
     [query, setQuery] = useState(""),
     [search, setSearch] = useState(false),
     [notice, setNotice] = useState(false);
   if (path === `${ROOT}/calculadora`) return <>{children}</>;
   return (
-    <div className="agro-shell">
+    <div className={`agro-shell ${collapsed ? "agro-shell-collapsed" : ""}`}>
       <aside className={`agro-sidebar ${menu ? "agro-sidebar-open" : ""}`}>
         <Link className="agro-logo" href="/dashboard">
           <Leaf />
@@ -64,10 +89,10 @@ export function DroneAppShell({
             <Drone />
           </span>
           <div>
-            <b>MBA AgroDoc</b>
+            <b>MBA DroneGestor</b>
             <small>
               Drones Agrícolas ·<br />
-              Regularização · MAPA
+              Operações · Piloto Pro
             </small>
           </div>
         </div>
@@ -78,31 +103,29 @@ export function DroneAppShell({
         >
           <X />
         </button>
-        <nav aria-label="MBA AgroDoc">
-          {pages.map(({ path: p, title, icon: Icon }) => (
-            <Link
-              key={p}
-              href={`${ROOT}${p ? `/${p}` : ""}`}
-              onClick={() => setMenu(false)}
-              aria-current={
-                path === `${ROOT}${p ? `/${p}` : ""}` ? "page" : undefined
-              }
-            >
-              <Icon />
-              <span>{title}</span>
-            </Link>
-          ))}
+        <button className="agro-collapse-toggle" onClick={() => setCollapsed(v => !v)} aria-expanded={!collapsed}>{collapsed ? "Expandir menu" : "Recolher menu"}</button>
+        <nav aria-label="MBA DroneGestor">
+          {navigation.map(group => {
+            const entries = group.paths.map(p => availablePages.find(item => item.path === p)).filter((p): p is typeof pages[number] => Boolean(p));
+            if (!entries.length) return null;
+            return <details key={group.title} open={entries.some(p => path === `${ROOT}${p.path ? `/${p.path}` : ""}`)}><summary>{group.title}</summary>
+              {entries.map(({path:p,title,icon:Icon}) => <Link key={p} title={title} href={`${ROOT}${p ? `/${p}` : ""}`} onClick={() => setMenu(false)} aria-current={path === `${ROOT}${p ? `/${p}` : ""}` ? "page" : undefined}><Icon/><span>{title}</span></Link>)}
+            </details>;
+          })}
         </nav>
+        <div className="agro-mobile-account"><Link href="/dashboard" onClick={()=>setMenu(false)}>Voltar à MBA Labs</Link><form action="/sair" method="post"><button type="submit"><LogOut size={17}/> Sair</button></form></div>
       </aside>
+      {menu && <button className="agro-menu-dismiss fixed inset-0 z-[80] bg-black/40" aria-label="Fechar menu" onClick={()=>setMenu(false)}/>}
       <div className="agro-workspace">
         <header className="agro-header">
           <Link href={ROOT} className="agro-mobile-brand">
             <Leaf />
-            MBA <em>AgroDoc</em>
+            MBA <em>DroneGestor</em>
           </Link>
           <button
             className="agro-menu-button"
             aria-label="Abrir menu"
+            aria-expanded={menu}
             onClick={() => setMenu((v) => !v)}
           >
             <Menu />
@@ -124,7 +147,7 @@ export function DroneAppShell({
             />
             {search && (
               <div className="agro-search-results">
-                {pages
+                {availablePages
                   .filter((p) =>
                     p.title
                       .toLocaleLowerCase()
@@ -194,26 +217,27 @@ export function DroneAppShell({
         <div className="agro-page-content">{children}</div>
       </div>
       <nav
-        className={`agro-bottom-nav ${path.startsWith(`${ROOT}/campo`) ? "agro-bottom-nav-field" : ""}`}
+        className="agro-bottom-nav"
         aria-label="Navegação do piloto"
       >
         {[
           { path: "", title: "Início", icon: Home },
           { path: "gestao", title: "Operações", icon: Drone },
-          { path: "documentos", title: "Documentos", icon: Folder },
-          { path: "perfil-operacional", title: "Perfil", icon: UserRound },
+          { path: "ferramentas", title: "Calda", icon: Calculator },
+          { path: "piloto-pro", title: "Piloto Pro", icon: BookOpen },
         ].map(({ path: p, title, icon: Icon }) => (
           <Link
             key={p}
             href={`${ROOT}${p ? `/${p}` : ""}`}
             aria-current={
-              path === `${ROOT}${p ? `/${p}` : ""}` ? "page" : undefined
+              (path === `${ROOT}${p ? `/${p}` : ""}` || (p==="gestao"&&path.startsWith(`${ROOT}/campo`))) ? "page" : undefined
             }
           >
             <Icon />
             {title}
           </Link>
         ))}
+        <button type="button" className="agro-mobile-more" aria-expanded={menu} onClick={()=>setMenu(v=>!v)}><Menu/>Mais</button>
       </nav>
     </div>
   );
