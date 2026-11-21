@@ -19,3 +19,13 @@ Se a gravação de perfil ou auditoria falha, o endpoint tenta restaurar contato
 80 testes DroneGestor aprovados, incluindo nove cenários de edição: autorização, injeção, vínculo inexistente, escopo de escrita, proteção administrativa, mudança de piloto, bloqueios e compensações. TypeScript, lint dos arquivos alterados e build aprovados. Saídas em docs/evidence/dronegestor/edicao-funcionarios-20261121/.
 
 Reteste produtivo deve usar somente contatos fictícios e preservar papel/acesso real. Criação dos perfis Aplicador CAAR e Visualizador e testes de login específicos continuam pendentes da definição segura das respectivas credenciais. Nenhuma senha foi incluída nos arquivos.
+
+## Reteste produtivo concluído
+
+PR #201 incorporada; deploy dpl_GkRoLqJNPjzYQaR5z9Z5prw1a45N READY, commit main 8b2d99031618ef669d6b5a8085b1746ecace5402, domínio www.mbalabs.com.br.
+
+Com a sessão empresarial Pulveriza 63, os cinco cartões abriram os dados corretos: gestor operacional, RT, João, Pedro e administrador. Somente o gestor fictício id f3adf1f7-5ed1-4d06-9d8d-35aa159b6fa7 foi alterado de “E2E Gestor DroneGestor” para “HOMOLOGAÇÃO P63 - Gestor operacional”. Salvar retornou confirmação e a lista atualizou sem recarregar. Nenhum papel, senha, e-mail ou status de acesso foi alterado. O formulário do administrador manteve o seletor de papel desabilitado. Os demais cartões foram apenas abertos, sem salvar.
+
+Captura edicao-funcionario.jpg comprova formulário interno com dados persistidos. rls-perfis.md registra teste complementar somente leitura sob papel authenticated e claims locais de piloto/RT/gestor. Leitura de outra empresa retornou zero, mas leitura de logs de outros autores da mesma empresa permaneceu permitida. A RLS continua pendente; este teste não equivale a login real dos perfis.
+
+Aplicador CAAR e Visualizador continuam sem cadastro nesta rodada: o usuário precisa concluir definição/submissão das credenciais no navegador. Não houve criação ou redefinição automática de senhas.
