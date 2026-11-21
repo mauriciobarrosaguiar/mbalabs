@@ -136,7 +136,7 @@ export function DroneHomeDashboard({
           large
           title={
             <>
-              MBA <em>AgroDoc</em>
+              MBA <em>DroneGestor</em>
             </>
           }
           description="Gestão e regularização de operações com drones agrícolas"
@@ -273,7 +273,7 @@ export function DroneHomeDashboard({
       <div className="agro-pilot-mobile">
         <div className="agro-pilot-hero">
           <div className="agro-pilot-brand">
-            <Leaf /> MBA <em>AgroDoc</em>
+            <Leaf /> MBA <em>DroneGestor</em>
           </div>
           <div className="agro-pilot-weather">
             <b>Condições de voo</b>
