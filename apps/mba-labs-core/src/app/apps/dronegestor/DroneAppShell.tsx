@@ -3,6 +3,7 @@ import { AgroDocDroneIcon as Drone } from "./AgroDocDroneIcon";
 import Link from "next/link";
 import {
   Bell,
+  BookOpen,
   CircleHelp,
   Folder,
   Home,
@@ -37,6 +38,7 @@ const pages = [
   },
   { path: "documentos", title: "Documentos", icon: Folder },
   { path: "cadastros", title: "Cadastros", icon: Layers },
+  { path: "piloto-pro", title: "Piloto Pro", icon: BookOpen },
   { path: "configuracoes", title: "Configurações", icon: Settings },
 ];
 export function DroneAppShell({
