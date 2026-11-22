@@ -55,3 +55,34 @@ Planejamento pelo RT, recebimento por Pedro, João, novos perfis, modo Solo e ci
 Proposta concreta pendente de autorização: prorrogar somente a liberação DroneGestor desta empresa fictícia até 2026-11-29, mantendo plano, usuários, perfis e status atuais, pelo fluxo administrativo existente. Isso reativará os acessos desses cinco usuários durante o período; não cria projeto, schema ou recurso pago. Recuperação: restaurar o vencimento anterior 2026-11-21 e o espelho correspondente em assinaturas, preservando os demais campos. Nenhuma prorrogação foi aplicada.
 
 Captura: docs/evidence/dronegestor/retomada-20261122/acesso-vencido-rt.jpg.
+
+
+## Continuidade de 22/11/2026 — autorização recebida e testes reais
+
+A proposta acima foi autorizada pelo usuário (“Sim”). Prorrogados somente os vencimentos da liberação DroneGestor e da assinatura existente da empresa fictícia até 2026-11-29. Transação atômica com comparação dos IDs, empresa/app, vencimento anterior 2026-11-21, status e plano nulo; ambas as linhas verificadas após commit. Plano, usuários, perfis e status preservados. Nenhuma alteração de RLS, schema ou contratação. A proposta pendente e o bloqueio descritos na seção anterior são históricos e foram superados por esta autorização.
+
+| Perfil / teste novo | Evidência observada | Resultado |
+|---|---|---|
+| RT / planejamento publicado PR203 | Drone fictício, 10 L/ha, tanque20 L, faixa5 m, velocidade18 km/h, altura3 m, produto fictício100 mL/ha; mensagem de planejamento salvo mantendo bloqueios pré-voo | Aprovado |
+| Pedro / recebimento do plano | OS-20261121-71DF6 reaberta; parâmetros e produto preenchidos sem redigitação; edição técnica somente leitura | Aprovado |
+| Pedro / cálculo | 1,5 ha:15 L; 150 mL;1 tanque com15 L;1,50 L/min | Aprovado |
+| Pedro / segurança sem medição | Campos vazios recusados: informe vento, direção, temperatura e umidade medidos no talhão; risco/parâmetros-base bloqueados | Aprovado, teste negativo |
+| João / isolamento entre pilotos | Lista sem OS de Pedro; dados e documentos da OS negados pelo servidor; planejamento restrito a gestor/RT | Aprovado |
+| João / troca no mesmo navegador | Modo campo limpo, sem missão anterior de Pedro | Aprovado |
+| Administrador / modo Solo | Ativação confirmada; criada OS-20261122-D916C; “Assumir e preparar missão” abre preparação do próprio gestor sem cadastrar novo piloto | Aprovado até preparação |
+| Administrador / cálculo Solo | Mesmo cenário matemático fictício:15 L,150 mL,1,50 L/min | Aprovado |
+| Restauração do modo | “Modo equipe ativo” e “Modo equipe ativado” confirmados após teste Solo | Aprovado |
+
+O nome inicial do drone apareceu selecionado no Solo com parâmetros vazios; selecionar explicitamente o drone carregou o cadastro. Não houve bloqueio definitivo. A captura imediatamente após calcular pode mostrar o cabeçalho da fase anterior durante a atualização periódica; isso não comprova defeito persistente. Não foi criada correção de código sem reprodução conclusiva.
+
+Somente o aceite de leitura da orientação foi marcado por Pedro. Não foram inventadas medições de campo, GPS, inspeções físicas, documentos ou autorização oficial. Nenhum voo ou comando de aeronave foi executado, nem envio oficial/notificação. As fases4–8, abastecimentos, interrupção, encerramento parcial/total e conferência pós-conclusão continuam NÃO HOMOLOGADAS. O encerramento parcial permanece pendência funcional previamente registrada.
+
+Aplicador CAAR e Visualizador continuam sem contas. Formulário CAAR preparado com nome HOMOLOGAÇÃO P63 - Aplicador CAAR, e-mail e2e.aplicador.dronegestor@example.invalid e perfil correspondente; senha não preenchida nem cadastro submetido pelo agente. Criação aguarda entrada e submissão manual da credencial pelo usuário. Depois será necessário cadastrar Visualizador e autenticar ambos com sessões próprias; não inferir permissões a partir do administrador.
+
+RLS core_logs mantém a lacuna anterior de acesso amplo dentro da empresa; não alterada. Google Drive depende da configuração/migração autorizada e SARPAS automático permanece desabilitado. Seis larguras seguem pendentes por indisponibilidade de controle de viewport neste navegador. Os101 testes/build/TypeScript da PR203 permanecem evidência da implementação anterior; não foram repetidos nesta rodada sem mudança de código.
+
+### Rastreabilidade e limpeza
+
+Manter para revisão, remover posteriormente pelo fluxo autorizado: OS-20261121-71DF6, nova OS Solo OS-20261122-D916C, cliente/fazenda/talhão/drone HOMOLOGAÇÃO P63 20261121 e usuários fictícios E2E/HOMOLOGAÇÃO. Não remover contas/registros reais. A OS Solo permanece em preparação, sem aplicação real. A OS de Pedro conserva sua atribuição. Vencimento de teste atual29/11/2026; valor anterior21/11/2026 registrado para recuperação caso solicitada.
+
+Capturas desta rodada: docs/evidence/dronegestor/continuidade-20261122/ (RT planejamento salvo, Pedro plano/calda/bloqueio climático, João lista/campo limpo, Solo ativo/calda). Nenhuma credencial incluída. Este relatório não declara conclusão100%.
