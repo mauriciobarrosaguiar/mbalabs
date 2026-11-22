@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import ExcelJS from "exceljs";
+import { populateMapaArchive } from "@/lib/dronegestor-mapa-archive";
 import { getSessionProfile } from "@/lib/core-data";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
@@ -257,7 +258,17 @@ export async function GET(request:NextRequest){
    const book=new ExcelJS.Workbook();
    await book.xlsx.load(template.bytes as any);
    populateOfficialTemplate(book,rows,p,month);
-   const buffer=await book.xlsx.writeBuffer();
+   const changes:Record<string,Record<string,string|number|null>>={JAN:{C1:text(p.operadorNome),I1:text(p.email),C3:text(p.registroMapa),I3:text(p.telefone)}};
+   const sheetName=MONTH_SHEETS[Number(month.slice(5))-1];
+   const cells=changes[sheetName]??(changes[sheetName]={});
+   cells.A4=rows.length?"OPERAÇÕES NO MÊS":"NENHUMA ATIVIDADE REALIZADA";
+   rows.forEach((_,index)=>{for(let col=1;col<=18;col++){
+     const cell=book.getWorksheet(sheetName)!.getCell(index+6,col);
+     const value=cell.value;
+     if(value!==null&&typeof value!=="string"&&typeof value!=="number")throw new Error("Valor não suportado na planilha MAPA.");
+     cells[cell.address]=value as string|number|null;
+   }});
+   const buffer=await populateMapaArchive(template.bytes,changes);
    return new NextResponse(Buffer.from(buffer),{headers:{
       "Content-Type":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition":`attachment; filename="relatorio-MAPA-oficial-2026-${month}.xlsx"`,

@@ -41,3 +41,8 @@ Faltam validação1:1 do original, fluxo de geração pela página publicada com
 ## Limpeza
 
 Os16 anexos da OS são fictícios, incluindo ficha mensal inicial superada pela REV2. Preservar evidências agora e remover depois pelo fluxo autorizado. Não excluir documentos reais. Restaurar o perfil fictício anterior se solicitado (era vazio). Não usar esta empresa ou arquivos para envio oficial.
+
+
+## Continuação com modelo recebido
+
+O bloqueio de modelo ausente foi superado após receber o XLSX do usuário. Cadastro/download produtivo e novo ensaio estão em [DRONEGESTOR-HOMOLOGACAO-MAPA-ORIGINAL-20261122.md](DRONEGESTOR-HOMOLOGACAO-MAPA-ORIGINAL-20261122.md). Corrigida duplicação de validações na PR204, ainda sem publicação.
