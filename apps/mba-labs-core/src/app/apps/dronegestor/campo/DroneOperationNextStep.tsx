@@ -69,15 +69,15 @@ export function DroneOperationNextStep(){
   const next=release.items.find(item=>!item.ok)||null;
   if(!hydrated||!local.osId)return null;
 
-  if(["finalizada","pendente_sync"].includes(local.missionStatus))return <section className="bg-[#f4f8f1] px-3 pt-2 sm:px-5"><div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-950"><CheckCircle2 size={20} className="shrink-0"/><div className="min-w-0 flex-1"><strong className="block text-sm">Aplicação em campo concluída</strong><p className="mt-0.5 text-xs leading-5">{local.missionStatus==="pendente_sync"?"A conclusão está protegida e aguardando sincronização.":"Agora confira pendências e faça o encerramento administrativo da OS."}</p></div>{local.missionStatus==="finalizada"&&<button type="button" onClick={()=>window.location.href="/apps/dronegestor/pacote-operacao"} className="min-h-10 shrink-0 rounded-xl bg-amber-700 px-3 text-xs font-black text-white">Encerrar OS</button>}</div></section>;
+  if(["finalizada","pendente_sync"].includes(local.missionStatus))return <section className="bg-[#f4f8f1] px-3 pt-2 sm:px-5"><div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-950"><CheckCircle2 size={20} className="shrink-0"/><div className="min-w-0 flex-1"><strong className="block text-sm">Aplicação em campo concluída</strong><p className="mt-0.5 text-xs leading-5">{local.missionStatus==="pendente_sync"?"A conclusão está protegida e aguardando sincronização.":"Agora confira pendências e faça o encerramento administrativo da OS."}</p></div>{local.missionStatus==="finalizada"&&<button type="button" onClick={()=>window.location.href=local.osId?`/apps/dronegestor/pacote-operacao?osId=${encodeURIComponent(local.osId)}`:"/apps/dronegestor/gestao"} className="min-h-10 shrink-0 rounded-xl bg-amber-700 px-3 text-xs font-black text-white">Encerrar OS</button>}</div></section>;
 
   if(local.started)return <section className="bg-[#f4f8f1] px-3 pt-2 sm:px-5"><div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-emerald-950"><PlaneTakeoff size={20} className="shrink-0"/><div><strong className="block text-sm">Operação em andamento</strong><p className="mt-0.5 text-xs leading-5">Registre área e volume realmente executados. A liberação pré-voo já foi concluída.</p></div></div></section>;
 
   function solve(){
     if(release.ready)return openField("sarpas");
     if(!next)return void refresh(true);
-    if(next.id==="pilot"){window.location.href="/apps/dronegestor/gestao";return}
-    if(next.id==="documents"||next.id==="sarpas"){window.location.href="/apps/dronegestor/documentos";return}
+    if(next.id==="pilot"){window.location.href=local.osId?`/apps/dronegestor/gestao?osId=${encodeURIComponent(local.osId)}`:"/apps/dronegestor/gestao";return}
+    if(next.id==="documents"||next.id==="sarpas"){window.location.href=local.osId?`/apps/dronegestor/documentos?osId=${encodeURIComponent(local.osId)}`:"/apps/dronegestor/gestao";return}
     openField(next.nextView||release.nextView||"nova");
   }
 
