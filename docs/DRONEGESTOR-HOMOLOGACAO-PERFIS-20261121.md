@@ -86,3 +86,22 @@ RLS core_logs mantém a lacuna anterior de acesso amplo dentro da empresa; não 
 Manter para revisão, remover posteriormente pelo fluxo autorizado: OS-20261121-71DF6, nova OS Solo OS-20261122-D916C, cliente/fazenda/talhão/drone HOMOLOGAÇÃO P63 20261121 e usuários fictícios E2E/HOMOLOGAÇÃO. Não remover contas/registros reais. A OS Solo permanece em preparação, sem aplicação real. A OS de Pedro conserva sua atribuição. Vencimento de teste atual29/11/2026; valor anterior21/11/2026 registrado para recuperação caso solicitada.
 
 Capturas desta rodada: docs/evidence/dronegestor/continuidade-20261122/ (RT planejamento salvo, Pedro plano/calda/bloqueio climático, João lista/campo limpo, Solo ativo/calda). Nenhuma credencial incluída. Este relatório não declara conclusão100%.
+
+
+## Documentos fictícios e guia sequencial — 22/11/2026
+
+Por decisão do usuário, Aplicador CAAR e Visualizador foram retirados do requisito desta homologação. Cadastro CAAR cancelado antes de inserir senha ou submeter; nenhuma conta adicional criada. Permanecem os perfis existentes.
+
+Três PDFs de uma página criados e anexados pela interface publicada à OS-20261121-71DF6, categoria outro:
+
+- HOMOLOGACAO_01_Dossie_OS.pdf
+- HOMOLOGACAO_02_Plano_Matematico.pdf
+- HOMOLOGACAO_03_Roteiro_Envio_Manual.pdf
+
+Todos contêm HOMOLOGAÇÃO / SEM VALIDADE OFICIAL e aviso para não enviar. Não são autorizações, receitas, certidões, seguros ou comprovações regulatórias. Não foi alterado o status oficial SARPAS nem fabricada documentação para liberar execução.
+
+Upload dos três e vínculo da OS APROVADOS. Após recarregar, a tela seleciona inicialmente a OS Solo; voltando à OS de Pedro, os três arquivos persistem. A prévia embutida mostra “This page has been blocked by Chromium”, limitação observada neste navegador. Download do dossiê APROVADO: bytes idênticos ao original, SHA-256 194651d3b1d90aa3fd08bfdf9a08e99fc653d7d8ff4f3838526bfd5de4456bbc. Não generalizar o teste de download para os outros dois arquivos. Categoria outro aparece agrupada em Fotos e evidências na interface atual.
+
+Arquivos de teste para remoção posterior constam na pasta docs/evidence/dronegestor/documentos-20261122/ e na central Documentos da OS de Pedro. Não houve exclusão de registros, alteração RLS/schema, envio a órgão público ou contratação. Geração de documentos pelo próprio sistema e envio manual/API são etapas posteriores, não aprovadas pela simples anexação destes PDFs externos.
+
+Guia sequencial criado com29 slides editáveis, incluindo capturas, explicação de perfis/cadastros/OS/planejamento, oito fases, conferência, documentação e pendências. Apresentação: https://chatgpt.com/space/page_a12849a2965c8191a82f748806aa0b29. Não declara homologação100%.
