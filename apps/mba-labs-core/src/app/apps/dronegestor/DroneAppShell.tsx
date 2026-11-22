@@ -221,7 +221,7 @@ export function DroneAppShell({
       </div>
       <nav
         className="agro-bottom-nav"
-        aria-label="Navegação do piloto"
+        aria-label={canManage ? "Navegação do gestor" : "Navegação do piloto"}
       >
         {(canManage ? [
           { path: "", title: "Início", icon: Home },
