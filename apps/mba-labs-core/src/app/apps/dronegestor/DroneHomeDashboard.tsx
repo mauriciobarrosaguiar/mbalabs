@@ -311,7 +311,7 @@ export function DroneHomeDashboard({
           <Link href={`${ROOT}/gestao`}>
             <b>{activeOrdersCount}</b>OS ativas
           </Link>
-          <Link href={`${ROOT}/campo`}><b>{inFieldCount}</b>Em campo</Link>
+          <Link href={`${ROOT}/gestao`}><b>{inFieldCount}</b>Em campo</Link>
           <Link href={`${ROOT}/fichas`}>
             <b>{corrections.data?.items.length ?? "—"}</b>Com correção
           </Link>
