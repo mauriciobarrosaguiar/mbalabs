@@ -21,7 +21,9 @@ export function DroneManagerOperationsPanel(){
     let current:Record<string,unknown>={};try{current=JSON.parse(localStorage.getItem("dronegestor:mission:v2")||"{}")}catch{}
     const mission={...current,ordemServicoId:item.osId,ordemServicoNumero:item.numero,clienteNome:item.cliente,fazendaNome:item.fazenda,talhaoNome:item.talhao,municipio:item.municipio,uf:item.uf,area:item.areaHa,cultura:item.cultura,alvo:item.alvo};
     localStorage.setItem("dronegestor:mission:v2",JSON.stringify(mission));localStorage.setItem("dronegestor:activeMissionContext:v1",JSON.stringify(mission));
-    if(target)window.location.href=target;else document.getElementById("drone-os-management")?.scrollIntoView({behavior:"smooth",block:"start"});
+    if(target){window.location.href=target;return;}
+    const targetCard=document.getElementById(`drone-os-${item.osId}`);
+    (targetCard||document.getElementById("drone-os-management"))?.scrollIntoView({behavior:"smooth",block:targetCard?"center":"start"});
   }
 
   return <section className="mx-auto mt-4 w-full max-w-6xl px-3 sm:mt-6 sm:px-6">
@@ -41,11 +43,12 @@ export function DroneManagerOperationsPanel(){
 
 function Kpi({label,value,icon,warn=false}:{label:string;value:number;icon:React.ReactNode;warn?:boolean}){return <div className={`rounded-2xl p-3 ${warn&&value>0?"bg-amber-300/20":"bg-white/10"}`}><div className="flex items-center gap-2 text-emerald-100">{icon}<span className="text-[11px] font-bold leading-4">{label}</span></div><strong className="mt-2 block text-2xl font-black">{value}</strong></div>}
 function OperationCard({item,onSelect}:{item:Item;onSelect:(item:Item,target?:string)=>void}){
-  const[now]=useState(()=>Date.now());
+  const[now,setNow]=useState(()=>Date.now());
+  useEffect(()=>{const timer=window.setInterval(()=>setNow(Date.now()),60000);return()=>window.clearInterval(timer)},[]);
   const location=[item.fazenda,item.talhao].filter(Boolean).join(" • "),sync=since(item.lastSync,now),stale=item.lastSync&&now-Date.parse(item.lastSync)>10*60*1000;
   const closeTarget=["regularizacao","pronta_encerrar","encerrada"].includes(item.stage)?`/apps/dronegestor/pacote-operacao?osId=${encodeURIComponent(item.osId)}`:"";
   const actionTarget=item.stage==="aguardando_sarpas"?`/apps/dronegestor/documentos?osId=${encodeURIComponent(item.osId)}`:closeTarget||undefined;
-  const actionLabel=item.stage==="aguardando_sarpas"?"Resolver SARPAS":item.stage==="regularizacao"?"Regularizar esta OS":item.stage==="pronta_encerrar"?"Encerrar esta OS":item.stage==="encerrada"?"Ver fechamento":"Ver detalhes";
+  const actionLabel=item.stage==="aguardando_sarpas"?"Resolver SARPAS":item.stage==="regularizacao"?"Regularizar esta OS":item.stage==="pronta_encerrar"?"Encerrar esta OS":item.stage==="encerrada"?"Ver fechamento":"Ver OS na lista";
   return <article className="rounded-[22px] border border-slate-200 bg-[#fcfdfc] p-4">
     <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><strong className="text-base font-black text-slate-950">{item.numero}</strong><span className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${tone(item.stage)}`}>{item.stageLabel}</span></div><p className="mt-1 text-sm font-semibold text-slate-700">{location}</p><p className="mt-1 text-xs text-slate-500">{item.cliente}{item.cultura?` • ${item.cultura}`:""}{item.alvo?` • ${item.alvo}`:""}</p></div><div className="text-right"><span className="inline-flex items-center gap-1 text-xs font-bold text-slate-600"><UserRound size={14}/>{item.pilotName}</span><span className={`mt-1 flex items-center justify-end gap-1 text-[11px] font-bold ${stale?"text-amber-700":"text-slate-400"}`}><Clock3 size={13}/>{sync}</span></div></div>
     {(item.stage==="aplicando"||item.stage==="pausada")&&<div className="mt-4 rounded-2xl bg-slate-50 p-3"><div className="flex items-end justify-between gap-3"><div><span className="text-xs text-slate-500">Progresso informado pelo aparelho</span><strong className="mt-1 block text-xl text-slate-950">{fmt(item.percent,0)}%</strong></div><span className="text-xs font-bold text-slate-600">{fmt(item.progressHa,2)} / {fmt(item.areaHa,2)} ha</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-200"><div className="h-full rounded-full bg-emerald-600" style={{width:`${Math.max(0,Math.min(100,item.percent))}%`}}/></div><p className="mt-2 text-xs text-slate-500">{item.tanks} carga(s) • {item.occurrences} ocorrência(s)</p></div>}
