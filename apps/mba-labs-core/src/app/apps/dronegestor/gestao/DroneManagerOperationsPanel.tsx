@@ -18,9 +18,8 @@ export function DroneManagerOperationsPanel(){
   useEffect(()=>{void load();const timer=window.setInterval(()=>void load(true),20000);return()=>window.clearInterval(timer)},[]);
   const visible=useMemo(()=>onlyAttention?data.items.filter(i=>attention(i.stage)):data.items.filter(i=>i.stage!=="cancelada"),[data.items,onlyAttention]);
   function selectOs(item:Item,target?:string){
-    let current:Record<string,unknown>={};try{current=JSON.parse(localStorage.getItem("dronegestor:mission:v2")||"{}")}catch{}
-    const mission={...current,ordemServicoId:item.osId,ordemServicoNumero:item.numero,clienteNome:item.cliente,fazendaNome:item.fazenda,talhaoNome:item.talhao,municipio:item.municipio,uf:item.uf,area:item.areaHa,cultura:item.cultura,alvo:item.alvo};
-    localStorage.setItem("dronegestor:mission:v2",JSON.stringify(mission));localStorage.setItem("dronegestor:activeMissionContext:v1",JSON.stringify(mission));
+    // Consultar uma OS no painel do gestor não pode substituir a missão ativa no aparelho.
+    // Documentos e pacote recebem o identificador diretamente pela URL.
     if(target){window.location.href=target;return;}
     const targetCard=document.getElementById(`drone-os-${item.osId}`);
     (targetCard||document.getElementById("drone-os-management"))?.scrollIntoView({behavior:"smooth",block:targetCard?"center":"start"});
