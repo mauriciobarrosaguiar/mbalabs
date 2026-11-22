@@ -105,3 +105,8 @@ Upload dos três e vínculo da OS APROVADOS. Após recarregar, a tela seleciona 
 Arquivos de teste para remoção posterior constam na pasta docs/evidence/dronegestor/documentos-20261122/ e na central Documentos da OS de Pedro. Não houve exclusão de registros, alteração RLS/schema, envio a órgão público ou contratação. Geração de documentos pelo próprio sistema e envio manual/API são etapas posteriores, não aprovadas pela simples anexação destes PDFs externos.
 
 Guia sequencial criado com29 slides editáveis, incluindo capturas, explicação de perfis/cadastros/OS/planejamento, oito fases, conferência, documentação e pendências. Apresentação: https://chatgpt.com/space/page_a12849a2965c8191a82f748806aa0b29. Não declara homologação100%.
+
+
+## Ensaio MAPA ampliado
+
+Continuação em [DRONEGESTOR-HOMOLOGACAO-MAPA-SIMULACAO-20261122.md](DRONEGESTOR-HOMOLOGACAO-MAPA-SIMULACAO-20261122.md):16 anexos fictícios, download de XLSX validado,10 testes novos e correção de fuso do PDF ainda não publicada. A OS não foi artificialmente concluída em produção. Modelo oficial e fluxo completo continuam pendentes.
