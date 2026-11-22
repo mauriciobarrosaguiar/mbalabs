@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { formatDroneReportDate } from "@/lib/dronegestor-report-date";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { getSessionProfile } from "@/lib/core-data";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
@@ -33,14 +34,7 @@ function num(v: unknown) {
 function fmt(v: unknown, d = 1) {
   return new Intl.NumberFormat("pt-BR", { minimumFractionDigits: d, maximumFractionDigits: d }).format(num(v));
 }
-function dt(v: unknown) {
-  const raw = String(v || "");
-  if (!raw) return "Não informado";
-  const d = new Date(raw);
-  return Number.isNaN(d.getTime())
-    ? raw
-    : d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
-}
+const dt = formatDroneReportDate;
 async function getContext() {
   const s = await getSessionProfile();
   if (!s.user || !s.profile)

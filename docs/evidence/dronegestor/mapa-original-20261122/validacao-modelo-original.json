@@ -1,0 +1,19 @@
+{
+  "sourceSha256": "6702aa0bd04e1e33bfc17bad7745dc0b4a59ff00ccb5d10941b4a737404b4ef5",
+  "outputSha256": "c14d35e33fbf8f174cac8d71dc3147b69b57bcb19400a318afd5120a8b16dfb3",
+  "changedParts": [
+    "xl/workbook.xml",
+    "xl/worksheets/sheet14.xml",
+    "xl/worksheets/sheet1.xml"
+  ],
+  "allOtherPartsByteIdentical": true,
+  "formulasPreserved": 311660,
+  "validationRulesPreserved": 108,
+  "novemberValues": {
+    "E6": "24",
+    "J6": "1.5",
+    "P6": "10",
+    "Q6": "100"
+  },
+  "excelRecalculationPending": true
+}
