@@ -1,0 +1,20 @@
+{
+  "date": "2026-11-22",
+  "pr": 203,
+  "merged": true,
+  "commit": "e2b6d5f6c92780d30e0dda3acf1974549facf3f9",
+  "deployment": "dpl_8nZq6qeUu7RXk5ZwECnRnPea5H1n",
+  "deploymentState": "READY",
+  "aliases": [
+    "www.mbalabs.com.br",
+    "mbalabs.com.br"
+  ],
+  "os": "OS-20261121-71DF6",
+  "osStatus": "em_preparacao",
+  "pilot": "E2E Piloto Pedro",
+  "planUpdatedAt": null,
+  "accessStatus": "ativo",
+  "accessExpiredAt": "2026-11-21",
+  "result": "blocked_expired_access",
+  "databaseChanges": false
+}
