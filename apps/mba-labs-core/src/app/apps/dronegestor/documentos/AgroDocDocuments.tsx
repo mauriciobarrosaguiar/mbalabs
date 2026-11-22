@@ -228,6 +228,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
           <Upload size={18} />
           Enviar documento
         </button>
+        {os && <Link className="agro-button" href={`${ROOT}/gestao?tab=os&osId=${encodeURIComponent(os)}`}>Voltar à ordem de serviço</Link>}
         {!os && <p className="agro-form-note" role="status" style={{gridColumn:"1 / -1"}}>Selecione uma ordem de serviço para habilitar o envio de documentos.</p>}
       </div>
       <div className="agro-kpis agro-kpis-three">
