@@ -1,0 +1,16 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> mba-labs-core@0.1.0 test:agrodoc:visual
+> playwright test --config=playwright.agrodoc.config.ts
+
+
+Running 6 tests using 1 worker
+
+  -  1 tests/visual/agrodoc.spec.ts:36:2 › navegação piloto 360x800
+  -  2 tests/visual/agrodoc.spec.ts:36:2 › navegação piloto 390x844
+  -  3 tests/visual/agrodoc.spec.ts:36:2 › navegação piloto 768x1024
+  -  4 tests/visual/agrodoc.spec.ts:36:2 › navegação piloto 1024x768
+  -  5 tests/visual/agrodoc.spec.ts:36:2 › navegação piloto 1440x900
+  -  6 tests/visual/agrodoc.spec.ts:36:2 › navegação piloto 1920x1080
+
+  6 skipped

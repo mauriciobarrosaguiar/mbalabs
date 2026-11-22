@@ -219,8 +219,8 @@ export async function PATCH(request: NextRequest) {
     const osAccess = await requireDroneOsAccess(admin, c, osId);
     const os = osAccess.row;
     const data = osAccess.data;
-    if (text(data.status, 40) === "concluida")
-      return NextResponse.json({ ok: false, error: "Esta OS já está encerrada." }, { status: 409 });
+    if (["concluida", "cancelada"].includes(text(data.status, 40)))
+      return NextResponse.json({ ok: false, error: "OS encerrada ou cancelada: somente consulta." }, { status: 409 });
 
     const responsavelPropriedade = text(body?.responsavelPropriedade, 180);
     const enderecoPropriedade = text(body?.enderecoPropriedade, 240);

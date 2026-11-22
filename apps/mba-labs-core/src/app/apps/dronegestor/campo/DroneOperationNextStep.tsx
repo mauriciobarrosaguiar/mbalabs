@@ -77,7 +77,7 @@ export function DroneOperationNextStep(){
     if(release.ready)return openField("sarpas");
     if(!next)return void refresh(true);
     if(next.id==="pilot"){window.location.href=local.osId?`/apps/dronegestor/gestao?osId=${encodeURIComponent(local.osId)}`:"/apps/dronegestor/gestao";return}
-    if(next.id==="documents"||next.id==="sarpas"){window.location.href=local.osId?`/apps/dronegestor/documentos?osId=${encodeURIComponent(local.osId)}`:"/apps/dronegestor/gestao";return}
+    if(next.id==="documents"||next.id==="sarpas"){window.location.href=local.osId?`/apps/dronegestor/documentos?osId=${encodeURIComponent(local.osId)}&returnTo=campo`:"/apps/dronegestor/gestao";return}
     openField(next.nextView||release.nextView||"nova");
   }
 

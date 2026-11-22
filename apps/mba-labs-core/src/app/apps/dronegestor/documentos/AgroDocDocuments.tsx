@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { DroneDocumentsCenter } from "./DroneDocumentsCenter";
 import { uploadAgroDocToDrive } from "@/lib/agrodoc-cloud-upload-client";
-import { useState, useEffect, type ReactNode, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Folder,
   FileText,
@@ -52,7 +54,8 @@ const folders = [
   { label: "Fotos e evidências", types: ["outro", "avaliacao_risco","foto","video"] },
   { label: "Histórico de voo", types: ["historico_voo"] },
 ];
-export function AgroDocDocuments({ children }: { children: ReactNode }) {
+export function AgroDocDocuments() {
+  const searchParams=useSearchParams();
   const orders = useAgroData<{ items: Order[] }>(
     "/api/dronegestor/cadastros?type=os",
   );
@@ -70,6 +73,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
     [progress,setProgress] = useState<number|null>(null),
     [cloudAvailable,setCloudAvailable] = useState(false),
     [reload, setReload] = useState(0);
+  const [fieldOsId,setFieldOsId]=useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     fetch("/api/dronegestor/cloud",{cache:"no-store"})
@@ -78,7 +82,12 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
       .catch(()=>setCloudAvailable(false));
   },[]);
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("osId");
+    const params=searchParams;
+    setFieldOsId("");
+    if(params.get("returnTo")==="campo"){
+      try{setFieldOsId(JSON.parse(localStorage.getItem("dronegestor:mission:v2")||"{}").ordemServicoId||"")}catch{}
+    }
+    const id = params.get("osId");
     if (id) setOs(id);
     else
       try {
@@ -87,7 +96,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
             .ordemServicoId || "",
         );
       } catch {}
-  }, []);
+  }, [searchParams]);
   useEffect(() => {
     setSelected(null);
     setDocs([]);
@@ -228,6 +237,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
           <Upload size={18} />
           Enviar documento
         </button>
+        {os && os===fieldOsId && <Link className="agro-button" href={`${ROOT}/campo`}>Retornar à etapa no Modo Campo</Link>}
         {os && <Link className="agro-button" href={`${ROOT}/gestao?tab=os&osId=${encodeURIComponent(os)}`}>Voltar à ordem de serviço</Link>}
         {!os && <p className="agro-form-note" role="status" style={{gridColumn:"1 / -1"}}>Selecione uma ordem de serviço para habilitar o envio de documentos.</p>}
       </div>
@@ -480,9 +490,9 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
       )}
       <details id="agro-document-checklist" style={{ marginTop: 20 }}>
         <summary className="agro-button">
-          Checklist documental e autorização SARPAS da operação ativa
+          Fase 3 — Checklist documental e autorização SARPAS da OS selecionada
         </summary>
-        <div className="agro-legacy">{children}</div>
+        <div className="agro-legacy">{os && <DroneDocumentsCenter key={`${os}:${reload}`} osId={os}/>}</div>
       </details>
     </>
   );

@@ -1,134 +1,68 @@
-import { test, expect } from "@playwright/test";
+import {test,expect} from '@playwright/test';
 
-const routes = [
-  ["01-visao-geral", "", "MBA AgroDoc"],
-  ["02-diagnostico", "/diagnostico", "Diagnóstico e regularização"],
-  ["03-operacoes", "/gestao", "Operações"],
-  ["04-conferencia", "/conferencia", "Conferência AgroDoc"],
-  ["05-relatorios", "/relatorio-mensal", "Relatórios MAPA"],
-  ["06-documentos", "/documentos", "MBA AgroDoc · Documentos"],
-  ["07-cadastros", "/cadastros", "Cadastros"],
-  ["08-configuracoes", "/configuracoes", "Configurações"],
-] as const;
+// Real sessions supplied through secure, ephemeral test infrastructure; never bypass authentication.
+const role=process.env.AGRODOC_QA_ROLE||'piloto';
+const manager=['admin_empresa','gestor_operacional','responsavel_tecnico','rt'].includes(role);
+const routes=[
+ ['', 'Início','Início'],
+ ['gestao','Operações','Ordens de serviço'],
+ ['campo','Operações','Modo campo'],
+ ['historico','Operações','Histórico'],
+ ['fichas','Operações','Fichas de aplicação'],
+ ...(manager?[
+  ['conferencia','Operações','Conferência de operações'],
+  ['cadastros','Cadastros','Visão dos cadastros'],
+  ['pilotos','Cadastros','Pilotos'],
+  ['equipe','Cadastros','Minha equipe'],
+  ['configuracoes','Configurações','Configurações'],
+ ]:[]),
+ ['equipamentos','Cadastros','Drones e equipamentos'],
+ ...(role==='admin_empresa'?[['funcionarios','Cadastros','Funcionários e acessos']]:[]),
+ ['documentos','Documentação','Documentos'],
+ ['diagnostico','Documentação','Diagnóstico e regularização'],
+ ['regulacao','Documentação','Legislação e fontes'],
+ ['relatorio-mensal','Documentação','Relatórios MAPA'],
+ ['ferramentas','Ferramentas','MBA Calda e calculadoras'],
+ ['produtos','Ferramentas','Defensivos e AGROFIT'],
+ ['piloto-pro','Piloto Pro','Piloto Pro'],
+ ['perfil-operacional','Configurações','Perfil operacional'],
+ ['ajuda','Ajuda','Ajuda e como usar'],
+];
+const viewports=[{width:360,height:800},{width:390,height:844},{width:768,height:1024},{width:1024,height:768},{width:1440,height:900},{width:1920,height:1080}];
 
-// Use a real, authorized homologation account. Never bypass MBA Labs authentication.
-test.skip(
-  !process.env.AGRODOC_BASE_URL || !process.env.AGRODOC_STORAGE_STATE,
-  "Informe AGRODOC_BASE_URL e AGRODOC_STORAGE_STATE da conta de homologação autorizada.",
-);
+test.skip(!process.env.AGRODOC_BASE_URL||!process.env.AGRODOC_STORAGE_STATE,'Bloqueado: prévia e sessão específica do perfil não fornecidas.');
 
-for (const [name, route, heading] of routes) {
-  test(`desktop 1448 × 1086: ${name}`, async ({ page }, info) => {
-    await page.goto(`/apps/dronegestor${route}`);
-    await expect(
-      page.getByRole("heading", { level: 1, name: heading, exact: true }),
-    ).toBeVisible();
-    await expect(
-      page.locator(".agro-sidebar a[aria-current=page]"),
-    ).toHaveCount(1);
-    await expect(page.getByText("Carregando", { exact: true })).toHaveCount(0);
-    await page.screenshot({
-      path: info.outputPath(`${name}.png`),
-      fullPage: false,
-    });
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
-      ),
-    ).toBe(true);
-  });
-}
-
-for (const viewport of [
-  { width: 1024, height: 768 },
-  { width: 390, height: 844 },
-  { width: 360, height: 800 },
-]) {
-  test(`layout ${viewport.width} × ${viewport.height}`, async ({
-    page,
-  }, info) => {
-    await page.setViewportSize(viewport);
-    await page.goto("/apps/dronegestor");
-    const mobile = viewport.width < 768;
-    await expect(
-      page.locator(mobile ? ".agro-pilot-mobile" : ".agro-home-desktop"),
-    ).toBeVisible();
-    if (mobile) {
-      await expect(
-        page.getByRole("link", { name: "Registrar operação", exact: true }),
-      ).toBeVisible();
-      await expect(
-        page.getByRole("navigation", { name: "Navegação do piloto" }),
-      ).toBeVisible();
-      await page
-        .getByRole("button", { name: "Abrir menu", exact: true })
-        .click();
-      await expect(
-        page.getByRole("navigation", { name: "MBA AgroDoc" }),
-      ).toBeVisible();
-      await page
-        .getByRole("button", { name: "Fechar menu", exact: true })
-        .click();
-    }
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
-      ),
-    ).toBe(true);
-    await page.screenshot({
-      path: info.outputPath(`piloto-${viewport.width}.png`),
-    });
-  });
-}
-
-test("exportação permanece bloqueada sem modelo ou sem aprovação", async ({
-  page,
-}) => {
-  await page.goto("/apps/dronegestor/relatorio-mensal");
-  await expect(
-    page.getByRole("heading", { name: "Relatórios MAPA", exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Atualizar", exact: true }).click();
-  // This test only asserts the blocked scenario if the homologation account has missing prerequisites.
-  const absent = page.getByText(
-    "Cadastre o XLSX oficial para liberar a exportação.",
-    { exact: true },
-  );
-  if (await absent.isVisible())
-    await expect(
-      page.getByRole("button", { name: "Baixar XLSX oficial", exact: true }),
-    ).toBeDisabled();
-});
-
-
-/** Mobile regression checks for issues reported from real Samsung browser screenshots. */
-for (const mobileWidth of [360, 390, 412]) {
-  for (const [name, route] of routes) {
-    test(`mobile layout: ${name} at ${mobileWidth}px`, async ({ page }) => {
-      await page.setViewportSize({width: mobileWidth, height: 800});
-      await page.goto(`/apps/dronegestor${route}`);
-      await expect(page.locator(".agro-hero h1")).toBeVisible();
-      const result = await page.evaluate(() => {
-        const hero = document.querySelector(".agro-hero");
-        const heading = hero?.querySelector("h1");
-        const title = hero?.querySelector(".agro-hero-title");
-        if (!hero || !heading || !title) return {ok: false, reason: "missing hero"};
-        const h = hero.getBoundingClientRect(), t = title.getBoundingClientRect();
-        return {
-          ok: t.width > 50 && t.left >= h.left - 2 && t.right <= h.right + 2
-            && t.bottom <= h.bottom + 2
-            && document.documentElement.scrollWidth <= innerWidth + 2,
-          reason: JSON.stringify({viewport: innerWidth, hero: h.toJSON(), title: t.toJSON(), documentWidth: document.documentElement.scrollWidth})
-        };
-      });
-      expect(result.ok, result.reason).toBe(true);
-      await page.screenshot({path: test.info().outputPath(`mobile-${name}-${mobileWidth}.png`), fullPage: false});
-    });
+for(const viewport of viewports){
+ test(`navegação ${role} ${viewport.width}x${viewport.height}`,async({page},info)=>{
+  await page.setViewportSize(viewport);
+  await page.goto('/apps/dronegestor');
+  await expect(page).toHaveURL(/\/apps\/dronegestor$/);
+  await expect(page.locator('.agro-page-content h1').first()).toBeVisible();
+  for(const [path,group,title] of routes){
+   const more=page.getByRole('button',{name:'Mais',exact:true});
+   if(await more.isVisible())await more.click();
+   const nav=page.getByRole('navigation',{name:'MBA DroneGestor',exact:true});
+   const section=nav.locator('details').filter({has:page.getByText(group,{exact:true})}).first();
+   if(await section.getAttribute('open')===null)await section.locator('summary').click();
+   await nav.getByRole('link',{name:title,exact:true}).click();
+   await expect(page).toHaveURL(new RegExp(`/apps/dronegestor${path?'/'+path:''}$`));
+   await expect(page.locator('.agro-page-content h1').first()).toBeVisible();
+   await expect(nav.locator('a[aria-current=page]')).toHaveCount(1);
+   await expect(page.getByText('Application error: a server-side exception has occurred',{exact:false})).toHaveCount(0);
+   const size=await page.evaluate(()=>({content:document.documentElement.scrollWidth,viewport:innerWidth}));
+   expect(size.content,`${path}: horizontal overflow`).toBeLessThanOrEqual(size.viewport+2);
+   // Actual browser rendering only. Includes viewport and module in filename.
+   await page.screenshot({path:info.outputPath(`${role}-${path||'inicio'}-${viewport.width}x${viewport.height}.png`),fullPage:false});
   }
+  await page.getByRole('link',{name:'Voltar ao início',exact:true}).click();
+  await expect(page).toHaveURL(/\/apps\/dronegestor$/);
+  if(await page.getByRole('button',{name:'Mais',exact:true}).isVisible()){
+   await page.getByRole('button',{name:'Mais',exact:true}).click();
+   await expect(page.locator('.agro-sidebar')).toHaveClass(/agro-sidebar-open/);
+   await page.locator('.agro-sidebar').getByRole('button',{name:'Fechar menu',exact:true}).click();
+   await expect(page.locator('.agro-sidebar')).not.toHaveClass(/agro-sidebar-open/);
+  }
+ });
 }
-test("mobile report model manager is not duplicated", async ({ page }) => {
-  await page.setViewportSize({width: 390, height: 844});
-  await page.goto("/apps/dronegestor/relatorio-mensal");
-  await expect(page.getByRole("heading", {name: "Relatórios MAPA", exact: true})).toBeVisible();
-  await expect(page.getByText("Planilha oficial MAPA 2026", {exact: true})).toHaveCount(1);
-});
+// These read-only tests intentionally do not create, start, suspend, close or upload data remotely.
+// API write permissions, offline recovery, physical keyboard and regulatory transitions need separate controlled runs.

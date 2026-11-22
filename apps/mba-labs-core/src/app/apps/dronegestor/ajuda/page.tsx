@@ -28,7 +28,7 @@ export default async function DroneGestorHelpPage(){
       {steps.map(step=><article key={step.title} className="rounded-2xl border border-emerald-100 bg-white p-4">
         <h2 className="text-lg font-black text-emerald-950">{step.title}</h2>
         <p className="mt-1 text-sm leading-6 text-slate-700">{step.description}</p>
-        <Link href={`${root}/${step.path}`} className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-emerald-200 px-4 text-sm font-bold text-emerald-800">{step.text}</Link>
+        <Link href={`${root}/${!manager&&step.path==="conferencia"?"fichas":step.path}`} className="mt-3 inline-flex min-h-11 items-center rounded-xl border border-emerald-200 px-4 text-sm font-bold text-emerald-800">{!manager&&step.path==="conferencia"?"Consultar minhas fichas":step.text}</Link>
       </article>)}
     </section>
     <section className="mt-5 grid gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
@@ -37,7 +37,7 @@ export default async function DroneGestorHelpPage(){
     </section>
     <section aria-label="Outros atalhos" className="mt-5 grid gap-3 sm:grid-cols-2">
       {[
-        {title:"Cadastros",detail:"Clientes, propriedades, talhões e equipamentos.",icon:MapPinned,path:"cadastros"},
+        ...(manager?[{title:"Cadastros",detail:"Clientes, propriedades, talhões e equipamentos.",icon:MapPinned,path:"cadastros"}]:[]),
         {title:"MBA Calda",detail:"Misturador, vazão, rendimento e custos.",icon:Sprout,path:"ferramentas"},
         {title:"Piloto Pro",detail:"Biblioteca de aprendizagem e consulta.",icon:BookOpen,path:"piloto-pro"},
         {title:"Relatórios MAPA",detail:"Conferência de competência e exportação.",icon:FileCheck2,path:"relatorio-mensal"},
