@@ -121,9 +121,11 @@ A suíte preparada não homologa teclado virtual de um aparelho físico. Testar 
 
 ## Prévia e continuação necessária
 
-**URL de prévia: não disponível/validada nesta execução.** Os workflows consultados são de validação; não fornecer a URL produtiva como se fosse prévia.
+**Prévia agora disponível e autenticada:** https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor
 
-A integração de hospedagem respondeu que exige seleção explícita do workspace pelo usuário. A listagem mostrou `MBALabs` (`tea-d8skog0k1i2s73dijb00`); não foi selecionado automaticamente. Confirmado esse destino, consultar primeiro a configuração e custos de uma prévia existente. Não contratar recurso, criar outro Supabase ou ligar uma prévia com dados produtivos graváveis sem respeitar as restrições.
+Deploy `dpl_AheVcPLkkiRwpd3iV4jvsDjmmmN9`, estado READY, `target=null` (preview), commit `b110d737ab24e4254f0532b3a24ba1174ee0add6`. Projeto Vercel existente `mbalabs`; nenhuma promoção de domínio produtivo. Proteção Vercel mantida; o próprio usuário realizou a entrada segura pela Vercel e MBA Labs. Os workflows consultados são de validação; não fornecer a URL produtiva como se fosse prévia.
+
+O usuário confirmou o workspace MBALabs. A consulta mostrou que a Render hospeda MBA Sites/Evolution API, não este repositório. O projeto correto foi localizado na Vercel. A prévia foi criada no projeto já existente sem mudança de plano, nova base ou contratação. Não foi apurado um valor de consumo faturável da conta; não afirmar custo de uso igual a zero. A branch fix/* continua sem deploy automático; a criação desta prévia foi explícita.
 
 Depois de existir uma prévia configurada, reutilizar sessão legítima ou solicitar login direto no navegador seguro, separadamente para piloto, gestor e RT. Não solicitar senhas no chat nem copiá-las/armazená-las. Não repetir login/planejamento de Pedro já aprovados sem necessidade. Manter testes de escrita em fixtures ou registros de teste autorizados e isolados.
 
@@ -134,3 +136,49 @@ Depois de existir uma prévia configurada, reutilizar sessão legítima ou solic
 - Não declarar as oito fases integralmente homologadas, RLS produtiva aprovada, troca de aparelho recuperada ou mobile aprovado.
 - Mudanças no contexto documental/pacote precisam de validação visual adicional; por isso a recomendação continua sendo reter a aprovação operacional.
 - O lint geral ainda impede declarar todos os checks solicitados aprovados; os três arquivos externos ao DroneGestor precisam de uma correção em escopo próprio.
+
+## Continuação — prévia real autenticada
+
+Esta seção atualiza os bloqueios anteriores de acesso à prévia; as classificações de API/execução/mobile permanecem separadas.
+
+- Ambos os workflows do commit `b110d73` foram concluídos com **success** (Core CI 764 e DroneGestor validation 22). O teste local com XLSX original continua sendo evidência separada do CI.
+- A conta informada pelo titular apresentou acesso administrativo, inclusive Administração do sistema e Funcionários. Não atribuir estes resultados a uma sessão de piloto ou RT.
+- **20 destinos do menu lateral clicados**, com URL e título H1 observados, um item ativo e retorno do navegador ao início. Além disso, a página inicial foi aberta e autenticada. O teste cobre navegação, não persistência ou escrita em cada módulo.
+- Recolher/expandir menu, abrir/fechar pendências, buscar Ajuda, fechar busca com Escape e link Voltar ao início da Ajuda foram executados pela interface.
+- Não foi testado o Modo Campo nesta conta administrativa: a página monta sincronização automática de estado, e não se presume que o banco da prévia esteja isolado da produção. Não acionar gravações remotas sem delimitar estado fictício. A OS de Pedro não foi alterada, selecionada para execução nem replanejada.
+- Captura real da Ajuda produzida no viewport observado de **1363 × 936**. O arquivo é um recorte de 1363 × 836 iniciado em y=100, excluindo o cabeçalho da conta. Não foi redimensionado nem gerado por IA; não é captura de nenhuma das seis resoluções exigidas.
+- A ferramenta de navegador disponível não expõe ajuste de viewport; o Chromium apresenta bloqueio organizacional de DevTools. O painel de display oferece no máximo 1364 × 1024. Não houve alteração de política ou contorno da proteção. As seis resoluções e teclado virtual continuam **bloqueados/não executados**.
+
+![Ajuda na prévia real — recorte sem o cabeçalho da conta](evidencias/dronegestor-20261122/previa-ajuda-desktop-recorte.jpg)
+
+### Matriz de navegação real na prévia
+
+| Módulo | Botão/ação | Perfil | Destino esperado | Resultado | Evidência |
+|---|---|---|---|---|---|
+| Ordens de serviço | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/gestao` — H1: O que precisa da sua atenção agora | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Histórico | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/historico` — H1: Histórico de operações | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Fichas de aplicação | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/fichas` — H1: Fichas das operações | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Conferência de operações | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/conferencia` — H1: Conferência de operações | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Visão dos cadastros | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/cadastros` — H1: Cadastros | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Drones e equipamentos | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/equipamentos` — H1: Drones e equipamentos | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Pilotos | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/pilotos` — H1: Pilotos e acessos | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Minha equipe | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/equipe` — H1: Minha equipe | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Funcionários e acessos | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/funcionarios` — H1: Funcionários e acessos | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Documentos | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/documentos` — H1: MBA DroneGestor · Documentos | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Diagnóstico e regularização | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/diagnostico` — H1: Diagnóstico e regularização | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Legislação e fontes | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/regulacao` — H1: Legislação e fontes | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Relatórios MAPA | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/relatorio-mensal` — H1: Relatórios MAPA | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| MBA Calda e calculadoras | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/ferramentas` — H1: MBA Calda | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Defensivos e AGROFIT | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/produtos` — H1: Defensivos e AGROFIT | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Piloto Pro | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/piloto-pro` — H1: Piloto Pro | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Perfil operacional | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/perfil-operacional` — H1: Perfil operacional | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Configurações | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/configuracoes` — H1: Configurações | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Administração do sistema | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/administracao` — H1: Administração do DroneGestor | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+| Ajuda e como usar | Clique, item ativo e voltar | Sessão administrativa informada pelo titular | `/apps/dronegestor/ajuda` — H1: Como usar o MBA DroneGestor | Aprovado pela interface para navegação | `previa-menu-interface.json` |
+
+| Shell | Recolher e expandir menu | Mesma sessão | Alternar controle e menu | Aprovado pela interface | Observação browser de botões Recolher/Expandir |
+| Shell | Pendências abrir/fechar | Mesma sessão | Exibir links de diagnóstico e fichas | Aprovado pela interface | Árvore de acessibilidade observada |
+| Shell | Buscar Ajuda e Escape | Mesma sessão | Filtrar Ajuda e fechar pesquisa | Aprovado pela interface | Campo `ajuda`, resultado e botão Fechar pesquisa; Escape ocultou botão |
+| Ajuda | Voltar ao início | Mesma sessão | `/apps/dronegestor` | Aprovado pela interface | URL após clique e H1 MBA DroneGestor |
+
+As linhas de menus na matriz anterior que constam nesta tabela deixam de estar bloqueadas **somente quanto a clique/destino/título/item ativo/voltar em desktop nesta sessão**. Conteúdo de dados, todas as ações de negócio, diferentes perfis e mobile exigem aceites próprios; não estender esta aprovação.
