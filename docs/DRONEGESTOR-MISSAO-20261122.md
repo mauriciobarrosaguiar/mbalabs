@@ -200,3 +200,26 @@ PGlite de desenvolvimento (versão0.5.17fixada). Nenhum novo pacote Supabase.
 Nesta execução nenhum usuário, OS, anexo ou perfil fictício foi criado/alterado em produção.
 Os17anexos anteriores e a OS Solo permanecem somente como inventário histórico do relatório
 anterior, sem nova contagem pela interface. Não foi feita limpeza nem remoção de dados.
+
+## Entrega e retomada autenticada
+
+PR205 aberta em rascunho: https://github.com/mauriciobarrosaguiar/mbalabs/pull/205.
+Commit remoto consolidado5bb1d45955491d4df0f669ae7b258f43489e7b1e, árvore
+b2931f06d5593fb8e9795f58576e187b042ac5f5 idêntica à árvore local testada. Os SHAs anteriores
+neste documento são commits locais de implementação; a entrega remota os consolida.
+
+GitHub Actions DroneGestor validation14 e MBA Labs Core CI733: success.
+Prévia Vercel dpl_BECN3XWmj9fiW6Fzds22MmA3K9H8: READY, target=null (preview), commit5bb1d45:
+https://mbalabs-o8i30i204-emsgenericosto-3419s-projects.vercel.app.
+Não é publicação em produção; proteção de acesso Vercel mantida. Não se presume banco isolado.
+
+O primeiro formulário seguro foi cancelado. Após pedido do usuário para reenviar, novo login
+seguro foi submetido e a interface publicada confirmou a conta Pulveriza63. Nenhuma credencial
+foi exposta ao agente ou armazenada. Lista mostra somente as duas OS fictícias conhecidas,
+ambas1,5ha, sem execução em campo. A OS71DF6 permanece atribuída a E2E PilotoPedro.
+
+Abertura somente de leitura do planejamento confirmou: drone HOMOLOGAÇÃO P63, taxa10L/ha,
+tanque20L, faixa5m, velocidade18km/h, altura3m, produto fictício100mL/ha. Não foi clicado Salvar,
+não houve nova atribuição nem início/encerramento. Bloqueio por falta de sessão foi superado
+para esta conta; faltam sessões específicas Pedro/João/gestor/RT para os novos cenários.
+As correções desta PR continuam fora da produção; consulta publicada não homologa o código novo.
