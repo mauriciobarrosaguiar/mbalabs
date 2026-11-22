@@ -90,3 +90,10 @@ Entrega incremental. PR permanece em rascunho. Não representa missão 100% conc
 - CI: workflow separado DroneGestor validation executa npm --prefix apps/mba-labs-core run test:agrodoc. O CI anterior executou 136 testes de Cotações, não os testes específicos do DroneGestor.
 - Pendências críticas: RLS e QA isolado ainda não homologados; reestruturar as oito fases no servidor/cliente e finalizar aplicação parcial com justificativa, sem alterar status indevidamente; catálogo oficial de drones; integração OAuth/DECEA; XLSX oficial; biblioteca integral. Não declarar essas entregas concluídas.
 - Alterações de código registradas na PR #197. Sem merge, sem aplicação de migration, sem gravação no banco de produção. Evidência visual autenticada das novas alterações ainda pendente. Validar 360/390/768/1024/1440/1920, acessibilidade, scroll com teclado aberto, navegação e condições de operação.
+
+## Missão priorizada — 22/11/2026
+
+Retomada sobre main e7f15399, após confirmação das cinco PRs incorporadas. Acompanhamento
+atual em [DRONEGESTOR-MISSAO-20261122.md](DRONEGESTOR-MISSAO-20261122.md).
+P1: SQL de proteção adicional validado em PostgreSQL WASM isolado; sem aplicação produtiva.
+As aprovações anteriores permanecem históricas e não são reclassificadas como novas evidências.

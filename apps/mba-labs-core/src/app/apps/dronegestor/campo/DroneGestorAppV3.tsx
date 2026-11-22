@@ -37,7 +37,7 @@ import { getDroneSyncConflict, snapshotDroneLocalState } from "./DronePersistenc
 type View = "inicio" | "nova" | "calda" | "estrategia" | "seguranca" | "controle" | "calibracao" | "checklist" | "sarpas" | "execucao" | "relatorios" | "config";
 type DoseUnit = "mL/ha" | "L/ha" | "g/ha" | "kg/ha" | "mL/100L" | "g/100L";
 type SarpasStatus = "" | "autorizado";
-type MissionStatus = "rascunho" | "preparacao" | "em_execucao" | "pausada" | "pendente_sync" | "finalizada";
+type MissionStatus = "parcial" | "rascunho" | "preparacao" | "em_execucao" | "pausada" | "pendente_sync" | "finalizada";
 
 type Product = { id: string; nome: string; dose: number; unidade: DoseUnit };
 type CalibrationState = { ar: boolean; fluxometro: boolean; bomba: boolean };
@@ -190,6 +190,8 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
   const [tankVolume, setTankVolume] = useState("");
   const [operationStarted, setOperationStarted] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [weatherNow,setWeatherNow]=useState(0);
+  useEffect(()=>{const tick=()=>setWeatherNow(Date.now());tick();const timer=window.setInterval(tick,30000);return()=>window.clearInterval(timer);},[]);
   const [missionStatus, setMissionStatus] = useState<MissionStatus>("rascunho");
   const [startedAt, setStartedAt] = useState("");
   const [endedAt, setEndedAt] = useState("");
@@ -387,6 +389,7 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
     flash("Medição de campo registrada. Faça a confirmação final de risco.");
   }
   function resetMission() {
+    if (missionStatus === "parcial") return flash("Retome a complementação desta OS para preservar suas cargas anteriores.");
     if (operationStarted) return flash("Existe uma operação em andamento. Conclua ou trate a ocorrência antes de iniciar outra missão.");
     if (!window.confirm("Limpar a missão atual e iniciar uma nova aplicação? Conclusões offline pendentes continuarão protegidas.")) return;
     setMission(blankMission); setCalibration(blankCalibration); setChecklist(blankChecklist); setInsightAccepted(false); setRiskAccepted(false); setProgressHa(0); setTankRecords([]); setPaused(false); setOccurrences([]); setFinalSaved(false); setMissionStatus("rascunho"); setStartedAt(""); setEndedAt("");
@@ -416,7 +419,7 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
     let id = localStorage.getItem(KEYS.operationId) || "";
     if (!id) { id = createId("op"); localStorage.setItem(KEYS.operationId, id); }
     const now = new Date().toISOString();
-    setStartedAt(now); setEndedAt(""); setOperationStarted(true); setPaused(false); setMissionStatus("em_execucao"); setFinalSaved(false); go("execucao");
+    setStartedAt(startedAt || now); localStorage.removeItem("dronegestor:partialRequest:v1:" + mission.ordemServicoId); setEndedAt(""); setOperationStarted(true); setPaused(false); setMissionStatus("em_execucao"); setFinalSaved(false); go("execucao");
   }
   function togglePause() {
     if (!operationStarted) return;
@@ -557,9 +560,9 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
 
       <div className="agro-field-body grid gap-4 p-4 sm:p-6">
         {view === "inicio" && <>
-          <div className="agro-compact-grid grid grid-cols-2 gap-2 rounded-xl bg-emerald-950 p-3 text-white"><Metric icon={<CloudSun size={20}/>} label="Modelo meteorológico" value={modelWeather && Date.now()-Date.parse(modelWeather.capturedAt)>=0 && Date.now()-Date.parse(modelWeather.capturedAt)<30*60000 ? `${fmt(modelWeather.temperature,1)}°C` : "—"} detail={modelWeather?.capturedAt ? `Modelo: ${new Date(modelWeather.capturedAt).toLocaleString("pt-BR")}; confirme no local` : "Sem horário confirmado; confira no local"} dark/><Metric icon={<Wind size={20}/>} label="Vento modelo 10 m" value={modelWeather && Date.now()-Date.parse(modelWeather.capturedAt)>=0 && Date.now()-Date.parse(modelWeather.capturedAt)<30*60000 ? `${fmt(modelWeather.windSpeed,1)} km/h` : "—"} detail="Modelo recente somente; confirme no talhão" dark/></div>
+          <div className="agro-compact-grid grid grid-cols-2 gap-2 rounded-xl bg-emerald-950 p-3 text-white"><Metric icon={<CloudSun size={20}/>} label="Modelo meteorológico" value={modelWeather && weatherNow-Date.parse(modelWeather.capturedAt)>=0 && weatherNow-Date.parse(modelWeather.capturedAt)<30*60000 ? `${fmt(modelWeather.temperature,1)}°C` : "—"} detail={modelWeather?.capturedAt ? `Modelo: ${new Date(modelWeather.capturedAt).toLocaleString("pt-BR")}; confirme no local` : "Sem horário confirmado; confira no local"} dark/><Metric icon={<Wind size={20}/>} label="Vento modelo 10 m" value={modelWeather && weatherNow-Date.parse(modelWeather.capturedAt)>=0 && weatherNow-Date.parse(modelWeather.capturedAt)<30*60000 ? `${fmt(modelWeather.windSpeed,1)} km/h` : "—"} detail="Modelo recente somente; confirme no talhão" dark/></div>
           {mission.ordemServicoId && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><strong className="text-emerald-950">{mission.ordemServicoNumero || "OS vinculada"}</strong><p className="mt-1 text-sm text-emerald-800">{[mission.clienteNome, mission.fazendaNome, mission.talhaoNome].filter(Boolean).join(" • ")}</p><small className="mt-1 block font-bold uppercase text-emerald-700">Status: {missionStatus.replaceAll("_", " ")}</small></div>}
-          <CardButton icon={missionStatus === "finalizada" ? <Check/> : missionStatus === "pendente_sync" ? <LockKeyhole/> : <ClipboardCheck/>} title={missionStatus === "finalizada" ? "Operação finalizada" : missionStatus === "pendente_sync" ? "Conclusão aguardando sincronização" : activeMission ? "Retomar missão" : "Nova operação"} text={missionStatus === "finalizada" ? "Consulta e exportação disponíveis; esta missão não pode ser reiniciada." : missionStatus === "pendente_sync" ? "A missão está congelada até a conclusão ser confirmada na nuvem." : activeMission ? `${fmt(mission.area,1)} ha • ${mission.cultura || "cultura pendente"} • ${mission.alvo || "alvo pendente"}` : "Comece pelos dados reais da aplicação."} onClick={() => guarded(resumeView())} primary/>
+          <CardButton icon={missionStatus === "finalizada" ? <Check/> : missionStatus === "pendente_sync" ? <LockKeyhole/> : <ClipboardCheck/>} title={missionStatus === "parcial" ? "Complementar execução parcial" : missionStatus === "finalizada" ? "Operação finalizada" : missionStatus === "pendente_sync" ? "Conclusão aguardando sincronização" : activeMission ? "Retomar missão" : "Nova operação"} text={missionStatus === "finalizada" ? "Consulta e exportação disponíveis; esta missão não pode ser reiniciada." : missionStatus === "pendente_sync" ? "A missão está congelada até a conclusão ser confirmada na nuvem." : activeMission ? `${fmt(mission.area,1)} ha • ${mission.cultura || "cultura pendente"} • ${mission.alvo || "alvo pendente"}` : "Comece pelos dados reais da aplicação."} onClick={() => guarded(resumeView())} primary/>
           <div className="grid gap-3 sm:grid-cols-2"><CardButton icon={<Droplets/>} title="Calcular calda" text="Somente após dados obrigatórios completos." onClick={() => guarded("calda")}/><CardButton icon={<Map/>} title="Segurança" text="GPS, área sensível, medição de campo e margem preventiva." onClick={() => guarded("seguranca")}/><CardButton icon={<FileText/>} title="Dados / rascunho" text="Consulta e exportação; não substitui documento oficial." onClick={() => go("relatorios")}/><CardButton icon={<RotateCcw/>} title="Nova aplicação" text="Conclusões offline permanecem protegidas." onClick={resetMission}/></div>
           <div className="grid gap-2 sm:grid-cols-2"><a className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-black text-slate-800 no-underline" href="/apps/dronegestor/gestao">Clientes e OS</a><a className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-black text-slate-800 no-underline" href="/apps/dronegestor/historico">Histórico</a></div>
         </>}

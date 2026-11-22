@@ -40,3 +40,27 @@ create policy core_logs_insert on public.core_logs
       and empresa_id = (select public.current_empresa_id())
     )
   );
+
+-- Defense in depth: core_logs is an internal event store, not a client API.
+-- usuario_id is the AUTHOR (e.g. RT creating an OS for Pedro), not necessarily
+-- the assigned pilot. Ownership/assignment/document authorization is resolved
+-- by the server routes. Never expose these raw payloads through PostgREST.
+-- RESTRICTIVE policies also intersect any existing/future permissive policy.
+-- Other modules retain their existing policies and grants without alteration.
+drop policy if exists dronegestor_logs_api_select on public.core_logs;
+create policy dronegestor_logs_api_select on public.core_logs
+  as restrictive for select to anon, authenticated
+  using (app_slug is distinct from 'dronegestor');
+drop policy if exists dronegestor_logs_api_insert on public.core_logs;
+create policy dronegestor_logs_api_insert on public.core_logs
+  as restrictive for insert to anon, authenticated
+  with check (app_slug is distinct from 'dronegestor');
+drop policy if exists dronegestor_logs_api_update on public.core_logs;
+create policy dronegestor_logs_api_update on public.core_logs
+  as restrictive for update to anon, authenticated
+  using (app_slug is distinct from 'dronegestor')
+  with check (app_slug is distinct from 'dronegestor');
+drop policy if exists dronegestor_logs_api_delete on public.core_logs;
+create policy dronegestor_logs_api_delete on public.core_logs
+  as restrictive for delete to anon, authenticated
+  using (app_slug is distinct from 'dronegestor');

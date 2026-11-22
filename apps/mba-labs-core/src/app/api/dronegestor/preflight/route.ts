@@ -1,3 +1,4 @@
+import { hasDroneCoordinates } from "@/lib/dronegestor-coordinates";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
@@ -245,7 +246,7 @@ export async function POST(request: NextRequest) {
 
     const weather = obj(snapshot.weather);
     const gpsOk =
-      Number.isFinite(Number(weather.latitude)) && Number.isFinite(Number(weather.longitude));
+      hasDroneCoordinates(weather);
     const items: Item[] = [
       {
         id: "pilot",

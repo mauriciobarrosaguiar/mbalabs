@@ -15,14 +15,14 @@ const VIEW_KEY="dronegestor:view:v3";
 const STATUS_KEY="dronegestor:missionStatus:v4";
 
 const phases:Phase[]=[
-  {number:1,label:"Operação",detail:"OS e dados",views:["nova"]},
-  {number:2,label:"Calda",detail:"Produtos e cargas",views:["calda"]},
-  {number:3,label:"Segurança",detail:"Orientação, mapa e clima",views:["estrategia","seguranca"]},
-  {number:4,label:"Controle",detail:"Conferência dos ajustes",views:["controle"]},
-  {number:5,label:"Calibração",detail:"Conferência do equipamento",views:["calibracao"]},
-  {number:6,label:"Checklist",detail:"Inspeção física pré-voo",views:["checklist"]},
-  {number:7,label:"Liberação",detail:"SARPAS e conferência",views:["sarpas"]},
-  {number:8,label:"Aplicação",detail:"Execução e finalização",views:["execucao","relatorios"]}
+  {number:1,label:"Ordem de serviço",detail:"Objetivo: identificar cliente, fazenda, talhão, cultura, alvo, área, piloto e RT. Dados vêm da OS cadastrada.",views:["nova"]},
+  {number:2,label:"Planejamento",detail:"Objetivo: conferir drone, mapa, obstáculos, faixa, velocidade e altura definidos pelo gestor/RT.",views:["controle"]},
+  {number:3,label:"Documentação e autorizações",detail:"Objetivo: conferir documentos, exigências e vencimentos. Anexo não comprova autorização válida.",views:[]},
+  {number:4,label:"Segurança em campo",detail:"Objetivo: registrar clima medido no local, deriva, riscos, pessoas, animais e áreas sensíveis.",views:["estrategia","seguranca"]},
+  {number:5,label:"Equipamento e calibração",detail:"Objetivo: inspecionar drone e pulverização, eliminar ar e calibrar conforme o manual do modelo.",views:["calibracao","checklist"]},
+  {number:6,label:"Preparo da calda",detail:"Objetivo: calcular produtos prescritos, misturador, abastecimentos e última carga parcial com as unidades originais.",views:["calda"]},
+  {number:7,label:"Liberação e aplicação",detail:"Objetivo: validar pré-voo no servidor, iniciar, registrar cargas, pausar ou encerrar parcial/total.",views:["sarpas","execucao"]},
+  {number:8,label:"Pós-operação",detail:"Objetivo: conferir área efetiva, produtos, ocorrências, anexos e pacote antes do encerramento administrativo e MAPA.",views:["relatorios"]}
 ];
 const tips:Record<View,Tip>={
   inicio:{title:"O que fazer agora?",text:"Escolha uma OS ou retome a operação que já estava em andamento."},
@@ -123,7 +123,6 @@ export function DroneSimpleFlowUX(){
   const active=useMemo(()=>phaseFor(view),[view]);
   const tip=tips[view];
   const showMap=["estrategia","seguranca","execucao","relatorios"].includes(view);
-  const progress=active?Math.round(active.number/phases.length*100):0;
   const closed=["finalizada","pendente_sync"].includes(readiness.status);
 
   return <>
@@ -133,11 +132,12 @@ export function DroneSimpleFlowUX(){
           <div><span className="text-[11px] font-black uppercase tracking-[.14em] text-[#8fe0b4]">Fase {active.number} de {phases.length}</span><h2 className="mt-1 text-xl font-black leading-6">{active.label}</h2><p className="mt-1 text-xs text-[#c8ddd2]">{active.detail}</p></div>
           <div className="grid size-11 shrink-0 place-items-center rounded-full bg-white/10 text-lg font-black">{active.number}</div>
         </div>
-        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#65dca0] transition-all" style={{width:`${progress}%`}}/></div>
+        <p className="mt-3 text-xs text-white/80">Etapa em consulta. Navegar não conclui fases; a liberação depende das conferências e do servidor.</p>
         <div className="mobile-hide-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1">
           {phases.map((phase)=>{ const current=phase.number===active.number; return <div key={phase.number} className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[10px] font-black ${current?"bg-[#65dca0] text-[#063b29]":"bg-white/10 text-white/80"}`}><span className="grid size-4 place-items-center rounded-full bg-white/10">{phase.number}</span><span>{phase.label}</span></div>; })}
         </div>
       </div>
+      <div className="mx-auto mt-2 flex w-full max-w-3xl flex-wrap gap-2"><Link className="min-h-11 rounded-xl border bg-white p-3 text-xs font-bold" href="/apps/dronegestor/gestao">OS e planejamento</Link><Link className="min-h-11 rounded-xl border bg-white p-3 text-xs font-bold" href="/apps/dronegestor/documentos">Fase 3: conferir documentos</Link><Link className="min-h-11 rounded-xl border bg-white p-3 text-xs font-bold" href="/apps/dronegestor/pacote-operacao">Fase 8: conferência e pacote</Link></div>
       <div className="mx-auto mt-2 flex w-full max-w-3xl gap-2 rounded-2xl border border-[#cfe4d7] bg-white px-3 py-3 shadow-sm"><CircleHelp size={18} className="mt-0.5 shrink-0 text-[#087a55]"/><div><strong className="block text-xs font-black text-[#123d30]">{tip.title}</strong><p className="mt-0.5 text-[11px] leading-4 text-[#6c7a72]">{tip.text}</p></div></div>
     </section>}
 
