@@ -39,3 +39,10 @@ Referências de remediação:
 - https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
 - https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
 - https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
+
+## Continuação 22/11/2026
+
+Migration pendente reforçada com quatro políticas RESTRICTIVE para bloquear acesso direto ao
+armazenamento interno DroneGestor. Atribuição permanece validada pelas APIs, pois autoria não é
+propriedade da operação. SQL executado em PostgreSQL WASM isolado, sem contato produtivo.
+Detalhes, matriz e recuperação em DRONEGESTOR-MISSAO-20261122.md. Não aplicada em produção.

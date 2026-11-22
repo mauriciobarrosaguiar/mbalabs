@@ -1,0 +1,41 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+/workspace/scratch/a4623b9af5a8/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/cloud/google/callback/route.ts
+  3:59  warning  'driveCall' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/a4623b9af5a8/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/operacao-os/route.ts
+  109:11  warning  'os' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/a4623b9af5a8/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/relatorio-mensal/xlsx/route.ts
+   30:10  warning  'durationHours' is defined but never used  @typescript-eslint/no-unused-vars
+   71:10  warning  'headerMap' is defined but never used      @typescript-eslint/no-unused-vars
+   93:10  warning  'setAdjacent' is defined but never used    @typescript-eslint/no-unused-vars
+  162:10  warning  'buildFallback' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/a4623b9af5a8/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/campo/DroneGestorApp.tsx
+  668:22  warning  'mission' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/a4623b9af5a8/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/campo/DroneGestorAppV2.tsx
+   19:3  warning  'Leaf' is defined but never used                                                                               @typescript-eslint/no-unused-vars
+  409:6  warning  React Hook useEffect has a missing dependency: 'retryQueue'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/workspace/scratch/a4623b9af5a8/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/campo/DroneGestorAppV3.tsx
+  471:6  warning  React Hook useEffect has a missing dependency: 'retryQueue'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/workspace/scratch/a4623b9af5a8/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/campo/DroneGuidedFieldMode.tsx
+  106:192  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+/workspace/scratch/a4623b9af5a8/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/campo/DroneMapEvidence.tsx
+  26:1750  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  26:2056  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/a4623b9af5a8/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/campo/DroneOperationNextStep.tsx
+  72:697  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+  79:27   warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+  80:51   warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+/workspace/scratch/a4623b9af5a8/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/documentos/AgroDocDocuments.tsx
+    2:8   warning  'Link' is defined but never used                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+  493:12  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+✖ 18 problems (0 errors, 18 warnings)

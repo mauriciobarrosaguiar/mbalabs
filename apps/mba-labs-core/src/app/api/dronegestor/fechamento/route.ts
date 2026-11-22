@@ -1,3 +1,4 @@
+import { hasDroneCoordinates } from "@/lib/dronegestor-coordinates";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
@@ -190,7 +191,7 @@ function buildMissing(
   add(Boolean(snapshot.riskAccepted), "Confirmação de risco");
   const weather = obj(snapshot.weather);
   add(
-    Number.isFinite(Number(weather.latitude)) && Number.isFinite(Number(weather.longitude)),
+    hasDroneCoordinates(weather),
     "GPS da operação",
   );
   add(num(snapshot.progressHa) >= Math.max(0, num(m.area) - 0.01), "100% da área real registrada");

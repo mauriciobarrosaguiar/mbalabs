@@ -54,7 +54,7 @@ export function DroneOsLifecycleSync() {
 
         let desired = "preparacao";
         if (started) desired = paused || missionStatus === "pausada" ? "suspensa" : "em_execucao";
-        if (["pendente_sync", "finalizada"].includes(missionStatus)) {
+        if (["pendente_sync", "finalizada", "parcial"].includes(missionStatus)) {
           localStorage.setItem(TRACK_KEY, JSON.stringify({ osId, status: missionStatus }));
           return;
         }

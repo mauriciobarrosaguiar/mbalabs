@@ -493,12 +493,10 @@ export function AgroDocFilePreview({ document: d }: { document: Doc }) {
     return <img className="agro-doc-preview" src={d.url} alt={d.nome} />;
   if (extension === "pdf")
     return (
-      <iframe
-        className="agro-doc-preview"
-        src={d.url}
-        title={`Prévia de ${d.nome}`}
-        sandbox="allow-same-origin"
-      />
+      <div>
+        <p className="mb-3 text-sm">Se o navegador bloquear a prévia, <a href={d.url} target="_blank" rel="noopener noreferrer" className="font-bold underline">abra o PDF em outra aba</a> ou use o download autorizado. O link pode expirar; recarregue os documentos se necessário.</p>
+        <iframe className="agro-doc-preview" src={d.url} title={`Prévia de ${d.nome}`} sandbox="allow-same-origin" />
+      </div>
     );
   return (
     <div className="agro-doc-preview agro-empty">

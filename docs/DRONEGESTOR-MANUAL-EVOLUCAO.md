@@ -55,3 +55,26 @@ E2E autenticado existente exige `AGRODOC_BASE_URL` e `AGRODOC_STORAGE_STATE` de 
 6. Após autorização expressa do titular, publicar a versão aprovada e monitorar. Não promover automaticamente este preview.
 
 Nenhuma migration nova foi criada ou aplicada nesta entrega. Google Drive permanece código existente, sem nova conexão OAuth configurada. Dropbox, assistente RAG e portal não estão concluídos.
+
+## Jornada revisada — 22/11/2026
+
+| Fase | Objetivo e caminho | Situação nesta revisão |
+|---|---|---|
+|1 Ordem de serviço|Gestão → OS existente; reutilizar cliente/fazenda/talhão e atribuição|Fluxos anteriores preservados|
+|2 Planejamento|Gestor/RT define drone, parâmetros e produtos; piloto recebe dados|Homologação anterior preservada; sem novo aceite|
+|3 Documentação e autorizações|Documentos vinculados à OS; conferir validade e referência oficial|Anexo não é autorização; conferência integral pendente|
+|4 Segurança em campo|Clima medido, riscos, deriva e áreas sensíveis|Bloqueios preservados; GPS vazio/fora de faixa recusado|
+|5 Equipamento e calibração|Inspeção física e manual específico do modelo|Inspeção real não realizada pelo agente|
+|6 Preparo da calda|Prescrição → taxa/capacidades/produtos/cargas; manter unidades|Matemática coberta por testes; integração integral pendente|
+|7 Liberação e aplicação|Pré-voo → iniciar → cargas → pausa/parcial/total|Parcial preparado e testado por fixtures; ainda sem homologação de interface|
+|8 Pós-operação|Conferência → pacote → MAPA → encerramento administrativo|Ciclo completo pendente; original XLSX validado por comparação estrutural|
+
+Encerramento parcial: no Campo guiado, depois de iniciar legitimamente e registrar cargas,
+selecionar Encerrar execução parcial, motivo e justificativa. Exige conexão para confirmação;
+sem internet, pausar e manter o aparelho. OS suspensa conserva saldo e cargas. Complementação
+ocorre na mesma OS, com nova conferência pré-voo e registros cumulativos. Não contabilizar
+checkpoints como novas aplicações/faturamentos. Recuperação em outro aparelho e relatório de
+parcial sem complementação ainda pendentes. Recurso preparado na branch, não publicado.
+
+Se a prévia PDF estiver bloqueada, usar abertura em outra aba ou download autorizado;
+links expirados exigem atualizar a lista. Não remover isolamento do iframe para contornar bloqueios.

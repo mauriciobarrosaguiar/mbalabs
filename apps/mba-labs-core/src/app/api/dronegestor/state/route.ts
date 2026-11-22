@@ -1,3 +1,4 @@
+import { hasDroneCoordinates } from "@/lib/dronegestor-coordinates";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { droneGestorRole } from "@/lib/dronegestor-role";
@@ -107,6 +108,8 @@ async function getContext(): Promise<{ current: ApiContext | null; response: Nex
       current: null,
       response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }),
     };
+  if (context.profile.status !== "ativo")
+    return { current: null, response: NextResponse.json({ ok: false, error: "Perfil inativo." }, { status: 403 }) };
   const admin = ["super_admin", "admin_master"].includes(normalizeType(context.profile.tipo));
   const allowed = (context.appsLiberados ?? []).some(
     (app) => app.slug === "dronegestor" && app.canAccess,
@@ -137,6 +140,11 @@ function scopeQuery(query: any, current: ApiContext) {
   return current.empresaId
     ? query.eq("empresa_id", current.empresaId)
     : query.eq("usuario_id", current.usuario.id);
+}
+
+function scopeOwnState(query: any, current: ApiContext) {
+  query = query.eq("usuario_id", current.usuario.id);
+  return current.empresaId ? query.eq("empresa_id", current.empresaId) : query.is("empresa_id", null);
 }
 
 async function loadSettings(admin: any, current: ApiContext): Promise<Settings> {
@@ -225,7 +233,7 @@ function buildOperationSummary(state: StoredState, pilotName: string, settings: 
       latitude,
       longitude,
       capturadoEm: textValue(weather.capturedAt),
-      disponivel: latitude !== null && longitude !== null,
+      disponivel: hasDroneCoordinates(weather),
     },
     produtos: products.map((item) => {
       const p = objectValue(item);
@@ -255,6 +263,9 @@ function validateFinalization(
   if (!summary.ordemServicoId)
     throw new DroneOsAccessError("Selecione uma OS antes de concluir a aplicação em campo.", 400);
   if (summary.areaHa <= 0) throw new Error("Área planejada inválida.");
+  const actual = Number(state.progressHa);
+  if (!Number.isFinite(actual) || actual < 0 || actual > summary.areaHa)
+    throw new DroneOsAccessError("Área executada inválida ou superior ao planejamento. Solicite correção ao gestor.", 400);
   if (summary.areaConcluidaHa < summary.areaHa - 0.01)
     throw new Error(
       `A operação não pode ser concluída: ${summary.areaConcluidaHa.toFixed(2)} ha registrados de ${summary.areaHa.toFixed(2)} ha planejados.`,
@@ -421,11 +432,11 @@ async function setFieldCompleted(
     campoConcluidoEm: now,
     operacaoId: operationId,
   };
-  const { error } = await admin
-    .from("core_logs")
-    .update({ detalhes: { ...details, updatedAt: now, data: nextData } })
-    .eq("id", osRow.id);
+  let mutation = admin.from("core_logs").update({ detalhes: { ...details, updatedAt: now, data: nextData } }).eq("id", osRow.id);
+  mutation = details.updatedAt ? mutation.eq("detalhes->>updatedAt", details.updatedAt) : mutation.is("detalhes->>updatedAt", null);
+  const { data: changed, error } = await mutation.select("id");
   if (error) throw error;
+  if (!changed?.length) throw new DroneOsAccessError("A OS mudou durante a conclusão. Recarregue antes de tentar novamente.", 409);
 
   const event = await admin.from("core_logs").insert({
     empresa_id: current.empresaId,
@@ -473,7 +484,7 @@ export async function GET(request: NextRequest) {
       if (end) query = query.lte("created_at", end);
       if (companyHistoryRole(current) && current.empresaId)
         query = query.eq("empresa_id", current.empresaId);
-      else query = query.eq("usuario_id", current.usuario.id);
+      else query = scopeOwnState(query, current);
       const { data, error } = await query;
       if (error) throw error;
       const rawItems = data ?? [];
@@ -489,10 +500,8 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const { data, error } = await admin
-      .from("core_logs")
+    const { data, error } = await scopeOwnState(admin.from("core_logs"), current)
       .select("id,detalhes,created_at")
-      .eq("usuario_id", current.usuario.id)
       .eq("app_slug", "dronegestor")
       .eq("acao", STATE_ACTION)
       .order("created_at", { ascending: false })
@@ -545,10 +554,8 @@ export async function PUT(request: NextRequest) {
         );
     }
 
-    const { data: existing, error: findError } = await admin
-      .from("core_logs")
+    const { data: existing, error: findError } = await scopeOwnState(admin.from("core_logs"), current)
       .select("id,detalhes,created_at")
-      .eq("usuario_id", current.usuario.id)
       .eq("app_slug", "dronegestor")
       .eq("acao", STATE_ACTION)
       .order("created_at", { ascending: false })
@@ -573,11 +580,15 @@ export async function PUT(request: NextRequest) {
     const updatedAt = new Date().toISOString();
     const detalhes = { state, revision, updatedAt, version: 6 };
     if (existing?.id) {
-      const { error } = await admin
-        .from("core_logs")
-        .update({ detalhes })
-        .eq("id", existing.id);
+      let update = admin.from("core_logs").update({ detalhes }).eq("id", existing.id);
+      update = existing.detalhes?.revision ? update.eq("detalhes->>revision", String(serverRevision)) : update.is("detalhes->>revision", null);
+      const { data: changed, error } = await update.select("id");
       if (error) throw error;
+      if (!changed?.length) {
+        const latest = await scopeOwnState(admin.from("core_logs"), current).select("detalhes,created_at").eq("app_slug", "dronegestor").eq("acao", STATE_ACTION).order("created_at", {ascending:false}).limit(1).maybeSingle();
+        if(latest.error) throw latest.error;
+        return NextResponse.json({ok:false, conflict:true, revision:storedRevision(latest.data), state:latest.data?.detalhes?.state ?? null, error:"O estado mudou durante o envio. Confira a versão do servidor antes de sincronizar."}, {status:409});
+      }
     } else {
       const { error } = await admin.from("core_logs").insert({
         empresa_id: current.empresaId,
@@ -628,6 +639,10 @@ export async function POST(request: NextRequest) {
       summary.ordemServicoId,
     );
     const osData = osAccess.data;
+    if (osData.execucaoParcialAtiva) throw new DroneOsAccessError("Retome a execução parcial com nova conferência pré-voo antes de concluir.", 409);
+    const checkpoint = Array.isArray(osData.execucoesParciais) ? osData.execucoesParciais.at(-1) : null;
+    if (checkpoint && (Number(state.progressHa) < checkpoint.areaAplicadaHa || checkpoint.snapshot.tankRecords.some((old: any) => !Array.isArray(state.tankRecords) || !state.tankRecords.some((item: any) => JSON.stringify(item) === JSON.stringify(old)))))
+      throw new DroneOsAccessError("As cargas anteriores da execução parcial precisam ser preservadas.", 409);
     const planIssue = await dronePilotPlanningIssue(admin, accessContext(current), osData, objectValue(state.mission));
     if(planIssue) throw new DroneOsAccessError(planIssue, 403);
     const assigned = textValue(osData.pilotoResponsavelId || osData.pilotoId);
@@ -656,10 +671,8 @@ export async function POST(request: NextRequest) {
       summary.tipoAtividade,
     );
 
-    const { data: existing, error: existingError } = await admin
-      .from("core_logs")
+    const { data: existing, error: existingError } = await scopeOwnState(admin.from("core_logs"), current)
       .select("id,detalhes,created_at")
-      .eq("usuario_id", current.usuario.id)
       .eq("app_slug", "dronegestor")
       .eq("acao", FINALIZED_ACTION)
       .contains("detalhes", { operationId })
