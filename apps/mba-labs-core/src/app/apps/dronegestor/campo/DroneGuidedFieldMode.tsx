@@ -98,6 +98,7 @@ export function DroneGuidedFieldMode({pilotName}:{pilotName:string}){
       write(K.calibration,Object.fromEntries(Object.keys(calibration).map(k=>[k,false])));
       write(K.checklist,Object.fromEntries(Object.keys(checklist).map(k=>[k,false])));
       write(K.started,false);write(K.paused,true);write(K.status,"parcial");write(K.view,"inicio");
+      localStorage.removeItem(requestKey);
       window.location.reload();
     }catch(error){flash(error instanceof Error?error.message:"Falha ao encerrar parcialmente.");setFinishing(false);}
   }

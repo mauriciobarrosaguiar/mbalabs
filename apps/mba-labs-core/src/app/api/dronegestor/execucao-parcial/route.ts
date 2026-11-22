@@ -22,7 +22,13 @@ export async function POST(request: NextRequest) {
   if (os.assignedPilotId !== c.userId && (c.empresaId || os.assignedPilotId)) throw new DroneOsAccessError('Somente o piloto responsável pode encerrar sua execução.',403);
   const history = Array.isArray(os.data.execucoesParciais) ? os.data.execucoesParciais : [];
   const prior = history.find((entry:any)=>entry.requestId===body.requestId);
-  if (prior) return NextResponse.json({ok:true,duplicate:true,execution:prior});
+  if (prior) {
+    // An acknowledgement lost in transit may be retried, but a new payload must
+    // never be acknowledged as if its additional hectares had been committed.
+    if (JSON.stringify(prior.snapshot) !== JSON.stringify(body.state) || prior.motivo !== body.reason || prior.justificativa !== String(body.justification || '').trim())
+      throw new DroneOsAccessError('Este identificador já confirmou outro encerramento. Confira o checkpoint salvo antes de continuar.',409);
+    return NextResponse.json({ok:true,duplicate:true,execution:prior});
+  }
   if (!['em_execucao','suspensa'].includes(os.data.status) || !os.data.iniciadaEm || os.data.execucaoParcialAtiva)
     throw new DroneOsAccessError('A OS precisa ter uma execução iniciada e ainda não encerrada parcialmente.',409);
   const state = body.state;

@@ -1,0 +1,6 @@
+
+/workspace/scratch/a758ad5717bd/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/campo/DroneGuidedFieldMode.tsx
+  107:192  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+✖ 1 problem (0 errors, 1 warning)
+

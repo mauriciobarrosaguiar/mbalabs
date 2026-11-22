@@ -32,3 +32,17 @@ test('continuation keeps cumulative loads; removing initial load is rejected',as
  const p=payload();p.requestId='request-456';p.state.progressHa=14;p.state.tankRecords=[{...p.state.tankRecords[0],areaHa:14}];assert.equal((await POST(req(p))).status,409);
  p.state.tankRecords=[...payload().state.tankRecords,{id:'load-2',at:'2026-11-22T12:00:00Z',areaHa:2,volumeL:20}];assert.equal((await POST(req(p))).status,200);assert.equal(state.rows[0].detalhes.data.execucoesParciais[1].areaRestanteHa,6);
 });
+
+test('lost acknowledgement retries exact checkpoint; reused key with new area is rejected',async()=>{
+ assert.equal((await POST(req())).status,200);const writes=state.writes;
+ assert.equal((await POST(req())).status,200);
+ const changed=payload();changed.state.progressHa=14;changed.state.tankRecords.push({id:'load-2',at:'2026-11-22T12:00:00Z',areaHa:2,volumeL:20});
+ assert.equal((await POST(req(changed))).status,409);
+ changed.state=payload().state;changed.justification='Outro motivo de interrupção';assert.equal((await POST(req(changed))).status,409);
+ assert.equal(state.writes,writes);assert.equal(state.rows[0].detalhes.data.execucoesParciais.length,1);
+});
+test('gestor and RT cannot close the assigned pilot execution',async()=>{
+ for(const perfil of ['gestor_operacional','responsavel_tecnico']){
+ state.session.profile.id=perfil;state.session.permissoes=[{appSlug:'dronegestor',perfil,podeAcessar:true}];assert.equal((await POST(req())).status,403);
+ }assert.equal(state.writes,0);
+});

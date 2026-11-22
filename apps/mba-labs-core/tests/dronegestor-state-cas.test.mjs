@@ -16,3 +16,16 @@ test('concurrent mutation and stale revision do not overwrite state',async()=>{
  assert.equal((await PUT(req({baseRevision:1,state:{mission:{}}}))).status,409);
  state.race=true;assert.equal((await PUT(req({baseRevision:2,state:{mission:{}}}))).status,409);assert.equal(state.writes,0);assert.equal(state.rows[1].detalhes.revision,2);
 });
+
+test('inactive session cannot read or overwrite field state',async()=>{
+ state.session.profile.status='bloqueado';assert.equal((await GET(req())).status,403);
+ assert.equal((await PUT(req({baseRevision:2,state:{mission:{}}}))).status,403);assert.equal(state.factories,0);assert.equal(state.writes,0);
+});
+test('device B recovers committed state and stale device A cannot overwrite it',async()=>{
+ const snapshot={mission:{},progressHa:12,tankRecords:[{id:'load-1',areaHa:12,volumeL:120}],startedAt:'2026-11-22T11:00:00Z'};
+ assert.equal((await PUT(req({baseRevision:2,state:snapshot}))).status,200);
+ const recovered=await (await GET(req())).json();assert.deepEqual(recovered.state,snapshot);assert.equal(recovered.revision,3);
+ const next={...snapshot,progressHa:14,tankRecords:[...snapshot.tankRecords,{id:'load-2',areaHa:2,volumeL:20}]};
+ assert.equal((await PUT(req({baseRevision:recovered.revision,state:next}))).status,200);
+ const stale=await PUT(req({baseRevision:3,state:snapshot}));assert.equal(stale.status,409);assert.deepEqual((await stale.json()).state,next);assert.equal(state.rows[1].detalhes.revision,4);
+});

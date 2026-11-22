@@ -108,6 +108,8 @@ async function getContext(): Promise<{ current: ApiContext | null; response: Nex
       current: null,
       response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }),
     };
+  if (context.profile.status !== "ativo")
+    return { current: null, response: NextResponse.json({ ok: false, error: "Perfil inativo." }, { status: 403 }) };
   const admin = ["super_admin", "admin_master"].includes(normalizeType(context.profile.tipo));
   const allowed = (context.appsLiberados ?? []).some(
     (app) => app.slug === "dronegestor" && app.canAccess,
