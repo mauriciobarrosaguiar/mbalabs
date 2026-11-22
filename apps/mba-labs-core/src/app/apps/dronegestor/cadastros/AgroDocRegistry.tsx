@@ -54,8 +54,8 @@ export function AgroDocRegistry() {
             icon: Users,
             href: "pilotos",
           },
-          { title: "Propriedades", data: farms, icon: Map, href: "gestao" },
-          { title: "Clientes", data: clients, icon: Handshake, href: "gestao" },
+          { title: "Propriedades", data: farms, icon: Map, href: "gestao?tab=fazenda" },
+          { title: "Clientes", data: clients, icon: Handshake, href: "gestao?tab=cliente" },
         ].map((x) => (
           <AgroDocKpiCard
             key={x.title}
@@ -153,7 +153,7 @@ export function AgroDocRegistry() {
             title="Propriedades e clientes"
             icon={Map}
             action={
-              <Link href={`${ROOT}/gestao`}>
+              <Link href={`${ROOT}/gestao?tab=fazenda`}>
                 Gerenciar propriedades e clientes →
               </Link>
             }
@@ -174,7 +174,7 @@ export function AgroDocRegistry() {
                   <td>{x.data.uf || "—"}</td>
                   <td>{x.data.culturaPadrao || "Não registrada"}</td>
                   <td>
-                    <Link href={`${ROOT}/gestao`}>Abrir cadastro</Link>
+                    <Link href={`${ROOT}/gestao?tab=fazenda`}>Abrir cadastro</Link>
                   </td>
                 </tr>
               ))}
@@ -194,7 +194,7 @@ export function AgroDocRegistry() {
               <Link className="agro-soft-link" href={`${ROOT}/pilotos`}>
                 Novo colaborador →
               </Link>
-              <Link className="agro-soft-link" href={`${ROOT}/gestao`}>
+              <Link className="agro-soft-link" href={`${ROOT}/gestao?tab=fazenda`}>
                 Nova propriedade / cliente →
               </Link>
               <Link className="agro-button" href={`${ROOT}/perfil-operacional`}>
