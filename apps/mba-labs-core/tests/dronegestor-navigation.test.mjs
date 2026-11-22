@@ -56,6 +56,9 @@ test("operation document and dossier links keep osId",()=>{
   assert.match(flow,/pacote-operacao\?osId=\$\{encodeURIComponent\(osId\)\}/);
   const manager=read("gestao/DroneManagerOperationsPanel.tsx");
   assert.match(manager,/drone-os-\$\{item\.osId\}/);
+  assert.doesNotMatch(manager,/localStorage\.setItem\("dronegestor:mission:v2"/);
+  const documents=read("documentos/AgroDocDocuments.tsx");
+  assert.match(documents,/gestao\?tab=os&osId=/);
   const registry=read("cadastros/AgroDocRegistry.tsx");
   assert.match(registry,/gestao\?tab=fazenda/);
   assert.match(registry,/gestao\?tab=cliente/);
