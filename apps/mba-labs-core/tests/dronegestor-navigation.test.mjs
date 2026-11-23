@@ -63,3 +63,12 @@ test("operation document and dossier links keep osId",()=>{
   assert.match(registry,/gestao\?tab=fazenda/);
   assert.match(registry,/gestao\?tab=cliente/);
 });
+
+// Reproduzido na interface da OS fictícia OS-20261123-45737.
+test("planning document link returns to the active field OS",()=>{
+  const field=read("campo/DroneGestorAppV3.tsx");
+  const link=field.match(/<a[^>]+href=\{([^]+?)\}>Abrir documentos desta OS<\/a>/);
+  assert.ok(link,"planning document link must exist");
+  assert.ok(link[1].includes("encodeURIComponent(mission.ordemServicoId)"));
+  assert.ok(link[1].includes("&returnTo=campo"),"documents must offer return to the same field mission");
+});

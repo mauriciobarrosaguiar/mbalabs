@@ -252,3 +252,32 @@ O titular autenticou separadamente Pedro, Gestor e RT, sempre pelo formulário s
 As duas falhas de acesso às páginas encontradas na primeira passagem deixam de estar pendentes: foram corrigidas no código e retestadas na interface da nova prévia com Pedro. As demais aprovações nesta seção são de leitura/navegação, não de escrita, liberação de voo ou operação em campo.
 
 A validação geral da missão ainda não está concluída: seis resoluções, teclado virtual, fluxo operacional com retomada/offline/troca de aparelho pela interface, conferência de operação concluída, exportação MAPA pela UI e as permissões reais de escrita permanecem pendentes/bloqueadas. Nenhum registro de operação, cadastro empresarial, permissão, vínculo, senha, schema ou política de banco foi alterado durante estes testes de navegador. Não houve merge, envio oficial ou deploy produtivo.
+
+
+## Continuação de 23/11/2026 — escrita fictícia autorizada
+
+O usuário autorizou expressamente criar e editar registros fictícios para homologação. As escritas abaixo ocorreram pela interface da prévia, no banco já vinculado à empresa E2E TESTE - DroneGestor QA. Não houve migration, merge, publicação produtiva nem liberação de voo. Nenhum registro anterior foi alterado intencionalmente.
+
+Criados cliente, fazenda e talhão com prefixo **HOMOLOGAÇÃO PR206 20261123**, área 0,1 ha. Nova **OS-20261123-45737**, ID `45737de4-38ef-4af0-bdd1-ddd5a8ac6c6d`, alvo “HOMOLOGAÇÃO PR206 — SEM APLICAÇÃO REAL”. RT vinculou E2E Piloto Pedro e salvou parâmetros explicitamente fictícios.
+
+|Módulo|Botão/ação|Perfil|Destino esperado|Resultado|Evidência|
+|---|---|---|---|---|---|
+|Clientes|Salvar cadastro|RT|Cliente fictício listado|Aprovado pela interface|`rt-escrita-interface.json`|
+|Fazendas|Salvar cadastro|RT|Fazenda ligada ao cliente fictício|Aprovado pela interface|`rt-escrita-interface.json`|
+|Talhões|Salvar cadastro|RT|Talhão 0,1 ha ligado à fazenda fictícia|Aprovado pela interface|`rt-escrita-interface.json`|
+|OS|Criar OS|RT|Nova OS Aberta, sem duplicação observada|Aprovado pela interface|`rt-escrita-interface.json`|
+|OS|Vincular piloto|RT|E2E Piloto Pedro responsável|Aprovado pela interface|`rt-escrita-interface.json`|
+|Planejamento|Salvar e reabrir|RT|Valores persistidos, mesmo responsável|Aprovado pela interface|`rt-escrita-interface.json`|
+|Planejamento|Voltar às operações|RT|Gestão com mesmo osId|Aprovado pela interface|`rt-escrita-interface.json`|
+|OS|Preparar OS|Pedro|Missão selecionada recebe parâmetros, status preparação|Aprovado pela interface|`pedro-escrita-interface.json`|
+|Campo|Conferir planejamento; sair e voltar|Pedro|Fase 2 e mesma OS preservadas|Aprovado pela interface|`pedro-escrita-interface.json`|
+|Campo|Continuar para segurança|Pedro|Consulta fase 4, sem autorização automática|Aprovado pela interface|`pedro-escrita-interface.json`|
+|Campo|Conferir mapa e clima sem confirmação|Pedro|Botão desabilitado|Aprovado pela interface|`pedro-escrita-interface.json`|
+|API operacao-os|GET OS de outro piloto D916C|Pedro|Negar leitura|Aprovado pela interface (API GET na sessão específica)|Resposta “Esta OS pertence a outro piloto.” em `pedro-escrita-interface.json`|
+|Planejamento → documentos|Abrir documentos desta OS|Pedro|Mesmo osId e retorno ao Campo|Reprovado na prévia 6f784d2; corrigido no código, reteste pendente|Link observado sem returnTo; teste de regressão adicionado|
+
+A falha encontrada no link interno da fase 2 foi corrigida acrescentando `returnTo=campo`, mantendo a validação de mesma missão no retorno. O atalho superior já tinha esse parâmetro.
+
+Validação após correção: **166 testes aprovados, zero reprovados, zero ignorados**, incluindo XLSX original MAPA; TypeScript e build de produção aprovados. Lint dos dois arquivos tocados: zero erros, com avisos existentes registrados em `lint-escrita.txt`. Logs em `docs/evidencias/dronegestor-20261123-piloto/*-escrita.txt`.
+
+Não se atribui homologação integral às fases seguintes: inspeções físicas, clima, GPS e SARPAS não foram inventados. Pausa de execução, progresso/abastecimentos e troca de aparelho continuam dependendo dos cenários controlados registrados anteriormente. As seis resoluções exatas continuam bloqueadas pela limitação do navegador descrita no relatório.
