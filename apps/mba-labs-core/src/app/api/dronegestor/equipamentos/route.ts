@@ -49,7 +49,7 @@ function validate(data: ReturnType<typeof cleanData>) {
 }
 async function getContext(): Promise<{ current: ApiContext | null; response: NextResponse | null }> {
   const context = await getSessionProfile();
-  if (!context.user || !context.profile) {
+  if (!context.user || !context.profile || context.profile.status !== "ativo") {
     return { current: null, response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }) };
   }
   const normalized = normalizeType(context.profile.tipo);
