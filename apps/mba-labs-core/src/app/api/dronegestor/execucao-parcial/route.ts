@@ -3,7 +3,7 @@ import { getSessionProfile } from '@/lib/core-data';
 import { canManageDroneGestor } from '@/lib/dronegestor-role';
 import { requireDroneOsAccess, droneOsErrorResponse, DroneOsAccessError } from '@/lib/dronegestor-os-access';
 import { dronePilotPlanningIssue } from '@/lib/dronegestor-planning';
-import { validatePartialExecution, validateCumulativeContinuation } from '@/lib/dronegestor-partial';
+import { validatePartialExecution, validateCumulativeContinuation, sameDroneSnapshot } from '@/lib/dronegestor-partial';
 import { createSupabaseAdminClient } from '@mba-labs/shared/supabase/server';
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
   if (prior) {
     // An acknowledgement lost in transit may be retried, but a new payload must
     // never be acknowledged as if its additional hectares had been committed.
-    if (JSON.stringify(prior.snapshot) !== JSON.stringify(body.state) || prior.motivo !== body.reason || prior.justificativa !== String(body.justification || '').trim())
+    if (!sameDroneSnapshot(prior.snapshot, body.state) || prior.motivo !== body.reason || prior.justificativa !== String(body.justification || '').trim())
       throw new DroneOsAccessError('Este identificador já confirmou outro encerramento. Confira o checkpoint salvo antes de continuar.',409);
     return NextResponse.json({ok:true,duplicate:true,execution:prior});
   }
