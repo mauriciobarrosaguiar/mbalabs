@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { droneGestorRole } from "@/lib/dronegestor-role";
 import { dronePilotPlanningIssue } from "@/lib/dronegestor-planning";
+import { validateCumulativeContinuation } from "@/lib/dronegestor-partial";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   DroneOsAccessError,
@@ -641,8 +642,10 @@ export async function POST(request: NextRequest) {
     const osData = osAccess.data;
     if (osData.execucaoParcialAtiva) throw new DroneOsAccessError("Retome a execução parcial com nova conferência pré-voo antes de concluir.", 409);
     const checkpoint = Array.isArray(osData.execucoesParciais) ? osData.execucoesParciais.at(-1) : null;
-    if (checkpoint && (Number(state.progressHa) < checkpoint.areaAplicadaHa || checkpoint.snapshot.tankRecords.some((old: any) => !Array.isArray(state.tankRecords) || !state.tankRecords.some((item: any) => JSON.stringify(item) === JSON.stringify(old)))))
-      throw new DroneOsAccessError("As cargas anteriores da execução parcial precisam ser preservadas.", 409);
+    if (checkpoint) {
+      try { validateCumulativeContinuation(checkpoint, state); }
+      catch(error){throw new DroneOsAccessError(error instanceof Error ? error.message : "As cargas anteriores precisam ser preservadas.",409);}
+    }
     const planIssue = await dronePilotPlanningIssue(admin, accessContext(current), osData, objectValue(state.mission));
     if(planIssue) throw new DroneOsAccessError(planIssue, 403);
     const assigned = textValue(osData.pilotoResponsavelId || osData.pilotoId);
