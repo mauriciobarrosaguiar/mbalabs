@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { droneGestorRole } from "@/lib/dronegestor-role";
 import { dronePilotPlanningIssue } from "@/lib/dronegestor-planning";
-import { validateCumulativeContinuation } from "@/lib/dronegestor-partial";
+import { validateCumulativeContinuation, validateFieldCompletionState, sameDroneSnapshot } from "@/lib/dronegestor-partial";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   DroneOsAccessError,
@@ -690,6 +690,10 @@ export async function POST(request: NextRequest) {
           "A conclusão protegida pertence a outra OS. Nenhum dado foi alterado.",
           409,
         );
+      if (!sameDroneSnapshot(existing.detalhes?.state, state))
+        throw new DroneOsAccessError("Este identificador pertence a outra versão da conclusão. Preserve os dados originais e confira o histórico.", 409);
+      if (osData.status === "campo_concluido" && textValue(osData.operacaoId) !== operationId)
+        throw new DroneOsAccessError("A OS já foi concluída em campo por outra operação.", 409);
       await setFieldCompleted(admin, current, osAccess.row, operationId);
       return NextResponse.json({
         ok: true,
@@ -707,6 +711,10 @@ export async function POST(request: NextRequest) {
 
     if (osData.status === "concluida")
       throw new DroneOsAccessError("Esta OS já foi encerrada.", 409);
+    try { validateFieldCompletionState(osData); }
+    catch (error) {
+      throw new DroneOsAccessError(error instanceof Error ? error.message : "Esta OS não pode receber conclusão de campo.", 409);
+    }
 
     const finalizedAt = new Date().toISOString();
     const detalhes = {
