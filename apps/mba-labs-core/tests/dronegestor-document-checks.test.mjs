@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {hasNonPlaceholderAnacId} from '../src/lib/dronegestor-document-checks.ts';
+import {hasNonPlaceholderAnacId,isExplicitHomologationPlaceholder} from '../src/lib/dronegestor-document-checks.ts';
 
 test('identificadores fictícios não atendem ao requisito documental ANAC',()=>{
  for(const id of ['', ' ', null, undefined, 'HOMOLOGACAO-SEM-REGISTRO-REAL', 'HOMOLOGAÇÃO PR206', 'DJI MODELO FICTÍCIO', 'FICTICIO PR206', 'SEM REGISTRO REAL', 'NÃO UTILIZAR EM CAMPO', 'DEMONSTRAÇÃO SEM VOO']){
@@ -19,4 +19,15 @@ test('checklist documental usa a identificação não fictícia sem certificar a
  assert.match(content,/Identificação fictícia de homologação/);
  assert.match(content,/confira a certidão SISANT/);
  assert.doesNotMatch(content,/ok:Boolean\(mission\.registroAnac\)/);
+});
+
+test('pré-voo servidor deve recusar modelo e identificação fictícios, sem presumir certificação',()=>{
+ for(const name of ['DJI MODELO FICTÍCIO - SEM VOO','HOMOLOGAÇÃO PR206','SEM REGISTRO REAL']){
+  assert.equal(isExplicitHomologationPlaceholder(name),true,name);
+ }
+ assert.equal(isExplicitHomologationPlaceholder('DJI Agras informado'),false);
+ const route=readFileSync(new URL('../src/app/api/dronegestor/preflight/route.ts',import.meta.url),'utf8');
+ assert.match(route,/!isExplicitHomologationPlaceholder\(mission\.drone\)/);
+ assert.match(route,/hasNonPlaceholderAnacId\(mission\.registroAnac \|\| mission\.identificacaoAnac\)/);
+ assert.match(route,/Dados fictícios de homologação não liberam o pré-voo/);
 });
