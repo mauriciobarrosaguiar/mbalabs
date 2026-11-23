@@ -34,7 +34,7 @@ function row(action, id, details, usuario_id='owner') {
   return {
     id: id + '-row', acao: action, usuario_id, empresa_id: 'company-A',
     app_slug: 'dronegestor', created_at: '2026-11-23T10:00:00Z',
-    detalhes: { entityId: id, ativo: true, data: details },
+    detalhes: { entityId: id, ativo: true, data: structuredClone(details) },
   };
 }
 const req = (id='os-qa') => new NextRequest('https://example.invalid/api/dronegestor/operacao-os?osId=' + id);
@@ -99,4 +99,32 @@ test('other pilot cannot read a planned OS of Pedro', async () => {
   const response = await GET(req());
   assert.equal(response.status, 403);
   assert.equal(state.writes, 0);
+});
+
+for (const status of ['em_execucao','suspensa','campo_concluido','concluida','cancelada']) {
+ test(`document GET does not fabricate technical history from a plan without checkpoint: ${status}`, async()=>{
+  state.rows[0].detalhes.data.status=status;
+  const response=await GET(req());assert.equal(response.status,200);
+  const payload=await response.json();assert.equal(payload.source,'os');
+  assert.equal(payload.state.mission.drone,undefined);
+  assert.equal(payload.state.mission.tipoAtividade,undefined);
+  assert.equal(state.writes,0);
+ });
+}
+for (const marker of [{operationStarted:true},{startedAt:'2026-11-23T10:00:00Z'},{missionStatus:'parcial'}]) {
+ test(`started checkpoint prevails even when OS preparation status is stale: ${Object.keys(marker)[0]}`, async()=>{
+  const mission={ordemServicoId:'os-qa',drone:'DRONE HISTÓRICO',registroAnac:'HISTORICO',tipoAtividade:'dispersao'};
+  state.rows.push({...row('estado_campo_v2','live','', 'pedro'),detalhes:{state:{mission,...marker}}});
+  const response=await GET(req());assert.equal(response.status,200);
+  const payload=await response.json();assert.equal(payload.source,'live');
+  assert.deepEqual(payload.state.mission.drone,mission.drone);
+  assert.equal(payload.state.mission.tipoAtividade,'dispersao');assert.equal(state.writes,0);
+ });
+}
+test('finalized document GET preserves historical plan despite newer preparation data',async()=>{
+ const mission={ordemServicoId:'os-qa',drone:'DRONE FINAL',registroAnac:'FINAL',tipoAtividade:'dispersao'};
+ state.rows.push({...row('operacao_finalizada','final','', 'pedro'),detalhes:{state:{mission},summary:{ordemServicoId:'os-qa'}}});
+ const response=await GET(req());assert.equal(response.status,200);
+ const payload=await response.json();assert.equal(payload.source,'finalized');
+ assert.equal(payload.state.mission.drone,mission.drone);assert.equal(state.writes,0);
 });

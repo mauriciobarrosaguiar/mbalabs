@@ -3,7 +3,6 @@ import { getSessionProfile } from "@/lib/core-data";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import { missionPlanForDocumentDisplay } from "@/lib/dronegestor-planning";
-import { mergeDroneMissionPlan } from "@/lib/dronegestor-planning";
 import {
   droneOsErrorResponse,
   requireDroneOsAccess,
@@ -109,7 +108,6 @@ export async function GET(request: NextRequest) {
 
     const admin = createSupabaseAdminClient() as any;
     const osAccess = await requireDroneOsAccess(admin, c, osId);
-    const os = osAccess.row;
     const osData = osAccess.data;
     const assigned = osAccess.assignedPilotId;
 
@@ -151,12 +149,14 @@ export async function GET(request: NextRequest) {
       entity(admin, c, ACTIONS.fazenda, text(osData.fazendaId, 100)),
       entity(admin, c, ACTIONS.talhao, text(osData.talhaoId, 100)),
     ]);
-    const storedMission = missionPlanForDocumentDisplay(obj(state.mission), osData, source);
-    // Before field sync exists, read the technical plan persisted by the gestor/RT
-    // in the OS. Never replace a live/finalized execution snapshot with a plan.
-    const readableMission = source === "os" ? mergeDroneMissionPlan(storedMission, osData) : storedMission;
+    // A confirmed start in a checkpoint is historical even if the OS status is stale.
+    const historicalCheckpoint = Boolean(state.operationStarted || state.startedAt) ||
+      ["em_execucao", "suspensa", "parcial", "pendente_sync", "finalizada"].includes(String(state.missionStatus || ""));
+    const storedMission = historicalCheckpoint
+      ? obj(state.mission)
+      : missionPlanForDocumentDisplay(obj(state.mission), osData, source);
     const mission = {
-      ...readableMission,
+      ...storedMission,
       ordemServicoId: osId,
       ordemServicoNumero: text(osData.numero, 80) || text(storedMission.ordemServicoNumero, 80),
       clienteId: text(osData.clienteId, 100) || text(storedMission.clienteId, 100),
