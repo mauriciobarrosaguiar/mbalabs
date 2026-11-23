@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import "./agrodoc.css";
 import type { ReactNode } from "react";
 import { canAdministerDroneCompany, isDroneSystemAdministrator } from "@/lib/dronegestor-company-access";
@@ -8,6 +9,7 @@ import { DroneAppShell } from "./DroneAppShell";
 
 export default async function DroneGestorLayout({ children }: { children: ReactNode }) {
   const session = await getSessionProfile();
+  if (session.profile && session.profile.status !== "ativo") redirect("/acesso-bloqueado?motivo=usuario");
   const deviceOwner = session.profile ? `${session.profile.empresa_id || "solo"}:${session.profile.id}` : "sessao-sem-perfil";
   return (
     <div className="dronegestor-ui min-h-screen overflow-x-hidden bg-[#f4f8f1] text-slate-950">
