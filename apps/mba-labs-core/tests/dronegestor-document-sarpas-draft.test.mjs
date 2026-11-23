@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import ts from 'typescript';
+import {hasNonPlaceholderAnacId} from '../src/lib/dronegestor-document-checks.ts';
 
 // Execute the real component's state/handlers with isolated HTTP responses.
 function harness({saveOk=true, persisted=null}={}) {
@@ -19,7 +20,7 @@ function harness({saveOk=true, persisted=null}={}) {
  };
  const compiled={exports:{}};
  const code=ts.transpileModule(cut,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
- new Function('require','exports','module','fetch',code)(s=>s==='react'?hooks:{},compiled.exports,compiled,fetch);
+ new Function('require','exports','module','fetch',code)(s=>s==='react'?hooks:s==='@/lib/dronegestor-document-checks'?{hasNonPlaceholderAnacId}:{},compiled.exports,compiled,fetch);
  return {requests,render(){index=0;return compiled.exports.DroneDocumentsCenter({osId:'OS-ISOLADA'});}};
 }
 const sarpasItem=actions=>actions.guide.find(item=>item.id==='sarpas');
