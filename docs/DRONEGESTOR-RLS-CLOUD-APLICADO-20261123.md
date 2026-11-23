@@ -51,6 +51,11 @@ Sem policies de cliente e **sem GRANT de anon/authenticated** sobre essas quatro
 3. Reverter `TRUNCATE` exigiria `grant truncate on public.core_logs to anon, authenticated;` e restabeleceria risco de exclusão total; **não recomendado**.
 4. **Nunca executar DROP TABLE em cloud automaticamente.** Se já houver anexos/conexões, preservar os registros. As tabelas recém-criadas não apagam nem substituem buckets de Storage existentes.
 
+## Verificação da configuração Vercel (sem leitura de segredos)
+- Ambiente do projeto `mbalabs` examinado apenas por nomes de variáveis, sem descriptografar valores.
+- Ausentes nas variáveis configuradas: `AGRODOC_GOOGLE_CLIENT_ID`, `AGRODOC_GOOGLE_CLIENT_SECRET`, `AGRODOC_GOOGLE_REDIRECT_URI`, `AGRODOC_CLOUD_ENCRYPTION_KEY`.
+- Portanto a estrutura do banco existe, mas a conexão Google Drive OAuth não está pronta. Não reutilizar tokens do conector Google Drive do ChatGPT como credenciais da aplicação.
+
 ## Pendente antes da homologação integral
 - Testes autenticados nas APIs com piloto, gestor, RT, sessão inválida e outra empresa, incluindo navegação em produção após deploy compatível.
 - Google OAuth, conexões por empresa, uploads/downloads e expiração reais: a criação das tabelas não conecta o Google Drive.
