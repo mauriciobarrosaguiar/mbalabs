@@ -171,10 +171,10 @@ export function AgroDocFlow({ compact = false, canManage = true }: { compact?: b
       path: canManage ? "conferencia" : "fichas",
     },
     {
-      title: "Documentação automática",
-      text: "Gere relatórios e arquivos exigidos pelo MAPA.",
+      title: canManage ? "Documentação automática" : "Documentos da OS",
+      text: canManage ? "Gere relatórios e arquivos exigidos pelo MAPA." : "Consulte e anexe os documentos das suas ordens de serviço.",
       icon: FileDown,
-      path: "relatorio-mensal",
+      path: canManage ? "relatorio-mensal" : "documentos",
     },
   ];
   return (

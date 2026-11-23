@@ -21,7 +21,7 @@ function loadPage(name){
  new Function('require','exports','module',code)(resolve,compiled.exports,compiled);
  return compiled.exports.default;
 }
-const pages=['cadastros','conferencia','pilotos','equipe','configuracoes'];
+const pages=['cadastros','conferencia','pilotos','equipe','configuracoes','relatorio-mensal'];
 function session(perfil,status='ativo'){return{tipo:'usuario',usuario:{status},isAdminMaster:false,permissoes:[{appSlug:'dronegestor',perfil,podeAcessar:true}]};}
 for(const page of pages){
  test(`${page}: real page rejects pilot, applicator and viewer before rendering`,async()=>{
@@ -48,6 +48,7 @@ test('pilot dashboard flow links to own records instead of management review',as
  new Function('require','exports','module',code)(resolve,compiled.exports,compiled);
  const pilot=renderToStaticMarkup(React.createElement(compiled.exports.AgroDocFlow,{canManage:false}));
  assert.match(pilot,/href="\/apps\/dronegestor\/fichas"/);assert.doesNotMatch(pilot,/href="\/apps\/dronegestor\/conferencia"/);
+ assert.match(pilot,/href="\/apps\/dronegestor\/documentos"/);assert.doesNotMatch(pilot,/href="\/apps\/dronegestor\/relatorio-mensal"/);
  const manager=renderToStaticMarkup(React.createElement(compiled.exports.AgroDocFlow,{canManage:true}));
  assert.match(manager,/href="\/apps\/dronegestor\/conferencia"/);
 });

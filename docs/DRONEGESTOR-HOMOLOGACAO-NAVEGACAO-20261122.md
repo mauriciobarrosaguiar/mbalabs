@@ -290,3 +290,26 @@ Ao abrir o pacote da nova OS pelo atalho da fase 8, o resumo mostrava “Operaç
 Corrigidos UI e PDF para distinguir OS aberta, preparação, execução, suspensão, campo concluído, encerramento, cancelamento e estado desconhecido. Zero progresso permanece zero; a área planejada nunca é usada como área aplicada. O PDF preserva zero explícito mesmo havendo resumo arquivado. Dois testes cobrem esses cenários. O teste real de geração do PDF continua passando com o novo módulo compartilhado.
 
 **168 testes aprovados, 0 reprovados, 0 ignorados**; TypeScript, build e lint do escopo sem erros (avisos existentes no log). Reteste pela interface aguardando nova prévia. Evidências `*-pacote.txt`. Não foi iniciado voo, registrado abastecimento, concluída ou encerrada a nova OS.
+
+
+### Retestes, anexos e calculadoras — 23/11/2026
+
+|Módulo|Botão/ação|Perfil|Destino esperado|Resultado|Evidência|
+|---|---|---|---|---|---|
+|Fase 2/3|Abrir documentos desta OS → Retornar à etapa no Modo Campo|Pedro|Fase 2 e mesma OS fictícia|Aprovado pela interface após correção 0b6b34b|`documentos-retorno-reteste.json`|
+|Documentos|Enviar documento → Enviar arquivo|Pedro|Anexo categoria outro na OS fictícia|Aprovado pela interface; um anexo de 1138 bytes|`anexo-interface.json`|
+|Documentos|Baixar arquivo|Pedro|Mesmo PDF enviado|Aprovado pela interface; download concluído e bytes idênticos|`anexo-interface.json`|
+|Documentos|Visualizar PDF embutido|Pedro|PDF renderizado|Bloqueado: “This page has been blocked by Chromium” no iframe|`anexo-interface.json`; não declarado aprovado|
+|Pacote|Consultar resumo antes de aplicação|Pedro|Preparação, 0,00 ha aplicados de 0,10 ha|Aprovado pela interface após correção e1b0f4a|`pacote-reteste.json`|
+|Pacote|Gerar PDF sem campo finalizado|Pedro|Explicar bloqueio antes de abrir nova aba|API bloqueou corretamente; interface oferecia ação indevida. Corrigida, reteste pendente|`pacote-reteste.json`|
+|Relatórios MAPA|Abrir como piloto|Pedro|Destino coerente com permissão|Reprovado: menu ofertava página que falhava na API. Corrigido, reteste pendente|`pedro-mapa-antes-correcao.json`|
+|MBA Calda|Preencher cálculo; adicionar/remover produto|Pedro|10 ha/mistura, 5 tanques/mistura, 120 L/12 ha; produto incompleto bloqueia|Aprovado pela interface|`calculadoras-interface.json`|
+|Vazão|Calcular 10 L/ha, 18 km/h, 5 m|Pedro|1,5 L/min|Aprovado pela interface|`calculadoras-interface.json`|
+|Rendimento|Calcular 9 ha, 18 km/h, 5 m, 100% sem paradas|Pedro|9 ha/h; 1 h; 5 cargas de até 20 L|Aprovado pela interface|`calculadoras-interface.json`|
+|Custos|Calcular cenário fictício 9 ha, venda 100/ha, variável 40/ha, fixo 90|Pedro|Receita 900; custo 450; resultado 450; margem 50%|Aprovado pela interface|`calculadoras-interface.json`|
+
+O arquivo enviado identifica HOMOLOGAÇÃO PR206 e SEM VALIDADE OFICIAL; não comprova autorização, inspeção, GPS, voo ou aplicação. URLs privadas temporárias foram omitidas das evidências.
+
+Últimos ajustes: exportação MAPA protegida também na página do servidor; removida dos menus e pacote do piloto; fluxo do dashboard envia o piloto a seus documentos. O pacote não oferece PDF enquanto não há snapshot final e não apresenta zeros como parâmetros planejados quando falta snapshot do campo. Identificação do piloto e cultura não implica execução. Testes de renderização do componente real cobrem área zero, status e disponibilidade de PDF.
+
+Validação mais recente: **172 testes aprovados, 0 reprovados, 0 ignorados**, TypeScript/build aprovados e lint do escopo sem erros. Logs `*-final.txt`. Estes números não equivalem à homologação das transições físicas ou dos seis tamanhos mobile.

@@ -58,7 +58,7 @@ const navigation = [
   { title: "Configurações", paths: ["perfil-operacional", "configuracoes", "administracao"] },
   { title: "Ajuda", paths: ["ajuda"] },
 ];
-const managerPaths = new Set(["conferencia", "cadastros", "pilotos", "equipe", "configuracoes"]);
+const managerPaths = new Set(["conferencia", "cadastros", "pilotos", "equipe", "configuracoes", "relatorio-mensal"]);
 export function DroneAppShell({
   children,
   userName = "Minha conta",
