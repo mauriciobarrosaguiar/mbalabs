@@ -35,7 +35,7 @@ function obj(v: unknown): Record<string, any> {
 }
 async function context(): Promise<{ current: Context | null; response: NextResponse | null }> {
   const s = await getSessionProfile();
-  if (!s.user || !s.profile)
+  if (!s.user || !s.profile || s.profile.status !== "ativo")
     return {
       current: null,
       response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }),
