@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
+import { mapPhotoLogAction, mapPhotoPurpose } from "@/lib/dronegestor-map-photo-purpose";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   droneOsErrorResponse,
@@ -11,9 +12,7 @@ import {
 export const dynamic = "force-dynamic";
 
 const BUCKET = "dronegestor-map-evidence";
-const ACTION = "mapa_voo_evidencia";
-// A controller-screen photo captured before flying is NOT post-flight map evidence.
-const CONTROLLER_PHOTO_ACTION = "mapa_controle_foto_v1";
+// Planning and post-flight photos have distinct log actions, with legacy records intact.
 const PILOT_ACTION = "piloto_operacional_v1";
 const MAX_BYTES = 8 * 1024 * 1024;
 
@@ -131,7 +130,7 @@ async function signedEvidence(admin: any, row: any) {
     url: signed.data.signedUrl,
     uploadedAt: text(details.uploadedAt, 60) || row.created_at,
     source: text(details.source, 20),
-    finalidade: text(details.finalidade, 30) === "planejamento" ? "planejamento" : "pos_voo",
+    finalidade: mapPhotoPurpose(details.finalidade),
     ordemServicoId: text(details.ordemServicoId, 100),
     ordemServicoNumero: text(details.ordemServicoNumero, 100),
     talhaoNome: text(details.talhaoNome, 180),
@@ -145,8 +144,8 @@ export async function GET(request: NextRequest) {
     if (access.response) return access.response;
     const current = access.current!;
     const osId = text(request.nextUrl.searchParams.get("osId"), 100);
-    const finalidade = request.nextUrl.searchParams.get("finalidade") === "planejamento" ? "planejamento" : "pos_voo";
-    const action = finalidade === "planejamento" ? CONTROLLER_PHOTO_ACTION : ACTION;
+    const finalidade = mapPhotoPurpose(request.nextUrl.searchParams.get("finalidade"));
+    const action = mapPhotoLogAction(finalidade);
     if (!osId) return NextResponse.json({ ok: true, evidence: null });
 
     const admin = createSupabaseAdminClient() as any;
@@ -184,8 +183,8 @@ export async function POST(request: NextRequest) {
     const admin = createSupabaseAdminClient() as any;
 
     const form = await request.formData();
-    const finalidade = text(form.get("finalidade"), 30) === "planejamento" ? "planejamento" : "pos_voo";
-    const action = finalidade === "planejamento" ? CONTROLLER_PHOTO_ACTION : ACTION;
+    const finalidade = mapPhotoPurpose(form.get("finalidade"));
+    const action = mapPhotoLogAction(finalidade);
     const file = form.get("foto");
     const ordemServicoId = text(form.get("ordemServicoId"), 100);
     if (!ordemServicoId) {
