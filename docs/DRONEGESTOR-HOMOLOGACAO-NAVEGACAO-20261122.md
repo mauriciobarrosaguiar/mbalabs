@@ -4,8 +4,8 @@
 
 **Homologação parcial. PR #206 permanece em rascunho, sem merge e sem produção.** As demais seções registram a evolução cronológica; resultados antigos não substituem este estado atual.
 
-- Código atual: `9c3fee6cda33b000b4ce3099671e49afb3ff2449`. Prévia `dpl_FUMRvhyJdF6NHNp7uU9oEL6Dtibx` READY, target preview (`null`), confirmado novamente nesta continuação.
-- **188 testes locais aprovados, zero reprovados, zero ignorados**, conforme `evidencias/dronegestor-20261123-os-somente-consulta/testes.txt`, com XLSX original MAPA. TypeScript e build aprovados, lint do escopo sem erros; lint global mantém três falhas anteriores fora do DroneGestor.
+- Código de aplicação atual: `b99919a4c263880634bcb931a9e3aecb52f5f656`. Prévia `dpl_59TrgHspwxKaeAXqzszZTo7QiqFG` READY, target preview (`null`), confirmado novamente nesta continuação.
+- **190 testes locais aprovados, zero reprovados, zero ignorados**, conforme `evidencias/dronegestor-20261123-os-somente-consulta/testes.txt`, com XLSX original MAPA. TypeScript e build aprovados, lint do escopo sem erros; lint global mantém três falhas anteriores fora do DroneGestor.
 - CI do código atual: [DroneGestor validation 28](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45111408992) e [MBA Labs Core CI 776](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45111409048), ambos success, reconfirmados nesta continuação.
 - Interface: RT criou cliente/fazenda/talhão/OS fictícios, vinculou Pedro e salvou planejamento. Pedro recebeu os parâmetros, preparou a OS, preservou fase/contexto e retornou da documentação à fase 2. Consulta direta da OS de outro piloto negada pela API na sessão do Pedro.
 - Nova **OS-20261123-45737**, 0,1 ha, em preparação e sem aplicação, identifica HOMOLOGAÇÃO PR206. A OS anterior do Pedro foi preservada. Um anexo categoria outro, SEM VALIDADE OFICIAL, foi enviado e baixado com bytes idênticos.
@@ -399,3 +399,23 @@ Na UI, seleção ainda não carregada bloqueia envio; OS encerrada/cancelada rec
 13 regressões executam os handlers reais com banco/cloud controlados: oito bloqueios de documentos/mapa/geometria/SARPAS, dois de início no Drive, dois de recuperação de sessão resumível e preservação de leitura/planejamento em estado gravável. Verificados status 409, ausência de escrita/auditoria e de chamadas externas.
 
 Validação atual: **188 aprovados, 0 reprovados, 0 ignorados**, com XLSX original; TypeScript e build aprovados; lint do escopo sem erros, avisos existentes no log. Reteste da interface será registrado após gerar a prévia desta correção. Nenhuma migration ou alteração de dados reais.
+
+
+### Reteste: OS cancelada somente consulta e anexo sem duplicação
+
+Prévia READY `dpl_59TrgHspwxKaeAXqzszZTo7QiqFG`, target preview (`null`), código `b99919a4c263880634bcb931a9e3aecb52f5f656`. URL imutável https://mbalabs-f8joyn9y1-emsgenericosto-3419s-projects.vercel.app. O commit `68119d7` acrescenta somente dois testes de isolamento e logs, sem mudar código executável.
+
+[DroneGestor validation 33](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45147903050) e [MBA Labs Core CI 786](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45147903046), do commit de testes, concluídos com success. Suíte local atual: **190 aprovados, 0 reprovados, 0 ignorados**, incluindo modelo MAPA original; são 15 novas regressões nesta rodada. Dois testes adicionais cobrem piloto atribuído consultando uma OS cancelada, bloqueio da escrita e preservação das negativas de outro piloto/empresa.
+
+|Módulo|Ação|Perfil|Destino esperado|Resultado|Evidência|
+|---|---|---|---|---|---|
+|Documentos OS-DD129 cancelada|Enviar documento/área de anexos|Gestor real|Controles desabilitados e aviso somente consulta|Aprovado pela interface|`cancelada-documentos-depois.json`, `cancelada-documentos-desktop.jpg`|
+|Upload Drive OS cancelada|GET sessão resumível|Gestor real|Não devolver sessão de envio|Aprovado pela interface/API GET; resposta OS encerrada ou cancelada: somente consulta|`cloud-cancelada-interface.json`|
+|Documentos OS-45737 em preparação|Enviar documento|Gestor real|Envio continua disponível|Aprovado pela interface|`anexo-idempotencia-interface.json`|
+|Documentos OS-45737 em preparação|Baixar mesmo PDF e reenviar categoria outro|Gestor real|Sem segundo anexo|Aprovado pela interface; contador e tabela continuam com 1, nome original preservado|`anexo-idempotencia-interface.json`|
+|Documentos/mapas/geometria/SARPAS/Drive|POST em OS encerrada/cancelada|Sessões controladas|409 antes de gravação|Aprovado somente por teste automatizado|`dronegestor-closed-os.test.mjs`, `testes.txt`|
+|OS concluída|Controles documentais reais|Perfil real|Somente consulta|Não executado pela interface; não há OS concluída criada nesta rodada|Cobertura de servidor automatizada|
+
+A reprodução anterior não enviou anexos à OS cancelada. O reenvio utilizou os mesmos bytes do PDF fictício já existente na OS de preparação, sem dados reais ou alteração de autorização SARPAS. URLs temporárias privadas foram omitidas dos registros. A visualização PDF embutida continua bloqueada pelo Chromium deste ambiente; o download foi concluído. Captura real de desktop, não simulação mobile.
+
+A homologação geral permanece parcial: execução/retomada e múltiplos aparelhos pela UI, seis resoluções exatas, todos os botões/estados e MAPA com aplicações finalizadas/revisadas ainda não estão integralmente homologados. Sem merge, produção, migrations ou envios oficiais.
