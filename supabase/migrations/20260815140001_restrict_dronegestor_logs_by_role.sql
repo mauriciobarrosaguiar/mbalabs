@@ -5,48 +5,21 @@ create index if not exists idx_core_logs_dronegestor_company_user
   on public.core_logs (empresa_id, usuario_id)
   where app_slug = 'dronegestor';
 
-drop policy if exists core_logs_select on public.core_logs;
-create policy core_logs_select on public.core_logs
-  for select to authenticated
-  using (
-    (select public.is_admin_master())
-    or (
-      empresa_id = (select public.current_empresa_id())
-      and (
-        app_slug is distinct from 'dronegestor'
-        or usuario_id = (select public.current_usuario_id())
-        or (select public.current_usuario_tipo()) = 'admin_empresa'
-        or exists (
-          select 1
-          from public.core_usuario_app_permissoes permission
-          join public.core_apps app on app.id = permission.app_id
-          where permission.usuario_id = (select public.current_usuario_id())
-            and permission.empresa_id = public.core_logs.empresa_id
-            and permission.status = 'ativo'
-            and app.slug = 'dronegestor'
-            and permission.perfil_app in ('admin_empresa', 'gestor_operacional', 'responsavel_tecnico', 'rt')
-        )
-      )
-    )
-  );
+-- IMPORTANT: core_logs is shared by multiple MBA Labs applications.
+-- Preserve the already-deployed core_logs_select/core_logs_insert policies and their
+-- existing grant semantics. Replacing those shared policies could deny reads/writes
+-- to unrelated apps or introduce recursion through permission tables.
+--
+-- Every DroneGestor operational row is accessed via server routes that first
+-- check session, tenant, role, OS assignment and state, then use service_role.
+-- The authenticated/anon Supabase Data API MUST NOT read or mutate raw
+-- DroneGestor event-store rows. Restrictive policies are intersected with ALL
+-- permissive policies, including broad policies added in the future.
+--
+-- No GRANT/REVOKE on shared tables or functions is part of this migration.
+-- Do not apply it to production without an approved maintenance window,
+-- backout procedure, authenticated Data API tests and tenant regression checks.
 
-drop policy if exists core_logs_insert on public.core_logs;
-create policy core_logs_insert on public.core_logs
-  for insert to authenticated
-  with check (
-    (select public.is_admin_master())
-    or (
-      app_slug is distinct from 'dronegestor'
-      and empresa_id = (select public.current_empresa_id())
-    )
-  );
-
--- Defense in depth: core_logs is an internal event store, not a client API.
--- usuario_id is the AUTHOR (e.g. RT creating an OS for Pedro), not necessarily
--- the assigned pilot. Ownership/assignment/document authorization is resolved
--- by the server routes. Never expose these raw payloads through PostgREST.
--- RESTRICTIVE policies also intersect any existing/future permissive policy.
--- Other modules retain their existing policies and grants without alteration.
 drop policy if exists dronegestor_logs_api_select on public.core_logs;
 create policy dronegestor_logs_api_select on public.core_logs
   as restrictive for select to anon, authenticated
