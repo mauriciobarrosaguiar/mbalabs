@@ -54,6 +54,7 @@ async function context(): Promise<{ current: Context | null; response: NextRespo
       current: null,
       response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }),
     };
+  if (session.profile.status !== "ativo") return { current: null, response: NextResponse.json({ ok: false, error: "Conta inativa: acesso bloqueado." }, { status: 403 }) };
   const type = normalize(session.profile.tipo || "");
   const master = ["super_admin", "admin_master"].includes(type);
   const allowed = (session.appsLiberados ?? []).some(
