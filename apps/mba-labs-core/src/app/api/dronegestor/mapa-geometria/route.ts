@@ -26,6 +26,7 @@ function scopeQuery(query: any, current: Context) {
 async function getContext(): Promise<{ current: Context | null; response: NextResponse | null }> {
   const session = await getSessionProfile();
   if (!session.user || !session.profile) return { current: null, response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }) };
+  if (session.profile.status !== "ativo") return { current: null, response: NextResponse.json({ ok: false, error: "Conta inativa: acesso bloqueado." }, { status: 403 }) };
   const type = normalizeType(session.profile.tipo || "");
   const admin = ["super_admin", "admin_master"].includes(type);
   const allowed = (session.appsLiberados ?? []).some((app) => app.slug === "dronegestor" && app.canAccess);
