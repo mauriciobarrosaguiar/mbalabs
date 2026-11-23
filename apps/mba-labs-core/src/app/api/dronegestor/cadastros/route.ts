@@ -44,6 +44,7 @@ function validateRequired(type: ResourceType, data: Record<string, unknown>) {
 async function getContext(): Promise<{ current: ApiContext | null; response: NextResponse | null }> {
   const context = await getSessionProfile();
   if (!context.user || !context.profile) return { current: null, response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }) };
+  if (context.profile.status !== "ativo") return { current: null, response: NextResponse.json({ ok: false, error: "Conta inativa: acesso bloqueado." }, { status: 403 }) };
   const admin = ["super_admin", "admin_master"].includes(normalizeType(context.profile.tipo));
   const allowed = (context.appsLiberados ?? []).some((app) => app.slug === "dronegestor" && app.canAccess);
   if (!admin && !allowed) return { current: null, response: NextResponse.json({ ok: false, error: "Acesso ao DroneGestor não liberado." }, { status: 403 }) };
