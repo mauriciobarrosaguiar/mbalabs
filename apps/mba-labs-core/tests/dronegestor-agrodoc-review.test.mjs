@@ -5,7 +5,7 @@ import {state} from './helpers/agrodoc-review-fixture.mjs';
 const fixture=new URL('./helpers/agrodoc-review-fixture.mjs',import.meta.url).href;
 const hooks=registerHooks({resolve(s,c,n){if(['@/lib/core-data','@mba-labs/shared/supabase/server'].includes(s))return{url:fixture,shortCircuit:true};if(s==='@/lib/dronegestor-role')return{url:new URL('../src/lib/dronegestor-role.ts',import.meta.url).href,shortCircuit:true};if(s==='next/server')return n('next/server.js',c);return n(s,c)}});
 const {GET,POST}=await import('../src/app/api/dronegestor/conferencia/route.ts');hooks.deregister();
-const session=role=>({user:{id:'qa-user'},profile:{id:'qa-user',tipo:role,empresa_id:'qa-company-A',nome:'Revisor QA'},appsLiberados:[{slug:'dronegestor',canAccess:true}],permissoes:[]});
+const session=role=>({user:{id:'qa-user'},profile:{id:'qa-user',tipo:role,status:'ativo',empresa_id:'qa-company-A',nome:'Revisor QA'},appsLiberados:[{slug:'dronegestor',canAccess:true}],permissoes:[]});
 const req=body=>new Request('http://localhost/api/dronegestor/conferencia?month=2026-11',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 const draft={operationEventId:'qa-operation',status:'aprovado',category:'agrotoxico',classe:'Herbicida',tipoAeronave:'Drone',tipoServico:'APLICAÇÃO DE AGROTÓXICO',horasAplicacao:'01:00'};
 const summary={uf:'TO',municipio:'Palmas',registroAnac:'QA-TEST',drone:'Equipamento QA',cultura:'Soja',areaHa:1,iniciadaEm:'2026-11-01T10:00:00Z',finalizadaEm:'2026-11-01T11:00:00Z',produtos:[{nome:'Produto QA',dose:1,unidade:'L/ha'}]};
