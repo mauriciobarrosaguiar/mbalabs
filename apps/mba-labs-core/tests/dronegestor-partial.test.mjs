@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validatePartialExecution,validateCumulativeContinuation} from '../src/lib/dronegestor-partial.ts';
+import {validatePartialExecution,validateCumulativeContinuation,partialExecutionSummary} from '../src/lib/dronegestor-partial.ts';
 const state=()=>({mission:{area:20},progressHa:12,startedAt:'2026-11-22T11:00:00Z',tankRecords:[{id:'load-1',at:'2026-11-22T11:10:00Z',areaHa:12,volumeL:120}]});
 test('20 ha / 12 ha / chuva preserves 8 ha pending and does not mutate loads',()=>{
  const input=state(),copy=structuredClone(input);
@@ -74,4 +74,20 @@ test('blocks altered first start, fake progress, invalid volumes and timestamps'
     const copy=structuredClone(second);Object.assign(copy.tankRecords[1],bad);
     assert.throws(()=>validateCumulativeContinuation(previous,copy));
   }
+});
+
+test('partial OS list includes only safe summary, with cumulative hectares, loads and remaining area',()=>{
+ const {previous,second}=continuation();
+ const osData={areaHa:20,execucoesParciais:[
+   {...previous,motivo:'Chuva',at:'2026-11-22T11:30:00Z'},
+   {areaAplicadaHa:17,snapshot:second,motivo:'Bateria',at:'2026-11-22T13:30:00Z'}
+ ]};
+ const summary=partialExecutionSummary(osData);
+ assert.deepEqual(summary,{
+   areaAplicadaHa:17,areaRestanteHa:3,volumeAplicadoL:170,cargasRegistradas:2,
+   complementacoes:1,motivo:'Bateria',atualizadoEm:'2026-11-22T13:30:00Z'
+ });
+ assert.equal('snapshot' in summary,false,'OS lists must not expose raw flight snapshots');
+ assert.equal(partialExecutionSummary({areaHa:20}),null);
+ assert.equal(partialExecutionSummary({...osData,areaHa:16}),null);
 });
