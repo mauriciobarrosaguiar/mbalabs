@@ -30,3 +30,13 @@ test('in-flight upload blocks duplicate triggering and OS changes before React r
  const h=harness(),actions=h.render();const first=actions.send();await actions.send();actions.changeOrder('os-B');
  assert.equal(h.calls,1);assert.equal(h.states[0],'os-A');h.release();await first;assert.equal(h.refs[2].current,false);
 });
+
+test('document API derives OS number from authorized persisted data, never form metadata',()=>{
+ const source=readFileSync(new URL('../src/app/api/dronegestor/documentos/route.ts',import.meta.url),'utf8');
+ const post=source.slice(source.indexOf('export async function POST'));
+ assert.ok(post.length>500);
+ assert.doesNotMatch(post,/form\.get\("ordemServicoNumero"\)/);
+ assert.match(post,/const authorizedOs = await requireDroneOsWriteAccess\(admin, current, osId\)/);
+ assert.match(post,/const osNumero = text\(authorizedOs\.data\.numero, 120\)/);
+ assert.match(post,/ordemServicoNumero: osNumero/);
+});
