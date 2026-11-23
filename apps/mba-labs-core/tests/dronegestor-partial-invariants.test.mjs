@@ -50,3 +50,21 @@ test("lost acknowledgement freezes exact partial payload and prevents stale edit
   const app=source("app/apps/dronegestor/campo/DroneGestorAppV3.tsx");
   assert.match(app,/Encerramento parcial pendente/);
 });
+
+
+test("new field completion is tied to a started OS and idempotent operation ID",()=>{
+ const post=source("app/api/dronegestor/state/route.ts").split("export async function POST")[1];
+ assert.match(post,/validateFieldCompletionState\(osData\)/);
+ assert.match(post,/sameDroneSnapshot\(existing\.detalhes\?\.state, state\)/);
+ assert.match(post,/osData\.status === "campo_concluido" && textValue\(osData\.operacaoId\) !== operationId/);
+ // Once the legitimate request has been acknowledged, a different operationId
+ // must not insert another finalization for the same already completed OS.
+ assert.ok(post.indexOf("validateFieldCompletionState(osData)") < post.indexOf("const finalizedAt"));
+});
+
+test("conflict resolution must not overwrite pending partial checkpoint",()=>{
+ const client=source("app/apps/dronegestor/campo/DroneGestorAppV3.tsx");
+ const fn=client.slice(client.indexOf('function resolveConflict('),client.indexOf('function resolveConflict(')+1100);
+ assert.match(fn,/dronegestor:partialPayload:v1:/);
+ assert.ok(fn.indexOf("partialPayload:v1:") < fn.indexOf("getDroneSyncConflict()"));
+});
