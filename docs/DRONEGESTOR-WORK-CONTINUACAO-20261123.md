@@ -68,3 +68,14 @@ Não existe base verificável para estimar um percentual global de requisitos a 
 1. Login da conta **Piloto E2E Pedro** no navegador Work, sem informar senha no chat. Depois seguir somente leitura na prévia conectada à produção.
 2. Definir isolamento verificável antes das escritas de homologação. Não contratar infraestrutura paga nem reutilizar dados reais automaticamente.
 3. Autorizações específicas continuam necessárias para migration produtiva, merge e publicação; nenhuma delas foi executada nesta rodada.
+
+
+## Complemento — commit e prévia verificados
+- Código testado: [9730832641ce26bfa325c2df4a02405cbadbf1ad](https://github.com/mauriciobarrosaguiar/mbalabs/commit/9730832641ce26bfa325c2df4a02405cbadbf1ad). Conteúdo da árvore Git remota conferido idêntico à árvore local testada.
+- [DroneGestor #83](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45214694376) e [Core CI #902](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45214694228): **success**. CI padrão sem fixture original opcional; execução local do original está registrada acima.
+- Deploy de prévia `dpl_4Qx4ofz4nGBCDne7c8Duf9fJ4Qep`: **READY**, target `null` (prévia), SHA exato acima. URL: https://mbalabs-12ngcxlmf-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor
+- Abertura real no navegador da prévia concluída: exibiu login MBA Labs. Reteste autenticado da Fase 3 ainda não executado; conta necessária: **Piloto E2E Pedro**.
+- Após criar a prévia, reconfirmado domínio oficial no deploy `dpl_Cv2zCwnakapLQEykXs5BCxkYJTna`, SHA `928e9a79`. **Sem nova publicação produtiva**.
+- Storage confirmado por metadados: `dronegestor-documentos` privado, limite 10 MiB; `dronegestor-map-evidence` privado, limite 8 MiB. Políticas existentes de `storage.objects` não concedem acesso direto a esses buckets; downloads assinados passam pelas APIs. Expiração real de link ainda não homologada.
+- `to_regclass` confirmou ausência das quatro tabelas `agrodoc_cloud_connections/folders/files/events` em `public`. A migration `20261117190000_agrodoc_cloud_storage.sql` existe no repositório, mas **não foi aplicada**. API cloud tem tratamento `setupRequired` para esse cenário. Drive não pode ser declarado operacional antes de provisionamento autorizado e OAuth/configuração verificados. Nenhuma credencial consultada ou exposta.
+- Nenhuma escrita de teste, migration, merge, alteração de dados reais ou liberação regulatória nesta rodada.
