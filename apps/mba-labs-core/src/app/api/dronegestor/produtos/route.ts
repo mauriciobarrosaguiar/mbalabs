@@ -214,7 +214,7 @@ async function fetchAgrofit(query: string, limit: number) {
 function normalizedType(value: string) { return normalizeSearch(value).replaceAll(" ", "_"); }
 async function sessionContext() {
   const context = await getSessionProfile();
-  if (!context.user || !context.profile) return null;
+  if (!context.user || !context.profile || context.profile.status !== "ativo") return null;
   const tipo = normalizedType(context.profile.tipo);
   const isMaster = ["super_admin", "admin_master"].includes(tipo);
   const appAllowed = (context.appsLiberados ?? []).some((app) => app.slug === "dronegestor" && app.canAccess);
