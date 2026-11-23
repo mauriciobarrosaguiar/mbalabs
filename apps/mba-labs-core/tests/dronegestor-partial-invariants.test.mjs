@@ -60,6 +60,8 @@ test("new field completion is tied to a started OS and idempotent operation ID",
  // Once the legitimate request has been acknowledged, a different operationId
  // must not insert another finalization for the same already completed OS.
  assert.ok(post.indexOf("validateFieldCompletionState(osData)") < post.indexOf("const finalizedAt"));
+ assert.ok(post.indexOf("if (existing)") < post.indexOf("validateFinalization(summary, state, settings)"),"retry must not require fresh validation");
+ assert.ok(post.indexOf("if (existing)") < post.indexOf("await validateServerPreflight("),"committed retry must not require fresh preflight");
 });
 
 test("conflict resolution must not overwrite pending partial checkpoint",()=>{
