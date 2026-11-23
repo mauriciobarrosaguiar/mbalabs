@@ -1,5 +1,37 @@
 # DroneGestor — revisão e homologação de navegação — 22/11/2026
 
+## Estado consolidado — continuação em 23/11/2026
+
+**Homologação parcial. PR #206 permanece em rascunho, sem merge e sem produção.** As demais seções registram a evolução cronológica; resultados antigos não substituem este estado atual.
+
+- Código atual: `7b428b011ec3ddb80eeea96f2de7233eb2f08513`. Prévia `dpl_78hfERMVnCDBUdVRQRFs9tw841W4` READY, target preview (`null`), confirmado novamente nesta continuação.
+- **172 testes locais aprovados, zero reprovados, zero ignorados**, conforme `testes-final.txt`, com XLSX original MAPA. TypeScript e build aprovados, lint do escopo sem erros; lint global mantém três falhas anteriores fora do DroneGestor.
+- CI do código atual: [DroneGestor validation 28](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45111408992) e [MBA Labs Core CI 776](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45111409048), ambos success, reconfirmados nesta continuação.
+- Interface: RT criou cliente/fazenda/talhão/OS fictícios, vinculou Pedro e salvou planejamento. Pedro recebeu os parâmetros, preparou a OS, preservou fase/contexto e retornou da documentação à fase 2. Consulta direta da OS de outro piloto negada pela API na sessão do Pedro.
+- Nova **OS-20261123-45737**, 0,1 ha, em preparação e sem aplicação, identifica HOMOLOGAÇÃO PR206. A OS anterior do Pedro foi preservada. Um anexo categoria outro, SEM VALIDADE OFICIAL, foi enviado e baixado com bytes idênticos.
+- Calculadoras testadas pela interface: calda, adicionar/remover produto e bloquear produto incompleto, vazão, rendimento e custos, nos cenários fictícios documentados.
+- Somente automatizado: transições de execução, encerramento parcial/complementação, concorrência/sincronização entre aparelhos, geração de XLSX original e PDF final.
+- Bloqueado: confirmações físicas/regulatórias; seis resoluções exatas/teclado virtual no navegador anterior; PDF embutido bloqueado pelo Chromium (download aprovado). RLS produtiva não foi alterada ou homologada por estas guardas.
+- Ainda não executado integralmente: cada botão/modal/estado, escritas remotas negativas em todos os perfis e exportação MAPA pela interface com operação final revisada.
+
+Prévia: https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor
+
+### Reteste observado antes da interrupção do ambiente
+
+|Módulo|Ação|Perfil|Destino esperado|Resultado|Evidência|
+|---|---|---|---|---|---|
+|MAPA|URL direta relatorio-mensal|Pedro|Minhas ordens de serviço|Aprovado pela interface|Observação registrada na conversa desta execução: URL final /gestao e título Minhas ordens de serviço|
+|Menu Documentação|Abrir grupo|Pedro|Sem link gerencial MAPA|Aprovado pela interface|Observação registrada na conversa: Documentos, Diagnóstico, Legislação|
+|Pacote|Consultar OS fictícia|Pedro|Preparação e 0,00 ha realizados|Aprovado pela interface|Observação registrada na conversa: Em preparação — aplicação não iniciada; 0,00 de 0,10 ha|
+|Pacote|PDF antes da conclusão/sincronização|Pedro|Desabilitado com explicação|Aprovado pela interface|Botão PDF aguarda conclusão e sincronização do campo, disabled=true, observado na conversa|
+|Pacote|Atalho Relatório MAPA|Pedro|Ausente|Aprovado pela interface|Contagem zero de links observada na conversa|
+
+A manutenção do ambiente removeu a captura JPEG e o JSON desse último reteste antes do envio ao GitHub. Não são apresentados como arquivos anexados. As observações acima correspondem ao resultado efetivamente exibido pelas ferramentas na conversa, não a uma nova execução ou captura. Evidências das rodadas anteriores, testes e escritas já enviadas estão preservadas no repositório. A sessão do navegador foi encerrada; novos testes autenticados exigem login seguro novamente.
+
+Sem migrations, novo projeto/banco/plano pago, dados reais alterados, liberação de voo ou envio oficial.
+
+---
+
 ## Situação do aceite
 
 **Homologação funcional completa pendente. Não aprovar merge nem produção com base nesta execução.**
