@@ -1,0 +1,39 @@
+{
+  "environment": "preview connected to production configuration; read-only",
+  "commit": "9730832641ce26bfa325c2df4a02405cbadbf1ad",
+  "deployment": "dpl_4Qx4ofz4nGBCDne7c8Duf9fJ4Qep",
+  "accountObserved": "E2E Piloto Pedro",
+  "os": "OS-20261123-45737",
+  "osId": "45737de4-38ef-4af0-bdd1-ddd5a8ac6c6d",
+  "observedInBrowser": {
+    "activity": "Pulverização",
+    "drone": "DJI MODELO FICTÍCIO - SEM VOO",
+    "anacReference": "HOMOLOGACAO-SEM-REGISTRO-REAL",
+    "beforeFlight": "1/5",
+    "package": "1/6",
+    "progress": "17%",
+    "nextStep": "Certidão SISANT / ANAC",
+    "blockingItems": ["Certidão SISANT / ANAC", "Receituário", "Referência SARPAS registrada", "Comprovante SARPAS"],
+    "afterFlight": "Mapa usado no voo",
+    "sarpasForm": "Ainda não solicitei",
+    "document": "HOMOLOGACAO-PR206-ANEXO-SEM-VALIDADE.pdf",
+    "documentType": "outro",
+    "documentCount": 1,
+    "storageMetric": "Métrica de volume não disponível",
+    "pdfEmbedded": "Blocked by Chromium; prior download evidence reused, no new download"
+  },
+  "apiObservedViaBrowserNavigation": {
+    "endpoint": "/api/dronegestor/operacao-os?osId=45737de4-38ef-4af0-bdd1-ddd5a8ac6c6d",
+    "ok": true,
+    "status": "em_preparacao",
+    "source": "os",
+    "canManage": false,
+    "mission": {"tipoAtividade":"pulverizacao","drone":"DJI MODELO FICTÍCIO - SEM VOO","registroAnac":"HOMOLOGACAO-SEM-REGISTRO-REAL","area":0.1,"volume":10,"tanque":20,"faixa":5,"velocidadeKmh":18,"alturaM":3}
+  },
+  "newDefectObserved": "Pendências de anexo anchor removed manually selected OS, and did not expand checklist. Fixed in follow-up code with osId/returnTo/checklist query, pending authenticated interface retest.",
+  "writesPerformed": false,
+  "officialFlightAuthorizationVerified": false,
+  "sixViewportsTested": false,
+  "independentDeviceRecoveryTested": false,
+  "signedUrlsOmitted": true
+}

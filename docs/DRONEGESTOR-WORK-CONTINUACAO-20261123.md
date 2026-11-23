@@ -79,3 +79,15 @@ Não existe base verificável para estimar um percentual global de requisitos a 
 - Storage confirmado por metadados: `dronegestor-documentos` privado, limite 10 MiB; `dronegestor-map-evidence` privado, limite 8 MiB. Políticas existentes de `storage.objects` não concedem acesso direto a esses buckets; downloads assinados passam pelas APIs. Expiração real de link ainda não homologada.
 - `to_regclass` confirmou ausência das quatro tabelas `agrodoc_cloud_connections/folders/files/events` em `public`. A migration `20261117190000_agrodoc_cloud_storage.sql` existe no repositório, mas **não foi aplicada**. API cloud tem tratamento `setupRequired` para esse cenário. Drive não pode ser declarado operacional antes de provisionamento autorizado e OAuth/configuração verificados. Nenhuma credencial consultada ou exposta.
 - Nenhuma escrita de teste, migration, merge, alteração de dados reais ou liberação regulatória nesta rodada.
+
+## Reteste autenticado efetivamente executado — Pedro
+O titular concluiu o login seguro na prévia. Interface identificou **E2E Piloto Pedro**. A seleção da OS `OS-20261123-45737` mostrou:
+- **Pulverização**, drone **DJI MODELO FICTÍCIO - SEM VOO** e identificação **HOMOLOGACAO-SEM-REGISTRO-REAL**. Correção planejamento → documentos **aprovada pela interface e pela resposta da API real com sessão de piloto**.
+- Pré-voo 1/5, pacote 1/6, 17%. Próximo passo: Certidão SISANT/ANAC. Receituário, referência SARPAS e comprovante ainda pendentes; mapa posterior ao voo. Não houve autorização fictícia ou avanço regulatório.
+- API GET em aba independente da mesma sessão retornou `ok:true`, `source:os`, `status:em_preparacao`, `canManage:false`, 0,1 ha, 10 L/ha, tanque 20 L, faixa 5 m, velocidade 18 km/h e altura 3 m. Isso comprova leitura como Pedro; não comprova sessão de outro perfil/aparelho.
+- Anexo existente classificado `outro`, contador 1, armazenamento sem capacidade inventada. PDF embutido bloqueado pelo Chromium; download anterior não repetido.
+- **Novo defeito encontrado pela interface:** atalho “Pendências de anexo” navegava somente para hash, descartava a OS selecionada e mantinha checklist fechado. Corrigido para carregar `osId`, preservar `returnTo=campo` e abrir o checklist via `checklist=1`. Regressão verifica URL/contexto; **ret teste autenticado do atalho corrigido pendente**.
+- Após essa correção adicional: **259/259 testes locais**, incluindo modelo original; build completo aprovado; lint sem erros, com um aviso preexistente de imagem no componente.
+- Evidência factual, sem URLs assinadas: [pedro-fase3-interface.json](evidencias/dronegestor-20261123-work-fase3/pedro-fase3-interface.json).
+
+A intervenção de login de Pedro acima foi concluída e deixa de ser bloqueio para a prévia `97308326`. Mantêm-se isolamento de escrita, RLS, Drive, seis resoluções, offline/troca real e outros perfis como pendências. A Fase 3 integral ainda não está homologada.

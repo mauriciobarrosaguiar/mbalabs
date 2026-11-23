@@ -40,3 +40,17 @@ test('document API derives OS number from authorized persisted data, never form 
  assert.match(post,/const osNumero = text\(authorizedOs\.data\.numero, 120\)/);
  assert.match(post,/ordemServicoNumero: osNumero/);
 });
+
+
+test('document pending shortcut retains selected OS and field return context and opens checklist',()=>{
+ const source=readFileSync(new URL('../src/app/apps/dronegestor/documentos/AgroDocDocuments.tsx',import.meta.url),'utf8');
+ const expression=source.match(/href=\{(`\$\{ROOT\}\/documentos\?\$\{new URLSearchParams\([\s\S]*?#agro-document-checklist`)\}/)?.[1];
+ assert.ok(expression,'shortcut must carry document OS context');
+ const href=new Function('ROOT','os','searchParams','return '+expression);
+ const result=new URL(href('/apps/dronegestor','OS-ISOLADA',new URLSearchParams('returnTo=campo')),'https://example.invalid');
+ assert.equal(result.searchParams.get('osId'),'OS-ISOLADA');
+ assert.equal(result.searchParams.get('returnTo'),'campo');
+ assert.equal(result.searchParams.get('checklist'),'1');
+ assert.equal(result.hash,'#agro-document-checklist');
+ assert.match(source,/<details id="agro-document-checklist" open=\{searchParams.get\("checklist"\)==="1"\}/);
+});

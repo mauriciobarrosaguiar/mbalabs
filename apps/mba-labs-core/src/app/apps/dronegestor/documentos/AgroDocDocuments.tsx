@@ -272,7 +272,11 @@ export function AgroDocDocuments() {
           icon={TriangleAlert}
           value="Consultar"
           note="Checklist documental da OS"
-          href="#agro-document-checklist"
+          href={`${ROOT}/documentos?${new URLSearchParams({
+            ...(os ? {osId:os} : {}),
+            ...(searchParams.get("returnTo")==="campo" ? {returnTo:"campo"} : {}),
+            checklist:"1",
+          }).toString()}#agro-document-checklist`}
         />
         <AgroDocKpiCard
           title="Armazenamento"
@@ -511,7 +515,7 @@ export function AgroDocDocuments() {
           </button>
         </section>
       )}
-      <details id="agro-document-checklist" style={{ marginTop: 20 }}>
+      <details id="agro-document-checklist" open={searchParams.get("checklist")==="1"} style={{ marginTop: 20 }}>
         <summary className="agro-button">
           Fase 3 — Checklist documental e autorização SARPAS da OS selecionada
         </summary>
