@@ -7,7 +7,7 @@ function str(v:unknown,n=300){return typeof v==="string"?v.trim().slice(0,n):""}
 export async function GET(){
  try{
   const session=await getSessionProfile();
-  if(!session.user||!session.profile)return NextResponse.json({error:"Entre na MBA Labs."},{status:401});
+  if(!session.user||!session.profile || session.profile.status !== "ativo")return NextResponse.json({error:"Entre na MBA Labs."},{status:401});
   const t=str(session.profile.tipo).toLowerCase(),master=["super_admin","admin_master"].includes(t);
   if(!master&&!(session.appsLiberados??[]).some(a=>a.slug==="dronegestor"&&a.canAccess))
     return NextResponse.json({error:"Acesso não liberado."},{status:403});
