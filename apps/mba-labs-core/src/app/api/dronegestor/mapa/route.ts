@@ -4,7 +4,7 @@ import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   droneOsErrorResponse,
-  requireDroneOsAccess,
+  requireDroneOsAccess, requireDroneOsWriteAccess,
   scopeDroneOsQuery,
 } from "@/lib/dronegestor-os-access";
 
@@ -189,7 +189,7 @@ export async function POST(request: NextRequest) {
 
     // Confere a OS antes de ler e armazenar o arquivo. Isso evita mapa órfão ou anexado
     // pelo piloto errado em outra OS da mesma empresa.
-    await requireDroneOsAccess(admin, current, ordemServicoId);
+    await requireDroneOsWriteAccess(admin, current, ordemServicoId);
     if (!(await canUpload(admin, current))) {
       return NextResponse.json(
         { ok: false, error: "O gestor não liberou envio de evidências para este piloto." },

@@ -25,7 +25,7 @@ import {
   agroGet,
   ROOT,
 } from "../AgroDocUi";
-type Order = { entityId: string; data: { numero?: string } };
+type Order = { entityId: string; data: { numero?: string; status?: string } };
 type Doc = {
   id: string;
   nome: string;
@@ -123,12 +123,15 @@ export function AgroDocDocuments() {
       active = false;
     };
   }, [os, reload]);
+  const selectedOrder = orders.data?.items.find(item => item.entityId === os);
+  const readOnly = !selectedOrder || ["cancelada", "concluida"].includes(selectedOrder.data.status || "");
   const visible = docs.filter(
     (x) =>
       (!folder || folders[folder].types.includes(x.tipo)) &&
       x.nome.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
   );
   async function send() {
+    if (readOnly) { setError("OS encerrada ou cancelada: somente consulta."); return; }
     if (!file || !os) return;
     setBusy(true);
     setError("");
@@ -231,7 +234,7 @@ export function AgroDocDocuments() {
         </select>
         <button
           className="agro-button agro-button-primary"
-          disabled={!os}
+          disabled={!os || readOnly}
           onClick={() => setUpload(true)}
         >
           <Upload size={18} />
@@ -410,7 +413,7 @@ export function AgroDocDocuments() {
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();
-          if (!os) {
+          if (!os || readOnly) {
             setError("Selecione uma OS antes de anexar.");
             return;
           }
@@ -427,7 +430,7 @@ export function AgroDocDocuments() {
             setUpload(true);
             fileRef.current?.click();
           }}
-          disabled={!os}
+          disabled={!os || readOnly}
         >
           <b>Arraste arquivos ou clique para anexar</b>
         </button>
@@ -435,7 +438,8 @@ export function AgroDocDocuments() {
           Arquivos autorizados · Google Drive até 2 GB; Supabase até 10 MB · OS obrigatória
         </small>
       </div>
-      {upload && (
+      {readOnly && selectedOrder && <p role="status">OS encerrada ou cancelada: somente consulta. Os documentos existentes continuam disponíveis.</p>}
+      {upload && !readOnly && (
         <section className="agro-card agro-form" style={{ marginTop: 16 }}>
           <h2>Enviar documento para a OS selecionada</h2>
           <select
@@ -472,7 +476,7 @@ export function AgroDocDocuments() {
             className="agro-button agro-button-primary"
             disabled={
               !file ||
-              !os ||
+              !os || readOnly ||
               busy ||
               Boolean(file && file.size > 2 * 1024 * 1024 * 1024)
             }
@@ -492,7 +496,7 @@ export function AgroDocDocuments() {
         <summary className="agro-button">
           Fase 3 — Checklist documental e autorização SARPAS da OS selecionada
         </summary>
-        <div className="agro-legacy">{os && <DroneDocumentsCenter key={`${os}:${reload}`} osId={os}/>}</div>
+        <div className="agro-legacy">{os && <DroneDocumentsCenter key={`${os}:${reload}`} osId={os} readOnly={readOnly}/>}</div>
       </details>
     </>
   );

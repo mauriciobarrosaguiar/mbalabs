@@ -72,6 +72,19 @@ export async function requireDroneOsAccess(
   return { row: data, data: osData, assignedPilotId: assigned };
 }
 
+/** Writes must validate the persisted status as well as tenant/pilot ownership. */
+export async function requireDroneOsWriteAccess(
+  admin: any,
+  current: DroneOsAccessContext,
+  osId: string,
+) {
+  const access = await requireDroneOsAccess(admin, current, osId);
+  if (["cancelada", "concluida"].includes(text(access.data.status, 40))) {
+    throw new DroneOsAccessError("OS encerrada ou cancelada: somente consulta.", 409);
+  }
+  return access;
+}
+
 export function droneOsErrorResponse(error: unknown) {
   if (error instanceof DroneOsAccessError) {
     return { status: error.status, message: error.message };

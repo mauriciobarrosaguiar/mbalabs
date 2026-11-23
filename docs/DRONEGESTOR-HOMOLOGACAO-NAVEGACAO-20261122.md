@@ -5,7 +5,7 @@
 **Homologação parcial. PR #206 permanece em rascunho, sem merge e sem produção.** As demais seções registram a evolução cronológica; resultados antigos não substituem este estado atual.
 
 - Código atual: `9c3fee6cda33b000b4ce3099671e49afb3ff2449`. Prévia `dpl_FUMRvhyJdF6NHNp7uU9oEL6Dtibx` READY, target preview (`null`), confirmado novamente nesta continuação.
-- **175 testes locais aprovados, zero reprovados, zero ignorados**, conforme `evidencias/dronegestor-20261123-continuacao/testes.txt`, com XLSX original MAPA. TypeScript e build aprovados, lint do escopo sem erros; lint global mantém três falhas anteriores fora do DroneGestor.
+- **188 testes locais aprovados, zero reprovados, zero ignorados**, conforme `evidencias/dronegestor-20261123-os-somente-consulta/testes.txt`, com XLSX original MAPA. TypeScript e build aprovados, lint do escopo sem erros; lint global mantém três falhas anteriores fora do DroneGestor.
 - CI do código atual: [DroneGestor validation 28](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45111408992) e [MBA Labs Core CI 776](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45111409048), ambos success, reconfirmados nesta continuação.
 - Interface: RT criou cliente/fazenda/talhão/OS fictícios, vinculou Pedro e salvou planejamento. Pedro recebeu os parâmetros, preparou a OS, preservou fase/contexto e retornou da documentação à fase 2. Consulta direta da OS de outro piloto negada pela API na sessão do Pedro.
 - Nova **OS-20261123-45737**, 0,1 ha, em preparação e sem aplicação, identifica HOMOLOGAÇÃO PR206. A OS anterior do Pedro foi preservada. Um anexo categoria outro, SEM VALIDADE OFICIAL, foi enviado e baixado com bytes idênticos.
@@ -386,3 +386,16 @@ A OS adicional **OS-20261123-DD129**, ID `dd129788-16bc-471f-9366-41e18b81dadd`,
 NOV do XLSX baixado não contém linhas com valores não derivados de fórmulas a partir da linha 6, consistente com zero operações aprovadas. A verificação está no manifesto do download.
 
 **Conclusão da rodada:** correção adicional implementada, 175 testes locais aprovados/zero falhas/zero ignorados, TypeScript/build/lint do escopo aprovados, nova prévia pronta e retestes reais documentados. A missão geral permanece parcial pelos bloqueios e itens não executados já listados.
+
+
+## Bloqueio de escrita documental em OS encerrada/cancelada
+
+A continuação encontrou uma lacuna além dos campos do pacote: o painel documental ainda oferecia envio em OS cancelada; os handlers verificavam empresa/piloto, mas não o estado antes de gravar anexos e evidências. Na interface da OS fictícia cancelada OS-20261123-DD129, o botão Enviar documento estava habilitado. Nenhum arquivo foi enviado durante a reprodução. Evidência `cancelada-documentos-antes.json`.
+
+Implementado `requireDroneOsWriteAccess`: preserva autorização por empresa/piloto e recusa OS cancelada/concluída com 409 e mensagem somente consulta. Aplicado às escritas de documentos, mapa, geometria, SARPAS e upload Drive. O endpoint de recuperação de sessões resumíveis também deixa de devolver sessão de upload nesses estados. Leituras dos documentos e do pacote continuam autorizadas; preparação e campo concluído continuam passíveis de regularização.
+
+Na UI, seleção ainda não carregada bloqueia envio; OS encerrada/cancelada recebe aviso e controles de envio desabilitados, inclusive drag-and-drop e checklist documental legado. O servidor continua sendo a barreira de segurança.
+
+13 regressões executam os handlers reais com banco/cloud controlados: oito bloqueios de documentos/mapa/geometria/SARPAS, dois de início no Drive, dois de recuperação de sessão resumível e preservação de leitura/planejamento em estado gravável. Verificados status 409, ausência de escrita/auditoria e de chamadas externas.
+
+Validação atual: **188 aprovados, 0 reprovados, 0 ignorados**, com XLSX original; TypeScript e build aprovados; lint do escopo sem erros, avisos existentes no log. Reteste da interface será registrado após gerar a prévia desta correção. Nenhuma migration ou alteração de dados reais.

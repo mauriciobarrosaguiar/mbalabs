@@ -5,7 +5,7 @@ import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   droneOsErrorResponse,
-  requireDroneOsAccess,
+  requireDroneOsAccess, requireDroneOsWriteAccess,
   scopeDroneOsQuery,
 } from "@/lib/dronegestor-os-access";
 
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "Tipo de documento inválido." }, { status: 400 });
 
     const admin = createSupabaseAdminClient() as any;
-    await requireDroneOsAccess(admin, current, osId);
+    await requireDroneOsWriteAccess(admin, current, osId);
     if (!(await canUpload(admin, current)))
       return NextResponse.json(
         { ok: false, error: "O gestor não liberou envio de documentos/evidências para este piloto." },

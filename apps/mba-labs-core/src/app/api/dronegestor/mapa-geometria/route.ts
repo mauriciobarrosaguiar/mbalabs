@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
-import { droneOsErrorResponse, requireDroneOsAccess } from "@/lib/dronegestor-os-access";
+import { droneOsErrorResponse, requireDroneOsAccess, requireDroneOsWriteAccess } from "@/lib/dronegestor-os-access";
 
 export const dynamic = "force-dynamic";
 
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     if (!Number.isFinite(stats.areaHa) || stats.areaHa <= 0) return NextResponse.json({ ok: false, error: "Não foi possível calcular uma área válida para este polígono." }, { status: 400 });
 
     const admin = createSupabaseAdminClient() as any;
-    await requireDroneOsAccess(admin, current, ordemServicoId);
+    await requireDroneOsWriteAccess(admin, current, ordemServicoId);
     if (!(await canUpload(admin, current))) return NextResponse.json({ ok: false, error: "O gestor não liberou envio de mapa/evidências para este piloto." }, { status: 403 });
     const geometryId = crypto.randomUUID();
     const importedAt = new Date().toISOString();

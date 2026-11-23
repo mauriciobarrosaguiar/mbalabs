@@ -4,7 +4,7 @@ import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   droneOsErrorResponse,
-  requireDroneOsAccess,
+  requireDroneOsAccess, requireDroneOsWriteAccess,
   scopeDroneOsQuery,
 } from "@/lib/dronegestor-os-access";
 
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
       );
 
     const admin = createSupabaseAdminClient() as any;
-    await requireDroneOsAccess(admin, current, sarpas.ordemServicoId);
+    await requireDroneOsWriteAccess(admin, current, sarpas.ordemServicoId);
     if (!(await canRegisterSarpas(admin, current)))
       return NextResponse.json(
         {
