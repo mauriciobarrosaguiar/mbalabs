@@ -19,6 +19,7 @@ function scoped(q:any,c:Scope){return c.empresaId?q.eq("empresa_id",c.empresaId)
 async function context():Promise<{user?:Scope;error?:NextResponse}>{
   const session=await getSessionProfile();
   if(!session.user||!session.profile)return {error:NextResponse.json({error:"Entre na MBA Labs."},{status:401})};
+  if(session.profile.status!=="ativo")return {error:NextResponse.json({error:"Conta inativa: acesso bloqueado."},{status:403})};
   const type=value(session.profile.tipo).toLowerCase();
   const master=["super_admin","admin_master"].includes(type);
   const allowed=(session.appsLiberados??[]).some(app=>app.slug==="dronegestor"&&app.canAccess);
