@@ -194,7 +194,6 @@ export async function POST(request: NextRequest) {
     const file = form.get("arquivo");
     const tipo = text(form.get("tipo"), 60);
     const osId = text(form.get("ordemServicoId"), 120);
-    const osNumero = text(form.get("ordemServicoNumero"), 120);
 
     if (!osId)
       return NextResponse.json(
@@ -205,7 +204,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "Tipo de documento inválido." }, { status: 400 });
 
     const admin = createSupabaseAdminClient() as any;
-    await requireDroneOsWriteAccess(admin, current, osId);
+    const authorizedOs = await requireDroneOsWriteAccess(admin, current, osId);
+    // Never trust a submitted OS number: bind the attachment to the persisted order.
+    const osNumero = text(authorizedOs.data.numero, 120);
     if (!(await canUpload(admin, current)))
       return NextResponse.json(
         { ok: false, error: "O gestor não liberou envio de documentos/evidências para este piloto." },
