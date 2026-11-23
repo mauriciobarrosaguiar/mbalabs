@@ -514,6 +514,10 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
   }
 
   function resolveConflict(mode: "cloud" | "local") {
+    // Neither resolution may overwrite a frozen partial request whose
+    // acknowledgement might already have been committed by the server.
+    if (mission.ordemServicoId && localStorage.getItem("dronegestor:partialPayload:v1:" + mission.ordemServicoId))
+      return flash("Encerramento parcial ainda sem confirmação. Reenvie a solicitação original antes de escolher uma versão para sincronizar.");
     const conflict = getDroneSyncConflict(); if (!conflict) return setSyncConflict(null);
     if (!window.confirm(mode === "cloud" ? "Usar a cópia da nuvem neste aparelho? O estado local divergente será substituído." : "Manter a cópia deste aparelho e torná-la a próxima versão da nuvem?")) return;
     if (mode === "cloud" && conflict.remoteState) {
