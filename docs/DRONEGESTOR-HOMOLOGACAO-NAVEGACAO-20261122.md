@@ -5,7 +5,7 @@
 **Homologação parcial. PR #206 permanece em rascunho, sem merge e sem produção.** As demais seções registram a evolução cronológica; resultados antigos não substituem este estado atual.
 
 - Código atual: `7b428b011ec3ddb80eeea96f2de7233eb2f08513`. Prévia `dpl_78hfERMVnCDBUdVRQRFs9tw841W4` READY, target preview (`null`), confirmado novamente nesta continuação.
-- **172 testes locais aprovados, zero reprovados, zero ignorados**, conforme `testes-final.txt`, com XLSX original MAPA. TypeScript e build aprovados, lint do escopo sem erros; lint global mantém três falhas anteriores fora do DroneGestor.
+- **175 testes locais aprovados, zero reprovados, zero ignorados**, conforme `testes-final.txt`, com XLSX original MAPA. TypeScript e build aprovados, lint do escopo sem erros; lint global mantém três falhas anteriores fora do DroneGestor.
 - CI do código atual: [DroneGestor validation 28](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45111408992) e [MBA Labs Core CI 776](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45111409048), ambos success, reconfirmados nesta continuação.
 - Interface: RT criou cliente/fazenda/talhão/OS fictícios, vinculou Pedro e salvou planejamento. Pedro recebeu os parâmetros, preparou a OS, preservou fase/contexto e retornou da documentação à fase 2. Consulta direta da OS de outro piloto negada pela API na sessão do Pedro.
 - Nova **OS-20261123-45737**, 0,1 ha, em preparação e sem aplicação, identifica HOMOLOGAÇÃO PR206. A OS anterior do Pedro foi preservada. Um anexo categoria outro, SEM VALIDADE OFICIAL, foi enviado e baixado com bytes idênticos.
@@ -345,3 +345,23 @@ O arquivo enviado identifica HOMOLOGAÇÃO PR206 e SEM VALIDADE OFICIAL; não co
 Últimos ajustes: exportação MAPA protegida também na página do servidor; removida dos menus e pacote do piloto; fluxo do dashboard envia o piloto a seus documentos. O pacote não oferece PDF enquanto não há snapshot final e não apresenta zeros como parâmetros planejados quando falta snapshot do campo. Identificação do piloto e cultura não implica execução. Testes de renderização do componente real cobrem área zero, status e disponibilidade de PDF.
 
 Validação mais recente: **172 testes aprovados, 0 reprovados, 0 ignorados**, TypeScript/build aprovados e lint do escopo sem erros. Logs `*-final.txt`. Estes números não equivalem à homologação das transições físicas ou dos seis tamanhos mobile.
+
+
+## Continuação após recuperação do ambiente — gestor
+
+Sessão confirmada como **HOMOLOGAÇÃO P63 - Gestor operacional** por login seguro. Código anterior, CI e deployment foram conferidos sem reiniciar a auditoria.
+
+|Módulo|Botão/ação|Perfil|Destino esperado|Resultado|Evidência|
+|---|---|---|---|---|---|
+|MAPA|Baixar XLSX oficial — novembro/2026 sem operações aprovadas|Gestor|Download íntegro sem inventar aplicações|Aprovado pela interface no cenário sem movimento|`mapa-gestor-interface.json`, `mapa-download-verificacao.json`|
+|MAPA|Selecionar outubro; Atualizar; restaurar novembro|Gestor|Competência e link de conferência correspondentes|Aprovado pela interface pelo teclado no campo month nativo|`competencia-gestor-interface.json`|
+|Conferência|Ver todas as pendências|Gestor|Competência 2026-11 e estado vazio correto|Aprovado pela interface; revisão de aplicação bloqueada por ausência de operações finalizadas|`conferencia-gestor-interface.json`|
+|Pacote|Salvar proprietário/referência fictícios; recarregar|Gestor|Dados persistidos na nova OS de teste|Aprovado pela interface para persistência; feedback inicialmente reprovado|`propriedade-gestor-interface.json`|
+
+O XLSX baixado possui 4.021.748 bytes, ZIP íntegro e abas JAN a DEZ, TOTAL e auxiliares. Hash registrado na evidência. Este teste comprova download sem movimento, **não** um relatório com aplicações concluídas/revisadas. Não houve envio oficial.
+
+Encontrada falha adicional no feedback de Salvar na OS: a mensagem de sucesso era apagada pela reconsulta automática de pendências 50 ms depois. Corrigida a preservação dessa mensagem sem esconder erros retornados pelo servidor. Também retirada a afirmação de que o campo continuava concluído ao salvar pendências de uma OS ainda em preparação. Três testes executam as funções reais do componente com dependências controladas: preservação do sucesso, erro de atualização visível e ausência de falsa conclusão de campo.
+
+Suíte atual: **175 aprovados, 0 reprovados, 0 ignorados**, com modelo original MAPA. TypeScript aprovado; lint dos arquivos alterados sem erros. Build e reteste do feedback são registrados após conclusão. Não foi retomada ou encerrada uma aplicação real.
+
+Captura `mapa-gestor-desktop.jpg` é real de desktop; não representa as seis resoluções móveis.

@@ -47,14 +47,14 @@ export function DroneOperationPackage(){
   useEffect(()=>{const query=new URLSearchParams(window.location.search).get("osId")||"",fallback=localMission().ordemServicoId||"",target=query||fallback;setOsId(target);void load(target)},[]);
 
   function closurePayload(){return{...snapshot,mission:{...(snapshot.mission??{}),...mission,responsavelPropriedade:responsavel.trim(),enderecoPropriedade:endereco.trim()}}}
-  async function closure(action:"status"|"save_pending"|"finalize"){
-    if(!osId)return;setChecking(true);setMessage("");
+  async function closure(action:"status"|"save_pending"|"finalize",preserveMessage=false){
+    if(!osId)return;setChecking(true);if(!preserveMessage)setMessage("");
     try{
       const response=await fetch("/api/dronegestor/fechamento",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action,osId,snapshot:closurePayload()}),cache:"no-store"});
       const payload=await response.json().catch(()=>null),nextMissing=Array.isArray(payload?.missing)?payload.missing:[];
       setServerMissing(nextMissing);setClosureStatus(String(payload?.status||"") as ClosureStatus);setOsStatus(String(payload?.osStatus||osStatus));
       if(payload?.closed===true||payload?.status==="concluida"){setClosed(true);setClosureStatus("concluida");if(localMission().ordemServicoId===osId){localStorage.setItem("dronegestor:closureStatus:v1",JSON.stringify("concluida"));localStorage.setItem("dronegestor:missionStatus:v4",JSON.stringify("finalizada"));localStorage.setItem("dronegestor:started:v3",JSON.stringify(false));}}
-      if(action==="save_pending"&&response.ok)setMessage(nextMissing.length?"Pendências salvas. O campo continua concluído e você pode regularizar depois, de qualquer aparelho.":"Conferência salva. A OS está pronta para encerramento.");
+      if(action==="save_pending"&&response.ok)setMessage(nextMissing.length?"Pendências salvas. Confira os itens restantes antes de encerrar a OS.":"Conferência salva. A OS está pronta para encerramento.");
       if(action==="finalize"&&response.ok)setMessage("OS encerrada. O fechamento foi feito com os dados do campo salvos no servidor.");
       if(!response.ok&&payload?.error)setMessage(payload.error);
     }catch{setMessage("Não foi possível conferir o encerramento agora. Nenhuma informação foi apagada.")}
@@ -67,7 +67,7 @@ export function DroneOperationPackage(){
     try{
       const response=await fetch("/api/dronegestor/operacao-os",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({osId,responsavelPropriedade:responsavel.trim(),enderecoPropriedade:endereco.trim()})}),payload=await response.json().catch(()=>null);
       if(!response.ok||!payload?.ok)throw new Error(payload?.error||"Não foi possível salvar os dados da propriedade.");
-      const next={...mission,responsavelPropriedade:responsavel.trim(),enderecoPropriedade:endereco.trim()};setMission(next);setMessage("Dados da propriedade salvos na OS. Eles ficam disponíveis em qualquer aparelho.");window.setTimeout(()=>void closure("status"),50);
+      const next={...mission,responsavelPropriedade:responsavel.trim(),enderecoPropriedade:endereco.trim()};setMission(next);setMessage("Dados da propriedade salvos na OS. Eles ficam disponíveis em qualquer aparelho.");window.setTimeout(()=>void closure("status",true),50);
     }catch(error){setMessage(error instanceof Error?error.message:"Falha ao salvar dados da propriedade.")}
     finally{setSavingProperty(false)}
   }
