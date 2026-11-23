@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
+import { mergeDroneMissionPlan } from "@/lib/dronegestor-planning";
 import {
   droneOsErrorResponse,
   requireDroneOsAccess,
@@ -150,8 +151,11 @@ export async function GET(request: NextRequest) {
       entity(admin, c, ACTIONS.talhao, text(osData.talhaoId, 100)),
     ]);
     const storedMission = obj(state.mission);
+    // Before field sync exists, read the technical plan persisted by the gestor/RT
+    // in the OS. Never replace a live/finalized execution snapshot with a plan.
+    const readableMission = source === "os" ? mergeDroneMissionPlan(storedMission, osData) : storedMission;
     const mission = {
-      ...storedMission,
+      ...readableMission,
       ordemServicoId: osId,
       ordemServicoNumero: text(osData.numero, 80) || text(storedMission.ordemServicoNumero, 80),
       clienteId: text(osData.clienteId, 100) || text(storedMission.clienteId, 100),
