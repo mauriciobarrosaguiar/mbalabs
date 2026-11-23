@@ -144,7 +144,7 @@ export function AgroDocTable({
     </>
   );
 }
-export function AgroDocFlow({ compact = false }: { compact?: boolean }) {
+export function AgroDocFlow({ compact = false, canManage = true }: { compact?: boolean; canManage?: boolean }) {
   const steps = [
     {
       title: "Diagnóstico inicial",
@@ -165,10 +165,10 @@ export function AgroDocFlow({ compact = false }: { compact?: boolean }) {
       path: "campo",
     },
     {
-      title: "Conferência",
-      text: "Valide os dados da operação e a conformidade.",
+      title: canManage ? "Conferência" : "Minhas fichas",
+      text: canManage ? "Valide os dados da operação e a conformidade." : "Consulte os registros e correções das suas operações.",
       icon: Search,
-      path: "conferencia",
+      path: canManage ? "conferencia" : "fichas",
     },
     {
       title: "Documentação automática",

@@ -187,7 +187,7 @@ export function DroneHomeDashboard({
             <Link href={`${ROOT}/regulacao`}>Ver detalhes do fluxo ↗</Link>
           }
         >
-          <AgroDocFlow />
+          <AgroDocFlow canManage={canManage} />
         </AgroDocCard>
         <div className="agro-home-bottom">
           <AgroDocCard

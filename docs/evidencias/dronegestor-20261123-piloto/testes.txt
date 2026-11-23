@@ -1,0 +1,270 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> mba-labs-core@0.1.0 test:agrodoc
+> node --experimental-strip-types --test tests/dronegestor-*.test.mjs
+
+(node:26) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/conferencia/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ sem sessão não consulta nem aprova (4.05135ms)
+✔ piloto não pode aprovar nem listar conferência gerencial (0.963426ms)
+✔ gestor aprova e registra autoria e escopo da empresa (2.559816ms)
+✔ registro fora do escopo não pode receber decisão (0.762337ms)
+✔ multiproduto bloqueia aprovação sem duplicar área ou horas (1.438675ms)
+✔ correção exige motivo e mantém vínculo e autoria (0.975094ms)
+✔ horas efetivas inválidas bloqueiam aprovação (0.664932ms)
+(node:27) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/dronegestor-calculations.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cargas completas, parcial e área menor que tanque (1.5628ms)
+✔ decimal exato não gera carga fantasma; parcial pequena é preservada (0.135652ms)
+✔ conversões preservam dimensão de massa e volume (0.313848ms)
+✔ vazão e rendimento incluem paradas explicitamente (0.246147ms)
+✔ financeiro diferencia ausência de retorno e retorno calculável (3.899304ms)
+✔ rejeita zero, infinitos, negativos e eficiência inválida (0.207349ms)
+✔ MBA Calda: vários produtos, mistura completa e parcial (0.217354ms)
+✔ dose por 100 L não depende da área e mantém a unidade de massa/volume (0.236803ms)
+(node:28) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/dronegestor-company-access.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ admin da empresa não vira administrador geral (0.802807ms)
+✔ gestor operacional, RT, piloto e permissão negada não delegam acessos (0.447827ms)
+✔ formulário de funcionário não concede administração geral nem empresarial (0.136523ms)
+(node:29) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/empresa/usuarios/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ sem sessão ou usuário inativo não chega ao cliente privilegiado (8.945957ms)
+✔ piloto, RT e gestor operacional não cadastram funcionários (3.795018ms)
+✔ sem liberação do app ou sem empresa não cria conta (0.6102ms)
+✔ contrato ausente, vencido e empresa bloqueada negam criação (17.719608ms)
+✔ rejeita empresa, app ou privilégios globais injetados no corpo (5.503836ms)
+✔ listagem consulta somente usuários e permissões da empresa e do app da sessão (0.99256ms)
+✔ admin da empresa cria piloto atribuível, com autoria e auditoria sem senha (2.142564ms)
+✔ RT e gestor são perfis somente do app, sem cadastro operacional de piloto (1.365386ms)
+✔ falha ao salvar auditoria/piloto desfaz o acesso criado (0.642348ms)
+✔ rotas antigas de pilotos também impedem RT e piloto de delegar acessos (1.877268ms)
+✔ edição exige administrador e rejeita senha, tenant, email e status (4.491867ms)
+✔ funcionário inexistente ou sem vínculo não pode ser editado (0.993902ms)
+✔ edição altera contato e papel somente na empresa e app autorizados (0.739553ms)
+✔ administrador permite corrigir contato mas não trocar papel (1.034252ms)
+✔ retirada de papel de piloto inativa cadastro operacional sem apagar histórico (0.928684ms)
+✔ promoção a piloto cria registro conservador e não reativa conta bloqueada (0.526605ms)
+✔ falha de auditoria restaura contato e papel anteriores (0.749548ms)
+✔ falha de mudança de papel restaura contato sem gravar auditoria (0.595468ms)
+✔ corrigir contato do administrador que também pilota preserva cadastro operacional ativo (0.517391ms)
+✔ senha valida tamanho, confirmação e campos permitidos antes de escrever (4.236937ms)
+✔ piloto, RT e gestor não podem redefinir senhas (0.408249ms)
+✔ senha exige alvo da empresa e vínculo DroneGestor, sem aceitar auth id externo (1.103285ms)
+✔ administrador não redefine senha de outro administrador nem de conta global (0.684ms)
+✔ conta compartilhada com outro app exige alteração pelo titular (0.417352ms)
+✔ alteração de senha usa somente auth id do alvo autorizado e não grava segredo (0.65731ms)
+✔ falha de auditoria inicial preserva senha e erro do provedor não é exposto (0.856647ms)
+✔ auditoria final indisponível informa senha já alterada em vez de falso erro (0.458714ms)
+✔ administrador empresarial pode alterar a própria senha sem mudar permissões (0.431764ms)
+(node:35) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/dronegestor-coordinates.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ GPS accepts real bounds and refuses coercion of missing/invalid values (0.831129ms)
+(node:36) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/operacao-os/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cancelled and closed OS reject property edits without database writes (6.811204ms)
+✔ pilot and other company cannot edit the dossier by direct API (1.239969ms)
+(node:42) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/relatorio-mensal/modelo-oficial/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ modelo MAPA exige autenticação (4.636002ms)
+✔ piloto não pode cadastrar modelo MAPA (1.255422ms)
+✔ gestor e RT com perfil específico chegam à validação do arquivo (4.693357ms)
+(node:48) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/dronegestor-mapa-archive.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ preserva partes, fórmula, validação relativa e estilo ao escrever texto escapado (17.621682ms)
+✔ texto com sinal igual continua texto e limpeza mantém estilo (4.331467ms)
+✔ recusa referência de célula inválida ou aba ausente (2.547508ms)
+(node:90) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/relatorio-mensal/xlsx/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ exportador real preenche o modelo original fornecido (3416.879067ms)
+(node:91) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/relatorio-mensal/xlsx/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ gerador real preenche cenário isolado e preserva abas e fórmula (549.366689ms)
+✔ não exporta sem modelo (10.052147ms)
+✔ não exporta sem conferência aprovada (10.595617ms)
+✔ não exporta sem perfil operacional (282.512481ms)
+✔ não mistura outra empresa ou competência (179.464579ms)
+✔ piloto não exporta e anônimo recebe401 (6.91567ms)
+✔ rejeita ano incompatível e duração ausente (7.444148ms)
+✔ pacote PDF real exporta aplicação fictícia sem criar evento no banco (234.953287ms)
+(node:102) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/dronegestor-navigation.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ switching away from paused execution is blocked even when started is false (1.465936ms)
+✔ pending offline finalization cannot be discarded by selecting another OS (0.162743ms)
+✔ orphaned tank records and area prevent destructive switching (0.171216ms)
+✔ same OS can be inspected without dropping its checkpoint (0.226027ms)
+✔ confirmed finalization permits selecting a new OS; malformed storage fails closed (0.184345ms)
+✔ document checklist receives the selected OS rather than the active device mission (0.697189ms)
+✔ consulting a dossier never replaces the device mission; return links retain OS (2.165258ms)
+✔ device protection runs before server assignment and URL tabs react to query changes (0.423311ms)
+✔ cancelled dossier disables mutations and the property API rejects edits (0.448189ms)
+✔ all routes listed in the DroneGestor sidebar exist (1.169874ms)
+✔ role-aware bottom navigation and help route are explicit (0.319477ms)
+✔ the field follows the planned phases without weakening preflight (0.940582ms)
+✔ opening a suspended OS never starts it on the server (0.261059ms)
+✔ operation document and dossier links keep osId (0.377272ms)
+(node:111) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/dronegestor-role.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cadastros: real page rejects pilot, applicator and viewer before rendering (47.408902ms)
+✔ cadastros: manager, RT and company administrator retain access (4.545417ms)
+✔ conferencia: real page rejects pilot, applicator and viewer before rendering (3.802018ms)
+✔ conferencia: manager, RT and company administrator retain access (3.154382ms)
+✔ pilotos: real page rejects pilot, applicator and viewer before rendering (4.155064ms)
+✔ pilotos: manager, RT and company administrator retain access (3.42044ms)
+✔ equipe: real page rejects pilot, applicator and viewer before rendering (8.819279ms)
+✔ equipe: manager, RT and company administrator retain access (3.13941ms)
+✔ configuracoes: real page rejects pilot, applicator and viewer before rendering (3.376684ms)
+✔ configuracoes: manager, RT and company administrator retain access (3.229074ms)
+✔ management boundary rejects inactive and unauthenticated sessions (0.278595ms)
+✔ pilot dashboard flow links to own records instead of management review (43.662656ms)
+(node:119) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/execucao-parcial/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ stores 12/20 with 8 pending and atomic audit; retry does not duplicate (13.904861ms)
+✔ session absent, expired access, inactive profile, other pilot and other company cannot write (2.133661ms)
+✔ cannot fabricate a partial close on preparation, finished/cancelled OS or unrelated snapshot (2.275272ms)
+✔ concurrent mutation returns conflict without saving (0.571312ms)
+✔ continuation keeps cumulative loads; removing initial load is rejected (1.6234ms)
+✔ lost acknowledgement retries exact checkpoint; reused key with new area is rejected (1.491334ms)
+✔ gestor and RT cannot close the assigned pilot execution (0.797518ms)
+(node:133) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/dronegestor-partial.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 20 ha / 12 ha / chuva preserves 8 ha pending and does not mutate loads (2.399688ms)
+✔ rejects negative, nonfinite, completed/excess area, divergent planning and missing explanation (0.353417ms)
+✔ rejects duplicate loads, missing real timestamps and divergent hectare sum (0.394038ms)
+(node:146) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/dronegestor-pilot-account.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cria Auth, usuário da empresa e permissão de piloto sem persistir a senha no perfil (1.937929ms)
+✔ bloqueia senha inicial curta antes de criar qualquer conta (0.477162ms)
+✔ bloqueia e-mail pertencente a outra empresa (0.207188ms)
+✔ bloqueia usuário inativo da própria empresa (0.240969ms)
+✔ remove a conta Auth quando o perfil interno não é criado (0.392826ms)
+✔ remove Auth e perfil interno quando a permissão do aplicativo falha (1.276102ms)
+✔ vincula usuário ativo da mesma empresa sem criar outra conta Auth (0.190835ms)
+✔ rollback de vínculo existente restaura exatamente a permissão anterior (0.325706ms)
+✔ não rebaixa nem vincula administradores globais/empresariais como funcionários (0.346476ms)
+✔ novo cadastro de funcionário não sobrescreve permissão existente (0.279056ms)
+✔ perfil RT fica restrito ao app e mantém usuário global comum (0.220559ms)
+✔ empresa ausente e perfil de administrador são recusados antes de criar contas (0.702548ms)
+✔ protege administrador específico do app mesmo com usuário global comum (0.270454ms)
+✔ e-mail com curingas é consultado literalmente (0.220529ms)
+✔ somente contexto interno autorizado admite administrador da empresa (0.302731ms)
+(node:152) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/cadastros/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ pilot cliente listing includes only relations of assigned OS and omits private fields (7.062649ms)
+✔ pilot fazenda listing includes only relations of assigned OS and omits private fields (0.965179ms)
+✔ pilot talhao listing includes only relations of assigned OS and omits private fields (0.636219ms)
+✔ pilot with no assigned OS receives empty related registries; manager keeps company registries (1.224035ms)
+✔ OS listing still includes only assigned OS and POST is rejected for pilot before write (4.372899ms)
+(node:162) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/dronegestor-planning.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ piloto, aplicador e visualizador não planejam; sem sessão/inativo também não chega ao banco privilegiado (6.614721ms)
+✔ RT e gestor planejam sem assumir piloto ou iniciar OS (2.727907ms)
+✔ GET retorna somente equipamento da empresa e oculta inativo (1.389973ms)
+✔ outra empresa não pode ter OS ou drone alterado (1.749839ms)
+✔ execução, suspensão, campo concluído, encerramento e cancelamento impedem trocar planejamento (2.725534ms)
+✔ versão desatualizada e conflito na gravação não sobrescrevem OS (0.869957ms)
+✔ injeção de piloto, tenant, segurança ou status é recusada (1.116304ms)
+✔ validação recusa tanque além do cadastro, parâmetros inválidos e dose/unidade inválidas (2.029746ms)
+✔ falha de auditoria restaura planejamento anterior (0.673835ms)
+✔ recebimento do plano só troca campos técnicos, preservando OS e cadastros (0.386586ms)
+✔ servidor recusa adulteração de dose e área de piloto sem editar parâmetros (0.883888ms)
+✔ missão legada já iniciada preserva parâmetros do snapshot de servidor, sem confiar em novo plano do cliente (0.703288ms)
+(node:163) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/dronegestor-preflight-guard.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ resposta antiga não libera missão após uma edição local (0.756488ms)
+✔ respostas fora de ordem e troca de OS são descartadas (0.172688ms)
+(node:178) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/dronegestor-report-date.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ PDF mantém Brasília/Palmas mesmo com servidor em UTC ou outro fuso (33.197813ms)
+✔ PDF distingue data ausente e texto inválido (0.15437ms)
+✔ migration RLS: pilot isolation, direct forgery, restrictive composition and other modules (2077.329612ms)
+(node:197) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/dronegestor-role.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ permissão do app habilita gestor e RT (0.870578ms)
+✔ piloto e permissão negada não concedem gestão (0.178145ms)
+✔ disabled provider, missing delegation and official submission never send requests (1.441039ms)
+(node:214) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/state/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ same user cannot hydrate previous company state; valid revision updates only own company (8.889152ms)
+✔ concurrent mutation and stale revision do not overwrite state (3.585025ms)
+✔ inactive session cannot read or overwrite field state (2.689811ms)
+✔ device B recovers committed state and stale device A cannot overwrite it (4.171138ms)
+(node:221) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/dronegestor-sync-guard.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ edição durante upload permanece pendente (1.229894ms)
+✔ resposta da conta anterior não deve alterar revisão da conta atual (0.137525ms)
+✔ mesmo snapshot e proprietário podem ser confirmados (0.143044ms)
+✔ upload em voo não confirma edição posterior como sincronizada (93.2871ms)
+✔ resposta atrasada após troca de conta não altera estado da nova conta (39.17085ms)
+✔ conflito da conta anterior também é descartado (32.028561ms)
+✔ acknowledgement do snapshot inalterado limpa pendência (24.687145ms)
+(node:242) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/administracao/route.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ empresa, gestor, RT e piloto não administram empresas da plataforma (6.977693ms)
+✔ sem sessão ou super admin inativo não consulta banco privilegiado (1.956347ms)
+✔ cadastro e erros respondem JSON sem redirecionar para MBA Labs (4.895269ms)
+✔ empresa existente mantém status global e não altera vínculos de outros apps (1.344535ms)
+✔ CNPJ duplicado impede nova empresa; categoria inválida é recusada (1.015564ms)
+✔ campos de app, papel global e retorno não são aceitos (1.699563ms)
+✔ liberação afeta apenas DroneGestor e preserva plano existente (1.447298ms)
+✔ falha no espelho restaura vínculo anterior sem tocar outro app (0.711391ms)
+✔ data inválida e vencimento antes do início são recusados (1.044277ms)
+✔ administrador empresarial é criado sem conceder tipo global de superadmin (0.930787ms)
+✔ empresa bloqueada e vínculo vencido impedem administrador (13.512045ms)
+✔ falha de auditoria do administrador aciona compensação (0.997918ms)
+✔ listagem inclui administrador existente da empresa, sem senha ou usuários de outros aplicativos (1.105779ms)
+✔ administração renderiza navegação interna sem links para /admin da MBA Labs (102.733273ms)
+ℹ tests 165
+ℹ suites 0
+ℹ pass 165
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3714.580824

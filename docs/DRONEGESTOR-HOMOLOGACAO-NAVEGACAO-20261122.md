@@ -182,3 +182,44 @@ Esta seção atualiza os bloqueios anteriores de acesso à prévia; as classific
 | Ajuda | Voltar ao início | Mesma sessão | `/apps/dronegestor` | Aprovado pela interface | URL após clique e H1 MBA DroneGestor |
 
 As linhas de menus na matriz anterior que constam nesta tabela deixam de estar bloqueadas **somente quanto a clique/destino/título/item ativo/voltar em desktop nesta sessão**. Conteúdo de dados, todas as ações de negócio, diferentes perfis e mobile exigem aceites próprios; não estender esta aprovação.
+
+
+## Continuação de 23/11/2026 — sessão específica de E2E Piloto Pedro
+
+O próprio titular autenticou `e2e.piloto.pedro.dronegestor@example.invalid` pelo formulário seguro. O nome **E2E Piloto Pedro** foi confirmado na interface antes dos testes. A sessão administrativa anterior não foi usada como evidência das permissões de piloto. As contas administrativas da Pulveriza 63 e Pedro aparecem no cadastro sob a mesma denominação de empresa de testes; a OS atribuída a Pedro ficou efetivamente visível para ele, sem modificar vínculos.
+
+Código efetivamente observado no navegador nesta rodada inicial: commit `b110d73`, prévia `mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app`. Os testes abaixo são de leitura/navegação. Não houve chamada real de criação, atualização, suspensão, início ou encerramento operacional.
+
+| Módulo | Botão/ação | Perfil | Destino esperado | Resultado | Evidência |
+|---|---|---|---|---|---|
+| Identidade | Login seguro | E2E Piloto Pedro | Conta de piloto, não Admin Master | Aprovado pela interface | Nome exibido; `interface-api.json` |
+| OS | Consultar lista | Pedro real | Somente OS atribuídas | Aprovado pela interface e API de leitura: uma OS, `71DF6`, piloto Pedro | `interface-api.json`, captura da OS |
+| Menu | Rotas de Administração, Funcionários, Conferência, Cadastros, Pilotos, Equipe e Configurações | Pedro real | Ocultas conforme perfil | Aprovado pela interface (ausentes dos links do menu) | Inventário observado |
+| Administração | URL direta | Pedro real | Negar área administrativa | Aprovado pela interface: redirecionou ao início | `interface-api.json` |
+| Funcionários | URL direta | Pedro real | Negar cadastro de funcionários | Aprovado pela interface: redirecionou ao início | Mesmo arquivo |
+| Planejamento | URL direta da OS de Pedro | Pedro real | Negar edição de planejamento | Aprovado pela interface: redirecionou a Minhas OS | Mesmo arquivo |
+| Conferência | URL direta | Pedro real | Negar página gerencial | **Reprovado na prévia anterior:** página abria; API negava os dados. Corrigido no código; reteste da nova prévia pendente | Mesmo arquivo; `dronegestor-page-access.test.mjs` |
+| Cadastros | URL direta | Pedro real | Negar página gerencial | **Reprovado na prévia anterior:** página abria. Corrigido no código; reteste da nova prévia pendente | Mesmo arquivo; mesmo teste |
+| APIs | Administração, empresa/usuários, planejamento e conferência por GET | Pedro real | Negar acesso administrativo | Aprovado por navegação real às APIs: JSONs de recusa, sem dados administrativos. O browser não expôs código HTTP nesta captura; não atribuir status numérico a essa evidência | `interface-api.json` |
+| APIs | Criar cadastro por POST | Pedro em fixture | Recusar antes de escrever | Aprovado somente por teste automatizado: 403 e zero escritas | `dronegestor-pilot-reading.test.mjs` |
+| Cadastros/API | Listar cliente/fazenda/talhão | Pedro em fixture | Apenas relações das OS atribuídas | Aprovado somente por teste automatizado; mudança nova ainda requer reteste na prévia | Mesmo teste |
+| Documentos | Abrir com osId | Pedro real | Selecionar a própria OS e consultar anexos | Aprovado pela interface: OS-20261121-71DF6 e 17 anexos | `interface-api.json` |
+| Documentos | Voltar à ordem de serviço | Pedro real | Retornar à mesma OS | Aprovado pela interface: `gestao?tab=os&osId=71df64e7-3148-451d-9eb6-d3001393a3f4`; cartão da mesma OS visível | Mesmo arquivo |
+| Escrita operacional | Preparar/iniciar/retomar/encerrar | Pedro real | Não modificar registros reais | Não executado; nenhum desses botões foi acionado | Limite preservado |
+
+### Correções decorrentes desta validação
+
+- Acrescentada uma fronteira de autorização no servidor para as cinco páginas ocultas do perfil operacional: Cadastros, Conferência, Pilotos, Equipe e Configurações. A função exige acesso ao app, usuário ativo e perfil de gestão; o piloto é redirecionado às próprias OS antes de renderizar o componente administrativo.
+- As listagens sanitizadas de cliente/fazenda/talhão do piloto foram limitadas às relações de suas OS atribuídas. Gestor/RT/admin conservam as listagens empresariais. A API de OS continua filtrando por piloto responsável.
+- O atalho de Conferência no dashboard do piloto agora leva a **Minhas fichas**. A API de conferência permanece restrita à gestão.
+- Novos testes executam as páginas reais com sessão controlada e as APIs reais com dependências em memória: 12 testes da fronteira/atalho e cinco de leitura/escrita negada. Não são testes com cookies copiados nem bypass de autenticação.
+
+### Resultado técnico após as correções
+
+- **165 testes aprovados, nenhum reprovado e nenhum ignorado**, com o XLSX original MAPA recuperado anteriormente.
+- TypeScript e build de produção aprovados; lint do escopo executado com zero erros e avisos preexistentes.
+- Os três erros de lint geral já relatados fora do DroneGestor não foram alterados.
+- O reteste visual das novas guardas precisa da prévia com este novo commit. Até lá, a falha reproduzida continua registrada e não está marcada como homologada.
+- Gestor e RT ainda precisam de sessões próprias. Contas localizadas: `e2e.gestor.dronegestor@example.invalid` (HOMOLOGAÇÃO P63 - Gestor operacional) e `e2e.rt.dronegestor@example.invalid` (E2E RT DroneGestor). Informar explicitamente a conta antes de cada formulário seguro. Não alterar senhas nem vínculos.
+
+![OS visível na sessão do Piloto Pedro — captura real de desktop](evidencias/dronegestor-20261123-piloto/pedro-os-recorte.jpg)
