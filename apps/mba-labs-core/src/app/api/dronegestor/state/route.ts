@@ -632,8 +632,6 @@ export async function POST(request: NextRequest) {
     const settings = await loadSettings(admin, current);
     const summary = buildOperationSummary(state, pilotName, settings);
 
-    validateFinalization(summary, state, settings);
-
     const osAccess = await requireDroneOsAccess(
       admin,
       accessContext(current),
@@ -667,13 +665,8 @@ export async function POST(request: NextRequest) {
         403,
       );
 
-    await validateServerPreflight(
-      admin,
-      current,
-      summary.ordemServicoId,
-      summary.tipoAtividade,
-    );
-
+    // A retry of an already committed operation must remain acknowledgeable
+    // after weather, preflight or configuration rules have changed.
     const { data: existing, error: existingError } = await scopeOwnState(admin.from("core_logs"), current)
       .select("id,detalhes,created_at")
       .eq("app_slug", "dronegestor")
@@ -715,6 +708,14 @@ export async function POST(request: NextRequest) {
     catch (error) {
       throw new DroneOsAccessError(error instanceof Error ? error.message : "Esta OS não pode receber conclusão de campo.", 409);
     }
+
+    validateFinalization(summary, state, settings);
+    await validateServerPreflight(
+      admin,
+      current,
+      summary.ordemServicoId,
+      summary.tipoAtividade,
+    );
 
     const finalizedAt = new Date().toISOString();
     const detalhes = {
