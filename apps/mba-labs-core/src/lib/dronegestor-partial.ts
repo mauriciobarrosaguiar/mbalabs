@@ -77,6 +77,18 @@ export function validateCumulativeContinuation(previous: RecordValue, state: Rec
   };
 }
 
+/** New field completion requires a server-confirmed started OS.
+ * Already completed OSs are handled separately by the idempotency lookup.
+ */
+export function validateFieldCompletionState(osData: RecordValue) {
+  if (osData?.execucaoParcialAtiva)
+    throw new Error('Retome a execução parcial com nova conferência pré-voo antes de concluir.');
+  if (!['em_execucao', 'suspensa'].includes(osData?.status))
+    throw new Error('A OS não está em execução: não é possível registrar outra conclusão de campo.');
+  if (typeof osData?.iniciadaEm !== 'string' || !Number.isFinite(Date.parse(osData.iniciadaEm)))
+    throw new Error('A OS não possui início de execução confirmado no servidor.');
+}
+
 /** Public, non-sensitive execution progress for lists. Never expose raw checkpoint snapshots here. */
 export function partialExecutionSummary(osData: RecordValue) {
   const history = Array.isArray(osData?.execucoesParciais) ? osData.execucoesParciais : [];
