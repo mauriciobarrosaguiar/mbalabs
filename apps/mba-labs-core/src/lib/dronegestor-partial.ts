@@ -44,7 +44,7 @@ export function validateCumulativeContinuation(previous: RecordValue, state: Rec
   }
   if (loads.length <= oldLoads.length) throw new Error('A complementação precisa registrar novas cargas reais.');
   for (let i = 0; i < oldLoads.length; i++) {
-    if (JSON.stringify(loads[i]) !== JSON.stringify(oldLoads[i])) {
+    if (!sameDroneSnapshot(loads[i], oldLoads[i])) {
       throw new Error('A ordem, os hectares e os volumes das cargas anteriores não podem ser alterados.');
     }
   }
@@ -96,4 +96,19 @@ export function partialExecutionSummary(osData: RecordValue) {
     motivo: typeof last.motivo === 'string' ? last.motivo : '',
     atualizadoEm: typeof last.at === 'string' ? last.at : '',
   };
+}
+
+/** JSONB may reorder keys. Idempotency compares values, not object insertion order. */
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return '[' + value.map(canonicalJson).join(',') + ']';
+  if (value && typeof value === 'object') {
+    const object = value as Record<string, unknown>;
+    return '{' + Object.keys(object).sort()
+      .filter(key => object[key] !== undefined)
+      .map(key => JSON.stringify(key) + ':' + canonicalJson(object[key])).join(',') + '}';
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+export function sameDroneSnapshot(a: unknown, b: unknown): boolean {
+  return canonicalJson(a) === canonicalJson(b);
 }
