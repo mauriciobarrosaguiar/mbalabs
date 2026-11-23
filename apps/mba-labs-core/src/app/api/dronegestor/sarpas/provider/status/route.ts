@@ -5,7 +5,7 @@ import { sarpasProviderStatus } from "@/lib/dronegestor-sarpas-provider";
 export const dynamic="force-dynamic";
 export async function GET(){
   const session=await getSessionProfile();
-  if(!session.user||!session.profile)return NextResponse.json({error:"Autenticação necessária."},{status:401});
+  if(!session.user||!session.profile || session.profile.status !== "ativo")return NextResponse.json({error:"Autenticação necessária."},{status:401});
   const type=session.profile.tipo.toLowerCase().replaceAll(" ","_");
   const master=["admin_master","super_admin"].includes(type);
   const allowed=(session.appsLiberados??[]).some(a=>a.slug==="dronegestor"&&a.canAccess);
