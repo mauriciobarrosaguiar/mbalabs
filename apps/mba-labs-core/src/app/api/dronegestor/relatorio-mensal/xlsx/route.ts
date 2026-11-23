@@ -31,7 +31,7 @@ function durationHours(start:unknown,end:unknown){const a=Date.parse(text(start)
 
 async function context():Promise<{current:Context|null;response:NextResponse|null}>{
   const session=await getSessionProfile();
-  if(!session.user||!session.profile)return{current:null,response:NextResponse.json({ok:false,error:"Autenticação necessária."},{status:401})};
+  if(!session.user||!session.profile || session.profile.status !== "ativo")return{current:null,response:NextResponse.json({ok:false,error:"Autenticação necessária."},{status:401})};
   const type=normalize(session.profile.tipo||"");
   const master=["super_admin","admin_master"].includes(type);
   const allowed=(session.appsLiberados??[]).some(app=>app.slug==="dronegestor"&&app.canAccess);
