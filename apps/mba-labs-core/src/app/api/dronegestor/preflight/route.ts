@@ -49,7 +49,7 @@ function positive(value: unknown) {
 
 async function context(): Promise<{ current: Context | null; response: NextResponse | null }> {
   const session = await getSessionProfile();
-  if (!session.user || !session.profile)
+  if (!session.user || !session.profile || session.profile.status !== "ativo")
     return {
       current: null,
       response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }),
