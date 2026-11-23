@@ -8,7 +8,7 @@ test("partial API reuses requestId and never counts an acknowledgement twice",()
   const s=source("app/api/dronegestor/execucao-parcial/route.ts");
   assert.match(s,/history\.find\(\(entry:any\)=>entry\.requestId===body\.requestId\)/);
   assert.match(s,/duplicate:true/);
-  assert.match(s,/JSON\.stringify\(prior\.snapshot\) !== JSON\.stringify\(body\.state\)/);
+  assert.match(s,/!sameDroneSnapshot\(prior\.snapshot, body\.state\)/);
   assert.match(s,/validateCumulativeContinuation\(previous, state\)/);
   assert.match(s,/\.eq\('detalhes->>updatedAt',version\)/);
   assert.match(s,/execucoesParciais:\[\.\.\.history,execution\]/);
