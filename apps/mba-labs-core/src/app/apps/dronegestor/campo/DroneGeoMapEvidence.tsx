@@ -80,6 +80,7 @@ async function parseFile(file: File) {
 export function DroneGeoMapEvidence() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [geometry, setGeometry] = useState<Geometry | null>(null);
+  const [controllerPhoto, setControllerPhoto] = useState<{ url: string; uploadedAt?: string; ordemServicoId?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
@@ -107,6 +108,28 @@ export function DroneGeoMapEvidence() {
   }
 
   useEffect(() => { void load(); }, []);
+
+  // This is a planning photo, stored separately from post-flight evidence.
+  useEffect(() => {
+    let cancelled = false;
+    const loadControllerPhoto = async () => {
+      const osId = getMission().ordemServicoId;
+      if (!osId) { if (!cancelled) setControllerPhoto(null); return; }
+      try {
+        const response = await fetch(`/api/dronegestor/mapa?osId=${encodeURIComponent(osId)}&finalidade=planejamento`, { cache: "no-store" });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) return;
+        if (!cancelled) setControllerPhoto(payload?.evidence?.ordemServicoId === osId ? payload.evidence : null);
+      } catch { /* Keep the existing UI if temporarily offline. */ }
+    };
+    const onPhotoUpdated = (event: Event) => {
+      const photo = (event as CustomEvent<{ url?: string; ordemServicoId?: string }>).detail;
+      if (photo?.ordemServicoId === getMission().ordemServicoId) setControllerPhoto(photo?.url ? { url: photo.url, ordemServicoId: photo.ordemServicoId } : null);
+    };
+    void loadControllerPhoto();
+    window.addEventListener("dronegestor:map-control-photo-updated", onPhotoUpdated);
+    return () => { cancelled = true; window.removeEventListener("dronegestor:map-control-photo-updated", onPhotoUpdated); };
+  }, []);
 
   async function importFile(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -152,9 +175,10 @@ export function DroneGeoMapEvidence() {
     <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
       <div className="flex items-start gap-3">
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-sky-50 text-sky-700"><MapPinned size={20}/></span>
-        <div className="min-w-0 flex-1"><strong className="block text-sm font-black text-slate-950">Polígono do talhão</strong><p className="mt-1 text-xs leading-5 text-slate-600">Opcional nesta fase. Importe KML ou GeoJSON para guardar o contorno geográfico realmente utilizado.</p></div>
+        <div className="min-w-0 flex-1"><strong className="block text-sm font-black text-slate-950">Mapa do talhão — arquivo, foto ou ambos</strong><p className="mt-1 text-xs leading-5 text-slate-600">Escolha um arquivo KML/GeoJSON, uma foto ou captura da tela do controle DJI, ou envie os dois. Tudo fica vinculado a esta OS.</p></div>
       </div>
 
+      <p className="mt-3 text-xs font-bold text-slate-700">Opção 1 — Arquivo geográfico (KML ou GeoJSON)</p>
       {loading ? <div className="mt-3 flex min-h-20 items-center justify-center gap-2 rounded-xl bg-slate-50 text-sm font-bold text-slate-500"><Loader2 className="animate-spin" size={17}/> Carregando polígono...</div> : geometry ? <>
         <PolygonPreview geometry={geometry}/>
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
@@ -170,6 +194,21 @@ export function DroneGeoMapEvidence() {
       <input ref={inputRef} type="file" accept=".kml,.geojson,.json,application/geo+json,application/json,application/vnd.google-earth.kml+xml" className="hidden" onChange={(event) => void importFile(event)}/>
       <button type="button" disabled={uploading} onClick={() => inputRef.current?.click()} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-sky-700 px-3 text-sm font-black text-white disabled:opacity-50">{uploading ? <Loader2 className="animate-spin" size={18}/> : <FileUp size={18}/>} {geometry ? "Substituir KML / GeoJSON" : "Carregar KML / GeoJSON"}</button>
       <p className="mt-2 text-[11px] leading-4 text-slate-500">KMZ e arquivos específicos DJI AGRAS serão liberados somente depois de validar amostras reais exportadas pelo equipamento.</p>
+      <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/40 p-3">
+        <strong className="block text-xs font-black text-emerald-950">Opção 2 — Foto do mapa na tela do controle</strong>
+        <p className="mt-1 text-xs leading-5 text-slate-700">Fotografe o mapa exibido no controle ou selecione uma captura de tela salva em JPG, PNG ou WebP (até 8 MB).</p>
+        {controllerPhoto?.url ?
+          <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-2">
+            <img src={controllerPhoto.url} alt="Foto do mapa exibido no controle desta OS" className="max-h-48 w-full rounded-lg object-contain" />
+            <p className="mt-2 flex items-center gap-2 text-xs font-bold text-emerald-800"><CheckCircle2 size={16}/> Foto do controle vinculada à OS</p>
+          </div> :
+          <p className="mt-2 text-xs text-slate-600">Nenhuma foto do controle anexada nesta OS.</p>}
+        <button type="button" onClick={() => window.dispatchEvent(new Event("dronegestor:open-controller-map-photo"))}
+          className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-3 text-sm font-black text-emerald-900">
+          <FileUp size={18}/> {controllerPhoto ? "Substituir foto / captura do controle" : "Fotografar ou selecionar foto do controle"}
+        </button>
+      </div>
+      <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950">Uma foto isolada é evidência visual e NÃO fornece automaticamente coordenadas, polígono ou distância de áreas sensíveis. O GPS, a análise de risco, os documentos e o pós-voo continuam sujeitos a verificações próprias.</p>
       {message && <p className={`mt-3 rounded-xl px-3 py-2 text-xs font-bold ${message.startsWith("Polígono registrado") ? "bg-emerald-50 text-emerald-900" : "bg-amber-50 text-amber-950"}`}>{message}</p>}
     </section>
   );
