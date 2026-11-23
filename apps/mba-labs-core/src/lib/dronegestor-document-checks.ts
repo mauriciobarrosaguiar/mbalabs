@@ -1,10 +1,11 @@
-/** Return false for missing ANAC IDs or explicit homologation placeholders.
- * A non-placeholder string is only a provided identifier, not proof of a
- * valid SISANT certificate or DECEA authorization.
- */
-export function hasNonPlaceholderAnacId(value: unknown): boolean {
+/** Detect explicit homologation/mock identifiers, never official evidence. */
+export function isExplicitHomologationPlaceholder(value: unknown): boolean {
   if (typeof value !== "string") return false;
   const normalized = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
-  if (!normalized) return false;
-  return !/(?:\bHOMOLOGACAO\b|\bFICTICIO\b|\bDEMONSTRACAO\b|\bNAO[-_ ]+UTILIZAR\b|\bSEM[-_ ]+REGISTRO[-_ ]+REAL\b)/.test(normalized);
+  return /(?:\bHOMOLOGACAO\b|\bFICTICIO\b|\bDEMONSTRACAO\b|\bNAO[-_ ]+UTILIZAR\b|\bSEM[-_ ]+REGISTRO[-_ ]+REAL\b)/.test(normalized);
+}
+
+/** A non-placeholder ANAC string is only a declaration, not official verification. */
+export function hasNonPlaceholderAnacId(value: unknown): boolean {
+  return typeof value === "string" && value.trim().length > 0 && !isExplicitHomologationPlaceholder(value);
 }
