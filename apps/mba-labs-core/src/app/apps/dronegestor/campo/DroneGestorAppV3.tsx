@@ -389,6 +389,7 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
     flash("Medição de campo registrada. Faça a confirmação final de risco.");
   }
   function resetMission() {
+    if (mission.ordemServicoId && localStorage.getItem("dronegestor:partialPayload:v1:" + mission.ordemServicoId)) return flash("Há um encerramento parcial aguardando confirmação. Preserve a operação até reconciliar.");
     if (missionStatus === "parcial") return flash("Retome a complementação desta OS para preservar suas cargas anteriores.");
     if (operationStarted) return flash("Existe uma operação em andamento. Conclua ou trate a ocorrência antes de iniciar outra missão.");
     if (!window.confirm("Limpar a missão atual e iniciar uma nova aplicação? Conclusões offline pendentes continuarão protegidas.")) return;
@@ -406,6 +407,7 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
   }
 
   async function startOperation() {
+    if (mission.ordemServicoId && localStorage.getItem("dronegestor:partialPayload:v1:" + mission.ordemServicoId)) return flash("Existe uma solicitação de encerramento parcial pendente. Confirme antes de retomar.");
     if (["pendente_sync", "finalizada"].includes(missionStatus)) return flash("Esta missão já foi concluída e não pode ser reiniciada.");
     if (syncConflict) return flash("Resolva o conflito de sincronização antes de iniciar a operação.");
     const previousSettingsAt = settingsUpdatedAt;
@@ -426,6 +428,7 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
     const next = !paused; setPaused(next); setMissionStatus(next ? "pausada" : "em_execucao");
   }
   function registerTank() {
+    if (mission.ordemServicoId && localStorage.getItem("dronegestor:partialPayload:v1:" + mission.ordemServicoId)) return flash("Encerramento parcial pendente. Não registre novas cargas antes de confirmar.");
     if (!operationStarted || paused) return flash("Retome a operação antes de registrar um abastecimento.");
     const area = n(tankArea); const volume = n(tankVolume); const remaining = Math.max(0, mission.area - progressHa);
     if (area <= 0 || volume <= 0) return flash("Informe a área realmente tratada e o volume realmente consumido neste abastecimento.");
