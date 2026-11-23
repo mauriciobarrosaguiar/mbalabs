@@ -19,7 +19,7 @@
 - TypeScript aprovado. Build completo final aprovado. CI remoto será registrado no complemento desta entrega.
 - Lint dos cinco arquivos envolvidos: sem erros ou avisos após limpeza.
 - Evidências textuais em [evidencias/dronegestor-20261123-work-fase3](evidencias/dronegestor-20261123-work-fase3).
-- Login remoto observado: redirecionamento para `/login?next=%2Fapps%2Fdronegestor`. Nenhuma conta autenticada nesta rodada. Não repetir download básico já registrado pelo titular.
+- Login remoto observado: redirecionamento para `/login?next=%2Fapps%2Fdronegestor`. Posteriormente autenticado como E2E Piloto Pedro; ver reteste registrado abaixo. Não repetir download básico já registrado pelo titular.
 
 ## Segurança atual — confirmação somente leitura
 Consulta em `pg_policies` do projeto MBA Labs confirmou somente `core_logs_select` e `core_logs_insert`, permissivas, para `authenticated`, condicionadas a administrador ou empresa. As quatro políticas restritivas propostas continuam ausentes. Migration preparada na PR, **não aplicada**.
@@ -49,8 +49,8 @@ Numeração extraída de `DroneSimpleFlowUX.tsx`, sem renumeração.
 - [x] Executar suíte incluindo encerramento parcial e invariantes existentes.
 - [x] Localizar original MAPA e executar teste antes ignorado.
 - [x] Reconfirmar ausência das políticas RLS propostas por consulta de metadados.
-- [ ] Autenticar **Piloto E2E Pedro** na prévia exata para leitura da OS `OS-20261123-45737`.
-- [ ] Retestar central Fase 3 e acesso direto à API com sessão do piloto, sem escrita.
+- [x] Autenticar **Piloto E2E Pedro** na prévia `97308326` para leitura da OS `OS-20261123-45737`.
+- [x] Retestar plano exibido na central Fase 3 e acesso direto à API com sessão do piloto, sem escrita. Atalho adicional continua pendente de reteste visual.
 - [ ] Confirmar acesso/download/expiração/erro de anexos em sessões específicas de gestor, RT, outra empresa, sem permissão e expirada.
 - [ ] Disponibilizar ambiente com banco e armazenamento comprovadamente isolados antes de criar cenários de 20 ha.
 - [ ] Parcial/complementação, offline antes/durante/após confirmação e troca de dois dispositivos reais: homologação por interface.
@@ -86,8 +86,21 @@ O titular concluiu o login seguro na prévia. Interface identificou **E2E Piloto
 - Pré-voo 1/5, pacote 1/6, 17%. Próximo passo: Certidão SISANT/ANAC. Receituário, referência SARPAS e comprovante ainda pendentes; mapa posterior ao voo. Não houve autorização fictícia ou avanço regulatório.
 - API GET em aba independente da mesma sessão retornou `ok:true`, `source:os`, `status:em_preparacao`, `canManage:false`, 0,1 ha, 10 L/ha, tanque 20 L, faixa 5 m, velocidade 18 km/h e altura 3 m. Isso comprova leitura como Pedro; não comprova sessão de outro perfil/aparelho.
 - Anexo existente classificado `outro`, contador 1, armazenamento sem capacidade inventada. PDF embutido bloqueado pelo Chromium; download anterior não repetido.
-- **Novo defeito encontrado pela interface:** atalho “Pendências de anexo” navegava somente para hash, descartava a OS selecionada e mantinha checklist fechado. Corrigido para carregar `osId`, preservar `returnTo=campo` e abrir o checklist via `checklist=1`. Regressão verifica URL/contexto; **ret teste autenticado do atalho corrigido pendente**.
+- **Novo defeito encontrado pela interface:** atalho “Pendências de anexo” navegava somente para hash, descartava a OS selecionada e mantinha checklist fechado. Corrigido para carregar `osId`, preservar `returnTo=campo` e abrir o checklist via `checklist=1`. Regressão verifica URL/contexto; **reteste autenticado do atalho corrigido pendente**.
 - Após essa correção adicional: **259/259 testes locais**, incluindo modelo original; build completo aprovado; lint sem erros, com um aviso preexistente de imagem no componente.
 - Evidência factual, sem URLs assinadas: [pedro-fase3-interface.json](evidencias/dronegestor-20261123-work-fase3/pedro-fase3-interface.json).
 
 A intervenção de login de Pedro acima foi concluída e deixa de ser bloqueio para a prévia `97308326`. Mantêm-se isolamento de escrita, RLS, Drive, seis resoluções, offline/troca real e outros perfis como pendências. A Fase 3 integral ainda não está homologada.
+
+
+## Estado final desta entrega
+- Código mais recente: [0cf7469efba4cd39428c5a49c8d95f6ca8e98d85](https://github.com/mauriciobarrosaguiar/mbalabs/commit/0cf7469efba4cd39428c5a49c8d95f6ca8e98d85).
+- CI: [DroneGestor #85](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45218802222) e [Core #906](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45218801306): **success**.
+- Prévia final `dpl_8pkh2wBjcA7vdFuXwYeXGjcvGBjT`: **READY**, target `null`, SHA `0cf7469efba4cd39428c5a49c8d95f6ca8e98d85`. URL: https://mbalabs-ci6haq465-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor . Nenhuma promoção produtiva.
+- Sessão Pedro aprovada na prévia anterior `97308326`; a correção adicional do atalho em `0cf7469e` passou automaticamente, ainda sem reteste autenticado visual. Não confundir esses níveis.
+- Suíte local final: **259/259** com original MAPA. CI não recebe a fixture original opcional e registra essa limitação.
+- Lista atual de branches Supabase: somente `main` vinculada ao projeto produtivo. Nenhum ambiente de escrita isolado disponível neste projeto.
+- Cotação da conta para branch: `amount=0.01344`, recorrência por hora. Documentação oficial informa preço inicial **US$ 0,01344/h** de compute (aprox. **US$ 0,32256/24 h**), com armazenamento/tráfego e outros usos sujeitos a cobrança. Fonte: https://supabase.com/docs/guides/platform/manage-your-usage/branching . **Nenhuma branch paga criada nem custo confirmado**. A criação depende de autorização expressa do titular.
+- Proposta concreta para destravar testes: branch temporária de homologação no projeto MBA Labs, sem cópia de dados reais, banco/Auth/Storage separados, apenas fixtures marcadas de homologação e prévia apontada exclusivamente para ela. Validar isolamento antes de escrever; não executar merge de banco ou alterações produtivas. Aplicação de migrations somente nesse ambiente isolado, preservando a exigência de autorização específica para produção.
+
+Missão permanece aberta. Software corrigido e evidências preservadas; sem homologação integral das oito fases, mobile ou troca de aparelho.
