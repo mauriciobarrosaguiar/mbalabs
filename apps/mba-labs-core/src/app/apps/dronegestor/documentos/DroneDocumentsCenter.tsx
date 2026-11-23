@@ -4,6 +4,7 @@ import Link from "next/link";
 import {uploadAgroDocToDrive} from "@/lib/agrodoc-cloud-upload-client";
 import { ArrowLeft, CheckCircle2, ChevronRight, ExternalLink, FileCheck2, FileUp, MapPinned, PlaneTakeoff, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { hasNonPlaceholderAnacId } from "@/lib/dronegestor-document-checks";
 
 type Mission={ordemServicoId?:string;ordemServicoNumero?:string;drone?:string;registroAnac?:string;fazendaNome?:string;talhaoNome?:string;tipoAtividade?:string;cultura?:string;alvo?:string};
 type Doc={id:string;tipo:string;nome:string;numero:string;validade:string;observacao:string;url:string;uploadedAt:string};
@@ -47,7 +48,7 @@ export function DroneDocumentsCenter({osId:selectedOsId,readOnly=false}:{osId:st
   const has=(t:string)=>docs.some(d=>d.tipo===t);
   const pulverizacao=(mission.tipoAtividade||"pulverizacao")==="pulverizacao";
   const items:GuideItem[]=[
-   {id:"anac",label:"Drone identificado",detail:mission.registroAnac?`ANAC: ${mission.registroAnac}`:"Selecione um drone cadastrado com identificação ANAC.",ok:Boolean(mission.registroAnac),phase:"antes",action:"campo"},
+   {id:"anac",label:"Identificação do drone",detail:!mission.registroAnac?"Selecione um drone cadastrado com identificação ANAC.":!hasNonPlaceholderAnacId(mission.registroAnac)?"Identificação fictícia de homologação: não atende ao pré-voo real.":"Identificação ANAC informada; confira a certidão SISANT e sua validade.",ok:hasNonPlaceholderAnacId(mission.registroAnac),phase:"antes",action:"campo"},
    {id:"sisant",label:"Certidão SISANT / ANAC",detail:has("sisant_certidao")?"Documento anexado.":"Anexe a certidão do drone usado nesta operação.",ok:has("sisant_certidao"),phase:"antes",docType:"sisant_certidao"}
   ];
   if(pulverizacao)items.push({id:"receita",label:"Receituário da aplicação",detail:has("receituario")?"Receituário anexado.":"Para o fluxo de pulverização do DroneGestor, anexe o receituário antes da liberação.",ok:has("receituario"),phase:"antes",docType:"receituario"});
