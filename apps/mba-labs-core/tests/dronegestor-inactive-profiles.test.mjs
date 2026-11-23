@@ -22,8 +22,9 @@ for (const route of apiRoutes) {
     const index = src.indexOf("getSessionProfile()");
     assert.ok(index >= 0, "route should resolve authenticated session");
     const next = src.slice(index, index + 1300);
-    assert.match(next, /\b(?:session|s|data|context)\.profile\.status\s*!==?\s*["']ativo["']/);
-    const guardPos = next.search(/\b(?:session|s|data|context)\.profile\.status\s*!==?\s*["']ativo["']/);
+    const activeGuard = /\b(?:(?:session|s|data|context)\.profile|profile)\.status\s*!==?\s*["']ativo["']/;
+    assert.match(next, activeGuard);
+    const guardPos = next.search(activeGuard);
     const privilegedPos = next.indexOf("createSupabaseAdminClient()");
     assert.ok(privilegedPos === -1 || guardPos < privilegedPos, "inactive guard precedes privileged client");
   });
