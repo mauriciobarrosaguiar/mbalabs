@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validatePartialExecution,validateCumulativeContinuation,partialExecutionSummary} from '../src/lib/dronegestor-partial.ts';
+import {validatePartialExecution,validateCumulativeContinuation,partialExecutionSummary,sameDroneSnapshot} from '../src/lib/dronegestor-partial.ts';
 const state=()=>({mission:{area:20},progressHa:12,startedAt:'2026-11-22T11:00:00Z',tankRecords:[{id:'load-1',at:'2026-11-22T11:10:00Z',areaHa:12,volumeL:120}]});
 test('20 ha / 12 ha / chuva preserves 8 ha pending and does not mutate loads',()=>{
  const input=state(),copy=structuredClone(input);
@@ -90,4 +90,20 @@ test('partial OS list includes only safe summary, with cumulative hectares, load
  assert.equal('snapshot' in summary,false,'OS lists must not expose raw flight snapshots');
  assert.equal(partialExecutionSummary({areaHa:20}),null);
  assert.equal(partialExecutionSummary({...osData,areaHa:16}),null);
+});
+
+test('JSONB reorders object keys without changing checkpoint or requestId semantics',()=>{
+ const {previous,second}=continuation();
+ const reverseKeys=value=>{
+   if(Array.isArray(value))return value.map(reverseKeys);
+   if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).reverse().map(([k,v])=>[k,reverseKeys(v)]));
+   return value;
+ };
+ const inDatabase=reverseKeys(previous);
+ assert.equal(sameDroneSnapshot(previous,inDatabase),true);
+ assert.deepEqual(validateCumulativeContinuation(inDatabase,second).cargasAnteriores,1);
+ assert.equal(sameDroneSnapshot(second,reverseKeys(second)),true);
+ const changed=reverseKeys(second);changed.tankRecords[0].volumeL+=1;
+ assert.equal(sameDroneSnapshot(second,changed),false);
+ assert.throws(()=>validateCumulativeContinuation(previous,changed),/não podem ser alterados/);
 });
