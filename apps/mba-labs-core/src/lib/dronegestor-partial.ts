@@ -25,3 +25,54 @@ export function validatePartialExecution(state: RecordValue, plannedArea: number
   if (!Number.isFinite(Date.parse(state.startedAt))) throw new Error('Horário inicial não registrado.');
   return { areaPlanejadaHa: plannedArea, areaAplicadaHa: area, areaRestanteHa: Math.round((plannedArea-area)*1e6)/1e6, motivo: reason as string, justificativa: justification.trim() };
 }
+
+
+/**
+ * Verify append-only hectares and individual loads across a partial checkpoint.
+ * A resumed application must not silently replace, remove, reorder or duplicate
+ * an acknowledged load. No database writes or synthetic flight approvals here.
+ */
+export function validateCumulativeContinuation(previous: RecordValue, state: RecordValue) {
+  const oldLoads = previous?.snapshot?.tankRecords;
+  const loads = state?.tankRecords;
+  const previousArea = Number(previous?.areaAplicadaHa);
+  const currentArea = Number(state?.progressHa);
+  if (!Array.isArray(oldLoads) || !oldLoads.length || !Array.isArray(loads) ||
+      !Number.isFinite(previousArea) || previousArea <= 0 ||
+      !Number.isFinite(currentArea) || currentArea <= previousArea + 0.000001) {
+    throw new Error('A complementação deve acrescentar área real e preservar as cargas anteriores.');
+  }
+  if (loads.length <= oldLoads.length) throw new Error('A complementação precisa registrar novas cargas reais.');
+  for (let i = 0; i < oldLoads.length; i++) {
+    if (JSON.stringify(loads[i]) !== JSON.stringify(oldLoads[i])) {
+      throw new Error('A ordem, os hectares e os volumes das cargas anteriores não podem ser alterados.');
+    }
+  }
+  if (state.startedAt !== previous.snapshot.startedAt) {
+    throw new Error('A complementação deve preservar o início original da operação.');
+  }
+  const ids = new Set<string>();
+  let totalArea = 0, totalVolume = 0;
+  for (const load of loads) {
+    if (!load || typeof load.id !== 'string' || !load.id || ids.has(load.id) ||
+        !Number.isFinite(load.areaHa) || load.areaHa <= 0 ||
+        !Number.isFinite(load.volumeL) || load.volumeL <= 0 ||
+        !Number.isFinite(Date.parse(load.at))) {
+      throw new Error('Carga inexistente, duplicada ou com hectares/volume/horário inválidos.');
+    }
+    ids.add(load.id);
+    totalArea += load.areaHa;
+    totalVolume += load.volumeL;
+  }
+  if (Math.abs(totalArea - currentArea) > 0.001) {
+    throw new Error('A soma acumulada dos hectares não coincide com as cargas registradas.');
+  }
+  return {
+    hectaresAnteriores: previousArea,
+    hectaresAcrescentados: Math.round((currentArea - previousArea) * 1e6) / 1e6,
+    hectaresAcumulados: currentArea,
+    cargasAnteriores: oldLoads.length,
+    novasCargas: loads.length - oldLoads.length,
+    volumeAcumuladoL: Math.round(totalVolume * 100) / 100,
+  };
+}
