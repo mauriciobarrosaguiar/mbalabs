@@ -40,6 +40,7 @@ async function context(): Promise<{ current: Context | null; response: NextRespo
       current: null,
       response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }),
     };
+  if (s.profile.status !== "ativo") return { current: null, response: NextResponse.json({ ok: false, error: "Conta inativa: acesso bloqueado." }, { status: 403 }) };
   const type = normalize(s.profile.tipo || "");
   const master = ["super_admin", "admin_master"].includes(type);
   const allowed = (s.appsLiberados ?? []).some((a) => a.slug === "dronegestor" && a.canAccess);
