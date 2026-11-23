@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validatePartialExecution,validateCumulativeContinuation,partialExecutionSummary,sameDroneSnapshot} from '../src/lib/dronegestor-partial.ts';
+import {validatePartialExecution,validateCumulativeContinuation,partialExecutionSummary,sameDroneSnapshot,validateFieldCompletionState} from '../src/lib/dronegestor-partial.ts';
 const state=()=>({mission:{area:20},progressHa:12,startedAt:'2026-11-22T11:00:00Z',tankRecords:[{id:'load-1',at:'2026-11-22T11:10:00Z',areaHa:12,volumeL:120}]});
 test('20 ha / 12 ha / chuva preserves 8 ha pending and does not mutate loads',()=>{
  const input=state(),copy=structuredClone(input);
@@ -106,4 +106,16 @@ test('JSONB reorders object keys without changing checkpoint or requestId semant
  const changed=reverseKeys(second);changed.tankRecords[0].volumeL+=1;
  assert.equal(sameDroneSnapshot(second,changed),false);
  assert.throws(()=>validateCumulativeContinuation(previous,changed),/não podem ser alterados/);
+});
+
+test('new field completion requires OS actually started by server',()=>{
+ const started={status:'em_execucao',iniciadaEm:'2026-11-23T08:00:00Z',execucaoParcialAtiva:false};
+ assert.equal(validateFieldCompletionState(started),undefined);
+ assert.equal(validateFieldCompletionState({...started,status:'suspensa'}),undefined);
+ for(const status of ['aberta','preparacao','em_preparacao','campo_concluido','concluida','cancelada']){
+   assert.throws(()=>validateFieldCompletionState({...started,status}),/não está em execução/);
+ }
+ assert.throws(()=>validateFieldCompletionState({...started,iniciadaEm:''}),/início de execução/);
+ assert.throws(()=>validateFieldCompletionState({...started,iniciadaEm:'invalido'}),/início de execução/);
+ assert.throws(()=>validateFieldCompletionState({...started,execucaoParcialAtiva:true}),/Retome a execução parcial/);
 });
