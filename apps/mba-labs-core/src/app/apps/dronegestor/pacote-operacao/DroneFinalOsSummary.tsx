@@ -3,6 +3,8 @@
 import { CheckCircle2, Clock3, Download, FileCheck2, FileText, MapPinned, PlaneTakeoff, ShieldCheck, Sprout, TriangleAlert, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { droneAppliedArea, droneOperationStatusLabel } from "@/lib/dronegestor-operation-summary";
+
 type AnyRecord = Record<string, any>;
 type Doc = { id?: string; tipo?: string; nome?: string; url?: string };
 type OperationPayload = { ok?: boolean; state?: AnyRecord; source?: string; pilotName?: string; syncUpdatedAt?: string; os?: { id?: string; status?: string; numero?: string; fechamentoStatus?: string; pendencias?: string[] }; error?: string };
@@ -59,13 +61,13 @@ export function DroneFinalOsSummary() {
     const tanks = Array.isArray(state.tankRecords) ? state.tankRecords : [];
     const products = Array.isArray(mission.produtos) ? mission.produtos : [];
     const occurrences = Array.isArray(state.occurrences) ? state.occurrences : [];
-    const progress = Number(state.progressHa) || 0, area = Number(mission.area) || 0;
+    const progress = droneAppliedArea(state.progressHa), area = Number(mission.area) || 0;
     const totalReal = tanks.reduce((sum: number, item: AnyRecord) => sum + Math.max(0, Number(item?.volumeL) || 0), 0);
     const weather = state.weather || {};
     const osStatus = payload?.os?.status || "";
     const closure = payload?.os?.fechamentoStatus || "";
     const pending = Array.isArray(payload?.os?.pendencias) ? payload!.os!.pendencias! : [];
-    const status = osStatus === "concluida" ? "OS encerrada" : osStatus === "campo_concluido" ? (closure === "pronto" ? "Pronta para encerrar" : "Campo concluído - regularização") : "Operação em andamento";
+    const status = droneOperationStatusLabel(osStatus, closure);
     return { state, mission, tanks, products, occurrences, progress, area, totalReal, weather, osStatus, closure, pending, status };
   }, [payload]);
 
@@ -92,7 +94,7 @@ export function DroneFinalOsSummary() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Info icon={<UserRound size={18}/>} label="Quem fez" value={payload.pilotName || "Piloto não identificado"} sub={m.drone ? `${m.drone} • ANAC ${m.registroAnac || "não informado"}` : "Drone não informado"}/>
           <Info icon={<MapPinned size={18}/>} label="Onde" value={[m.clienteNome, m.fazendaNome, m.talhaoNome].filter(Boolean).join(" → ") || "Não informado"} sub={[m.municipio, m.uf].filter(Boolean).join("/") || "Localidade não informada"}/>
-          <Info icon={<Sprout size={18}/>} label="O que foi feito" value={`${m.cultura || "Cultura não informada"}${m.alvo ? ` • ${m.alvo}` : ""}`} sub={`${n(summary.progress || summary.area, 2)} ha realizados de ${n(summary.area, 2)} ha`}/>
+          <Info icon={<Sprout size={18}/>} label="O que foi feito" value={`${m.cultura || "Cultura não informada"}${m.alvo ? ` • ${m.alvo}` : ""}`} sub={`${n(summary.progress, 2)} ha realizados de ${n(summary.area, 2)} ha`}/>
           <Info icon={<Clock3 size={18}/>} label="Quando" value={`${dt(state.startedAt)} → ${dt(state.endedAt || state.concluidaNoDispositivoEm)}`} sub={`Duração: ${duration(state.startedAt, state.endedAt || state.concluidaNoDispositivoEm)}`}/>
         </div>
 

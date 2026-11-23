@@ -281,3 +281,12 @@ A falha encontrada no link interno da fase 2 foi corrigida acrescentando `return
 Validação após correção: **166 testes aprovados, zero reprovados, zero ignorados**, incluindo XLSX original MAPA; TypeScript e build de produção aprovados. Lint dos dois arquivos tocados: zero erros, com avisos existentes registrados em `lint-escrita.txt`. Logs em `docs/evidencias/dronegestor-20261123-piloto/*-escrita.txt`.
 
 Não se atribui homologação integral às fases seguintes: inspeções físicas, clima, GPS e SARPAS não foram inventados. Pausa de execução, progresso/abastecimentos e troca de aparelho continuam dependendo dos cenários controlados registrados anteriormente. As seis resoluções exatas continuam bloqueadas pela limitação do navegador descrita no relatório.
+
+
+### Segunda correção encontrada pela interface — pacote sem execução
+
+Ao abrir o pacote da nova OS pelo atalho da fase 8, o resumo mostrava “Operação em andamento” e “0,10 ha realizados de 0,10 ha”, apesar do estado em preparação e ausência de cargas/execução. **Reprovado pela interface**; evidência `pacote-antes-correcao.json`. O fallback `progress || area` convertia zero progresso em área planejada.
+
+Corrigidos UI e PDF para distinguir OS aberta, preparação, execução, suspensão, campo concluído, encerramento, cancelamento e estado desconhecido. Zero progresso permanece zero; a área planejada nunca é usada como área aplicada. O PDF preserva zero explícito mesmo havendo resumo arquivado. Dois testes cobrem esses cenários. O teste real de geração do PDF continua passando com o novo módulo compartilhado.
+
+**168 testes aprovados, 0 reprovados, 0 ignorados**; TypeScript, build e lint do escopo sem erros (avisos existentes no log). Reteste pela interface aguardando nova prévia. Evidências `*-pacote.txt`. Não foi iniciado voo, registrado abastecimento, concluída ou encerrada a nova OS.
