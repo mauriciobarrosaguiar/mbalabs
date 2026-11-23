@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { DroneDocumentsCenter } from "./DroneDocumentsCenter";
 import { uploadAgroDocToDrive } from "@/lib/agrodoc-cloud-upload-client";
+import { agroDocFolders as folders, attachmentsInFolder } from "@/lib/dronegestor-document-folders";
 import { useState, useEffect, useRef } from "react";
 import {
   Folder,
@@ -36,24 +37,6 @@ type Doc = {
   ordemServicoNumero: string;
   ordemServicoId: string;
 };
-const folders = [
-  { label: "Todos", types: [] },
-  { label: "Relatórios operacionais", types: ["relatorio_mapa","relatorio_operacional"] },
-  {
-    label: "Comprovantes",
-    types: [
-      "sarpas_autorizacao",
-      "sisant_certidao",
-      "registro_mapa",
-      "seguro",
-      "exame_piloto_anac",
-    ],
-  },
-  { label: "Mapas de aplicação", types: ["mapa_aplicacao"] },
-  { label: "Receituários agronômicos", types: ["receituario"] },
-  { label: "Fotos e evidências", types: ["outro", "avaliacao_risco","foto","video"] },
-  { label: "Histórico de voo", types: ["historico_voo"] },
-];
 export function AgroDocDocuments() {
   const searchParams=useSearchParams();
   const orders = useAgroData<{ items: Order[] }>(
@@ -139,7 +122,7 @@ export function AgroDocDocuments() {
   }
   const visible = docs.filter(
     (x) =>
-      (!folder || folders[folder].types.includes(x.tipo)) &&
+      (!folder || attachmentsInFolder([x], folders[folder]).length > 0) &&
       x.nome.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
   );
   async function send() {
@@ -299,7 +282,7 @@ export function AgroDocDocuments() {
               <span>
                 <b>{f.label}</b>
                 <small>
-                  {docs.filter((x) => f.types.includes(x.tipo)).length} arquivos
+                  {attachmentsInFolder(docs, f).length} arquivos
                   nesta OS
                 </small>
               </span>
@@ -307,6 +290,7 @@ export function AgroDocDocuments() {
           ))}
         </AgroDocCard>
         <AgroDocCard title="Últimos arquivos" icon={FileText}>
+          <div className="hidden sm:block">
           <AgroDocTable head={["Arquivo", "Operação", "Data", "Ações"]}>
             {visible.map((x) => (
               <tr
@@ -343,6 +327,28 @@ export function AgroDocDocuments() {
               </tr>
             ))}
           </AgroDocTable>
+          </div>
+          <div className="grid gap-3 sm:hidden">
+            {visible.map((x) => (
+              <article key={x.id} className="min-w-0 rounded-2xl border border-[#d9e8df] bg-white p-4">
+                <button type="button" className="block w-full break-all text-left font-bold text-[#143d31]" onClick={() => setSelected(x)}>
+                  {x.nome}
+                </button>
+                <p className="mt-2 break-words text-sm text-slate-600">OS: {x.ordemServicoNumero || "—"}</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Data: {new Date(x.uploadedAt).toLocaleDateString("pt-BR")}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button type="button" onClick={() => setSelected(x)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#bcd5c6] px-3 font-semibold text-[#176a4c]">
+                    <Eye size={18} /> Visualizar
+                  </button>
+                  <button type="button" onClick={() => void openDocument(x, true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#bcd5c6] px-3 font-semibold text-[#176a4c]">
+                    <Download size={18} /> Baixar
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
           {!visible.length && (
             <AgroDocEmpty>
               {loading
