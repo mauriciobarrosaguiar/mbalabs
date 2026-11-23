@@ -76,3 +76,24 @@ export function validateCumulativeContinuation(previous: RecordValue, state: Rec
     volumeAcumuladoL: Math.round(totalVolume * 100) / 100,
   };
 }
+
+/** Public, non-sensitive execution progress for lists. Never expose raw checkpoint snapshots here. */
+export function partialExecutionSummary(osData: RecordValue) {
+  const history = Array.isArray(osData?.execucoesParciais) ? osData.execucoesParciais : [];
+  const last = history.at(-1);
+  if (!last) return null;
+  const planned = Number(osData.areaHa);
+  const applied = Number(last.areaAplicadaHa);
+  if (!Number.isFinite(planned) || planned <= 0 || !Number.isFinite(applied) || applied < 0 || applied > planned) return null;
+  const loads = Array.isArray(last.snapshot?.tankRecords) ? last.snapshot.tankRecords : [];
+  const volume = loads.reduce((sum:number,item:RecordValue)=>sum+(Number.isFinite(item?.volumeL)&&item.volumeL>0?item.volumeL:0),0);
+  return {
+    areaAplicadaHa: applied,
+    areaRestanteHa: Math.round((planned-applied)*1e6)/1e6,
+    volumeAplicadoL: Math.round(volume*100)/100,
+    cargasRegistradas: loads.length,
+    complementacoes: Math.max(0,history.length-1),
+    motivo: typeof last.motivo === 'string' ? last.motivo : '',
+    atualizadoEm: typeof last.at === 'string' ? last.at : '',
+  };
+}
