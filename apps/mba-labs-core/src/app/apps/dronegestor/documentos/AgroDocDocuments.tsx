@@ -75,6 +75,8 @@ export function AgroDocDocuments() {
     [reload, setReload] = useState(0);
   const [fieldOsId,setFieldOsId]=useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const fileOsRef = useRef("");
+  const sendingRef = useRef(false);
   useEffect(() => {
     fetch("/api/dronegestor/cloud",{cache:"no-store"})
       .then(async r=>r.ok?await r.json():null)
@@ -125,14 +127,27 @@ export function AgroDocDocuments() {
   }, [os, reload]);
   const selectedOrder = orders.data?.items.find(item => item.entityId === os);
   const readOnly = !selectedOrder || ["cancelada", "concluida"].includes(selectedOrder.data.status || "");
+  function cancelUpload() {
+    if (sendingRef.current) return;
+    setFile(null); setUpload(false); setProgress(null); fileOsRef.current = "";
+    if (fileRef.current) fileRef.current.value = "";
+  }
+  function changeOrder(nextOs: string) {
+    if (sendingRef.current || busy || nextOs === os) return;
+    if (file) { setError("Envie ou cancele o arquivo selecionado antes de trocar de OS."); return; }
+    cancelUpload(); setError(""); setOs(nextOs);
+  }
   const visible = docs.filter(
     (x) =>
       (!folder || folders[folder].types.includes(x.tipo)) &&
       x.nome.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
   );
   async function send() {
+    if (sendingRef.current) return;
     if (readOnly) { setError("OS encerrada ou cancelada: somente consulta."); return; }
     if (!file || !os) return;
+    if (fileOsRef.current !== os) { cancelUpload(); setError("A OS mudou. Selecione novamente o arquivo para a OS atual."); return; }
+    sendingRef.current = true;
     setBusy(true);
     setError("");
     try {
@@ -160,6 +175,7 @@ export function AgroDocDocuments() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro no upload");
     } finally {
+      sendingRef.current = false;
       setBusy(false);
       setProgress(null);
     }
@@ -212,7 +228,8 @@ export function AgroDocDocuments() {
         <select
           aria-label="Operação vinculada"
           value={os}
-          onChange={(e) => setOs(e.target.value)}
+          disabled={busy}
+          onChange={(e) => changeOrder(e.target.value)}
         >
           <option value="">Selecionar OS</option>
           {orders.data?.items.map((x) => (
@@ -418,7 +435,8 @@ export function AgroDocDocuments() {
             return;
           }
           const f = e.dataTransfer.files[0];
-          if (f) {
+          if (f && !sendingRef.current) {
+            fileOsRef.current = os;
             setFile(f);
             setUpload(true);
           }
@@ -465,9 +483,10 @@ export function AgroDocDocuments() {
           </select>
           <input
             ref={fileRef}
+            disabled={busy}
             type="file"
             accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.mp4,.mov,.zip,.kml,.kmz"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            onChange={(e) => { if (sendingRef.current) return; fileOsRef.current = os; setFile(e.target.files?.[0] || null); }}
           />
           {file && <p>{file.name}</p>}
           {!cloudAvailable && <p className="agro-form-note">Sem Drive conectado, anexos são armazenados no Supabase (até 10 MB).</p>}
@@ -487,7 +506,7 @@ export function AgroDocDocuments() {
           {file && file.size > 2 * 1024 * 1024 * 1024 && (
             <p role="alert">Arquivo maior que 2 GB.</p>
           )}
-          <button className="agro-button" onClick={() => setUpload(false)}>
+          <button className="agro-button" disabled={busy} onClick={cancelUpload}>
             Cancelar
           </button>
         </section>

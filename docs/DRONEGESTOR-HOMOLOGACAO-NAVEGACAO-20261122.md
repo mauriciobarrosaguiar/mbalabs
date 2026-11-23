@@ -2,7 +2,7 @@
 
 ## Estado consolidado — continuação em 23/11/2026
 
-**Homologação parcial. PR #206 permanece em rascunho, sem merge e sem produção.** As demais seções registram a evolução cronológica; resultados antigos não substituem este estado atual.
+**Homologação parcial. Publicação autorizada pelo titular em 23/11/2026; PR #206 permanece em rascunho e sem merge.** As demais seções registram a evolução cronológica; resultados antigos não substituem este estado atual.
 
 - Código de aplicação atual: `b99919a4c263880634bcb931a9e3aecb52f5f656`. Prévia `dpl_59TrgHspwxKaeAXqzszZTo7QiqFG` READY, target preview (`null`), confirmado novamente nesta continuação.
 - **190 testes locais aprovados, zero reprovados, zero ignorados**, conforme `evidencias/dronegestor-20261123-os-somente-consulta/testes.txt`, com XLSX original MAPA. TypeScript e build aprovados, lint do escopo sem erros; lint global mantém três falhas anteriores fora do DroneGestor.
@@ -419,3 +419,18 @@ Prévia READY `dpl_59TrgHspwxKaeAXqzszZTo7QiqFG`, target preview (`null`), códi
 A reprodução anterior não enviou anexos à OS cancelada. O reenvio utilizou os mesmos bytes do PDF fictício já existente na OS de preparação, sem dados reais ou alteração de autorização SARPAS. URLs temporárias privadas foram omitidas dos registros. A visualização PDF embutida continua bloqueada pelo Chromium deste ambiente; o download foi concluído. Captura real de desktop, não simulação mobile.
 
 A homologação geral permanece parcial: execução/retomada e múltiplos aparelhos pela UI, seis resoluções exatas, todos os botões/estados e MAPA com aplicações finalizadas/revisadas ainda não estão integralmente homologados. Sem merge, produção, migrations ou envios oficiais.
+
+
+## Publicação autorizada e continuidade das pendências
+
+O usuário solicitou expressamente publicar as correções e continuar a resolução das pendências. Publicado o commit `ef383504a625e782951390f6b053b2675b1a79dd` diretamente no projeto existente, target production, deployment `dpl_7AWZhUyWvhs6hCNz1fHw7s7vh4Ld` READY. Alias https://www.mbalabs.com.br confirmado pelo provedor e pela interface. CI do commit: DroneGestor 34 e Core CI 788 concluídos com success. Sem merge, migration, novo recurso pago, alteração de credenciais ou envio oficial.
+
+Verificação real pós-publicação, sessão Pulveriza 63 já existente: dashboard acessível e OS fictícia cancelada DD129 com envio desabilitado/aviso somente consulta. Logs error/fatal do deployment na janela 15m não retornaram registros. Evidências em `dronegestor-20261123-publicacao`. A main permanece sem merge; futuras publicações de main devem preservar as correções da branch publicada.
+
+### Nova falha reproduzida: arquivo pendente e troca de OS
+
+Na prévia, foi selecionado um PDF fictício na OS-45737 e alterada a seleção para OS-D916C: o arquivo permaneceu no formulário e Enviar arquivo continuou habilitado. Nenhum arquivo foi enviado para a segunda OS; reprodução cancelada. Evidência `troca-os-anexo-antes.json`.
+
+Correção adicional: troca bloqueada enquanto há arquivo selecionado, com orientação para enviar/cancelar; cancelamento limpa arquivo/input/referência; OS e seletor de arquivo bloqueados durante envio; arquivo é vinculado à OS de origem e recusado se a URL/contexto mudou; trava síncrona impede segundo envio antes da atualização do React.
+
+Quatro regressões executam as funções reais do componente: preservar arquivo ao bloquear troca, cancelar e então trocar, recusar arquivo de outra OS após mudança por query, impedir dois disparos e mudança durante envio. Suíte completa: **194 aprovados, 0 reprovados, 0 ignorados**, com XLSX original. Publicação desse ajuste adicional depende do reteste abaixo; não confundir com a versão anterior já publicada.
