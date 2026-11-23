@@ -12,6 +12,8 @@ export const dynamic = "force-dynamic";
 
 const BUCKET = "dronegestor-map-evidence";
 const ACTION = "mapa_voo_evidencia";
+// A controller-screen photo captured before flying is NOT post-flight map evidence.
+const CONTROLLER_PHOTO_ACTION = "mapa_controle_foto_v1";
 const PILOT_ACTION = "piloto_operacional_v1";
 const MAX_BYTES = 8 * 1024 * 1024;
 
@@ -129,6 +131,7 @@ async function signedEvidence(admin: any, row: any) {
     url: signed.data.signedUrl,
     uploadedAt: text(details.uploadedAt, 60) || row.created_at,
     source: text(details.source, 20),
+    finalidade: text(details.finalidade, 30) === "planejamento" ? "planejamento" : "pos_voo",
     ordemServicoId: text(details.ordemServicoId, 100),
     ordemServicoNumero: text(details.ordemServicoNumero, 100),
     talhaoNome: text(details.talhaoNome, 180),
@@ -142,6 +145,8 @@ export async function GET(request: NextRequest) {
     if (access.response) return access.response;
     const current = access.current!;
     const osId = text(request.nextUrl.searchParams.get("osId"), 100);
+    const finalidade = request.nextUrl.searchParams.get("finalidade") === "planejamento" ? "planejamento" : "pos_voo";
+    const action = finalidade === "planejamento" ? CONTROLLER_PHOTO_ACTION : ACTION;
     if (!osId) return NextResponse.json({ ok: true, evidence: null });
 
     const admin = createSupabaseAdminClient() as any;
@@ -151,7 +156,7 @@ export async function GET(request: NextRequest) {
       .from("core_logs")
       .select("id,detalhes,created_at")
       .eq("app_slug", "dronegestor")
-      .eq("acao", ACTION)
+      .eq("acao", action)
       .contains("detalhes", { ordemServicoId: osId })
       .order("created_at", { ascending: false })
       .limit(1);
@@ -179,6 +184,8 @@ export async function POST(request: NextRequest) {
     const admin = createSupabaseAdminClient() as any;
 
     const form = await request.formData();
+    const finalidade = text(form.get("finalidade"), 30) === "planejamento" ? "planejamento" : "pos_voo";
+    const action = finalidade === "planejamento" ? CONTROLLER_PHOTO_ACTION : ACTION;
     const file = form.get("foto");
     const ordemServicoId = text(form.get("ordemServicoId"), 100);
     if (!ordemServicoId) {
@@ -231,6 +238,7 @@ export async function POST(request: NextRequest) {
       storagePath,
       uploadedAt,
       source,
+      finalidade,
       ordemServicoId,
       ordemServicoNumero,
       talhaoNome,
@@ -245,7 +253,7 @@ export async function POST(request: NextRequest) {
         empresa_id: current.empresaId,
         usuario_id: current.userId,
         app_slug: "dronegestor",
-        acao: ACTION,
+        acao: action,
         detalhes: details,
       })
       .select("id,detalhes,created_at")
