@@ -32,3 +32,16 @@ test('read access to closed OS is preserved and preparation remains writable',as
  assert.equal((await requireDroneOsAccess(admin,context,'OS-QA')).data.status,'cancelada');
  state.rows[0].detalhes.data.status='preparacao';assert.equal((await requireDroneOsWriteAccess(admin,context,'OS-QA')).data.status,'preparacao');
 });
+
+test('assigned pilot can consult cancellation but cannot write evidence',async()=>{
+ const admin=createSupabaseAdminClient(),context={userId:'pedro',empresaId:'company-A',canManage:false};
+ assert.equal((await requireDroneOsAccess(admin,context,'OS-QA')).data.status,'cancelada');
+ await assert.rejects(requireDroneOsWriteAccess(admin,context,'OS-QA'),error=>error.status===409);
+ assert.equal(state.writes,0);
+});
+test('write guard preserves other-pilot and cross-company denials before exposing OS status',async()=>{
+ const admin=createSupabaseAdminClient();
+ await assert.rejects(requireDroneOsWriteAccess(admin,{userId:'joao',empresaId:'company-A',canManage:false},'OS-QA'),error=>error.status===403);
+ await assert.rejects(requireDroneOsWriteAccess(admin,{userId:'rt-B',empresaId:'company-B',canManage:true},'OS-QA'),error=>error.status===404);
+ assert.equal(state.writes,0);assert.equal(state.audit.length,0);
+});
