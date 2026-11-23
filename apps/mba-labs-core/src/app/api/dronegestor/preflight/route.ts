@@ -1,4 +1,5 @@
 import { hasDroneCoordinates } from "@/lib/dronegestor-coordinates";
+import { hasNonPlaceholderAnacId, isExplicitHomologationPlaceholder } from "@/lib/dronegestor-document-checks";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
@@ -174,7 +175,7 @@ export async function POST(request: NextRequest) {
     // O gestor continua podendo acompanhar outra OS pelo painel, mas não “vira” o piloto dela.
     const pilotOk = Boolean(assignedId && assignedName && assignedId === current.userId);
 
-    const droneOk = Boolean(text(mission.drone) && text(mission.registroAnac || mission.identificacaoAnac));
+    const droneOk = Boolean(text(mission.drone) && !isExplicitHomologationPlaceholder(mission.drone) && hasNonPlaceholderAnacId(mission.registroAnac || mission.identificacaoAnac));
     const products = Array.isArray(mission.produtos) ? mission.produtos : [];
     const missionOk = Boolean(
       text(mission.tipoAtividade) &&
@@ -264,7 +265,7 @@ export async function POST(request: NextRequest) {
         ok: droneOk,
         detail: droneOk
           ? `${text(mission.drone)} • ANAC ${text(mission.registroAnac || mission.identificacaoAnac)}`
-          : "Selecione um drone cadastrado com identificação ANAC.",
+          : "Selecione um drone cadastrado e informe sua identificação ANAC real. Dados fictícios de homologação não liberam o pré-voo.",
         nextView: "nova",
       },
       {
