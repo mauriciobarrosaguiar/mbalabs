@@ -74,3 +74,15 @@ Referências técnicas:
 - [ ] CI da versão atual e homologação de Data API real (registrar separadamente).
 - [ ] Backup, janela controlada e autorização expressa antes de migration.
 - [ ] Merge e publicação: **não autorizados nesta execução**.
+
+## Segunda revisão — contas inativas em rotas privilegiadas
+A análise do código identificou que as verificações de sessão de diversas APIs autorizavam o perfil `admin_master/super_admin` sem avaliar explicitamente se `profile.status` estava `ativo`. O login padrão pode recusar uma conta inativa, mas essa verificação não substitui a autorização de cada rota acessível diretamente.
+
+Correções propostas **somente na PR**:
+- Em 21 rotas API que não possuíam o bloqueio, inserir verificação de perfil ativo antes de criar cliente privilegiado ou de examinar permissões de administrador. Três rotas adicionais e o endpoint de estado já continham validação equivalente.
+- `agrodoc-cloud.ts`: `cloudContext` rejeita perfil inativo com 403.
+- `apps/dronegestor/layout.tsx`: perfil inativo é redirecionado para acesso bloqueado.
+- Regra preservada: um token de sessão válido **não** deve permitir acesso operacional se o cadastro foi inativado.
+- `tests/dronegestor-inactive-profiles.test.mjs` verifica a presença de validações de conta ativa em 27 rotas, armazenamento e layout. Trata-se de cobertura estática complementar, não substitui testes reais de requisições com uma conta suspensa.
+
+**Importante:** estas correções no código ainda não estão publicadas; o controle de acesso do banco permanece vulnerável enquanto a migration não for autorizada e aplicada.
