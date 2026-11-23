@@ -1,0 +1,108 @@
+{
+  "commit": "6f784d2084d44c727f8ca8bd627b8fac367c6e4d",
+  "origin": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app",
+  "account": "E2E Piloto Pedro",
+  "pages": [
+    {
+      "requested": "/apps/dronegestor/cadastros",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/gestao",
+      "heading": "Minhas ordens de serviço"
+    },
+    {
+      "requested": "/apps/dronegestor/conferencia",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/gestao",
+      "heading": "Minhas ordens de serviço"
+    },
+    {
+      "requested": "/apps/dronegestor/pilotos",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/gestao",
+      "heading": "Minhas ordens de serviço"
+    },
+    {
+      "requested": "/apps/dronegestor/equipe",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/gestao",
+      "heading": "Minhas ordens de serviço"
+    },
+    {
+      "requested": "/apps/dronegestor/configuracoes",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/gestao",
+      "heading": "Minhas ordens de serviço"
+    },
+    {
+      "requested": "/apps/dronegestor/administracao",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor",
+      "heading": "MBA DroneGestor"
+    },
+    {
+      "requested": "/apps/dronegestor/funcionarios",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor",
+      "heading": "MBA DroneGestor"
+    },
+    {
+      "requested": "/apps/dronegestor/gestao/planejamento?osId=71df64e7-3148-451d-9eb6-d3001393a3f4",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/gestao",
+      "heading": "Minhas ordens de serviço"
+    }
+  ],
+  "apis": [
+    {
+      "path": "/api/dronegestor/administracao",
+      "error": "Esta área é exclusiva do gestor do sistema.",
+      "ok": false
+    },
+    {
+      "path": "/api/dronegestor/empresa/usuarios",
+      "error": "Somente o administrador da empresa pode cadastrar funcionários.",
+      "ok": false
+    },
+    {
+      "path": "/api/dronegestor/planejamento?osId=71df64e7-3148-451d-9eb6-d3001393a3f4",
+      "error": "Somente gestor ou responsável técnico pode planejar a missão.",
+      "ok": false
+    },
+    {
+      "path": "/api/dronegestor/conferencia?month=2026-11",
+      "error": "Somente gestor ou responsável técnico pode revisar registros."
+    },
+    {
+      "path": "/api/dronegestor/cadastros?type=os",
+      "ok": true,
+      "canManage": false,
+      "count": 1,
+      "ids": [
+        "71df64e7-3148-451d-9eb6-d3001393a3f4"
+      ],
+      "number": [
+        "OS-20261121-71DF6"
+      ]
+    },
+    {
+      "path": "/api/dronegestor/cadastros?type=cliente",
+      "ok": true,
+      "canManage": false,
+      "count": 1,
+      "ids": [
+        "79e2414e-6f34-4dc3-af38-f573c69256d5"
+      ]
+    },
+    {
+      "path": "/api/dronegestor/cadastros?type=fazenda",
+      "ok": true,
+      "canManage": false,
+      "count": 1,
+      "ids": [
+        "1092135b-ada3-4208-bc6c-dba4f2e0cc46"
+      ]
+    },
+    {
+      "path": "/api/dronegestor/cadastros?type=talhao",
+      "ok": true,
+      "canManage": false,
+      "count": 1,
+      "ids": [
+        "c03ff83f-a6e4-4dd4-9b6c-5103feb9d01b"
+      ]
+    }
+  ],
+  "noLiveWrites": true
+}

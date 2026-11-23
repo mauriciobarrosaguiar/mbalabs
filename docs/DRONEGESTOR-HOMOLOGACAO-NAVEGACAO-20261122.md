@@ -223,3 +223,32 @@ Código efetivamente observado no navegador nesta rodada inicial: commit `b110d7
 - Gestor e RT ainda precisam de sessões próprias. Contas localizadas: `e2e.gestor.dronegestor@example.invalid` (HOMOLOGAÇÃO P63 - Gestor operacional) e `e2e.rt.dronegestor@example.invalid` (E2E RT DroneGestor). Informar explicitamente a conta antes de cada formulário seguro. Não alterar senhas nem vínculos.
 
 ![OS visível na sessão do Piloto Pedro — captura real de desktop](evidencias/dronegestor-20261123-piloto/pedro-os-recorte.jpg)
+
+
+## Reteste concluído — piloto, gestor e RT em sessões distintas
+
+Prévia corrigida READY: deployment `dpl_At3RyE6j1acoru4BndbofMJMZrSW`, target preview (`null`), código `6f784d2084d44c727f8ca8bd627b8fac367c6e4d`. Ambos os workflows desse código terminaram em success: DroneGestor validation 24 e MBA Labs Core CI 768. A interface foi testada pelo alias estável da branch, que aponta para esse deployment:
+
+https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor
+
+O titular autenticou separadamente Pedro, Gestor e RT, sempre pelo formulário seguro. Cada identidade foi confirmada pelo nome da conta exibido na interface. Não houve reutilização de uma sessão administrativa para afirmar aprovação de piloto ou RT.
+
+| Módulo | Botão/ação | Perfil | Destino esperado | Resultado | Evidência |
+|---|---|---|---|---|---|
+| Páginas gerenciais | Acesso direto a Cadastros, Conferência, Pilotos, Equipe e Configurações | E2E Piloto Pedro | Negar e voltar às próprias OS | **Aprovado pela interface após correção:** as cinco URLs redirecionaram a `/gestao`, H1 Minhas ordens de serviço | `reteste-correcao.json` |
+| Administração/Funcionários | URL direta | E2E Piloto Pedro | Bloquear | Aprovado pela interface: redirecionou ao início | Mesmo arquivo |
+| Planejamento | URL da própria OS | E2E Piloto Pedro | Não permitir planejamento gerencial | Aprovado pela interface: redirecionou a Minhas OS | Mesmo arquivo |
+| APIs administrativas | GET Administração, empresa/usuários, planejamento e conferência | E2E Piloto Pedro | Recusar | Aprovado em chamadas de leitura pelo navegador autenticado: JSONs de recusa | Mesmo arquivo |
+| Escopo da leitura | GET OS, cliente, fazenda e talhão | E2E Piloto Pedro | Somente OS e relações atribuídas | Aprovado em leitura real: uma OS, cliente/fazenda/talhão correspondentes aos IDs registrados; `canManage=false` | Mesmo arquivo |
+| Páginas de gestão | Gestão, Cadastros, Conferência, Pilotos, Equipe e Configurações | HOMOLOGAÇÃO P63 - Gestor operacional | Acesso preservado | Aprovado pela interface: URLs permaneceram e títulos correspondentes renderizaram | `gestor-interface-api.json` |
+| APIs técnicas | GET lista de OS, planejamento de Pedro, conferência | Gestor operacional | Permitir leitura gerencial da empresa | Aprovado em leitura real: duas OS, planejamento ok, conferência ok com zero registros concluídos | Mesmo arquivo |
+| Administração/Funcionários | URL e GET das APIs | Gestor operacional | Não permitir administração de sistema/contas | Aprovado: páginas redirecionaram e APIs responderam recusa | Mesmo arquivo |
+| Páginas técnicas | Gestão, Cadastros, Conferência, Pilotos, Equipe, Configurações e planejamento | E2E RT DroneGestor | Acesso técnico autorizado | Aprovado pela interface: páginas renderizadas com títulos correspondentes | `rt-interface-api.json` |
+| APIs técnicas | GET lista de OS, planejamento de Pedro, conferência | E2E RT DroneGestor | Permitir leitura técnica da empresa | Aprovado em leitura real: duas OS, planejamento ok, conferência ok com zero registros concluídos | Mesmo arquivo |
+| Administração/Funcionários | URL e GET das APIs | E2E RT DroneGestor | Bloquear funções administrativas de contas/sistema | Aprovado: páginas redirecionaram e APIs responderam recusa | Mesmo arquivo |
+| Isolamento por ID de outra OS | Consultar diretamente a OS Solo como piloto | Pedro | Recusar acesso a OS alheia | **Não executado nesta retomada:** a sessão original de Pedro já estava encerrada ao tentar reutilizá-la; nenhuma recusa de login foi contada como recusa da OS. O filtro da listagem foi aprovado; os testes isolados de autorização não substituem este cenário real | Limitação explícita |
+| Escrita e execução | POST/PATCH, iniciar, suspender, cancelar, encerrar, aprovar | Três perfis reais | Conferir permissões e efeitos sem dados reais | **Não executado remotamente.** Cenários cobertos apenas pelos testes automatizados isolados indicados anteriormente | Limite de não alterar dados reais |
+
+As duas falhas de acesso às páginas encontradas na primeira passagem deixam de estar pendentes: foram corrigidas no código e retestadas na interface da nova prévia com Pedro. As demais aprovações nesta seção são de leitura/navegação, não de escrita, liberação de voo ou operação em campo.
+
+A validação geral da missão ainda não está concluída: seis resoluções, teclado virtual, fluxo operacional com retomada/offline/troca de aparelho pela interface, conferência de operação concluída, exportação MAPA pela UI e as permissões reais de escrita permanecem pendentes/bloqueadas. Nenhum registro de operação, cadastro empresarial, permissão, vínculo, senha, schema ou política de banco foi alterado durante estes testes de navegador. Não houve merge, envio oficial ou deploy produtivo.
