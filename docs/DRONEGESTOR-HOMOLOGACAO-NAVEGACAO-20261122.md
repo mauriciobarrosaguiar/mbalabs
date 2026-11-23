@@ -4,8 +4,8 @@
 
 **Homologação parcial. PR #206 permanece em rascunho, sem merge e sem produção.** As demais seções registram a evolução cronológica; resultados antigos não substituem este estado atual.
 
-- Código atual: `7b428b011ec3ddb80eeea96f2de7233eb2f08513`. Prévia `dpl_78hfERMVnCDBUdVRQRFs9tw841W4` READY, target preview (`null`), confirmado novamente nesta continuação.
-- **175 testes locais aprovados, zero reprovados, zero ignorados**, conforme `testes-final.txt`, com XLSX original MAPA. TypeScript e build aprovados, lint do escopo sem erros; lint global mantém três falhas anteriores fora do DroneGestor.
+- Código atual: `9c3fee6cda33b000b4ce3099671e49afb3ff2449`. Prévia `dpl_FUMRvhyJdF6NHNp7uU9oEL6Dtibx` READY, target preview (`null`), confirmado novamente nesta continuação.
+- **175 testes locais aprovados, zero reprovados, zero ignorados**, conforme `evidencias/dronegestor-20261123-continuacao/testes.txt`, com XLSX original MAPA. TypeScript e build aprovados, lint do escopo sem erros; lint global mantém três falhas anteriores fora do DroneGestor.
 - CI do código atual: [DroneGestor validation 28](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45111408992) e [MBA Labs Core CI 776](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45111409048), ambos success, reconfirmados nesta continuação.
 - Interface: RT criou cliente/fazenda/talhão/OS fictícios, vinculou Pedro e salvou planejamento. Pedro recebeu os parâmetros, preparou a OS, preservou fase/contexto e retornou da documentação à fase 2. Consulta direta da OS de outro piloto negada pela API na sessão do Pedro.
 - Nova **OS-20261123-45737**, 0,1 ha, em preparação e sem aplicação, identifica HOMOLOGAÇÃO PR206. A OS anterior do Pedro foi preservada. Um anexo categoria outro, SEM VALIDADE OFICIAL, foi enviado e baixado com bytes idênticos.
@@ -365,3 +365,24 @@ Encontrada falha adicional no feedback de Salvar na OS: a mensagem de sucesso er
 Suíte atual: **175 aprovados, 0 reprovados, 0 ignorados**, com modelo original MAPA. TypeScript aprovado; lint dos arquivos alterados sem erros. Build e reteste do feedback são registrados após conclusão. Não foi retomada ou encerrada uma aplicação real.
 
 Captura `mapa-gestor-desktop.jpg` é real de desktop; não representa as seis resoluções móveis.
+
+
+### Reteste final da continuação e cenário cancelado
+
+Código `9c3fee6cda33b000b4ce3099671e49afb3ff2449`, prévia `dpl_FUMRvhyJdF6NHNp7uU9oEL6Dtibx` READY, target preview (`null`). URL imutável https://mbalabs-2jbpx37z8-emsgenericosto-3419s-projects.vercel.app. Alias estável preservado, sem produção.
+
+[DroneGestor validation 30](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45145498807) e [MBA Labs Core CI 780](https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/45145498816) concluídos com success. Build completo local também aprovado; falha inicial por symlink de dependências fora da raiz do Turbopack foi resolvida no ambiente, sem mudar configuração do projeto.
+
+|Módulo|Botão/ação|Perfil|Destino esperado|Resultado|Evidência|
+|---|---|---|---|---|---|
+|Pacote|Salvar na OS e aguardar atualização automática|Gestor|Feedback permanece após reconsulta|Aprovado pela interface|`feedback-reteste-interface.json`|
+|Pacote|Salvar pendências em preparação|Gestor|Confirmar pendências sem afirmar campo concluído|Aprovado pela interface; aplicação não iniciada e encerramento bloqueado|`pendencias-reteste-interface.json`|
+|OS isolada|Criar OS exclusiva para cancelamento|Gestor|Aberta; não usar a OS de preparação do Pedro|Aprovado pela interface|`cancelamento-gestor-interface.json`|
+|OS isolada|Cancelar com motivo e confirmação|Gestor|Cancelada, motivo persistido|Aprovado pela interface e GET na mesma sessão|`cancelamento-gestor-interface.json`|
+|OS cancelada|Somente consulta → pacote|Gestor|Campos desabilitados, sem salvar ou encerrar|Aprovado pela interface|`cancelamento-gestor-interface.json`|
+
+A OS adicional **OS-20261123-DD129**, ID `dd129788-16bc-471f-9366-41e18b81dadd`, foi criada exclusivamente para testar cancelamento, alvo HOMOLOGAÇÃO PR206 — CANCELAR SEM APLICAÇÃO REAL. Motivo “HOMOLOGAÇÃO PR206 — teste isolado de cancelamento, sem aplicação real.” confirmado na leitura autorizada. A OS-20261123-45737 e a OS anterior de Pedro continuaram em preparação. Não houve voo ou encerramento de aplicação.
+
+NOV do XLSX baixado não contém linhas com valores não derivados de fórmulas a partir da linha 6, consistente com zero operações aprovadas. A verificação está no manifesto do download.
+
+**Conclusão da rodada:** correção adicional implementada, 175 testes locais aprovados/zero falhas/zero ignorados, TypeScript/build/lint do escopo aprovados, nova prévia pronta e retestes reais documentados. A missão geral permanece parcial pelos bloqueios e itens não executados já listados.
