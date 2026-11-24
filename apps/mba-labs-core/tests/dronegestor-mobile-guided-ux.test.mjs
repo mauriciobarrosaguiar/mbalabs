@@ -23,7 +23,7 @@ test("prefilled OS and technical data are summarized and expandable without alte
   assert.match(source, /Tempos operacionais · opcionais/);
   assert.match(source, /<Primary disabled=\{!missionReady\} onClick=\{\(\)=>guarded\("controle"\)\}/);
   assert.match(source, /const canStart = missionReady && safetyReady && calibrationReady && checklistReady && sarpasReady && gpsReady/);
-  assert.match(source, /identifica[cç][aã]o ANAC v[aá]lido/i);
+  assert.match(source, /registro ANAC válido ou liberação de voo/);
 });
 
 test("GPS/weather remains accessible but no longer covers mobile forms with a floating button", () => {
