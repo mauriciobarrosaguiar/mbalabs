@@ -24,8 +24,10 @@ import {
 import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import { ROOT } from "./AgroDocUi";
+import { AgroVooAdminShell } from "./agrovoo/AgroVooAdminShell";
 const pages = [
   { path: "", title: "Início", icon: Home },
+  { path: "agrovoo", title: "AgroVoo Gestão (prévia)", icon: Home },
   { path: "gestao", title: "Ordens de serviço", icon: ClipboardCheck },
   { path: "campo", title: "Modo campo", icon: Drone },
   { path: "historico", title: "Histórico", icon: Folder },
@@ -49,7 +51,7 @@ const pages = [
   { path: "ajuda", title: "Ajuda e como usar", icon: CircleHelp },
 ];
 const navigation = [
-  { title: "Início", paths: [""] },
+  { title: "Início", paths: ["", "agrovoo"] },
   { title: "Operações", paths: ["gestao", "campo", "historico", "fichas", "conferencia"] },
   { title: "Cadastros", paths: ["cadastros", "equipamentos", "pilotos", "equipe", "funcionarios"] },
   { title: "Documentação", paths: ["documentos", "diagnostico", "regulacao", "relatorio-mensal"] },
@@ -58,7 +60,7 @@ const navigation = [
   { title: "Configurações", paths: ["perfil-operacional", "configuracoes", "administracao"] },
   { title: "Ajuda", paths: ["ajuda"] },
 ];
-const managerPaths = new Set(["conferencia", "cadastros", "pilotos", "equipe", "configuracoes", "relatorio-mensal"]);
+const managerPaths = new Set(["agrovoo", "conferencia", "cadastros", "pilotos", "equipe", "configuracoes", "relatorio-mensal"]);
 export function DroneAppShell({
   children,
   userName = "Minha conta",
@@ -80,6 +82,7 @@ export function DroneAppShell({
     [search, setSearch] = useState(false),
     [notice, setNotice] = useState(false);
   if (path === `${ROOT}/calculadora`) return <>{children}</>;
+  if (canManage && (path === `${ROOT}/agrovoo` || path.startsWith(`${ROOT}/agrovoo/`))) return <AgroVooAdminShell userName={userName} canAdministerCompany={canAdministerCompany} isSystemAdmin={isSystemAdmin}>{children}</AgroVooAdminShell>;
   return (
     <div className={`agro-shell ${collapsed ? "agro-shell-collapsed" : ""}`}>
       <aside className={`agro-sidebar ${menu ? "agro-sidebar-open" : ""}`}>
