@@ -43,7 +43,7 @@ function labelStatus(status: string | undefined) {
     cancelada: "Cancelada",
   } as Record<string, string>)[status || "aberta"] || status || "Aberta";
 }
-function closed(status: string | undefined) { return ["campo_concluido", "concluida", "cancelada"].includes(status || ""); }
+function closed(status: string | undefined) { return ["concluida", "cancelada"].includes(status || ""); }
 function editable(status: string | undefined) { return ["aberta", "preparacao", "em_preparacao", undefined].includes(status); }
 async function json(response: Response) {
   const payload = await response.json().catch(() => null);
