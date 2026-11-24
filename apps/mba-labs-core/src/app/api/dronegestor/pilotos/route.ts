@@ -1,3 +1,4 @@
+import {canReactivatePilot} from "@/lib/agrovoo-pilot-reactivation";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { createOrLinkPilotAccount, PilotAccountError } from "@/lib/dronegestor-pilot-account";
@@ -142,6 +143,7 @@ async function findRow(admin: any, current: Context, id: string) {
     .eq("app_slug", "dronegestor")
     .eq("acao", ACTION)
     .contains("detalhes", { id })
+    .order("created_at",{ascending:false})
     .limit(1);
   query = scope(query, current);
   const { data, error } = await query.maybeSingle();
@@ -162,7 +164,7 @@ async function getDroneGestorApp(admin: any, current: Context, requireCompany = 
 
   const contract = await admin
     .from("core_empresa_apps")
-    .select("id")
+    .select("id,data_vencimento")
     .eq("empresa_id", current.empresaId)
     .eq("app_id", appResult.data.id)
     .in("status", ["ativo", "teste"])
@@ -172,11 +174,13 @@ async function getDroneGestorApp(admin: any, current: Context, requireCompany = 
     throw new ApiError("O DroneGestor não está ativo para esta empresa. Regularize o acesso antes de cadastrar pilotos.", 403);
   }
 
+  const today=new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo"}).format(new Date());
+  if(contract.data.data_vencimento&&contract.data.data_vencimento.slice(0,10)<today)throw new ApiError("O acesso da empresa está vencido.",403);
   return String(appResult.data.id);
 }
 
 async function linkUser(admin: any, current: Context, pilot: Pilot, appId: string) {
-  if (!pilot.email || !current.empresaId) return { ...pilot, usuarioId: "" };
+  if (!pilot.ativo || !pilot.email || !current.empresaId) return { ...pilot, usuarioId: "" };
 
   const userResult = await admin
     .from("core_usuarios")
@@ -185,7 +189,8 @@ async function linkUser(admin: any, current: Context, pilot: Pilot, appId: strin
     .eq("empresa_id", current.empresaId)
     .limit(1)
     .maybeSingle();
-  if (userResult.error || userResult.data?.status !== "ativo") return { ...pilot, usuarioId: "" };
+  if(userResult.error)throw userResult.error;
+  if (userResult.data?.status !== "ativo") return { ...pilot, usuarioId: "" };
 
   const permissionResult = await admin
     .from("core_usuario_app_permissoes")
@@ -197,6 +202,7 @@ async function linkUser(admin: any, current: Context, pilot: Pilot, appId: strin
     .in("perfil_app", ["piloto", "aplicador_caar"])
     .maybeSingle();
 
+  if(permissionResult.error)throw permissionResult.error;
   return { ...pilot, usuarioId: permissionResult.data?.id ? String(userResult.data.id) : "" };
 }
 
@@ -207,7 +213,7 @@ function errorResponse(error: unknown, fallback: string) {
   return NextResponse.json({ ok: false, error: fallback }, { status: 500 });
 }
 
-export async function GET() {
+export async function GET(request:NextRequest) {
   try {
     const access = await context();
     if (access.response) return access.response;
@@ -230,21 +236,27 @@ export async function GET() {
       .select("detalhes,created_at")
       .eq("app_slug", "dronegestor")
       .eq("acao", ACTION)
-      .order("created_at", { ascending: true })
-      .limit(300);
+      .order("created_at", { ascending: false })
+      .limit(301);
     query = scope(query, current);
     const { data, error } = await query;
     if (error) throw error;
 
-    const raw = (data ?? [])
-      .map((row: any) => sanitize(row.detalhes, row.detalhes?.id || ""))
-      .filter((item: Pilot) => item.id && item.ativo);
+    if((data??[]).length>300)throw new ApiError("Equipe excede o limite desta consulta. Solicite revisão do cadastro.",409);
+    const seen=new Set<string>(),seenUsers=new Set<string>();
+    const records:Pilot[]=(data??[]).map((row:any)=>sanitize(row.detalhes,row.detalhes?.id||"")).filter((item:Pilot)=>{
+      if(!item.id||seen.has(item.id)||(item.usuarioId&&seenUsers.has(item.usuarioId)))return false;
+      seen.add(item.id);if(item.usuarioId)seenUsers.add(item.usuarioId);return true;
+    });
+    const raw=records.filter(item=>item.ativo);
+    const inactiveItems=current.canAdministerTeam&&request.nextUrl.searchParams.get("includeInactive")==="1"?records.filter(item=>!item.ativo).map(item=>({id:item.id,nome:item.nome,email:item.email})):[];
     const linked = await Promise.all(raw.map((item: Pilot) => linkUser(admin, current, item, appId)));
     const items = current.canManage ? linked : linked.filter((item: Pilot) => item.usuarioId === current.usuarioId);
 
     return NextResponse.json({
       ok: true,
       items,
+      inactiveItems,
       canManage: current.canManage,
       canAdministerTeam: current.canAdministerTeam,
       canCreatePilot: current.canAdministerTeam && Boolean(current.empresaId),
@@ -277,6 +289,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "Piloto não encontrado nesta empresa." }, { status: 404 });
     }
     if (existingRow) {
+      if(existingRow.detalhes?.ativo===false)return NextResponse.json({ok:false,error:"Use a opção Reativar acesso existente."},{status:409});
       const alreadyLinked = await linkUser(admin, current, sanitize(existingRow.detalhes, existingPilotId), appId);
       if (alreadyLinked.usuarioId) {
         return NextResponse.json({ ok: false, error: "Este piloto já possui acesso ativo ao DroneGestor." }, { status: 409 });
@@ -316,10 +329,9 @@ export async function POST(request: NextRequest) {
     if (duplicate.error) throw duplicate.error;
     if (
       duplicate.data &&
-      duplicate.data.detalhes?.ativo !== false &&
       String(duplicate.data.detalhes?.id ?? "") !== existingPilotId
     ) {
-      return NextResponse.json({ ok: false, error: "Já existe um piloto ativo com este e-mail." }, { status: 409 });
+      return NextResponse.json({ ok: false, error: "Já existe um cadastro de piloto com este e-mail. Consulte os registros existentes." }, { status: 409 });
     }
 
     const account = await createOrLinkPilotAccount(admin, current, appId, {
@@ -368,7 +380,30 @@ export async function PATCH(request: NextRequest) {
     const row = await findRow(admin, current, id);
     if (!row) return NextResponse.json({ ok: false, error: "Piloto não encontrado nesta empresa." }, { status: 404 });
 
-    let next = sanitize({ ...row.detalhes, permissoes: body?.permissoes, id, updatedAt: new Date().toISOString() }, id);
+    if(body?.action==="reativar"){
+      if(Object.keys(body).some(key=>!["id","action"].includes(key)))throw new ApiError("Informe somente o cadastro a reativar.",400);
+      if(!current.empresaId)throw new ApiError("Reativação exige vínculo empresarial.",403);
+      const pilot=sanitize(row.detalhes,id);
+      if(pilot.ativo||!pilot.usuarioId)throw new ApiError("Cadastro sem vínculo inativo recuperável. Consulte o administrador.",409);
+      const user=await admin.from("core_usuarios").select("id,empresa_id,status,email,tipo,tipo_global").eq("id",pilot.usuarioId).eq("empresa_id",current.empresaId).maybeSingle();
+      const permission=await admin.from("core_usuario_app_permissoes").select("id,usuario_id,empresa_id,perfil_app,status").eq("usuario_id",pilot.usuarioId).eq("empresa_id",current.empresaId).eq("app_id",appId).maybeSingle();
+      if(user.error||permission.error)throw user.error||permission.error;
+      if(!canReactivatePilot(pilot,user.data,permission.data,current.empresaId))throw new ApiError("O vínculo ou perfil original não está disponível para reativação. Nenhum acesso foi alterado.",409);
+      const next={...pilot,ativo:true,updatedAt:new Date().toISOString()};
+      // Only the precise, still-inactive app permission may change.
+      const changed=await admin.from("core_usuario_app_permissoes").update({status:"ativo"}).eq("id",permission.data.id).eq("usuario_id",pilot.usuarioId).eq("empresa_id",current.empresaId).eq("app_id",appId).eq("perfil_app",permission.data.perfil_app).eq("status","inativo").select("id").maybeSingle();
+      if(changed.error||!changed.data)throw new ApiError("O acesso mudou em outra sessão. Atualize a lista.",409);
+      const write=await admin.from("core_logs").update({detalhes:next}).eq("id",row.id).eq("empresa_id",current.empresaId).eq("app_slug","dronegestor").eq("acao",ACTION).contains("detalhes",{id,ativo:false,usuarioId:pilot.usuarioId}).select("id").maybeSingle();
+      if(write.error||!write.data){
+        const restored=await admin.from("core_usuario_app_permissoes").update({status:"inativo"}).eq("id",permission.data.id).eq("usuario_id",pilot.usuarioId).eq("empresa_id",current.empresaId).eq("app_id",appId).eq("perfil_app",permission.data.perfil_app).eq("status","ativo").select("id").maybeSingle();
+        if(restored.error||!restored.data)throw new ApiError("Falha ao confirmar reativação e restaurar vínculo. Administrador deve conferir o acesso antes de operar.",500);
+        throw new ApiError("Não foi possível confirmar a reativação. Vínculo restaurado ao estado inativo.",409);
+      }
+      return NextResponse.json({ok:true,item:next});
+    }
+    if(row.detalhes?.ativo===false||Object.keys(body??{}).some(key=>!["id","permissoes"].includes(key))||!body?.permissoes||typeof body.permissoes!=="object"||Array.isArray(body.permissoes))throw new ApiError("Informe autorizações válidas de um cadastro ativo.",400);
+    if(Object.keys(body.permissoes).some(key=>!(key in defaultPermissions)||typeof body.permissoes[key]!=="boolean"))throw new ApiError("Permissões inválidas.",400);
+    let next = sanitize({ ...row.detalhes, permissoes: {...permissions(row.detalhes?.permissoes),...body.permissoes}, id, updatedAt: new Date().toISOString() }, id);
     next = await linkUser(admin, current, next, appId);
     const { error } = await admin.from("core_logs").update({ detalhes: next }).eq("id", row.id);
     if (error) throw error;

@@ -364,7 +364,7 @@ async function pilotCanFinalize(admin: any, current: ApiContext) {
   const { data, error } = await query.maybeSingle();
   if (error) throw error;
   if (!data) return false;
-  return data.detalhes?.permissoes?.finalizarOperacao !== false;
+  return data.detalhes?.permissoes?.finalizarOperacao === true && data.detalhes?.permissoes?.executarOs === true;
 }
 
 async function validateServerPreflight(

@@ -93,6 +93,7 @@ function strongPassword() {
 
 export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
   const [items, setItems] = useState<Pilot[]>([]);
+  const [inactiveItems,setInactiveItems]=useState<{id:string;nome:string;email:string}[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [form, setForm] = useState<PilotForm>(empty);
   const [pilotId, setPilotId] = useState("");
@@ -121,7 +122,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
     setLoading(true);setLoaded(false);
     try {
       const [pilotResponse, orderResponse] = await Promise.all([
-        fetch("/api/dronegestor/pilotos", { cache: "no-store" }),
+        fetch("/api/dronegestor/pilotos?includeInactive=1", { cache: "no-store" }),
         fetch("/api/dronegestor/cadastros?type=os", { cache: "no-store" }),
       ]);
       const pilotPayload = await pilotResponse.json().catch(() => null);
@@ -133,7 +134,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
       const nextOrders = ((orderPayload.items || []) as Order[]).filter((item) =>
         ["aberta", "preparacao", "em_preparacao"].includes(item.data.status || "aberta"),
       );
-      setItems(nextPilots);setLoaded(true);
+      setItems(nextPilots);setInactiveItems(Array.isArray(pilotPayload.inactiveItems)?pilotPayload.inactiveItems:[]);setLoaded(true);
       setOrders(nextOrders);
       setCanManage(Boolean(pilotPayload.canManage));
       setCanCreatePilot(Boolean(pilotPayload.canCreatePilot));
@@ -146,7 +147,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
         current && nextOrders.some((item) => item.entityId === current) ? current : nextOrders[0]?.entityId || "",
       );
     } catch (error) {
-      setLoaded(false);setItems([]);setOrders([]);setCanManage(false);setCanAdministerTeam(false);setCanCreatePilot(false);
+      setLoaded(false);setItems([]);setInactiveItems([]);setOrders([]);setCanManage(false);setCanAdministerTeam(false);setCanCreatePilot(false);
       setMessage(error instanceof Error ? error.message : "Não foi possível carregar os pilotos.");
     } finally {
       setLoading(false);
@@ -302,6 +303,18 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
     } finally {
       setSaving(false);
     }
+  }
+
+  async function reactivate(id:string){
+    if(!loaded||!canAdministerTeam||saving||!inactiveItems.some(p=>p.id===id)||!window.confirm("Reativar o acesso existente, mantendo a senha e o perfil anteriores?"))return;
+    setSaving(true);setMessage("");
+    try{
+      const response=await fetch("/api/dronegestor/pilotos",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id,action:"reativar"}),cache:"no-store"});
+      const payload=await response.json().catch(()=>null);
+      if(!response.ok||payload?.ok!==true)throw Error(payload?.error||"Reativação não confirmada.");
+      setMessage("Acesso existente reativado. A senha e o perfil não foram alterados.");await load();
+    }catch(error){setMessage(error instanceof Error?error.message:"Falha na reativação.");}
+    finally{setSaving(false);}
   }
 
   async function remove(id: string) {
@@ -567,6 +580,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
             ))}
           </div>
         )}
+        {loaded&&canAdministerTeam&&inactiveItems.length>0&&<section className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3"><h2 className="text-sm font-semibold">Pilotos inativados ({inactiveItems.length})</h2><p className="text-xs text-slate-600">Recupere somente vínculos existentes. A reativação não cria conta, muda senha nem altera perfil.</p>{inactiveItems.map(p=><div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 p-2"><div className="min-w-0"><strong className="block text-sm">{p.nome}</strong><p className="break-words text-xs text-slate-600">{p.email}</p></div><button type="button" disabled={saving||loading} onClick={()=>void reactivate(p.id)} className="min-h-11 rounded-md border border-emerald-200 px-3 text-xs font-semibold text-emerald-800">Reativar acesso</button></div>)}</section>}
         {compact&&!loading&&<div className="flex flex-wrap items-center justify-end gap-2 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600"><select aria-label="Pilotos por página" value={size} onChange={e=>{setSize(Number(e.target.value));setPage(0);}} className="min-h-11 !w-auto rounded-md border border-slate-200 px-2">{[10,25,50].map(n=><option key={n} value={n}>{n}</option>)}</select><button type="button" disabled={currentPage===0} onClick={()=>setPage(currentPage-1)} className="min-h-11 rounded-md border px-3 disabled:opacity-40">Anterior</button><span>{currentPage+1}/{totalPages}</span><button type="button" disabled={currentPage>=totalPages-1} onClick={()=>setPage(currentPage+1)} className="min-h-11 rounded-md border px-3 disabled:opacity-40">Próxima</button></div>}
       </div>
     </main>
