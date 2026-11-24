@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, FileUp, Loader2, MapPinned, RefreshCw, ShieldCheck, UserRound } from "lucide-react";
-import { AgroDocHero, AgroDocStatus } from "../../../AgroDocUi";
+import { AgroDocStatus } from "../../../AgroDocUi";
 import { DroneMissionPlanning } from "../../../gestao/planejamento/DroneMissionPlanning";
 
 type Order = {
@@ -153,35 +153,32 @@ export function AgroVooOrderDetails({ osId }: { osId: string }) {
     finally { setSaving(false); }
   }
 
-  return <main className="min-h-screen bg-[var(--agro-bg)] pb-24">
+  return <main className="min-h-screen pb-8">
     <div className="mx-auto grid w-full max-w-[1440px] gap-4">
       <Link href={ROOT + "/agrovoo"} className="inline-flex min-h-11 w-fit items-center gap-2 text-sm font-black text-emerald-800 no-underline">
         <ArrowLeft size={18}/> Painel AgroVoo
       </Link>
-      <AgroDocHero variant="operations" title={order?.data.numero || "Ordem de serviço"} description={order ? [order.data.clienteNome, order.data.fazendaNome, order.data.talhaoNome].filter(Boolean).join(" · ") || "Detalhes da operação agrícola" : "Detalhes da operação agrícola"}/>
-      <div className="-mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-slate-600">Situação da OS</span>
-          {order && <AgroDocStatus tone={closed(order.data.status) ? "neutral" : order.data.status === "suspensa" ? "warn" : order.data.status === "em_execucao" ? "good" : "neutral"}>{labelStatus(order.data.status)}</AgroDocStatus>}
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-200 pb-4">
+        <div><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-800">Operacional / Ordem de serviço</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{order?.data.numero || "Ordem de serviço"}</h1>
+          <p className="mt-1 text-sm text-slate-600">{order ? [order.data.clienteNome, order.data.fazendaNome, order.data.talhaoNome].filter(Boolean).join(" · ") || "Detalhes da operação agrícola" : "Detalhes da operação agrícola"}</p>
+          <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-slate-600">Situação: {order && <AgroDocStatus tone={closed(order.data.status) ? "neutral" : order.data.status === "suspensa" ? "warn" : order.data.status === "em_execucao" ? "good" : "neutral"}>{labelStatus(order.data.status)}</AgroDocStatus>}</div>
         </div>
-        <button type="button" onClick={() => void load()} disabled={loading || saving} aria-label="Atualizar dados da OS"
-          className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-emerald-800">
-          <RefreshCw size={16}/> Atualizar
-        </button>
-      </div>
-      {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-900">{error}</div>}
+        <button type="button" onClick={() => void load()} disabled={loading || saving} aria-label="Atualizar dados da OS" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-emerald-800"><RefreshCw size={16}/> Atualizar</button>
+      </header>
+      {error && <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-900">{error}</div>}
       {message && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-900">{message}</div>}
-      {loading ? <p className="rounded-2xl bg-white p-6 text-sm text-slate-600"><Loader2 size={17} className="mr-2 inline animate-spin"/>Carregando a operação autorizada...</p> : order && <>
+      {loading ? <p className="rounded-lg bg-white p-6 text-sm text-slate-600"><Loader2 size={17} className="mr-2 inline animate-spin"/>Carregando a operação autorizada...</p> : order && <>
         <nav aria-label="Etapas desta OS" className="agro-compact-grid grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white p-2 sm:grid-cols-5">
           {tabs.map((item) => <button key={item.id} type="button" aria-current={tab === item.id ? "page" : undefined}
             disabled={saving} onClick={() => { setError("");setMessage("");setTab(item.id); }}
-            className={"min-h-12 rounded-xl px-3 text-sm font-bold " + (tab === item.id ? "bg-[var(--agro-green)] text-white" : "border border-slate-200 bg-white text-slate-800 hover:bg-emerald-50")}>
+            className={"min-h-12 rounded-xl px-3 text-sm font-bold " + (tab === item.id ? "bg-[#123e38] text-white" : "border border-slate-200 bg-white text-slate-800 hover:bg-emerald-50")}>
             {item.title}
           </button>)}
         </nav>
         {tab === "resumo" && <section className="grid gap-4 sm:grid-cols-2">
           <article className="rounded-2xl border border-slate-200 bg-white p-5">
-            <h2 className="text-lg font-black text-slate-950">Dados da operação</h2>
+            <h2 className="text-base font-bold text-slate-950">Dados da operação</h2>
             <dl className="mt-4 grid gap-3 text-sm">
               {[
                 ["Cultura", order.data.cultura || "Não informada"],
