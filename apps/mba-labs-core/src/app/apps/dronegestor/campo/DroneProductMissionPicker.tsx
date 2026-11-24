@@ -75,6 +75,8 @@ export function DroneProductMissionPicker() {
     setOpen(true);
   }
 
+  useEffect(() => { const handler = () => startSearch(); window.addEventListener("dronegestor:open-product-search", handler); return () => window.removeEventListener("dronegestor:open-product-search", handler); }, [products]);
+
   async function search(event?: FormEvent) {
     event?.preventDefault();
     const value = query.trim();
@@ -125,15 +127,6 @@ export function DroneProductMissionPicker() {
 
   return (
     <>
-      <section className="bg-[#f4f8f1] px-3 py-1 sm:px-5">
-        <div className="mx-auto flex w-full max-w-3xl justify-end">
-          <button disabled={isLocked()} type="button" onClick={() => startSearch()}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 text-xs font-black text-emerald-800 disabled:opacity-50">
-            <BookOpenCheck size={17}/> Buscar nome do produto
-          </button>
-        </div>
-      </section>
-
       {open && (
         <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-5">
           <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-2xl sm:rounded-[28px] sm:p-6">
