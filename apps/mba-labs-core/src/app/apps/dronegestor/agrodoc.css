@@ -2086,3 +2086,7 @@
 .agrovoo-pilot-field .agro-field-full-value{display:block;overflow-wrap:anywhere;}
 .agrovoo-pilot-field .agro-field-body button:disabled{opacity:1;color:#475569;}
 .agrovoo-pilot-field .agro-field-body [id^="agrovoo-stage-"]{scroll-margin-top:76px;}
+
+.agrovoo-pilot-field .agro-field-online{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:10px;color:#fff;}
+.agrovoo-pilot-field .agro-field-online>span{height:7px;width:7px;border-radius:50%;}
+@media(max-width:767px){.agrovoo-pilot-field .agro-header .agro-menu-button{order:-1;}.agrovoo-pilot-field .agro-mobile-brand{gap:3px;font-size:16px;}.agrovoo-pilot-field .agro-header-actions{gap:4px;}.agrovoo-pilot-field .agro-header-actions>button{width:32px;min-width:32px;}}
