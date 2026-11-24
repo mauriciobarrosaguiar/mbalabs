@@ -47,3 +47,10 @@ test("map file or controller photo stays in the safety step, and field map is in
  assert.doesNotMatch(map,/fixed bottom-24/);
  assert.match(map,/aria-label="Registrar mapa usado no voo"/);
 });
+
+test("an offline finalization stays in stage seven until server reconciliation",()=>{
+ assert.match(app,/missionStatus==="pendente_sync"\s*\? <div/);
+ assert.match(app,/setMissionStatus\("pendente_sync"\); setFinalSaved\(false\); unlock\("execucao"\)/);
+ assert.match(app,/setMissionStatus\("pendente_sync"\); unlock\("execucao"\)/);
+ assert.match(app,/setMissionStatus\("finalizada"\); unlock\("relatorios"\)/);
+});
