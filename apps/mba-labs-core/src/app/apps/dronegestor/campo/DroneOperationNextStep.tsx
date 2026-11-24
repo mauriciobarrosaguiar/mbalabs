@@ -6,10 +6,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 type Item={id:string;label:string;ok:boolean;detail:string;nextView?:string};
 type Release={ready:boolean;nextId:string;nextView:string;items:Item[];error?:string;osStatus?:string;pilotName?:string};
-type LocalState={osId:string;started:boolean;missionStatus:string};
+type LocalState={osId:string;started:boolean;missionStatus:string;view:string};
 
 const EMPTY:Release={ready:false,nextId:"",nextView:"",items:[]};
-const EMPTY_LOCAL:LocalState={osId:"",started:false,missionStatus:"rascunho"};
+const EMPTY_LOCAL:LocalState={osId:"",started:false,missionStatus:"rascunho",view:"inicio"};
 function readJson<T>(key:string,fallback:T):T{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw) as T:fallback}catch{return fallback}}
 function snapshot(){return{
   mission:readJson<Record<string,unknown>>("dronegestor:mission:v2",{}),
@@ -19,7 +19,7 @@ function snapshot(){return{
   riskAccepted:Boolean(readJson("dronegestor:riskAccepted:v2",false)),
   insightAccepted:Boolean(readJson("dronegestor:insightAccepted:v2",false))
 }}
-function localState():LocalState{const m=readJson<Record<string,any>>("dronegestor:mission:v2",{});return{osId:String(m.ordemServicoId||""),started:Boolean(readJson("dronegestor:started:v3",false)),missionStatus:String(readJson("dronegestor:missionStatus:v4","rascunho"))}}
+function localState():LocalState{const m=readJson<Record<string,any>>("dronegestor:mission:v2",{});return{osId:String(m.ordemServicoId||""),started:Boolean(readJson("dronegestor:started:v3",false)),missionStatus:String(readJson("dronegestor:missionStatus:v4","rascunho")),view:localStorage.getItem("dronegestor:view:v3")||"inicio"}}
 function openField(view:string){localStorage.setItem("dronegestor:view:v3",view);window.location.reload()}
 
 export function DroneOperationNextStep(){
@@ -67,7 +67,7 @@ export function DroneOperationNextStep(){
 
   const done=useMemo(()=>release.items.filter(item=>item.ok).length,[release.items]);
   const next=release.items.find(item=>!item.ok)||null;
-  if(!hydrated||!local.osId)return null;
+  if(!hydrated||!local.osId||!["sarpas","execucao"].includes(local.view))return null;
 
   if(["finalizada","pendente_sync"].includes(local.missionStatus))return <section className="bg-[#f4f8f1] px-3 pt-2 sm:px-5"><div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-amber-950"><CheckCircle2 size={20} className="shrink-0"/><div className="min-w-0 flex-1"><strong className="block text-sm">Aplicação em campo concluída</strong><p className="mt-0.5 text-xs leading-5">{local.missionStatus==="pendente_sync"?"A conclusão está protegida e aguardando sincronização.":"Agora confira pendências e faça o encerramento administrativo da OS."}</p></div>{local.missionStatus==="finalizada"&&<button type="button" onClick={()=>window.location.href=local.osId?`/apps/dronegestor/pacote-operacao?osId=${encodeURIComponent(local.osId)}`:"/apps/dronegestor/gestao"} className="min-h-10 shrink-0 rounded-xl bg-amber-700 px-3 text-xs font-black text-white">Encerrar OS</button>}</div></section>;
 
