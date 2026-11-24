@@ -4,9 +4,9 @@ import Link from "next/link";
 import { type ReactNode, useMemo, useState } from "react";
 import {
   ArrowLeft, ArrowRight, Check, FileCheck2,
-  Plus, RefreshCw, ShieldCheck, TriangleAlert, MapPinned,
+  Plus, RefreshCw, ShieldCheck, TriangleAlert, MapPinned, Users, UserRound, Layers, Leaf, Search, ClipboardCheck,
 } from "lucide-react";
-import { AgroDocHero, AgroDocKpiCard, useAgroData } from "../AgroDocUi";
+import { useAgroData } from "../AgroDocUi";
 import { buildAgroVooOsPayload, validateAgroVooStep, type AgroVooOsDraft } from "@/lib/agrovoo-os-wizard";
 
 const ROOT = "/apps/dronegestor";
@@ -17,6 +17,7 @@ type OsStage = {
   fazenda: string;
   talhao: string;
   status: string;
+  stage: string;
   stageLabel: string;
   areaHa: number;
   progressHa: number;
@@ -70,6 +71,10 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
   const fields = useAgroData<ResourceList>("/api/dronegestor/cadastros?type=talhao");
   const [screen, setScreen] = useState<"home" | "new">("home");
   const [step, setStep] = useState(0);
+  const [query, setQuery] = useState("");
+  const [stageFilter, setStageFilter] = useState("ativas");
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
   const [draft, setDraft] = useState<AgroVooOsDraft>(emptyDraft);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -88,6 +93,15 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
   const talhao = fieldItems.find((x) => x.entityId === draft.talhaoId)?.data.nome;
   const active = board.data?.items || [];
   const count = board.data?.counts;
+  const normalizedQuery = query.trim().toLocaleLowerCase("pt-BR");
+  const filtered = active.filter(os => {
+    const matchesStage = stageFilter === "todas" || (stageFilter === "ativas" ? !["encerrada", "cancelada"].includes(os.stage) : os.stage === stageFilter);
+    const matchesText = !normalizedQuery || [os.numero, os.cliente, os.fazenda, os.talhao, os.pilotName].some(value => String(value || "").toLocaleLowerCase("pt-BR").includes(normalizedQuery));
+    return matchesStage && matchesText;
+  });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, totalPages - 1);
+  const visibleOrders = filtered.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
 
   function change<K extends keyof AgroVooOsDraft>(key: K, value: AgroVooOsDraft[K]) {
     setError("");
@@ -131,70 +145,81 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
     }
   }
 
-  return <main className="min-h-screen bg-[var(--agro-bg)] pb-20">
-    <div className="mx-auto grid w-full max-w-[1440px] gap-4">
-      <AgroDocHero variant="operations" title={screen === "home" ? <>Agro<em>Voo</em> Gestão</> : "Nova ordem de serviço"} description={screen === "home" ? "Olá, " + userName + ". Acompanhe suas operações agrícolas em um só lugar." : "Cadastre a operação em quatro etapas. Os dados são salvos somente ao confirmar."}/>
-      <div className="-mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-        <span>Gestão de operações agrícolas</span>
-        <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-semibold text-emerald-800">Ambiente de homologação</span>
-      </div>
+  return <main className="min-h-screen pb-8">
+    <div className="mx-auto grid w-full max-w-[1500px] gap-4">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <div><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-emerald-800">Gestão operacional</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">{screen === "home" ? "Dashboard" : "Nova ordem de serviço"}</h1>
+          <p className="mt-1 text-sm text-slate-600">{screen === "home" ? "Olá, " + userName + ". Acompanhe a operação da sua empresa." : "Preencha as quatro etapas para cadastrar a ordem."}</p>
+        </div>
+        <span className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900">Homologação</span>
+      </header>
 
       {screen === "home" ? <>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={openNew}
-            className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 font-black text-white sm:flex-none">
-            <Plus size={20} /> Nova OS
-          </button>
-          <Link href={ROOT + "/gestao"} className="inline-flex min-h-12 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 no-underline">
-            Ver todas as OS
-          </Link>
-          <button type="button" onClick={() => board.refresh()} aria-label="Atualizar operações"
-            className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700">
-            <RefreshCw size={17} /> Atualizar
-          </button>
-        </div>
-        {board.error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{board.error}</p>}
-        <section aria-label="Resumo das operações" className="agro-kpis">
-          <AgroDocKpiCard title="OS ativas" value={count?.total ?? "—"} note="Acompanhamento operacional" icon={FileCheck2}/>
-          <AgroDocKpiCard title="Em execução" value={count?.aplicando ?? "—"} note="Aplicações em andamento" icon={MapPinned}/>
-          <AgroDocKpiCard title="Pausadas" value={count?.pausada ?? "—"} note="Retomada com conferência" icon={RefreshCw}/>
-          <AgroDocKpiCard title="Para conferir" value={count?.prontaEncerrar ?? "—"} note="Aguardando revisão" icon={ShieldCheck}/>
-        </section>
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-lg font-black text-slate-950">Ordens em acompanhamento</h2>
-            <Link href={ROOT + "/gestao"} className="text-sm font-bold text-emerald-700">Lista completa</Link>
+        {board.error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{board.error}</p>}
+        <section aria-label="Operacional" className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-[#123e38] px-4 py-2.5 text-white"><h2 className="flex items-center gap-2 text-base font-bold"><ClipboardCheck size={18}/> Operacional</h2><Link href={ROOT + "/ajuda"} className="text-sm font-semibold text-white underline-offset-2 hover:underline">Ajuda</Link></div>
+          <div className="grid gap-3 p-3 sm:p-4">
+            <div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-5">
+              <button type="button" onClick={openNew} className="flex min-h-14 items-center justify-center gap-2 rounded-md bg-[#185a47] px-3 py-3 text-sm font-bold text-white hover:brightness-110"><Plus size={19}/> Nova ordem</button>
+              {[
+                {title:"Clientes",href:"/gestao?tab=cliente",icon:Users,color:"bg-[#16734e]"},
+                {title:"Propriedades",href:"/gestao?tab=fazenda",icon:Layers,color:"bg-[#146779]"},
+                {title:"Aeronaves",href:"/equipamentos",icon:MapPinned,color:"bg-[#a45916]"},
+                {title:"Pilotos",href:"/pilotos",icon:UserRound,color:"bg-[#66528d]"},
+              ].map(({title,href,icon:Icon,color})=><Link key={href} href={ROOT + href} className={"flex min-h-14 items-center justify-center gap-2 rounded-md px-3 py-3 text-sm font-bold text-white hover:brightness-110 " + color}><Icon size={19} className="shrink-0"/>{title}</Link>)}
+            </div>
+            <div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-5">
+              {[
+                {label:"Ordens ativas",value:count?.total,href:"/gestao",icon:ClipboardCheck},
+                {label:"Clientes",value:clients.data?.items.length,href:"/gestao?tab=cliente",icon:Users},
+                {label:"Propriedades",value:farms.data?.items.length,href:"/gestao?tab=fazenda",icon:Layers},
+                {label:"Talhões",value:fields.data?.items.length,href:"/gestao?tab=talhao",icon:MapPinned},
+                {label:"Para conferir",value:count?.prontaEncerrar,href:"/conferencia",icon:ShieldCheck},
+              ].map(({label,value,href,icon:Icon})=><Link key={label} href={ROOT + href} className="rounded-md border border-slate-200 p-3 text-slate-800 hover:border-emerald-400"><div className="flex items-center justify-between gap-1 text-xs font-semibold text-slate-600"><span>{label}</span><Icon size={18} className="shrink-0 text-emerald-700"/></div><strong className="mt-1 block text-2xl font-bold tabular-nums text-slate-900">{value ?? "—"}</strong><span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-800">Ver <ArrowRight size={13}/></span></Link>)}
+            </div>
+            {(clients.error || farms.error || fields.error) && <p role="alert" className="text-xs text-red-700">Alguns cadastros não puderam ser consultados. {clients.error || farms.error || fields.error}</p>}
           </div>
-          {!board.data ? <p className="mt-4 text-sm text-slate-600">Carregando dados autorizados da empresa...</p>
-            : active.length === 0 ? <p className="mt-4 text-sm text-slate-600">Nenhuma OS ativa encontrada.</p>
-            : <div className="mt-4 grid gap-3">
-              {active.slice(0, 6).map((os) => <article key={os.osId} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-200 p-4">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <strong className="text-sm text-slate-950">{os.numero || "OS"}</strong>
-                    <span className={"rounded-full px-2.5 py-1 text-xs font-bold " + statusTone(os.status)}>{os.stageLabel || os.status}</span>
-                  </div>
-                  <p className="mt-2 text-sm font-semibold text-slate-700">{os.cliente || "Cliente"} · {os.fazenda || "Propriedade"}</p>
-                  <p className="mt-1 text-xs text-slate-500">{os.talhao || "Talhão"} · {fmt(os.progressHa)} de {fmt(os.areaHa)} ha · {os.pilotName || "Piloto não atribuído"}</p>
-                </div>
-                <Link href={ROOT + "/agrovoo/os/" + encodeURIComponent(os.osId)}
-                  className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-emerald-200 px-3 text-sm font-bold text-emerald-800 no-underline">
-                  Ver OS <ArrowRight size={16}/>
-                </Link>
-              </article>)}
-            </div>}
         </section>
-        <section className="grid gap-3 sm:grid-cols-2">
-          <article className="rounded-2xl border border-slate-200 bg-white p-5">
-            <div className="flex items-center gap-2 text-lg font-black"><ShieldCheck className="text-emerald-700" size={20}/> Regularização</div>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Consulte documentos e vencimentos. Ausência de anexo não impede registrar o serviço, mas não comprova autorização legal.</p>
-            <Link href={ROOT + "/diagnostico"} className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-black text-emerald-700">Consultar documentos <ArrowRight size={16}/></Link>
-          </article>
-          <article className="rounded-2xl border border-slate-200 bg-white p-5">
-            <div className="flex items-center gap-2 text-lg font-black"><MapPinned className="text-emerald-700" size={20}/> Mapa da aplicação</div>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Foto do controle ou KML/KMZ. O registro de campo pode continuar offline; a conferência final aguarda a evidência recebida.</p>
-            <Link href={ROOT + "/documentos"} className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-black text-emerald-700">Ver anexos <ArrowRight size={16}/></Link>
-          </article>
+        <section aria-label="Situação das operações" className="agro-compact-grid grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {[
+            {label:"OS ativas",value:count?.total,style:"border-l-emerald-700",filter:"ativas"},
+            {label:"Aplicando",value:count?.aplicando,style:"border-l-teal-600",filter:"aplicando"},
+            {label:"Pausadas",value:count?.pausada,style:"border-l-amber-600",filter:"pausada"},
+            {label:"Para encerrar",value:count?.prontaEncerrar,style:"border-l-violet-600",filter:"pronta_encerrar"},
+          ].map(({label,value,style,filter})=><button type="button" key={label} onClick={()=>{setStageFilter(filter);setPage(0);}} aria-pressed={stageFilter===filter} className={"rounded-lg border border-l-4 border-slate-200 bg-white p-3 text-left shadow-sm hover:bg-slate-50 " + style}><span className="text-xs font-semibold text-slate-600">{label}</span><strong className="mt-1 block text-2xl font-bold tabular-nums text-slate-900">{value ?? "—"}</strong></button>)}
+        </section>
+
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3"><h2 className="text-base font-bold text-slate-900">Ordens de serviço</h2><div className="flex items-center gap-2"><button type="button" onClick={() => board.refresh()} aria-label="Atualizar operações" className="inline-flex min-h-11 items-center gap-1 rounded-md border border-slate-200 px-3 text-sm font-semibold text-slate-700"><RefreshCw size={16}/> Atualizar</button><Link href={ROOT + "/gestao"} className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-emerald-800">Gestão completa <ArrowRight size={15}/></Link></div></div>
+          <div className="flex flex-wrap gap-2 p-3 sm:p-4">
+            <label className="flex min-w-0 flex-1 items-center gap-2 rounded-md border border-slate-300 bg-white px-3"><Search size={18} className="shrink-0 text-slate-400"/><input type="search" aria-label="Buscar ordens" placeholder="Buscar OS, cliente, fazenda ou piloto" value={query} onChange={e=>{setQuery(e.target.value);setPage(0);}} className="min-h-11 min-w-0 flex-1 border-0 bg-transparent text-sm outline-none"/></label>
+            <select aria-label="Filtrar situação" value={stageFilter} onChange={e=>{setStageFilter(e.target.value);setPage(0);}} className="min-h-11 rounded-md border border-slate-300 px-3 text-sm sm:!w-auto"><option value="ativas">Ativas</option><option value="todas">Todas</option><option value="aberta">Abertas</option><option value="preparacao">Preparação</option><option value="aguardando_sarpas">Aguardando SARPAS</option><option value="aplicando">Aplicando</option><option value="pausada">Pausadas</option><option value="regularizacao">Campo concluído</option><option value="pronta_encerrar">Para encerrar</option><option value="encerrada">Encerradas</option><option value="cancelada">Canceladas</option></select>
+          </div>
+          {!board.data ? <p className="px-4 pb-4 text-sm text-slate-600">{board.error ? "Não foi possível carregar as ordens." : "Carregando dados autorizados da empresa..."}</p>
+            : visibleOrders.length === 0 ? <p className="px-4 pb-5 text-sm text-slate-600">Nenhuma OS encontrada com estes filtros.</p>
+            : <>
+              <div role="region" aria-label="Tabela de ordens de serviço" tabIndex={0} className="hidden overflow-x-auto md:block">
+                <table className="w-full border-collapse text-left text-sm"><thead className="bg-slate-100 text-xs font-semibold text-slate-600"><tr>{["OS","Cliente / propriedade","Piloto","Área planejada","Situação","Ação"].map(label=><th key={label} scope="col" className="px-3 py-3">{label}</th>)}</tr></thead><tbody>
+                  {visibleOrders.map(os=><tr key={os.osId} className="border-b border-slate-100 even:bg-slate-50/70"><td className="px-3 py-3 font-semibold">{os.numero || "OS"}</td><td className="px-3 py-3"><strong className="block font-medium">{os.cliente || "Cliente"}</strong><span className="text-xs text-slate-500">{os.fazenda} · {os.talhao}</span></td><td className="px-3 py-3">{os.pilotName || "Não atribuído"}</td><td className="px-3 py-3 tabular-nums">{fmt(os.areaHa)} ha</td><td className="px-3 py-3"><span className={"inline-flex rounded-full px-2 py-1 text-xs font-semibold " + statusTone(os.status)}>{os.stageLabel || os.status}</span></td><td className="px-3 py-3"><Link href={ROOT + "/agrovoo/os/" + encodeURIComponent(os.osId)} className="inline-flex min-h-11 items-center gap-1 rounded-md border border-emerald-200 px-3 text-xs font-semibold text-emerald-800">Ver OS <ArrowRight size={14}/></Link></td></tr>)}
+                </tbody></table>
+              </div>
+              <div className="grid gap-2 px-3 pb-3 md:hidden">{visibleOrders.map(os=><article key={os.osId} className="rounded-md border border-slate-200 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><strong>{os.numero || "OS"}</strong><span className={"rounded-full px-2 py-1 text-xs font-semibold " + statusTone(os.status)}>{os.stageLabel || os.status}</span></div><p className="mt-2 text-sm font-medium">{os.cliente} · {os.fazenda}</p><p className="mt-1 text-xs text-slate-600">{os.talhao} · {fmt(os.areaHa)} ha · {os.pilotName}</p><Link href={ROOT + "/agrovoo/os/" + encodeURIComponent(os.osId)} className="mt-2 flex min-h-11 items-center gap-1 text-sm font-semibold text-emerald-800">Ver OS <ArrowRight size={15}/></Link></article>)}</div>
+            </>}
+          {board.data && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 p-3 text-xs text-slate-600">
+            <span>{filtered.length ? currentPage*pageSize+1 : 0}–{Math.min((currentPage+1)*pageSize,filtered.length)} de {filtered.length} ordens disponíveis</span>
+            <div className="flex items-center gap-2"><select aria-label="Ordens por página" value={pageSize} onChange={e=>{setPageSize(Number(e.target.value));setPage(0);}} className="min-h-11 !w-auto rounded-md border border-slate-200 px-2"><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option></select><button type="button" disabled={currentPage===0} onClick={()=>setPage(currentPage-1)} className="min-h-11 rounded-md border border-slate-200 px-3 disabled:opacity-40" aria-label="Página anterior"><ArrowLeft size={16}/></button><span>{currentPage+1}/{totalPages}</span><button type="button" disabled={currentPage>=totalPages-1} onClick={()=>setPage(currentPage+1)} className="min-h-11 rounded-md border border-slate-200 px-3 disabled:opacity-40" aria-label="Próxima página"><ArrowRight size={16}/></button></div>
+          </div>}
+        </section>
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="bg-[#123e38] px-4 py-2.5 text-white"><h2 className="text-base font-bold">Documentação e ferramentas</h2></div>
+          <div className="agro-compact-grid grid grid-cols-2 gap-3 p-4 lg:grid-cols-4">{[
+            {title:"Regularização",text:"Documentos e vencimentos",href:"/diagnostico",icon:ShieldCheck},
+            {title:"Mapas e evidências",text:"Foto do controle ou KML/KMZ",href:"/documentos",icon:MapPinned},
+            {title:"Relatório mensal MAPA",text:"Conferir e gerar relatórios",href:"/relatorio-mensal",icon:FileCheck2},
+            {title:"Defensivos",text:"Consultar produtos e AGROFIT",href:"/produtos",icon:Leaf},
+          ].map(({title,text,href,icon:Icon})=><Link key={href} href={ROOT + href} className="rounded-md border border-slate-200 p-3 hover:border-emerald-400"><Icon size={22} className="text-emerald-700"/><strong className="mt-2 block text-sm text-slate-900">{title}</strong><span className="mt-1 block text-xs text-slate-600">{text}</span></Link>)}</div>
+          <p className="px-4 pb-3 text-xs text-slate-600">A falta de anexo não impede cadastrar a OS; a autorização legal continua necessária. O encerramento depende das evidências exigidas.</p>
         </section>
       </> : <>
         <div className="flex flex-wrap items-center justify-between gap-3">
