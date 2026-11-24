@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { type ReactNode, useMemo, useState } from "react";
 import {
-  ArrowLeft, ArrowRight, Check, ClipboardList, FileCheck2, Leaf,
+  ArrowLeft, ArrowRight, Check, FileCheck2, Leaf,
   Plus, RefreshCw, ShieldCheck, TriangleAlert, MapPinned,
 } from "lucide-react";
 import { useAgroData } from "../AgroDocUi";
-import { buildAgroVooOsPayload, validateAgroVooStep, type AgroVooAgroVooOsDraft } from "@/lib/agrovoo-os-wizard";
+import { buildAgroVooOsPayload, validateAgroVooStep, type AgroVooOsDraft } from "@/lib/agrovoo-os-wizard";
 
 const ROOT = "/apps/dronegestor";
 type OsStage = {
