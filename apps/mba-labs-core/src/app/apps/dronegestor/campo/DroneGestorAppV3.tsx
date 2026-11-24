@@ -37,6 +37,7 @@ import { hasNonPlaceholderAnacId, isExplicitHomologationPlaceholder } from "@/li
 import { DroneGeoMapEvidence } from "./DroneGeoMapEvidence";
 import { DroneMapEvidence } from "./DroneMapEvidence";
 import {AgroVooProductSearch} from "../agrovoo/piloto/AgroVooProductSearch";
+import {normalizeDropletMicrons,normalizeAssistantName} from "@/lib/agrovoo-field-reference";
 import {FieldReferenceSection,ReferenceValues,DeltaTDisplay} from "./AgroVooFieldReference";
 
 type View = "inicio" | "nova" | "documentacao" | "calda" | "estrategia" | "seguranca" | "controle" | "calibracao" | "checklist" | "sarpas" | "execucao" | "relatorios" | "config";
@@ -61,6 +62,8 @@ type Mission = {
   drone: string;
   registroAnac: string;
   pontaModelo: string;
+  gotaMicra?: number | null;
+  ajudanteNome?: string;
   volume: number;
   tanque: number;
   faixa: number;
@@ -150,6 +153,8 @@ function normalizeMission(value: Partial<Mission> | null): Mission {
   return {
     ...blankMission,
     ...source,
+    gotaMicra:normalizeDropletMicrons(source.gotaMicra),
+    ajudanteNome:normalizeAssistantName(source.ajudanteNome),
     registroAnac: String((source as any).registroAnac || (source as any).identificacaoAnac || ""),
     pontaModelo: String((source as any).pontaModelo || (source as any).pontaPulverizacao || ""),
     produtos: products,
@@ -247,7 +252,7 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
     setSyncConflict(getDroneSyncConflict());
     setFinalSaved(isFinalized);
     const savedView = localStorage.getItem(KEYS.view) as View | null;
-    const fingerprint = JSON.stringify([savedMission.ordemServicoId,savedMission.tipoAtividade,savedMission.cultura,savedMission.alvo,savedMission.area,savedMission.drone,savedMission.registroAnac,savedMission.pontaModelo,savedMission.volume,savedMission.tanque,savedMission.faixa,savedMission.velocidadeKmh,savedMission.alturaM,savedMission.produtos]);
+    const fingerprint = JSON.stringify([savedMission.ordemServicoId,savedMission.tipoAtividade,savedMission.cultura,savedMission.alvo,savedMission.area,savedMission.drone,savedMission.registroAnac,savedMission.pontaModelo,savedMission.volume,savedMission.tanque,savedMission.faixa,savedMission.velocidadeKmh,savedMission.alturaM,savedMission.gotaMicra??null,savedMission.produtos]);
     const previous = readRaw<{osId?:string;fingerprint?:string;maxUnlocked?:number}>(guidedKey, {});
     const savedStep = previous.osId===savedMission.ordemServicoId&&previous.fingerprint===fingerprint ? Math.max(0,Math.min(10,Number(previous.maxUnlocked)||0)) : 0;
     const completed = status==="finalizada";
@@ -364,7 +369,7 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
   const testDrone = isExplicitHomologationPlaceholder(mission.drone) || isExplicitHomologationPlaceholder(mission.registroAnac);
   const droneRecordPending = !mission.drone.trim() || !hasNonPlaceholderAnacId(mission.registroAnac) || testDrone;
 
-  const guidedFingerprint = JSON.stringify([mission.ordemServicoId,mission.tipoAtividade,mission.cultura,mission.alvo,mission.area,mission.drone,mission.registroAnac,mission.pontaModelo,mission.volume,mission.tanque,mission.faixa,mission.velocidadeKmh,mission.alturaM,mission.produtos]);
+  const guidedFingerprint = JSON.stringify([mission.ordemServicoId,mission.tipoAtividade,mission.cultura,mission.alvo,mission.area,mission.drone,mission.registroAnac,mission.pontaModelo,mission.volume,mission.tanque,mission.faixa,mission.velocidadeKmh,mission.alturaM,mission.gotaMicra??null,mission.produtos]);
 
   function flash(text: string) { setNotice(text); window.setTimeout(() => setNotice(""), 4200); }
   function showView(next: View) { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); }
@@ -532,8 +537,9 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
     setMission((current) => ({ ...current, sarpasConfirmado: false, sarpasSituacao: "", sarpasNumero: "" }));
   }
   function updateMission<K extends keyof Mission>(key: K, value: Mission[K]) {
+    if ((key==="gotaMicra"||key==="ajudanteNome")&&!canEditProducts) return flash("Dados em somente leitura nesta fase ou para este perfil.");
     if (locked) return flash("Esta missão está bloqueada. Operações em execução, pendentes ou finalizadas não podem ter parâmetros alterados.");
-    const coreKeys: Array<keyof Mission> = ["cultura", "alvo", "tipoAtividade", "area", "drone", "registroAnac", "pontaModelo", "volume", "tanque", "faixa", "velocidadeKmh", "alturaM"];
+    const coreKeys: Array<keyof Mission> = ["cultura", "alvo", "tipoAtividade", "area", "drone", "registroAnac", "pontaModelo", "volume", "tanque", "faixa", "velocidadeKmh", "alturaM", "gotaMicra"];
     const safetyKeys: Array<keyof Mission> = ["distanciaSensivel", "semAreaSensivel", "ventoCampoKmh", "direcaoVentoCampo", "temperaturaCampo", "umidadeCampo"];
     setMission((current) => {
       const next = { ...current, [key]: value } as Mission;
@@ -789,12 +795,12 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
               {droneRecordPending&&<p className="mt-2 text-xs">Para operar de verdade, o responsável pelo cadastro deve selecionar um drone real com identificação correspondente. Não substitua dados fictícios por números inventados.</p>}
             </div>
           </section><ReferenceValues items={[{label:"Data da aplicação",value:startedAt?new Date(startedAt).toLocaleDateString("pt-BR"):"Registrada ao iniciar"},{label:"Início",value:startedAt?new Date(startedAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"Ainda não iniciado"},{label:"Fim",value:endedAt?new Date(endedAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"Registrado ao concluir"},{label:"Área aplicada",value:fmt(progressHa,2)+" ha"}]}/></FieldReferenceSection>
-          <FieldReferenceSection tone="team" title="5. Equipe de aplicação"><ReferenceValues items={[{label:"Usuário responsável",value:userName},{label:"Ajudante",value:"Não registrado neste formulário"}]}/></FieldReferenceSection>
+          <FieldReferenceSection tone="team" title="5. Equipe de aplicação"><ReferenceValues items={[{label:"Usuário responsável",value:userName}]}/><label className="grid gap-1 text-sm font-semibold text-slate-700">Ajudante (opcional)<input maxLength={120} disabled={!canEditProducts} className="min-h-11 rounded-md border border-slate-300 px-3 disabled:bg-slate-100" value={mission.ajudanteNome||""} onChange={e=>updateMission("ajudanteNome",e.target.value)} placeholder="Nome do ajudante"/></label><p className="text-xs text-slate-600">Nome informado pelo responsável; não cria acesso nem confirma habilitação. Deixe vazio se não houver registro.</p></FieldReferenceSection>
           <details className="rounded-2xl border border-slate-200 bg-white">
             <summary className="min-h-12 cursor-pointer px-4 py-3 text-sm font-black text-slate-900">Conferir ou corrigir dados técnicos <span className="block text-xs font-normal text-slate-500">Opcional para consulta; abra se houver algo faltando</span></summary>
 
           
-          <div className="grid gap-3 border-t border-slate-100 p-3"><FieldReferenceSection tone="technical" title="4. Parâmetros técnicos de voo"><FormGrid><SelectField label="Tipo de atividade *" value={mission.tipoAtividade} onChange={(v) => updateMission("tipoAtividade", v)} options={["pulverizacao|Pulverização","dispersao|Dispersão / semeadura","outro|Outro"]}/><TextField label="Cultura *" value={mission.cultura} onChange={(v) => updateMission("cultura",v)}/><TextField label="Alvo *" value={mission.alvo} onChange={(v) => updateMission("alvo",v)}/><NumberField label="Área *" value={mission.area} suffix="ha" onChange={(v) => updateMission("area",v)}/><TextField label="Drone *" value={mission.drone} onChange={(v) => updateMission("drone",v)}/><TextField label="Identificação / registro ANAC *" value={mission.registroAnac} onChange={(v) => updateMission("registroAnac",v)}/><TextField label="Bico / atomizador — tipo/modelo *" value={mission.pontaModelo} onChange={(v) => updateMission("pontaModelo",v)}/><NumberField label="Volume *" value={mission.volume} suffix="L/ha" onChange={(v) => updateMission("volume",v)}/><NumberField label="Tanque *" value={mission.tanque} suffix="L" onChange={(v) => updateMission("tanque",v)}/><NumberField label="Faixa *" value={mission.faixa} suffix="m" onChange={(v) => updateMission("faixa",v)}/><NumberField label="Velocidade *" value={mission.velocidadeKmh} suffix="km/h" onChange={(v) => updateMission("velocidadeKmh",v)}/><NumberField label="Altura planejada *" value={mission.alturaM} suffix="m" onChange={(v) => updateMission("alturaM",v)}/></FormGrid></FieldReferenceSection></div></details>
+          <div className="grid gap-3 border-t border-slate-100 p-2 sm:p-3"><FieldReferenceSection tone="technical" title="4. Parâmetros técnicos de voo"><FormGrid><SelectField label="Tipo de atividade *" value={mission.tipoAtividade} onChange={(v) => updateMission("tipoAtividade", v)} options={["pulverizacao|Pulverização","dispersao|Dispersão / semeadura","outro|Outro"]}/><TextField label="Cultura *" value={mission.cultura} onChange={(v) => updateMission("cultura",v)}/><TextField label="Alvo *" value={mission.alvo} onChange={(v) => updateMission("alvo",v)}/><NumberField label="Área *" value={mission.area} suffix="ha" onChange={(v) => updateMission("area",v)}/><TextField label="Drone *" value={mission.drone} onChange={(v) => updateMission("drone",v)}/><TextField label="Identificação / registro ANAC *" value={mission.registroAnac} onChange={(v) => updateMission("registroAnac",v)}/><TextField label="Bico / atomizador — tipo/modelo *" value={mission.pontaModelo} onChange={(v) => updateMission("pontaModelo",v)}/><NumberField label="Volume *" value={mission.volume} suffix="L/ha" onChange={(v) => updateMission("volume",v)}/><NumberField label="Tanque *" value={mission.tanque} suffix="L" onChange={(v) => updateMission("tanque",v)}/><NumberField label="Faixa *" value={mission.faixa} suffix="m" onChange={(v) => updateMission("faixa",v)}/><NumberField label="Velocidade *" value={mission.velocidadeKmh} suffix="km/h" onChange={(v) => updateMission("velocidadeKmh",v)}/><NumberField label="Altura planejada *" value={mission.alturaM} suffix="m" onChange={(v) => updateMission("alturaM",v)}/><NullableNumberField label="Tamanho nominal da gota (opcional)" value={mission.gotaMicra??null} suffix="µm" disabled={!canEditProducts} onChange={v=>updateMission("gotaMicra",normalizeDropletMicrons(v))}/></FormGrid></FieldReferenceSection></div></details>
          <details className="rounded-2xl border border-slate-200 bg-white">
            <summary className="min-h-12 cursor-pointer px-4 py-3 font-black text-slate-900">Produtos e receita · {mission.produtos.length} item(ns) {productsReady?"✓":"· pendente"} <span className="ml-1 block text-xs font-normal text-slate-500">Ver nome, dose e unidade</span></summary>
            <div className="grid gap-3 border-t border-slate-100 p-3"><p className="text-xs text-slate-600">Confira produto, dose e unidade do planejamento. A inclusão não substitui receituário agronômico nem revisão do RT. Ao trocar o nome, informe novamente a dose prescrita.</p>{!canEditProducts&&<p className="rounded-md bg-amber-50 p-2 text-xs text-amber-950">Somente consulta: edição depende da permissão e da fase da operação, antes de qualquer área aplicada ou carga registrada.</p>}
@@ -824,7 +830,7 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
             <Metric icon={<Route/>} label="Faixa" value={`${fmt(mission.faixa,1)} m`}/>
             <Metric icon={<Gauge/>} label="Velocidade" value={`${fmt(mission.velocidadeKmh,1)} km/h`}/>
             <Metric icon={<Sprout/>} label="Altura" value={`${fmt(mission.alturaM,1)} m`}/>
-          </div><ReferenceValues items={[{label:"Bico / atomizador",value:mission.pontaModelo},{label:"Tanque útil",value:fmt(mission.tanque,1)+" L"}]}/></FieldReferenceSection>
+          </div><ReferenceValues items={[{label:"Bico / atomizador",value:mission.pontaModelo},{label:"Tanque útil",value:fmt(mission.tanque,1)+" L"},{label:"Gota nominal",value:mission.gotaMicra?fmt(mission.gotaMicra,1)+" µm":"Não informada"}]}/></FieldReferenceSection>
           <details className="rounded-xl border border-slate-200 bg-white">
             <summary className="min-h-12 cursor-pointer p-3 text-sm font-black">Ver vazão e tempo estimado</summary>
             <div className="grid grid-cols-2 gap-2 p-3">
