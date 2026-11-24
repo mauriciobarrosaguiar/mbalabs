@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { type ReactNode, useMemo, useState } from "react";
 import {
-  ArrowLeft, ArrowRight, Check, FileCheck2, Leaf,
+  ArrowLeft, ArrowRight, Check, FileCheck2,
   Plus, RefreshCw, ShieldCheck, TriangleAlert, MapPinned,
 } from "lucide-react";
-import { useAgroData } from "../AgroDocUi";
+import { AgroDocHero, AgroDocKpiCard, useAgroData } from "../AgroDocUi";
 import { buildAgroVooOsPayload, validateAgroVooStep, type AgroVooOsDraft } from "@/lib/agrovoo-os-wizard";
 
 const ROOT = "/apps/dronegestor";
@@ -131,22 +131,13 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
     }
   }
 
-  return <main className="min-h-screen bg-[#f5f9f6] px-3 py-5 sm:px-6 sm:py-8">
-    <div className="mx-auto grid w-full max-w-6xl gap-5">
-      <header className="rounded-3xl bg-gradient-to-r from-[#073d2c] to-[#126f4e] p-5 text-white shadow-sm sm:p-7">
-        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-emerald-200">
-          <Leaf size={17} /> AgroVoo Gestão · Fase 2 (prévia)
-        </div>
-        <h1 className="mt-3 text-2xl font-black sm:text-3xl">
-          {screen === "home" ? "Seu trabalho, em um só lugar" : "Nova ordem de serviço"}
-        </h1>
-        <p className="mt-2 text-sm leading-6 text-emerald-100">
-          {screen === "home"
-            ? "Olá, " + userName + ". Confira suas operações sem percorrer vários módulos."
-            : "Um passo de cada vez. Os dados são salvos somente ao confirmar a criação."}
-        </p>
-        <p className="mt-2 text-xs text-emerald-200">Prévia isolada. As funcionalidades antigas continuam disponíveis.</p>
-      </header>
+  return <main className="min-h-screen bg-[var(--agro-bg)] pb-20">
+    <div className="mx-auto grid w-full max-w-[1440px] gap-4">
+      <AgroDocHero variant="operations" title={screen === "home" ? <>Agro<em>Voo</em> Gestão</> : "Nova ordem de serviço"} description={screen === "home" ? "Olá, " + userName + ". Acompanhe suas operações agrícolas em um só lugar." : "Cadastre a operação em quatro etapas. Os dados são salvos somente ao confirmar."}/>
+      <div className="-mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+        <span>Gestão de operações agrícolas</span>
+        <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 font-semibold text-emerald-800">Ambiente de homologação</span>
+      </div>
 
       {screen === "home" ? <>
         <div className="flex flex-wrap gap-2">
@@ -163,17 +154,11 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
           </button>
         </div>
         {board.error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{board.error}</p>}
-        <section aria-label="Resumo das operações" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            ["OS ativas", count?.total, "Acompanhamento operacional"],
-            ["Em execução", count?.aplicando, "Aplicações em andamento"],
-            ["Pausadas", count?.pausada, "Retomada com conferência"],
-            ["Para conferir", count?.prontaEncerrar, "Campo registrado, pendente de revisão"],
-          ].map(([label, value, subtitle]) => <article key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <div className="text-sm font-bold text-slate-600">{label}</div>
-            <div className="mt-2 text-3xl font-black text-emerald-900">{value ?? "—"}</div>
-            <div className="mt-1 text-xs text-slate-500">{subtitle}</div>
-          </article>)}
+        <section aria-label="Resumo das operações" className="agro-kpis">
+          <AgroDocKpiCard title="OS ativas" value={count?.total ?? "—"} note="Acompanhamento operacional" icon={FileCheck2}/>
+          <AgroDocKpiCard title="Em execução" value={count?.aplicando ?? "—"} note="Aplicações em andamento" icon={MapPinned}/>
+          <AgroDocKpiCard title="Pausadas" value={count?.pausada ?? "—"} note="Retomada com conferência" icon={RefreshCw}/>
+          <AgroDocKpiCard title="Para conferir" value={count?.prontaEncerrar ?? "—"} note="Aguardando revisão" icon={ShieldCheck}/>
         </section>
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex items-center justify-between gap-3">
@@ -193,7 +178,7 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
                   <p className="mt-1 text-xs text-slate-500">{os.talhao || "Talhão"} · {fmt(os.progressHa)} de {fmt(os.areaHa)} ha · {os.pilotName || "Piloto não atribuído"}</p>
                 </div>
                 <Link href={ROOT + "/agrovoo/os/" + encodeURIComponent(os.osId)}
-                  className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-emerald-200 px-3 text-sm font-bold text-emerald-800 no-underline">
+                  className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-emerald-200 px-3 text-sm font-bold text-emerald-800 no-underline">
                   Ver OS <ArrowRight size={16}/>
                 </Link>
               </article>)}
@@ -203,12 +188,12 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
           <article className="rounded-2xl border border-slate-200 bg-white p-5">
             <div className="flex items-center gap-2 text-lg font-black"><ShieldCheck className="text-emerald-700" size={20}/> Regularização</div>
             <p className="mt-2 text-sm leading-6 text-slate-600">Consulte documentos e vencimentos. Ausência de anexo não impede registrar o serviço, mas não comprova autorização legal.</p>
-            <Link href={ROOT + "/diagnostico"} className="mt-3 inline-flex min-h-10 items-center gap-2 text-sm font-black text-emerald-700">Consultar documentos <ArrowRight size={16}/></Link>
+            <Link href={ROOT + "/diagnostico"} className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-black text-emerald-700">Consultar documentos <ArrowRight size={16}/></Link>
           </article>
           <article className="rounded-2xl border border-slate-200 bg-white p-5">
             <div className="flex items-center gap-2 text-lg font-black"><MapPinned className="text-emerald-700" size={20}/> Mapa da aplicação</div>
             <p className="mt-2 text-sm leading-6 text-slate-600">Foto do controle ou KML/KMZ. O registro de campo pode continuar offline; a conferência final aguarda a evidência recebida.</p>
-            <Link href={ROOT + "/documentos"} className="mt-3 inline-flex min-h-10 items-center gap-2 text-sm font-black text-emerald-700">Ver anexos <ArrowRight size={16}/></Link>
+            <Link href={ROOT + "/documentos"} className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-black text-emerald-700">Ver anexos <ArrowRight size={16}/></Link>
           </article>
         </section>
       </> : <>
@@ -219,9 +204,9 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
           </button>
           <span className="text-xs font-bold text-slate-500">Etapa {step + 1} de 4</span>
         </div>
-        <div className="grid grid-cols-4 gap-1.5" aria-label="Progresso da criação da OS">
+        <div className="agro-compact-grid grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Progresso da criação da OS">
           {steps.map((name, index) => <div key={name}
-            className={"rounded-xl p-2 text-center text-[10px] font-bold sm:text-sm " + (index === step ? "bg-emerald-700 text-white" : index < step ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600")}>
+            className={"rounded-xl p-3 text-center text-xs font-bold sm:text-sm " + (index === step ? "bg-emerald-700 text-white" : index < step ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-600")}>
             {index < step ? <Check size={14} className="mx-auto" aria-label="Concluída"/> : index + 1}. {name}
           </div>)}
         </div>
