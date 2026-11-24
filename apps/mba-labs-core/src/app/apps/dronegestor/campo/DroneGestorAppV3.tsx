@@ -340,38 +340,149 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
   const canStart = missionReady && safetyReady && calibrationReady && checklistReady && sarpasReady && gpsReady && !syncConflict && !["pendente_sync", "finalizada"].includes(missionStatus);
   const areaDone = mission.area > 0 && progressHa >= mission.area - 0.01;
 
+  const guidedFingerprint = JSON.stringify([mission.ordemServicoId,mission.tipoAtividade,mission.cultura,mission.alvo,mission.area,mission.drone,mission.registroAnac,mission.pontaModelo,mission.volume,mission.tanque,mission.faixa,mission.velocidadeKmh,mission.alturaM,mission.produtos]);
+
   function flash(text: string) { setNotice(text); window.setTimeout(() => setNotice(""), 4200); }
-  function go(next: View) { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  function showView(next: View) { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  function unlock(next: View) {
+    const index=flow.indexOf(next);
+    if(index < 0)return showView(next);
+    const count=Math.max(maxUnlocked,index);
+    localStorage.setItem(guidedKey,JSON.stringify({osId:mission.ordemServicoId,fingerprint:guidedFingerprint,maxUnlocked:count,lastView:next}));
+    setMaxUnlocked(count);
+    showView(next);
+  }
+  function go(next: View) {
+    const index=flow.indexOf(next);
+    if(index>=0&&index>maxUnlocked) {
+      return flash("Conclua a etapa atual antes de avançar. As próximas etapas ficam bloqueadas.");
+    }
+    showView(next);
+  }
   function resumeView(): View {
-    if (["pendente_sync", "finalizada"].includes(missionStatus)) return "relatorios";
-    if (operationStarted) return "execucao";
-    if (!missionReady) return "nova";
-    if (!insightAccepted && settings.insightsObrigatorios) return "estrategia";
-    if (!safetyReady) return "seguranca";
-    if (!calibrationReady) return "calibracao";
-    if (!checklistReady) return "checklist";
-    if (!sarpasReady || !gpsReady) return "sarpas";
-    return "sarpas";
+    if(["finalizada","pendente_sync"].includes(missionStatus))return "relatorios";
+    if(operationStarted)return "execucao";
+    return flow[Math.min(Math.max(0,maxUnlocked),8)]||"nova";
   }
-  function guarded(target: View) {
-    if (["pendente_sync", "finalizada"].includes(missionStatus) && !["inicio", "relatorios"].includes(target)) return go("relatorios");
-    if (target === "nova") return go("nova");
-    if (["controle", "calda", "estrategia"].includes(target) && !missionReady) { flash("Complete os dados obrigatórios da missão primeiro."); return go("nova"); }
-    if (target === "seguranca" && (!missionReady || (settings.insightsObrigatorios && !insightAccepted))) { flash("Conclua a missão e a estratégia antes da segurança."); return go(resumeView()); }
-    if (target === "calibracao" && !safetyReady) { flash("Conclua a análise de segurança antes da calibração."); return go(resumeView()); }
-    if (target === "checklist" && !calibrationReady) { flash("Conclua a calibração antes do checklist."); return go("calibracao"); }
-    if (target === "sarpas" && !checklistReady) { flash("Conclua o checklist antes do SARPAS."); return go(resumeView()); }
-    if (target === "execucao" && !operationStarted) { flash("Inicie a operação pela etapa SARPAS."); return go("sarpas"); }
-    go(target);
+  async function preflightCheck() {
+    if(!mission.ordemServicoId)throw new Error("Selecione primeiro uma ordem de serviço.");
+    const response=await fetch("/api/dronegestor/preflight",{
+      method:"POST",headers:{"Content-Type":"application/json"},cache:"no-store",
+      body:JSON.stringify({osId:mission.ordemServicoId,snapshot:{
+        mission,calibration,checklist,weather:modelWeather,
+        riskAccepted,insightAccepted
+      }})
+    });
+    const payload=await response.json().catch(()=>null);
+    if(!response.ok)throw new Error(payload?.error||"Não foi possível validar os requisitos da OS.");
+    const documents=Array.isArray(payload?.items)?payload.items.find((item:{id:string})=>item.id==="documents"):null;
+    setDocsVerified(Boolean(documents?.ok));
+    return payload as {ready:boolean;items:Array<{id:string;ok:boolean;detail:string;label:string}>};
   }
+  async function advance(target: View) {
+    const current=flow.indexOf(view),to=flow.indexOf(target);
+    if(to<=current)return go(target);
+    if(current<0||to!==current+1)return flash("Avance somente para a próxima etapa da sequência.");
+    if(checkingPreflight)return;
+    if(view==="nova"){
+      if(!missionReady||!mission.ordemServicoId)return flash("Confira a OS, o drone e todos os campos obrigatórios primeiro.");
+      setCheckingPreflight(true);
+      try{
+        const result=await preflightCheck();
+        const missing=result.items.find(item=>["pilot","drone","mission"].includes(item.id)&&!item.ok);
+        if(missing)return flash(`Etapa 1 pendente — ${missing.label}: ${missing.detail}`);
+        unlock(target);
+      }catch(error){flash(error instanceof Error?error.message:"Falha na conferência.");}
+      finally{setCheckingPreflight(false);}
+      return;
+    }
+    if(view==="controle"){
+      if(!missionReady)return flash("Volte à OS e confira os parâmetros planejados.");
+      return unlock(target); // toque explícito confirma a revisão dos parâmetros
+    }
+    if(view==="documentacao"){
+      setCheckingPreflight(true);
+      try{
+        const result=await preflightCheck();
+        const documents=result.items.find(item=>item.id==="documents");
+        if(!documents?.ok){setVerifiedProblem(documents?.detail||"Faltam documentos obrigatórios.");return;}
+        setVerifiedProblem("");unlock(target);
+      }catch(error){setVerifiedProblem(error instanceof Error?error.message:"Falha ao verificar documentos.");}
+      finally{setCheckingPreflight(false);}
+      return;
+    }
+    if(view==="estrategia"){
+      if(settings.insightsObrigatorios&&!insightAccepted)return flash("Leia e confirme a orientação técnica antes de continuar.");
+      return unlock(target);
+    }
+    if(view==="seguranca"){
+      if(!safetyReady)return flash("Complete as medições reais e a análise de risco antes de avançar.");
+      if(!gpsReady)return flash("Registre o GPS em campo antes de avançar. O mapa do controle não substitui a localização.");
+      return unlock(target);
+    }
+    if(view==="calibracao"){
+      if(!calibrationReady)return flash("Finalize a calibração física na ordem indicada.");
+      return unlock(target);
+    }
+    if(view==="checklist"){
+      if(!checklistReady)return flash("Marque somente os itens realmente inspecionados.");
+      return unlock(target);
+    }
+    if(view==="calda"){
+      if(!caldaReviewed)return flash("Confira receita, produtos, doses, carga cheia e última carga antes de continuar.");
+      if(!(calc.totalCalda>0&&mission.produtos.every(product=>product.dose>0)))return flash("Não foi possível validar os cálculos de calda.");
+      return unlock(target);
+    }
+    return flash("A aplicação só avança depois da liberação e do registro do servidor.");
+  }
+  function guarded(target: View) {void advance(target);}
   function back() {
-    if (view === "inicio") return;
-    if (view === "config") return go(returnView);
-    if (view === "execucao" && operationStarted) return go("inicio");
-    if (view === "relatorios") return go("inicio");
-    const index = flow.indexOf(view);
-    go(index <= 0 ? "inicio" : flow[index - 1]);
+    if(view==="inicio")return;
+    if(view==="config")return go(returnView);
+    if(view==="relatorios"&&["finalizada","pendente_sync"].includes(missionStatus))return;
+    const current=flow.indexOf(view);
+    go(current<=0?"inicio":flow[current-1]);
   }
+
+  // A navegação antiga não prova conclusão: toda etapa nova depende da validação anterior.
+  useEffect(()=>{
+    if(!hydrated||!mission.ordemServicoId||["finalizada","pendente_sync"].includes(missionStatus))return;
+    const saved=readRaw<{osId?:string;fingerprint?:string;maxUnlocked?:number;lastView?:View}>(guidedKey,{});
+    if(saved.osId!==mission.ordemServicoId||saved.fingerprint!==guidedFingerprint){
+      setMaxUnlocked(0);
+      if(flow.indexOf(view)>0)showView("nova");
+      return;
+    }
+  },[hydrated,guidedFingerprint,mission.ordemServicoId]);
+
+  useEffect(()=>{
+    if(!hydrated||!mission.ordemServicoId||["finalizada","pendente_sync"].includes(missionStatus)||operationStarted)return;
+    let active=true;
+    const saved=readRaw<{osId?:string;fingerprint?:string;maxUnlocked?:number;lastView?:View}>(guidedKey,{});
+    const snap={mission,calibration,checklist,weather:modelWeather,riskAccepted,insightAccepted};
+    void fetch("/api/dronegestor/preflight",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({osId:mission.ordemServicoId,snapshot:snap}),cache:"no-store"})
+      .then(async response=>{const data=await response.json().catch(()=>null);if(!response.ok)throw new Error(data?.error||"Conferência indisponível.");return data;})
+      .then(data=>{
+        if(!active)return;
+        const items=Array.isArray(data?.items)?data.items as Array<{id:string;ok:boolean}>:[];
+        const ok=(id:string)=>items.find(item=>item.id===id)?.ok===true;
+        setDocsVerified(ok("documents"));
+        if(saved.osId!==mission.ordemServicoId||saved.fingerprint!==guidedFingerprint)return;
+        const planned=Math.max(0,Math.min(8,Number(saved.maxUnlocked)||0));
+        let permitted=planned;
+        if(!ok("pilot")||!ok("drone")||!ok("mission"))permitted=0;
+        else if(!ok("documents"))permitted=Math.min(permitted,2);
+        else if(settings.insightsObrigatorios&&!insightAccepted)permitted=Math.min(permitted,3);
+        else if(!safetyReady||!gpsReady)permitted=Math.min(permitted,4);
+        else if(!calibrationReady)permitted=Math.min(permitted,5);
+        else if(!checklistReady)permitted=Math.min(permitted,6);
+        setMaxUnlocked(permitted);
+        if(saved.lastView&&flow.includes(saved.lastView))showView(flow[Math.min(flow.indexOf(saved.lastView),permitted)]||"nova");
+      }).catch(error=>{if(active)setVerifiedProblem(error instanceof Error?error.message:"Não foi possível conferir a OS.");});
+    return()=>{active=false;};
+  },[hydrated,mission.ordemServicoId]);
+
   function invalidateCore() {
     setInsightAccepted(false); setRiskAccepted(false); setCalibration(blankCalibration); setChecklist(blankChecklist);
     setMission((current) => ({ ...current, sarpasConfirmado: false, sarpasSituacao: "", sarpasNumero: "" }));
