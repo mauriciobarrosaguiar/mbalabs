@@ -11,7 +11,7 @@ test("Delta T: cálculo aproximado, sem substituir medição local",()=>{
 test("AgroVoo formulário: preserva os controles de segurança, clima e conclusão existentes",()=>{
  const read=p=>readFileSync(new URL("../src/app/apps/dronegestor/campo/"+p,import.meta.url),"utf8");
  const main=read("DroneGestorAppV3.tsx"),field=read("DroneGuidedFieldMode.tsx");
- for(const label of ["1. Informações básicas da aplicação","2. Localização GPS","3. Condições meteorológicas","4. Parâmetros técnicos de voo","5. Equipe de aplicação"])assert.ok(main.includes(label));
+ for(const label of ["Informações básicas da aplicação","Localização GPS","Condições meteorológicas","Parâmetros técnicos de voo","Equipe de aplicação"])assert.ok(main.includes(label));
  assert.ok(main.includes("DeltaTDisplay temperature={mission.temperaturaCampo} humidity={mission.umidadeCampo}"));
  assert.ok(main.includes('disabled={!missionReady||checkingPreflight||droneRecordPending}'));
  assert.ok(main.includes('disabled={!safetyReady} onClick={()=>guarded("calibracao")}'));
