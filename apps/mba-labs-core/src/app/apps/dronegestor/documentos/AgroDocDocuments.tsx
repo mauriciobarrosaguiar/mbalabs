@@ -72,6 +72,7 @@ export function AgroDocDocuments() {
     if(params.get("returnTo")==="campo"){
       try{setFieldOsId(JSON.parse(localStorage.getItem("dronegestor:mission:v2")||"{}").ordemServicoId||"")}catch{}
     }
+    if (params.get("tipo")==="mapa_aplicacao") { setType("mapa_aplicacao"); setUpload(true); }
     const id = params.get("osId");
     if (id) setOs(id);
     else
