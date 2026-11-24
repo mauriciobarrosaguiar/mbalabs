@@ -5,6 +5,8 @@ on:
       - 'apps/mba-labs-core/src/app/apps/dronegestor/**'
       - 'apps/mba-labs-core/src/app/api/dronegestor/**'
       - 'apps/mba-labs-core/src/lib/dronegestor*'
+      - 'apps/mba-labs-core/src/lib/agrovoo*'
+      - 'docs/AGROVOO-FINANCEIRO-*.sql'
       - 'apps/mba-labs-core/tests/dronegestor-*.test.mjs'
       - '.github/workflows/dronegestor-validation.yml'
 permissions:
@@ -22,3 +24,43 @@ jobs:
       - run: npm ci
       - name: DroneGestor tests
         run: npm --prefix apps/mba-labs-core run test:agrodoc
+
+  agrovoo-finance-db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: finance-ci-local-only
+          POSTGRES_DB: agrovoo_finance_ci
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare disposable database roles
+        env:
+          PGPASSWORD: finance-ci-local-only
+          PGHOST: 127.0.0.1
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+          PGUSER: postgres
+          PGDATABASE: agrovoo_finance_ci
+        run: |
+          psql -v ON_ERROR_STOP=1 -c "create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;"
+      - name: Validate schema and financial controls with fake records
+        env:
+          PGPASSWORD: finance-ci-local-only
+          PGHOST: 127.0.0.1
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+          PGUSER: postgres
+          PGDATABASE: agrovoo_finance_ci
+        run: |
+          psql -v ON_ERROR_STOP=1 -f docs/AGROVOO-FINANCEIRO-SCHEMA-DRAFT.sql
+          psql -v ON_ERROR_STOP=1 -f docs/AGROVOO-FINANCEIRO-HOMOLOGACAO.sql
+          test "$(psql -At -c 'select count(*) from public.agrovoo_finance_entries')" = "0"
