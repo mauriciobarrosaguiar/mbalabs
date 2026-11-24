@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { Bell, BookOpen, Calculator, ChevronDown, ClipboardCheck, CircleHelp, FileText, Folder, Home, Layers, Leaf, LogOut, Menu, Settings, ShieldCheck, UserRound, Users, X, ChartNoAxesColumn } from "lucide-react";
+import { Bell, BookOpen, Calculator, ChevronDown, ClipboardCheck, CircleHelp, FileText, Folder, Home, Layers, Leaf, LogOut, Menu, Settings, ShieldCheck, UserRound, Users, Wallet, X, ChartNoAxesColumn } from "lucide-react";
 import { AgroDocDroneIcon as Drone } from "../AgroDocDroneIcon";
 
 const ROOT = "/apps/dronegestor";
@@ -27,6 +27,7 @@ const items = [
     { title: "Conferência", path: "conferencia", icon: ClipboardCheck },
     { title: "Relatório mensal MAPA", path: "relatorio-mensal", icon: ChartNoAxesColumn },
   ] },
+  { label: "Financeiro", links: [{ title: "Receitas e despesas", path: "agrovoo/financeiro", icon: Wallet }] },
   { label: "Documentação", links: [
     { title: "Regularização", path: "diagnostico", icon: ShieldCheck },
     { title: "Documentos", path: "documentos", icon: Folder },
@@ -80,7 +81,7 @@ export function AgroVooAdminShell({ children, userName, canAdministerCompany, is
     <aside className={"fixed bottom-0 left-0 top-0 z-[80] flex w-[270px] max-w-[85vw] flex-col border-r border-slate-200 bg-white transition-transform lg:top-16 lg:z-[65] lg:max-w-none lg:translate-x-0 lg:visible " + (mobileOpen ? "visible translate-x-0 " : "invisible -translate-x-full ") + (compact ? "lg:w-[76px]" : "lg:w-[250px]")}>
       <div className="flex min-h-16 items-center justify-between border-b border-slate-100 px-4 lg:hidden"><strong className="text-lg text-emerald-950">AgroVoo</strong><button type="button" className="grid h-11 w-11 place-items-center" onClick={() => setMobileOpen(false)} aria-label="Fechar menu AgroVoo"><X/></button></div>
       <nav aria-label="Menu de gestão AgroVoo" className="flex-1 overflow-y-auto p-3">
-        {items.map(group => <details key={group.label} open={group.label === "Principal" || group.label === "Operacional" || compact || group.links.some(link=>pathname===ROOT+"/"+link.path)} className="mb-3">
+        {items.filter(group=>group.label!=="Financeiro"||canAdministerCompany).map(group => <details key={group.label} open={group.label === "Principal" || group.label === "Operacional" || compact || group.links.some(link=>pathname===ROOT+"/"+link.path)} className="mb-3">
           <summary className={"flex min-h-9 cursor-pointer list-none items-center justify-between gap-1 px-2 text-[11px] font-bold uppercase tracking-wide text-slate-500 " + (compact ? "lg:justify-center lg:px-0" : "")}><span className={compact ? "lg:sr-only" : ""}>{group.label}</span><ChevronDown size={14}/></summary>
           {group.links.map(({title,path,icon:Icon}) => { const selected = pathname === ROOT + "/" + path || (path === "agrovoo" && pathname.startsWith(ROOT + "/agrovoo/os/")); return <Link key={path} title={title} href={ROOT + "/" + path} onClick={() => setMobileOpen(false)} aria-current={selected ? "page" : undefined} className={linkClass + (selected ? " bg-emerald-100 !text-emerald-950" : "") + (compact ? " lg:justify-center lg:px-0" : "")}><Icon size={19} className="shrink-0"/><span className={compact ? "lg:sr-only" : ""}>{title}</span></Link>; })}
         </details>)}
