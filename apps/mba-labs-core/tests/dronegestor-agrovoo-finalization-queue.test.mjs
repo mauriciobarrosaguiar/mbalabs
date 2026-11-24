@@ -17,6 +17,6 @@ test("Ficha vertical: consulta sem salto e sincronização sem sobrescrever fila
  assert.ok(s.includes("if(retryInFlight.current)return"));
  assert.ok(s.includes("if(!sameOwner())return"));
  assert.ok(s.includes("acknowledgeFinalization(latest,item)"));
- assert.ok(s.includes("data?.osConcluida!==true"));
+ assert.match(s,/data\?\.osConcluida\s*!==\s*true/);
  assert.ok(s.includes("disabled={!missionReady||checkingPreflight||droneRecordPending}"));
 });

@@ -110,13 +110,15 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
   const [showPassword, setShowPassword] = useState(false);
   const [expanded, setExpanded] = useState("");
   const [query,setQuery]=useState("");
+  const [accessFilter,setAccessFilter]=useState("todos");
+  const [loaded,setLoaded]=useState(false);
   const [page,setPage]=useState(0);
   const [size,setSize]=useState(10);
   const [message, setMessage] = useState("");
   const formRef = useRef<HTMLFormElement | null>(null);
 
   async function load() {
-    setLoading(true);
+    setLoading(true);setLoaded(false);
     try {
       const [pilotResponse, orderResponse] = await Promise.all([
         fetch("/api/dronegestor/pilotos", { cache: "no-store" }),
@@ -131,7 +133,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
       const nextOrders = ((orderPayload.items || []) as Order[]).filter((item) =>
         ["aberta", "preparacao", "em_preparacao"].includes(item.data.status || "aberta"),
       );
-      setItems(nextPilots);
+      setItems(nextPilots);setLoaded(true);
       setOrders(nextOrders);
       setCanManage(Boolean(pilotPayload.canManage));
       setCanCreatePilot(Boolean(pilotPayload.canCreatePilot));
@@ -144,6 +146,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
         current && nextOrders.some((item) => item.entityId === current) ? current : nextOrders[0]?.entityId || "",
       );
     } catch (error) {
+      setLoaded(false);setItems([]);setOrders([]);setCanManage(false);setCanAdministerTeam(false);setCanCreatePilot(false);
       setMessage(error instanceof Error ? error.message : "Não foi possível carregar os pilotos.");
     } finally {
       setLoading(false);
@@ -155,10 +158,12 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
   }, []);
 
   const normalize=(value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");
-  const filtered=compact?items.filter(item=>[item.nome,item.email,item.telefone].some(value=>normalize(String(value||"")).includes(normalize(query.trim())))):items;
+  const linked=items.filter(item=>Boolean(item.usuarioId));
+  const authorized=linked.filter(item=>item.permissoes.executarOs===true);
+  const filtered=compact?items.filter(item=>(accessFilter==="todos"||accessFilter==="acesso"&&Boolean(item.usuarioId)||accessFilter==="autorizados"&&Boolean(item.usuarioId)&&item.permissoes.executarOs===true||accessFilter==="restritos"&&Boolean(item.usuarioId)&&item.permissoes.executarOs!==true||accessFilter==="sem_acesso"&&!item.usuarioId)&&[item.nome,item.email,item.telefone].some(value=>normalize(String(value||"")).includes(normalize(query.trim())))):items;
   const {currentPage,totalPages,visibleOrders}=paginateAgroVooOrders(filtered,page,size);
   const visiblePilots=compact?visibleOrders:items;
-  const linkedPilots = useMemo(() => items.filter((item) => Boolean(item.usuarioId)), [items]);
+  const linkedPilots = useMemo(() => items.filter((item) => Boolean(item.usuarioId) && item.permissoes.executarOs===true), [items]);
   const selectedOrder = useMemo(() => orders.find((item) => item.entityId === orderId) || null, [orders, orderId]);
   const selectedPilot = useMemo(
     () => (pilotChoice === "self" ? null : linkedPilots.find((item) => item.id === pilotChoice) || null),
@@ -246,7 +251,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
   }
 
   async function savePermissions(pilot: Pilot, next: Permissions) {
-    if (!canAdministerTeam || saving) return;
+    if (!loaded || !canAdministerTeam || saving) return;
     setSaving(true);
     setMessage("");
     try {
@@ -267,7 +272,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
   }
 
   async function assignPilot() {
-    if (!canManage || saving || !selectedOrder || !currentUserId) return;
+    if (!loaded || !canManage || saving || !selectedOrder || !currentUserId) return;
     const assignedPilotId = pilotChoice === "self" ? currentUserId : String(selectedPilot?.usuarioId || "");
     const pilotName = pilotChoice === "self" ? currentUserName : String(selectedPilot?.nome || "");
     if (!assignedPilotId || !pilotName) {
@@ -300,7 +305,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
   }
 
   async function remove(id: string) {
-    if (!canAdministerTeam || !window.confirm("Inativar este piloto? O acesso dele ao DroneGestor será bloqueado e o histórico será preservado.")) {
+    if (!loaded || saving || !canAdministerTeam || !window.confirm("Inativar este piloto? O acesso dele ao DroneGestor será bloqueado e o histórico será preservado.")) {
       return;
     }
     setSaving(true);
@@ -335,11 +340,12 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
           </Link>
           <div className="min-w-0">
             <p className="text-xs font-black uppercase tracking-[.16em] text-[#087a55]">Equipe</p>
-            <h1 className="text-2xl font-black">Pilotos e acessos</h1>
-            <p className="mt-1 text-sm text-[#718078]">Cadastre o piloto aqui, sem sair do DroneGestor.</p>
+            <h1 className="text-2xl font-black">Módulo Piloto — autorizações e acessos</h1>
+            <p className="mt-1 text-sm text-[#718078]">Gerencie o acesso individual ao AgroVoo e a autorização operacional.</p>
           </div>
         </header>
 
+        {compact&&<section className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm">Situação dos pilotos cadastrados</strong><button type="button" disabled={loading||saving} onClick={()=>void load()} className="min-h-11 rounded-md border border-slate-300 px-3 text-xs font-semibold">Atualizar</button></div><div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-4">{[{label:"Cadastros ativos",value:items.length},{label:"Acesso ativo",value:linked.length},{label:"Autorizados a executar OS",value:authorized.length},{label:"Sem acesso",value:items.length-linked.length}].map(m=><div key={m.label} className="rounded-md border border-slate-200 p-2.5"><span className="block text-xs text-slate-600">{m.label}</span><strong className="block text-xl text-emerald-900">{loaded&&!teamUnavailable?m.value:"—"}</strong></div>)}</div><p className="text-xs text-slate-600">Contagem dos cadastros retornados; não representa limite contratado, presença online ou licença de voo. O acesso ao aplicativo não autoriza uma aplicação real.</p>{canAdministerTeam&&<Link href="/apps/dronegestor/funcionarios" className="text-sm font-semibold text-emerald-800 underline">Gerenciar funcionários e acessos</Link>}</section>}
         {message && <p className="rounded-2xl border border-[#cfe0d5] bg-white px-4 py-3 text-sm font-bold leading-5">{message}</p>}
 
         <section className="rounded-[26px] border border-[#dce7df] bg-white p-4 shadow-sm sm:p-5">
@@ -350,7 +356,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
               </span>
               <div>
                 <strong className="block text-lg">
-                  {teamUnavailable?"Equipe indisponível":`${items.length} ${items.length === 1 ? "piloto ativo" : "pilotos ativos"}`}
+                  {teamUnavailable||!loaded?"Equipe indisponível":`${items.length} ${items.length === 1 ? "cadastro ativo" : "cadastros ativos"}`}
                 </strong>
                 <span className="text-xs text-[#718078]">Cada piloto usa seu próprio acesso.</span>
               </div>
@@ -362,7 +368,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
                 className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-xl bg-[#087a55] px-4 text-sm font-black text-white"
               >
                 <Plus size={17} />
-                Cadastrar piloto
+                Autorizar / cadastrar piloto
               </button>
             )}
           </div>
@@ -533,7 +539,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
           </section>
         )}
 
-        {compact&&<div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-3"><input aria-label="Buscar pilotos" type="search" value={query} placeholder="Buscar por nome, e-mail ou telefone" onChange={e=>{setQuery(e.target.value);setPage(0);}} className="min-h-11 flex-1 rounded-md border border-slate-300 px-3 text-sm"/><span className="text-xs text-slate-600">{filtered.length} registros</span></div>}
+        {compact&&<div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-3"><input aria-label="Buscar pilotos" type="search" value={query} placeholder="Buscar por nome, e-mail ou telefone" onChange={e=>{setQuery(e.target.value);setPage(0);}} className="min-h-11 flex-1 rounded-md border border-slate-300 px-3 text-sm"/><select aria-label="Filtrar autorização do piloto" value={accessFilter} onChange={e=>{setAccessFilter(e.target.value);setPage(0);}} className="min-h-11 rounded-md border border-slate-300 px-2 text-sm">{[["todos","Todos"],["acesso","Acesso ativo"],["autorizados","Autorizados a executar OS"],["restritos","Acesso sem execução"],["sem_acesso","Sem acesso"]].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select><span className="text-xs text-slate-600">{filtered.length} registros</span></div>}
         {loading ? (
           <div className="grid min-h-36 place-items-center rounded-2xl bg-white">
             <Loader2 className="animate-spin text-[#087a55]" />
@@ -600,8 +606,8 @@ function PilotCard({
               item.usuarioId ? "bg-emerald-100 text-emerald-800" : "bg-amber-50 text-amber-800"
             }`}
           >
-            {item.usuarioId ? "Acesso ao DroneGestor ativo" : "Sem acesso ao aplicativo"}
-          </span>
+            {item.usuarioId ? "Acesso ao AgroVoo ativo" : "Sem acesso ao aplicativo"}
+          </span>{item.usuarioId&&<p className="mt-1 text-xs font-semibold text-slate-700">{item.permissoes.executarOs?"Execução de OS autorizada":"Execução de OS não autorizada"}</p>}
         </div>
         <button
           type="button"
@@ -618,7 +624,7 @@ function PilotCard({
             disabled={saving}
             onClick={onRemove}
             className="grid size-10 shrink-0 place-items-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"
-            aria-label={`Inativar ${item.nome}`}
+            aria-label={`Inativar ${item.nome}`} title="Revogar acesso e preservar histórico"
           >
             <Trash2 size={17} />
           </button>
