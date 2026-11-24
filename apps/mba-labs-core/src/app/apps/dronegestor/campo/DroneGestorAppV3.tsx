@@ -483,6 +483,25 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
     return()=>{active=false;};
   },[hydrated,mission.ordemServicoId]);
 
+  // If a previously confirmed prerequisite becomes invalid, later steps relock.
+  useEffect(()=>{
+    if(!hydrated||operationStarted||["finalizada","pendente_sync"].includes(missionStatus))return;
+    let limit=maxUnlocked;
+    if(!missionReady)limit=Math.min(limit,0);
+    else if(!docsVerified)limit=Math.min(limit,2);
+    else if(settings.insightsObrigatorios&&!insightAccepted)limit=Math.min(limit,3);
+    else if(!safetyReady||!gpsReady)limit=Math.min(limit,4);
+    else if(!calibrationReady)limit=Math.min(limit,5);
+    else if(!checklistReady)limit=Math.min(limit,6);
+    if(limit>=maxUnlocked)return;
+    setMaxUnlocked(limit);
+    if(flow.indexOf(view)>limit)setView(flow[limit]||"nova");
+    const stored=readRaw<{osId?:string;fingerprint?:string;maxUnlocked?:number;lastView?:View}>(guidedKey,{});
+    if(stored.osId===mission.ordemServicoId&&stored.fingerprint===guidedFingerprint) {
+      localStorage.setItem(guidedKey,JSON.stringify({...stored,maxUnlocked:limit,lastView:flow[limit]||"nova"}));
+    }
+  },[hydrated,operationStarted,missionStatus,missionReady,docsVerified,settings.insightsObrigatorios,insightAccepted,safetyReady,gpsReady,calibrationReady,checklistReady,maxUnlocked,guidedFingerprint,mission.ordemServicoId,view]);
+
   function invalidateCore() {
     setInsightAccepted(false); setRiskAccepted(false); setCalibration(blankCalibration); setChecklist(blankChecklist);
     setMission((current) => ({ ...current, sarpasConfirmado: false, sarpasSituacao: "", sarpasNumero: "" }));
