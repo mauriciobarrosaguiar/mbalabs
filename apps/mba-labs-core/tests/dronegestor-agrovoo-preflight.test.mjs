@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import {
   agrovooSafetyChecklistReady,
   agrovooPreflightReady,
@@ -45,4 +46,20 @@ test("AgroVoo: autorização SARPAS e GPS continuam requisitos operacionais", ()
   assert.equal(agrovooNextBlockingStep(base), "sarpas");
   assert.equal(agrovooPreflightReady([{ id: "documents", ok: false }]), true);
   assert.equal(agrovooPreflightReady([]), false);
+});
+
+
+test("AgroVoo: transição real da OS usa a mesma regra documental do pré-voo", () => {
+  const route = readFileSync(new URL("../src/app/api/dronegestor/cadastros/route.ts", import.meta.url), "utf8");
+  const start = route.indexOf("async function requireStartPreflight(");
+  const end = route.indexOf("export async function GET", start);
+  assert.ok(start >= 0 && end > start);
+  const guard = route.slice(start, end);
+  assert.match(guard, /agrovooSafetyChecklistReady\(snapshot\.checklist\)/);
+  assert.doesNotMatch(guard, /documentTypes\.has|allTrue\(snapshot\.checklist\)/);
+  assert.match(guard, /cleanText\(sarpas\.status\) !== "autorizado"/);
+  assert.match(guard, /!cleanText\(sarpas\.numero\)/);
+  assert.match(guard, /!hasDroneCoordinates\(weather\)/);
+  assert.match(guard, /!allTrue\(snapshot\.calibration\)/);
+  assert.match(guard, /assigned !== current\.usuarioId/);
 });
