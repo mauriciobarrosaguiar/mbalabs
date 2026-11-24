@@ -37,3 +37,32 @@ test("AgroVoo piloto: link apenas consulta OS no fluxo existente",()=>{
  assert.ok(read("campo/page.tsx").includes("<DroneRegulatoryGuard"));
  assert.ok(read("campo/page.tsx").includes("<DronePersistenceSync"));
 });
+
+test("AgroVoo piloto: Minhas OS reutiliza abertura existente e revalida atribuição antes de gravar preparação",()=>{
+ const read=p=>readFileSync(new URL("../src/app/apps/dronegestor/"+p,import.meta.url),"utf8");
+ const board=read("gestao/DroneGestaoClientV3.tsx");
+ assert.ok(board.includes("if(pilotPreview&&!canManage)return <AgroVooPilotOrders"));
+ assert.ok(board.includes("onOpen={item=>void openOrder(item)}"));
+ assert.ok(board.includes("fresh.canManage===false"));
+ assert.ok(board.includes("o.data?.pilotoResponsavelId===currentUserId"));
+ assert.ok(board.indexOf("item=assigned;")<board.indexOf("droneDeviceSwitchIssue(localStorage,item.entityId)"));
+ assert.ok(board.includes("data:{status:\"preparacao\"}"));
+ assert.ok(board.includes("currentOsId!==item.entityId"));
+ const list=read("gestao/AgroVooPilotOrders.tsx");
+ assert.ok(list.includes("ownPilotOrders(orders,userId)"));
+ assert.ok(list.includes("paginateAgroVooOrders(visible,page,10)"));
+ assert.ok(list.includes("partial.areaRestanteHa"));
+ assert.ok(!list.includes("localStorage"));
+ assert.ok(!list.includes("fetch("));
+ const page=read("gestao/page.tsx");
+ assert.ok(page.includes("!canManage && isDroneGestorPilot"));
+});
+test("AgroVoo piloto: indicador de etapas não permite saltos e execução preserva ações",()=>{
+ const read=p=>readFileSync(new URL("../src/app/apps/dronegestor/campo/"+p,import.meta.url),"utf8");
+ const flow=read("DroneGestorAppV3.tsx");
+ assert.ok(flow.includes("indicador de navegação, não de aprovação"));
+ assert.ok(flow.includes("i+1===guidedPhase[view]"));
+ const field=read("DroneGuidedFieldMode.tsx");
+ for(const handler of ["registerLoad","togglePause","undo","fillNext"])assert.ok(field.includes("onClick={"+handler+"}"));
+ assert.ok(field.includes("Encerrar execução parcial"));
+});
