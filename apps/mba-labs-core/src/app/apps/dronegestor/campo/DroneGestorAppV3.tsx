@@ -33,6 +33,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { getDroneSyncConflict, snapshotDroneLocalState } from "./DronePersistenceSync";
 import { hasCompleteDroneFieldClimate } from "@/lib/dronegestor-field-climate";
+import { hasNonPlaceholderAnacId, isExplicitHomologationPlaceholder } from "@/lib/dronegestor-document-checks";
 import { DroneGeoMapEvidence } from "./DroneGeoMapEvidence";
 import { DroneMapEvidence } from "./DroneMapEvidence";
 
@@ -340,6 +341,8 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
   const locked = operationStarted || ["pendente_sync", "finalizada"].includes(missionStatus);
   const canStart = missionReady && safetyReady && calibrationReady && checklistReady && sarpasReady && gpsReady && !syncConflict && !["pendente_sync", "finalizada"].includes(missionStatus);
   const areaDone = mission.area > 0 && progressHa >= mission.area - 0.01;
+  const testDrone = isExplicitHomologationPlaceholder(mission.drone) || isExplicitHomologationPlaceholder(mission.registroAnac);
+  const droneRecordPending = !mission.drone.trim() || !hasNonPlaceholderAnacId(mission.registroAnac) || testDrone;
 
   const guidedFingerprint = JSON.stringify([mission.ordemServicoId,mission.tipoAtividade,mission.cultura,mission.alvo,mission.area,mission.drone,mission.registroAnac,mission.pontaModelo,mission.volume,mission.tanque,mission.faixa,mission.velocidadeKmh,mission.alturaM,mission.produtos]);
 
@@ -747,27 +750,39 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
           <a className="min-h-12 rounded-xl border border-emerald-200 p-3 text-center text-sm font-black text-emerald-800" href="/apps/dronegestor/gestao">Selecionar outra ordem de serviço</a>
         </div>}
 
-        {view === "nova" && <><Title icon={<Sprout/>} title="Resumo da aplicação" text="Confira os dados que já vieram da OS. Abra os detalhes apenas se precisar verificar ou corrigir algum item."/><div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
-          <strong className="block text-base">{mission.ordemServicoNumero || "OS ainda não vinculada"}</strong>
-          <span className="mt-1 block break-words text-emerald-900">{[mission.fazendaNome,mission.talhaoNome].filter(Boolean).join(" • ") || "Fazenda e talhão pendentes"}</span>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
-            <span className="rounded-xl bg-white/80 p-2"><b className="block">Cultura</b>{mission.cultura||"Pendente"}</span>
-            <span className="rounded-xl bg-white/80 p-2"><b className="block">Área planejada</b>{fmt(mission.area,2)} ha</span>
-            <span className="col-span-2 rounded-xl bg-white/80 p-2 sm:col-span-1"><b className="block">Drone cadastrado</b><span className="break-words">{mission.drone || "Pendente"}</span></span>
-          </div>
-          <p className="mt-2 text-xs text-emerald-900">Dados preenchidos não significam registro ANAC válido ou liberação de voo.</p>
-        </div><details open={!missionReady} className="rounded-2xl border border-slate-200 bg-white">
-          <summary className="min-h-12 cursor-pointer px-4 py-3 font-black text-slate-900">Dados da OS e parâmetros técnicos <span className="ml-1 block text-xs font-normal text-slate-500">Toque para conferir ou corrigir</span></summary>
+        {view === "nova" && <>
+          <section aria-label="Dados essenciais da OS" className="rounded-2xl border border-emerald-200 bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <strong className="min-w-0 break-words text-base text-emerald-950">{mission.ordemServicoNumero || "OS não vinculada"}</strong>
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">Etapa 1 de 8</span>
+            </div>
+            <p className="mt-2 break-words text-sm text-slate-700">{[mission.clienteNome,mission.fazendaNome,mission.talhaoNome].filter(Boolean).join(" • ") || "Cliente, fazenda e talhão pendentes"}</p>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+              <div className="min-w-0 rounded-xl bg-slate-50 p-3"><span className="block text-xs text-slate-500">Cultura</span><strong className="block break-words">{mission.cultura || "Pendente"}</strong></div>
+              <div className="min-w-0 rounded-xl bg-slate-50 p-3"><span className="block text-xs text-slate-500">Área</span><strong>{fmt(mission.area,2)} ha</strong></div>
+              <div className="col-span-2 min-w-0 rounded-xl bg-slate-50 p-3"><span className="block text-xs text-slate-500">Drone</span><strong className="block break-words">{mission.drone || "Não definido"}</strong></div>
+            </div>
+            <div className={`mt-3 rounded-xl border p-3 text-sm ${droneRecordPending?"border-amber-200 bg-amber-50 text-amber-950":"border-emerald-200 bg-emerald-50 text-emerald-950"}`}>
+              <strong className="block">{droneRecordPending?"Registro do drone pendente":"Identificação do drone informada"}</strong>
+              <p className="mt-1 break-words">{testDrone?"Esta OS usa um drone e/ou registro fictício de homologação. Pode ser consultada, mas não libera aplicação real.":!mission.registroAnac.trim()?"Ainda não há identificação ANAC vinculada à missão.":"A identificação foi preenchida e será conferida no servidor antes de prosseguir."}</p>
+              {droneRecordPending&&<p className="mt-2 text-xs">Para operar de verdade, o responsável pelo cadastro deve selecionar um drone real com identificação correspondente. Não substitua dados fictícios por números inventados.</p>}
+            </div>
+          </section>
+          <details className="rounded-2xl border border-slate-200 bg-white">
+            <summary className="min-h-12 cursor-pointer px-4 py-3 text-sm font-black text-slate-900">Conferir ou corrigir dados técnicos <span className="block text-xs font-normal text-slate-500">Opcional para consulta; abra se houver algo faltando</span></summary>
+
+          
           <div className="grid gap-3 border-t border-slate-100 p-3"><FormGrid><SelectField label="Tipo de atividade *" value={mission.tipoAtividade} onChange={(v) => updateMission("tipoAtividade", v)} options={["pulverizacao|Pulverização","dispersao|Dispersão / semeadura","outro|Outro"]}/><TextField label="Cultura *" value={mission.cultura} onChange={(v) => updateMission("cultura",v)}/><TextField label="Alvo *" value={mission.alvo} onChange={(v) => updateMission("alvo",v)}/><NumberField label="Área *" value={mission.area} suffix="ha" onChange={(v) => updateMission("area",v)}/><TextField label="Drone *" value={mission.drone} onChange={(v) => updateMission("drone",v)}/><TextField label="Identificação / registro ANAC *" value={mission.registroAnac} onChange={(v) => updateMission("registroAnac",v)}/><TextField label="Bico / atomizador — tipo/modelo *" value={mission.pontaModelo} onChange={(v) => updateMission("pontaModelo",v)}/><NumberField label="Volume *" value={mission.volume} suffix="L/ha" onChange={(v) => updateMission("volume",v)}/><NumberField label="Tanque *" value={mission.tanque} suffix="L" onChange={(v) => updateMission("tanque",v)}/><NumberField label="Faixa *" value={mission.faixa} suffix="m" onChange={(v) => updateMission("faixa",v)}/><NumberField label="Velocidade *" value={mission.velocidadeKmh} suffix="km/h" onChange={(v) => updateMission("velocidadeKmh",v)}/><NumberField label="Altura planejada *" value={mission.alturaM} suffix="m" onChange={(v) => updateMission("alturaM",v)}/></FormGrid></div></details>
-         <details open={!productsReady} className="rounded-2xl border border-slate-200 bg-white">
-           <summary className="min-h-12 cursor-pointer px-4 py-3 font-black text-slate-900">Produtos e receita · {mission.produtos.length} item(ns) <span className="ml-1 block text-xs font-normal text-slate-500">Ver nome, dose e unidade</span></summary>
+         <details className="rounded-2xl border border-slate-200 bg-white">
+           <summary className="min-h-12 cursor-pointer px-4 py-3 font-black text-slate-900">Produtos e receita · {mission.produtos.length} item(ns) {productsReady?"✓":"· pendente"} <span className="ml-1 block text-xs font-normal text-slate-500">Ver nome, dose e unidade</span></summary>
            <div className="grid gap-3 border-t border-slate-100 p-3"><Title icon={<Droplets/>} title="Produto / receita" text="Todos os produtos adicionados precisam estar completos."/>{mission.produtos.map((p,index)=><div key={p.id} className="grid gap-3 rounded-2xl border border-slate-200 p-4"><div className="flex justify-between"><strong>Produto {index+1}</strong>{mission.produtos.length>1&&<button className="text-sm font-bold text-red-600" onClick={()=>removeProduct(p.id)}>Remover</button>}</div><TextField label="Nome comercial *" value={p.nome} onChange={(v)=>updateProduct(p.id,{nome:v})}/><div className="grid grid-cols-[1fr_140px] gap-2"><NumberField label="Dose *" value={p.dose} suffix="" onChange={(v)=>updateProduct(p.id,{dose:v})}/><SelectField label="Unidade" value={p.unidade} onChange={(v)=>updateProduct(p.id,{unidade:v as DoseUnit})} options={["mL/ha|mL/ha","L/ha|L/ha","g/ha|g/ha","kg/ha|kg/ha","mL/100L|mL/100L","g/100L|g/100L"]}/></div></div>)}<div className="flex flex-wrap gap-2"><button className="min-h-11 rounded-xl border border-emerald-300 bg-emerald-50 px-4 font-black text-emerald-800" onClick={addProduct}>+ Adicionar produto</button><button type="button" className="min-h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm font-black text-emerald-700" onClick={()=>window.dispatchEvent(new Event("dronegestor:open-product-search"))}>Buscar produto</button></div></div></details>
          <details className="rounded-2xl border border-slate-200 bg-white">
            <summary className="min-h-12 cursor-pointer px-4 py-3 font-black text-slate-900">Tempos operacionais · opcionais <span className="ml-1 block text-xs font-normal text-slate-500">Só para estimar duração e paradas</span></summary>
            <div className="grid gap-3 border-t border-slate-100 p-3"><Title icon={<TimerReset/>} title="Tempos operacionais" text="Opcionais; melhoram a estimativa de duração."/><FormGrid><NumberField label="Abastecimento" value={mission.tempoAbastecimentoMin} suffix="min/parada" onChange={(v)=>updateMission("tempoAbastecimentoMin",v)}/><NumberField label="Troca de bateria" value={mission.tempoTrocaBateriaMin} suffix="min" onChange={(v)=>updateMission("tempoTrocaBateriaMin",v)}/><NumberField label="Tanques por bateria" value={mission.tanquesPorBateria} suffix="tanques" onChange={(v)=>updateMission("tanquesPorBateria",v)}/><NumberField label="Deslocamento" value={mission.tempoDeslocamentoMin} suffix="min" onChange={(v)=>updateMission("tempoDeslocamentoMin",v)}/><NumberField label="Bordadura" value={mission.tempoBordaduraMin} suffix="min" onChange={(v)=>updateMission("tempoBordaduraMin",v)}/></FormGrid></div></details>
-         {!missionReady && <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-950">Complete os campos obrigatórios antes de continuar.</p>}
+         {!missionReady && <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-950">Existem dados obrigatórios pendentes. Abra “Conferir ou corrigir dados técnicos” e “Produtos e receita” somente se necessário.</p>}
          {verifiedProblem&&<p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-950">{verifiedProblem}</p>}
-         <Primary disabled={!missionReady||checkingPreflight} onClick={()=>guarded("controle")}>{checkingPreflight?"Validando OS...":"Validar etapa 1 e avançar"} <ChevronRight size={18}/></Primary></>}
+         {droneRecordPending&&<p role="status" className="text-sm text-amber-800">Etapa bloqueada: o registro ANAC fictício não permite liberação real. O formulário permanece disponível apenas para conferência.</p>}
+         <Primary disabled={!missionReady||checkingPreflight||droneRecordPending} onClick={()=>guarded("controle")}>{checkingPreflight?"Validando OS...":droneRecordPending?"Etapa 1 bloqueada — registro do drone":"Validar etapa 1 e avançar"} <ChevronRight size={18}/></Primary></>}
 
         {view === "calda" && <><Title icon={<Calculator/>} title="Cálculo de calda" text="Resultado matemático; não é recomendação agronômica."/><div className="grid grid-cols-2 gap-3"><Metric icon={<Droplets/>} label="Calda planejada" value={`${fmt(calc.totalCalda,1)} L`}/><Metric icon={<Route/>} label="Área por tanque cheio" value={`${fmt(calc.areaTank,2)} ha`}/><Metric icon={<RotateCcw/>} label="Tanques planejados" value={`${calc.tanks}`} detail={`Último: ${fmt(calc.lastTankVolume,1)} L`}/><Metric icon={<Gauge/>} label="Vazão calculada" value={`${fmt(calc.flowLMin,2)} L/min`}/></div>{calc.products.map(({product,total,fullTank,lastTank})=><div key={product.id} className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 p-4 text-sm sm:grid-cols-4"><div><span className="text-slate-500">Produto</span><strong className="block">{product.nome}</strong></div><div><span className="text-slate-500">Total</span><strong className="block">{fmt(total.value,3)} {total.unit}</strong></div><div><span className="text-slate-500">Tanque cheio</span><strong className="block">{fmt(fullTank.value,3)} {fullTank.unit}</strong></div><div><span className="text-slate-500">Último tanque</span><strong className="block">{fmt(lastTank.value,3)} {lastTank.unit}</strong></div></div>)}<Warning>Confirme receita, bula, compatibilidade e ordem de mistura antes de preparar a calda.</Warning><CheckRow checked={caldaReviewed} onChange={setCaldaReviewed} title="Conferi os cálculos e a receita" detail="Revisei as quantidades, a última carga, a bula e o protocolo técnico. Isto não autoriza aplicação por si só."/>
           <Primary disabled={!caldaReviewed} onClick={()=>guarded("sarpas")}>Confirmar calda e continuar <ChevronRight size={18}/></Primary></>}
