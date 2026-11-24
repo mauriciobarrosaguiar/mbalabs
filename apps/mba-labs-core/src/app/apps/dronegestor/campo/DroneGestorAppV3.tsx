@@ -736,6 +736,7 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
         {["seguranca","sarpas"].includes(view)&&<button type="button" className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-emerald-800" onClick={() => window.dispatchEvent(new Event("dronegestor:open-gps-weather"))} aria-label="GPS e clima" title="GPS e clima"><CloudSun size={20}/></button>}
         {canManage&&<button className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700" onClick={() => { if (locked) return flash("Configurações ficam bloqueadas durante/após a execução desta missão."); setReturnView(view); go("config"); }} aria-label="Configurações"><Settings2 size={20}/></button>}
       </header>
+      {!canManage && guidedPhase[view] && <div className="border-b border-slate-100 px-4 py-2" aria-label={`Etapa atual ${guidedPhase[view]} de 8; indicador de navegação, não de aprovação`}><div className="grid grid-cols-8 gap-1" aria-hidden="true">{Array.from({length:8},(_,i)=><span key={i} className={`h-1.5 rounded-full ${i+1===guidedPhase[view]?"bg-emerald-700":"bg-slate-200"}`}/>)}</div></div>}
 
       {syncConflict && <div className="mx-4 mt-4 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-950"><div className="flex gap-2"><CloudAlert size={20}/><div><strong>Conflito de sincronização protegido</strong><p className="mt-1">A nuvem e este aparelho possuem versões diferentes. Nada foi sobrescrito.</p></div></div><div className="mt-3 grid grid-cols-2 gap-2"><button className="rounded-xl border border-red-200 bg-white px-3 py-2 font-black" onClick={() => resolveConflict("cloud")}>Usar nuvem</button><button className="rounded-xl bg-red-700 px-3 py-2 font-black text-white" onClick={() => resolveConflict("local")}>Manter aparelho</button></div></div>}
       {pendingCount > 0 && <div className="mx-4 mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">{pendingCount} conclusão(ões) protegida(s) aguardando sincronização.</div>}
@@ -757,7 +758,7 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
               <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">Etapa 1 de 8</span>
             </div>
             <p className="mt-2 break-words text-sm text-slate-700">{[mission.clienteNome,mission.fazendaNome,mission.talhaoNome].filter(Boolean).join(" • ") || "Cliente, fazenda e talhão pendentes"}</p>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+            <div className="agro-compact-grid mt-3 grid grid-cols-2 gap-2 text-sm">
               <div className="min-w-0 rounded-xl bg-slate-50 p-3"><span className="block text-xs text-slate-500">Cultura</span><strong className="block break-words">{mission.cultura || "Pendente"}</strong></div>
               <div className="min-w-0 rounded-xl bg-slate-50 p-3"><span className="block text-xs text-slate-500">Área</span><strong>{fmt(mission.area,2)} ha</strong></div>
               <div className="col-span-2 min-w-0 rounded-xl bg-slate-50 p-3"><span className="block text-xs text-slate-500">Drone</span><strong className="block break-words">{mission.drone || "Não definido"}</strong></div>
