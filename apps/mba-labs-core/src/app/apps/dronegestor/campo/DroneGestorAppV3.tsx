@@ -36,6 +36,7 @@ import { hasCompleteDroneFieldClimate } from "@/lib/dronegestor-field-climate";
 import { hasNonPlaceholderAnacId, isExplicitHomologationPlaceholder } from "@/lib/dronegestor-document-checks";
 import { DroneGeoMapEvidence } from "./DroneGeoMapEvidence";
 import { DroneMapEvidence } from "./DroneMapEvidence";
+import {AgroVooAssistantPicker} from "./AgroVooAssistantPicker";
 import {AgroVooProductSearch} from "../agrovoo/piloto/AgroVooProductSearch";
 import {readFinalizationQueue,acknowledgeFinalization} from "@/lib/agrovoo-finalization-queue";
 import {normalizeDropletMicrons,normalizeAssistantName} from "@/lib/agrovoo-field-reference";
@@ -846,7 +847,7 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
               {droneRecordPending&&<p className="mt-2 text-xs">Para operar de verdade, o responsável pelo cadastro deve selecionar um drone real com identificação correspondente. Não substitua dados fictícios por números inventados.</p>}
             </div>
           </section><ReferenceValues items={[{label:"Data da aplicação",value:startedAt?new Date(startedAt).toLocaleDateString("pt-BR"):"Registrada ao iniciar"},{label:"Início",value:startedAt?new Date(startedAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"Ainda não iniciado"},{label:"Fim",value:endedAt?new Date(endedAt).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"Registrado ao concluir"},{label:"Área aplicada",value:fmt(progressHa,2)+" ha"}]}/></FieldReferenceSection>
-          <FieldReferenceSection tone="team" title="5. Equipe de aplicação"><ReferenceValues items={[{label:"Usuário responsável",value:userName}]}/><label className="grid gap-1 text-sm font-semibold text-slate-700">Ajudante (opcional)<input maxLength={120} disabled={!canEditProducts} className="min-h-11 rounded-md border border-slate-300 px-3 disabled:bg-slate-100" value={mission.ajudanteNome||""} onChange={e=>updateMission("ajudanteNome",e.target.value)} placeholder="Nome do ajudante"/></label><p className="text-xs text-slate-600">Nome informado pelo responsável; não cria acesso nem confirma habilitação. Deixe vazio se não houver registro.</p></FieldReferenceSection>
+          <FieldReferenceSection tone="team" title="5. Equipe de aplicação"><ReferenceValues items={[{label:"Usuário responsável",value:userName}]}/><AgroVooAssistantPicker key={permissionKey} osId={mission.ordemServicoId||""} disabled={!canEditProducts} value={mission.ajudanteNome||""} onChange={name=>updateMission("ajudanteNome",name)}/></FieldReferenceSection>
           <details className="rounded-2xl border border-slate-200 bg-white">
             <summary className="min-h-12 cursor-pointer px-4 py-3 text-sm font-black text-slate-900">Conferir ou corrigir dados técnicos <span className="block text-xs font-normal text-slate-500">Opcional para consulta; abra se houver algo faltando</span></summary>
 
