@@ -7,6 +7,7 @@ import {
   Plus, RefreshCw, ShieldCheck, TriangleAlert, MapPinned, Users, UserRound, Layers, Leaf, Search, ClipboardCheck,
 } from "lucide-react";
 import { useAgroData } from "../AgroDocUi";
+import { filterAgroVooOrders, paginateAgroVooOrders } from "@/lib/agrovoo-board-view";
 import { buildAgroVooOsPayload, validateAgroVooStep, type AgroVooOsDraft } from "@/lib/agrovoo-os-wizard";
 
 const ROOT = "/apps/dronegestor";
@@ -93,15 +94,8 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
   const talhao = fieldItems.find((x) => x.entityId === draft.talhaoId)?.data.nome;
   const active = board.data?.items || [];
   const count = board.data?.counts;
-  const normalizedQuery = query.trim().toLocaleLowerCase("pt-BR");
-  const filtered = active.filter(os => {
-    const matchesStage = stageFilter === "todas" || (stageFilter === "ativas" ? !["encerrada", "cancelada"].includes(os.stage) : os.stage === stageFilter);
-    const matchesText = !normalizedQuery || [os.numero, os.cliente, os.fazenda, os.talhao, os.pilotName].some(value => String(value || "").toLocaleLowerCase("pt-BR").includes(normalizedQuery));
-    return matchesStage && matchesText;
-  });
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, totalPages - 1);
-  const visibleOrders = filtered.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
+  const filtered = filterAgroVooOrders(active, query, stageFilter);
+  const { totalPages, currentPage, visibleOrders } = paginateAgroVooOrders(filtered, page, pageSize);
 
   function change<K extends keyof AgroVooOsDraft>(key: K, value: AgroVooOsDraft[K]) {
     setError("");
@@ -160,7 +154,7 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
         <section aria-label="Operacional" className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2 bg-[#123e38] px-4 py-2.5 text-white"><h2 className="flex items-center gap-2 text-base font-bold"><ClipboardCheck size={18}/> Operacional</h2><Link href={ROOT + "/ajuda"} className="text-sm font-semibold text-white underline-offset-2 hover:underline">Ajuda</Link></div>
           <div className="grid gap-3 p-3 sm:p-4">
-            <div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-5">
+            <div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-5">
               <button type="button" onClick={openNew} className="flex min-h-14 items-center justify-center gap-2 rounded-md bg-[#185a47] px-3 py-3 text-sm font-bold text-white hover:brightness-110"><Plus size={19}/> Nova ordem</button>
               {[
                 {title:"Clientes",href:"/gestao?tab=cliente",icon:Users,color:"bg-[#16734e]"},
@@ -169,7 +163,7 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
                 {title:"Pilotos",href:"/pilotos",icon:UserRound,color:"bg-[#66528d]"},
               ].map(({title,href,icon:Icon,color})=><Link key={href} href={ROOT + href} className={"flex min-h-14 items-center justify-center gap-2 rounded-md px-3 py-3 text-sm font-bold text-white hover:brightness-110 " + color}><Icon size={19} className="shrink-0"/>{title}</Link>)}
             </div>
-            <div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-5">
+            <div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-5">
               {[
                 {label:"Ordens ativas",value:count?.total,href:"/gestao",icon:ClipboardCheck},
                 {label:"Clientes",value:clients.data?.items.length,href:"/gestao?tab=cliente",icon:Users},
