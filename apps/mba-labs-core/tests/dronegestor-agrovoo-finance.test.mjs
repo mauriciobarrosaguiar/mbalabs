@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {parseAmountCents,validDate,validateFinanceInput,summarizeFinance,nextFinanceState,financeToday,financialPeriod,financialGroups,financialTotals,financeCsv} from "../src/lib/agrovoo-finance.ts";
+import {parseAmountCents,validDate,validateFinanceInput,summarizeFinance,nextFinanceState,financeToday,financialPeriod,financialGroups,financialTotals,financeCsv,formatFinanceDate} from "../src/lib/agrovoo-finance.ts";
 const entry=(overrides={})=>({id:"x",kind:"receita",description:"Serviço",category:"Serviços",amount_cents:10000,due_date:"2026-11-24",status:"pendente",settled_date:null,...overrides});
 test("Financeiro: valores em centavos sem erro de ponto flutuante",()=>{
   assert.equal(parseAmountCents("12,34"),1234);
@@ -75,4 +75,25 @@ test("Financeiro: campos adicionais validados; OS real é conferida no escopo e 
  assert.ok(source.includes('.eq("acao","ordem_servico")'));
  assert.ok(source.includes('query.eq("empresa_id",c.scope_id):query.eq("usuario_id",c.scope_id)'));
  assert.ok(source.includes('.eq("updated_at",entry.updated_at)'));
+});
+
+test("Financeiro mobile: datas civis brasileiras sem mudança de dia",()=>{
+  assert.equal(formatFinanceDate("2026-11-24"),"24/11/2026");
+  assert.equal(formatFinanceDate("2024-02-29"),"29/02/2024");
+  assert.equal(formatFinanceDate("2026-02-30"),"—");
+  assert.equal(formatFinanceDate(null),"—");
+});
+test("Financeiro mobile: relatórios em cartões preservam colunas, margens e acumulado",()=>{
+  const ui=readFileSync(new URL("../src/app/apps/dronegestor/agrovoo/financeiro/AgroVooFinanceReports.tsx",import.meta.url),"utf8");
+  assert.equal((ui.match(/hidden overflow-x-auto md:block/g)||[]).length,2);
+  assert.match(ui,/md:hidden.*rows.map/);
+  assert.match(ui,/md:hidden.*days.map/);
+  assert.ok(ui.includes('label="Margem"'));
+  assert.ok(ui.includes('label="Acumulado registrado"'));
+  assert.ok(ui.includes("formatFinanceDate(d.key)"));
+  const board=readFileSync(new URL("../src/app/apps/dronegestor/agrovoo/financeiro/AgroVooFinanceClient.tsx",import.meta.url),"utf8");
+  assert.ok(board.includes("index===metrics.length-1"));
+  assert.ok(board.includes("formatFinanceDate(x.due_date)"));
+  assert.ok(board.includes("actionFormRef.current?.scrollIntoView"));
+  assert.ok(board.includes("listRef.current?.scrollIntoView"));
 });
