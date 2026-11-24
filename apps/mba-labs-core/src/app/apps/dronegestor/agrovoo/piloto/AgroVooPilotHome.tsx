@@ -47,14 +47,16 @@ export function AgroVooPilotHome({userId,userName,deviceOwner,trainingEnabled=fa
  const fullHistory=historyReady&&!history.data!.hasMore;
  const docs=order?ROOT+"/documentos?osId="+encodeURIComponent(order.entityId):ROOT+"/documentos";
  return <main className="mx-auto grid w-full max-w-lg gap-3 pb-6 text-slate-900 sm:max-w-2xl" aria-label={"Painel de "+userName}>
+  <h1 className="sr-only">AgroVoo Piloto</h1>
   <div className="agro-compact-grid grid grid-cols-2 gap-2">
    {[{label:"Aplicações hoje",value:fullHistory?String(todayRows.length):"—",color:"text-blue-700"},{label:"Área aplicada (histórico)",value:fullHistory?fmt(area)+" ha":"—",color:"text-emerald-700"},{label:"Envios pendentes neste aparelho",value:pending===null?"—":String(pending),color:pending?"text-amber-700":"text-slate-700"},{label:"Ordens ativas",value:authorized?String(active.length):"—",color:"text-cyan-700"}].map(m=><div key={m.label} className="grid min-h-[76px] place-content-center gap-1 rounded-xl border border-slate-200 bg-white p-2 text-center shadow-sm"><strong className={"text-lg tabular-nums "+m.color}>{m.value}</strong><span className="text-[11px] text-slate-600">{m.label}</span></div>)}
   </div>
   {online===false&&<p role="status" className="rounded-md bg-amber-50 p-2 text-xs text-amber-900">Sem conexão. O modo campo preserva a operação já carregada. Não troque de OS enquanto houver registros pendentes.</p>}
   {pending!==null&&pending>0&&<p className="rounded-md bg-amber-50 p-2 text-xs text-amber-900">Existem registros aguardando envio. <Link href={ROOT+"/campo"} className="font-semibold underline">Abrir modo campo para sincronizar</Link>.</p>}
+  {history.error&&<p role="alert" className="text-xs text-slate-600">Histórico indisponível. Atualize os dados quando houver conexão.</p>}
   {history.data?.hasMore&&<p className="text-xs text-slate-500">Histórico parcial nesta consulta. Consulte a página de histórico completo para os totais.</p>}
   <section className={panel}>
-   <h1 className={header}><ClipboardList size={16} className="text-emerald-700"/> Ordem de referência</h1>
+   <h2 className={header}><ClipboardList size={16} className="text-emerald-700"/> Ordem de referência</h2>
    <div className="grid gap-2 p-3"><label htmlFor="pilot-reference-order" className="flex items-center gap-1 text-xs font-semibold text-slate-700"><Search size={15}/> Ordem de serviço</label>
     <div className="grid grid-cols-[minmax(0,1fr)_52px] gap-2"><select id="pilot-reference-order" className="min-h-11 rounded-md border border-slate-300 bg-white px-2 text-sm" value={order?.entityId||""} onChange={e=>{setOrderId(e.target.value);setApplicationTab("lista");}}><option value="">Escolha uma ordem...</option>{orders.map(o=><option key={o.entityId} value={o.entityId}>{o.data?.numero||"OS"} – {o.data?.clienteNome||"Cliente"}</option>)}</select><button type="button" disabled={online===false} aria-label="Atualizar ordens e aplicações" onClick={()=>{source.refresh();history.refresh();}} className={secondary}><RefreshCw size={17}/></button></div>
     <p className="text-center text-[11px] text-slate-500">Selecione uma ordem ou atualize os dados.</p>
