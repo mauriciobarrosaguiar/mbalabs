@@ -18,12 +18,13 @@ test("the field has a single compact phase header and no secondary wizard bar", 
 test("prefilled OS and technical data are summarized and expandable without altering values or gates", () => {
   const source = read("../src/app/apps/dronegestor/campo/DroneGestorAppV3.tsx");
   assert.match(source, /Resumo da aplicação/);
-  assert.match(source, /<details open=\{!missionReady\}/);
-  assert.match(source, /<details open=\{!productsReady\}/);
+  assert.match(source, /<details className="rounded-2xl border border-slate-200 bg-white">/);
+  assert.match(source, /Conferir ou corrigir dados técnicos/);
+  assert.match(source, /Produtos e receita/);
   assert.match(source, /Tempos operacionais · opcionais/);
-  assert.match(source, /<Primary disabled=\{!missionReady\|\|checkingPreflight\} onClick=\{\(\)=>guarded\("controle"\)\}/);
+  assert.match(source, /<Primary disabled=\{!missionReady\|\|checkingPreflight\|\|droneRecordPending\} onClick=\{\(\)=>guarded\("controle"\)\}/);
   assert.match(source, /const canStart = missionReady && safetyReady && calibrationReady && checklistReady && sarpasReady && gpsReady/);
-  assert.match(source, /registro ANAC válido ou liberação de voo/);
+  assert.match(source, /Etapa 1 bloqueada — registro do drone/);
 });
 
 test("GPS/weather remains accessible but no longer covers mobile forms with a floating button", () => {
