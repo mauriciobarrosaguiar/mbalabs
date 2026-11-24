@@ -53,6 +53,7 @@ export function DroneWeatherSync() {
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
 
   useEffect(() => setWeather(readCachedWeather()), []);
+  useEffect(() => { const openPanel = () => setOpen(true); window.addEventListener("dronegestor:open-gps-weather", openPanel); return () => window.removeEventListener("dronegestor:open-gps-weather", openPanel); }, []);
 
   const note = useMemo(() => {
     if (!weather) return "Use o GPS para consultar o modelo meteorológico do ponto.";
@@ -193,7 +194,6 @@ export function DroneWeatherSync() {
         </section>
       )}
 
-      {!open && <button className={styles.fab} type="button" onClick={() => setOpen(true)} aria-label="Abrir GPS e modelo meteorológico"><CloudSun size={22} />{weather && <span />}</button>}
     </div>
   );
 }
