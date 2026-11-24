@@ -19,8 +19,10 @@ export async function validateMapEvidenceFile(
   const lower = name.toLowerCase().trim();
   if (bytes.byteLength < 30 || bytes.byteLength > 10 * 1024 * 1024) return null;
   if (lower.endsWith(".kml")) {
-    const xml = new TextDecoder("utf-8", { fatal: true }).decode(bytes).replace(/^\uFEFF/, "");
-    return isKml(xml) ? { ext: "kml", mime: "application/vnd.google-earth.kml+xml" } : null;
+    try {
+      const xml = new TextDecoder("utf-8", { fatal: true }).decode(bytes).replace(/^\uFEFF/, "");
+      return isKml(xml) ? { ext: "kml", mime: "application/vnd.google-earth.kml+xml" } : null;
+    } catch { return null; }
   }
   if (!lower.endsWith(".kmz")) return null;
   if (bytes[0] !== 0x50 || bytes[1] !== 0x4b || bytes[2] !== 0x03 || bytes[3] !== 0x04) return null;
