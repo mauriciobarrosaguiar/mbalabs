@@ -385,14 +385,14 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
     if(current<0||to!==current+1)return flash("Avance somente para a próxima etapa da sequência.");
     if(checkingPreflight)return;
     if(view==="nova"){
-      if(!missionReady||!mission.ordemServicoId)return flash("Confira a OS, o drone e todos os campos obrigatórios primeiro.");
+      if(!missionReady||!mission.ordemServicoId){setVerifiedProblem("Confira a OS, o drone e os campos obrigatórios antes de avançar.");return flash("Dados obrigatórios pendentes.");}
       setCheckingPreflight(true);
       try{
         const result=await preflightCheck();
         const missing=result.items.find(item=>["pilot","drone","mission"].includes(item.id)&&!item.ok);
-        if(missing)return flash(`Etapa 1 pendente — ${missing.label}: ${missing.detail}`);
-        unlock(target);
-      }catch(error){flash(error instanceof Error?error.message:"Falha na conferência.");}
+        if(missing){setVerifiedProblem(`Etapa 1 pendente — ${missing.label}: ${missing.detail}`);return flash(`Corrija: ${missing.label}`);}
+        setVerifiedProblem("");unlock(target);
+      }catch(error){setVerifiedProblem(error instanceof Error?error.message:"Falha na conferência.");flash("Não foi possível conferir a OS.");}
       finally{setCheckingPreflight(false);}
       return;
     }
@@ -746,7 +746,8 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
          <details className="rounded-2xl border border-slate-200 bg-white">
            <summary className="min-h-12 cursor-pointer px-4 py-3 font-black text-slate-900">Tempos operacionais · opcionais <span className="ml-1 block text-xs font-normal text-slate-500">Só para estimar duração e paradas</span></summary>
            <div className="grid gap-3 border-t border-slate-100 p-3"><Title icon={<TimerReset/>} title="Tempos operacionais" text="Opcionais; melhoram a estimativa de duração."/><FormGrid><NumberField label="Abastecimento" value={mission.tempoAbastecimentoMin} suffix="min/parada" onChange={(v)=>updateMission("tempoAbastecimentoMin",v)}/><NumberField label="Troca de bateria" value={mission.tempoTrocaBateriaMin} suffix="min" onChange={(v)=>updateMission("tempoTrocaBateriaMin",v)}/><NumberField label="Tanques por bateria" value={mission.tanquesPorBateria} suffix="tanques" onChange={(v)=>updateMission("tanquesPorBateria",v)}/><NumberField label="Deslocamento" value={mission.tempoDeslocamentoMin} suffix="min" onChange={(v)=>updateMission("tempoDeslocamentoMin",v)}/><NumberField label="Bordadura" value={mission.tempoBordaduraMin} suffix="min" onChange={(v)=>updateMission("tempoBordaduraMin",v)}/></FormGrid></div></details>
-         {!missionReady && <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-950">Existem dados obrigatórios pendentes. Abra os grupos acima para conferir antes de continuar.</p>}
+         {!missionReady && <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-950">Complete os campos obrigatórios antes de continuar.</p>}
+         {verifiedProblem&&<p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-950">{verifiedProblem}</p>}
          <Primary disabled={!missionReady||checkingPreflight} onClick={()=>guarded("controle")}>{checkingPreflight?"Validando OS...":"Validar etapa 1 e avançar"} <ChevronRight size={18}/></Primary></>}
 
         {view === "calda" && <><Title icon={<Calculator/>} title="Cálculo de calda" text="Resultado matemático; não é recomendação agronômica."/><div className="grid grid-cols-2 gap-3"><Metric icon={<Droplets/>} label="Calda planejada" value={`${fmt(calc.totalCalda,1)} L`}/><Metric icon={<Route/>} label="Área por tanque cheio" value={`${fmt(calc.areaTank,2)} ha`}/><Metric icon={<RotateCcw/>} label="Tanques planejados" value={`${calc.tanks}`} detail={`Último: ${fmt(calc.lastTankVolume,1)} L`}/><Metric icon={<Gauge/>} label="Vazão calculada" value={`${fmt(calc.flowLMin,2)} L/min`}/></div>{calc.products.map(({product,total,fullTank,lastTank})=><div key={product.id} className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 p-4 text-sm sm:grid-cols-4"><div><span className="text-slate-500">Produto</span><strong className="block">{product.nome}</strong></div><div><span className="text-slate-500">Total</span><strong className="block">{fmt(total.value,3)} {total.unit}</strong></div><div><span className="text-slate-500">Tanque cheio</span><strong className="block">{fmt(fullTank.value,3)} {fullTank.unit}</strong></div><div><span className="text-slate-500">Último tanque</span><strong className="block">{fmt(lastTank.value,3)} {lastTank.unit}</strong></div></div>)}<Warning>Confirme receita, bula, compatibilidade e ordem de mistura antes de preparar a calda.</Warning><CheckRow checked={caldaReviewed} onChange={setCaldaReviewed} title="Conferi os cálculos e a receita" detail="Revisei as quantidades, a última carga, a bula e o protocolo técnico. Isto não autoriza aplicação por si só."/>
