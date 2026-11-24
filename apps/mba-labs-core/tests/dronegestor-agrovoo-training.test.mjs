@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {initialTraining,trainingStep,trainingTotals} from "../src/lib/agrovoo-training.ts";
+import {initialTraining,trainingStep,trainingTotals,trainingRemainingPlan,trainingReport} from "../src/lib/agrovoo-training.ts";
 function prepare(s){while(s.phase<7){s=trainingStep(s,{type:"check",index:s.phase});s=trainingStep(s,{type:"next"});}return s;}
 test("Treinamento: não avança sem conferência e não aceita carga antes da etapa 7",()=>{
  const s=initialTraining();
@@ -56,4 +56,21 @@ test("Treinamento: entrada limitada à prévia, nenhuma API ou chave de operaç�
  const guard=read("campo/DronePilotPermissionBridge.tsx");
  assert.ok(guard.includes('setPermissionStatus("error")'));
  assert.ok(guard.includes("data-permission-retry"));
+});
+
+test("Complementação e relatório detalhado preservam cargas, parcial e ocorrência",()=>{
+ let s=prepare(initialTraining());
+ for(let i=0;i<3;i++)s=trainingStep(s,{type:"load",ha:4,liters:40});
+ s=trainingStep(s,{type:"occurrence",note:'=1+1; "teste"'});
+ s=trainingStep(s,{type:"partial",reason:"Manutenção preventiva"});
+ assert.deepEqual(trainingRemainingPlan(s),{remaining:8,liters:80,loads:2});
+ s=prepare(trainingStep(s,{type:"resume"}));
+ for(let i=0;i<2;i++)s=trainingStep(s,{type:"load",ha:4,liters:40});
+ const csv=trainingReport(s);
+ assert.ok(csv.includes('5;4;40'));
+ assert.ok(csv.includes('1;12;120;3;"Manutenção preventiva"'));
+ assert.ok(csv.includes("'=1+1"));
+ assert.ok(csv.includes('""teste""'));
+ assert.ok(csv.includes("NAO ENVIAR AO MAPA"));
+ assert.equal(s.partials.length,1);
 });
