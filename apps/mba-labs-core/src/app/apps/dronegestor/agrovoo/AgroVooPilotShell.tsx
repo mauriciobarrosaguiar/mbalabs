@@ -3,6 +3,7 @@ import Link from "next/link";
 import {usePathname} from "next/navigation";
 import {useEffect,useState,type ReactNode} from "react";
 import {BookOpen,Calculator,ChevronDown,ClipboardList,Folder,History,Home,Menu,UserRound,X,CircleHelp,LogOut} from "lucide-react";
+import {AgroVooInstall} from "./piloto/AgroVooInstall";
 import {AgroDocDroneIcon as Drone} from "../AgroDocDroneIcon";
 const ROOT="/apps/dronegestor";
 const HOME=ROOT+"/agrovoo/piloto";
@@ -39,7 +40,7 @@ export function AgroVooPilotShell({children,userName}:{children:ReactNode;userNa
   <aside className={"fixed bottom-0 left-0 top-0 z-[80] flex w-[250px] max-w-[85vw] flex-col border-r border-slate-200 bg-white transition-transform lg:visible lg:top-16 lg:z-[65] lg:translate-x-0 "+(open?"visible translate-x-0":"invisible -translate-x-full")}>
    <div className="flex min-h-16 items-center justify-between border-b border-slate-200 px-4 lg:hidden"><strong className="text-emerald-950">AgroVoo Piloto</strong><button type="button" aria-label="Fechar menu" className="grid h-11 w-11 place-items-center" onClick={()=>setOpen(false)}><X size={22}/></button></div>
    <div className="border-b border-slate-100 p-4"><span className="block text-xs font-semibold uppercase text-slate-500">Minha conta</span><strong className="block break-words text-sm">{userName}</strong></div>
-   <nav aria-label="Menu do piloto" className="flex-1 overflow-y-auto p-3">{links.map(({label,href,icon:Icon})=><Link key={href} href={href} aria-current={selected(href)?"page":undefined} onClick={()=>setOpen(false)} className={navClass+(selected(href)?" bg-emerald-100 text-emerald-950":" text-slate-700 hover:bg-slate-50")}><Icon size={19} className="shrink-0"/>{label}</Link>)}</nav>
+   <nav aria-label="Menu do piloto" className="flex-1 overflow-y-auto p-3">{links.map(({label,href,icon:Icon})=><Link key={href} href={href} aria-current={selected(href)?"page":undefined} onClick={()=>setOpen(false)} className={navClass+(selected(href)?" bg-emerald-100 text-emerald-950":" text-slate-700 hover:bg-slate-50")}><Icon size={19} className="shrink-0"/>{label}</Link>)}{referenceHome&&<div className="mt-3"><AgroVooInstall/></div>}</nav>
    <form action="/sair" method="post" className="border-t border-slate-100 p-3"><button type="submit" className={navClass+" w-full text-slate-700"}><LogOut size={18}/> Sair</button></form>
   </aside>
   <div className={"min-w-0 px-2 py-3 sm:px-5 lg:ml-[250px] lg:pb-6 "+(referenceHome?"pb-6":"pb-[calc(5.5rem+env(safe-area-inset-bottom))]")}>{children}</div>
