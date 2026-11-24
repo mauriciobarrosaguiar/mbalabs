@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import {
   ArrowLeft, ArrowRight, Check, ClipboardList, FileCheck2, Leaf,
   Plus, RefreshCw, ShieldCheck, TriangleAlert, MapPinned,
@@ -64,7 +64,7 @@ function statusTone(value: string) {
   if (value === "campo_concluido") return "bg-violet-100 text-violet-900";
   return "bg-slate-100 text-slate-700";
 }
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className="grid gap-1.5 text-sm font-bold text-slate-700">
     {label}
     {children}
@@ -300,7 +300,7 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
                   ["Cultura", draft.cultura], ["Alvo", draft.alvo],
                   ["Área planejada", fmt(Number(draft.areaHa)) + " ha"],
                   ["Data prevista", draft.dataPrevista || "Não informada"],
-                ].map(([label, value]) => <div key={label} className="border-b border-slate-100 py-2">
+                ].map(([label, value]) => <div key={String(label)} className="border-b border-slate-100 py-2">
                   <span className="block text-xs text-slate-500">{label}</span><strong className="text-sm text-slate-900">{value || "—"}</strong>
                 </div>)}
                 <p className="rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-950">
