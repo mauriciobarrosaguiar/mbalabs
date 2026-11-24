@@ -7,6 +7,7 @@ import {
   Plus, RefreshCw, ShieldCheck, TriangleAlert, MapPinned,
 } from "lucide-react";
 import { useAgroData } from "../AgroDocUi";
+import { buildAgroVooOsPayload, validateAgroVooStep, type AgroVooAgroVooOsDraft } from "@/lib/agrovoo-os-wizard";
 
 const ROOT = "/apps/dronegestor";
 type OsStage = {
@@ -37,17 +38,7 @@ type RecordItem = {
   };
 };
 type ResourceList = { items: RecordItem[] };
-type OsDraft = {
-  clienteId: string;
-  fazendaId: string;
-  talhaoId: string;
-  cultura: string;
-  alvo: string;
-  areaHa: string;
-  dataPrevista: string;
-  observacoes: string;
-};
-const emptyDraft: OsDraft = {
+const emptyDraft: AgroVooOsDraft = {
   clienteId: "", fazendaId: "", talhaoId: "", cultura: "", alvo: "",
   areaHa: "", dataPrevista: "", observacoes: "",
 };
@@ -79,7 +70,7 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
   const fields = useAgroData<ResourceList>("/api/dronegestor/cadastros?type=talhao");
   const [screen, setScreen] = useState<"home" | "new">("home");
   const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<OsDraft>(emptyDraft);
+  const [draft, setDraft] = useState<AgroVooOsDraft>(emptyDraft);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [createdId, setCreatedId] = useState("");
@@ -98,7 +89,7 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
   const active = board.data?.items || [];
   const count = board.data?.counts;
 
-  function change<K extends keyof OsDraft>(key: K, value: OsDraft[K]) {
+  function change<K extends keyof AgroVooOsDraft>(key: K, value: AgroVooOsDraft[K]) {
     setError("");
     setDraft((old) => ({ ...old, [key]: value }));
   }
@@ -110,14 +101,8 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
     setScreen("new");
   }
   function goNext() {
-    if (step === 0 && (!draft.clienteId || !draft.fazendaId || !draft.talhaoId)) {
-      setError("Selecione cliente, fazenda e talhão para continuar.");
-      return;
-    }
-    if (step === 1 && (!draft.cultura.trim() || !draft.alvo.trim() || !(Number(draft.areaHa) > 0))) {
-      setError("Preencha cultura, alvo e uma área maior que zero.");
-      return;
-    }
+    const nextError = validateAgroVooStep(step, draft);
+    if (nextError) { setError(nextError); return; }
     setError("");
     setStep((s) => Math.min(3, s + 1));
   }
@@ -130,19 +115,7 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
         method: "POST",
         cache: "no-store",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "os",
-          data: {
-            clienteId: draft.clienteId,
-            fazendaId: draft.fazendaId,
-            talhaoId: draft.talhaoId,
-            cultura: draft.cultura.trim(),
-            alvo: draft.alvo.trim(),
-            areaHa: Number(draft.areaHa),
-            dataPrevista: draft.dataPrevista,
-            observacoes: draft.observacoes.trim(),
-          },
-        }),
+        body: JSON.stringify(buildAgroVooOsPayload(draft)),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.ok || !payload.item?.entityId) {
