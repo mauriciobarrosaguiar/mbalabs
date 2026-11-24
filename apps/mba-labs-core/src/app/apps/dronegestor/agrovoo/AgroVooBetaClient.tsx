@@ -157,18 +157,18 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
             <div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-5">
               <button type="button" onClick={openNew} className="flex min-h-14 items-center justify-center gap-2 rounded-md bg-[#185a47] px-3 py-3 text-sm font-bold text-white hover:brightness-110"><Plus size={19}/> Nova ordem</button>
               {[
-                {title:"Clientes",href:"/gestao?tab=cliente",icon:Users,color:"bg-[#16734e]"},
-                {title:"Propriedades",href:"/gestao?tab=fazenda",icon:Layers,color:"bg-[#146779]"},
-                {title:"Aeronaves",href:"/equipamentos",icon:MapPinned,color:"bg-[#a45916]"},
-                {title:"Pilotos",href:"/pilotos",icon:UserRound,color:"bg-[#66528d]"},
+                {title:"Clientes",href:"/agrovoo/cadastros/clientes",icon:Users,color:"bg-[#16734e]"},
+                {title:"Propriedades",href:"/agrovoo/cadastros/propriedades",icon:Layers,color:"bg-[#146779]"},
+                {title:"Aeronaves",href:"/agrovoo/cadastros/aeronaves",icon:MapPinned,color:"bg-[#a45916]"},
+                {title:"Pilotos",href:"/agrovoo/cadastros/pilotos",icon:UserRound,color:"bg-[#66528d]"},
               ].map(({title,href,icon:Icon,color})=><Link key={href} href={ROOT + href} className={"flex min-h-14 items-center justify-center gap-2 rounded-md px-3 py-3 text-sm font-bold text-white hover:brightness-110 " + color}><Icon size={19} className="shrink-0"/>{title}</Link>)}
             </div>
             <div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-5">
               {[
                 {label:"Ordens ativas",value:count?.total,href:"/gestao",icon:ClipboardCheck},
-                {label:"Clientes",value:clients.data?.items.length,href:"/gestao?tab=cliente",icon:Users},
-                {label:"Propriedades",value:farms.data?.items.length,href:"/gestao?tab=fazenda",icon:Layers},
-                {label:"Talhões",value:fields.data?.items.length,href:"/gestao?tab=talhao",icon:MapPinned},
+                {label:"Clientes",value:clients.data?.items.length,href:"/agrovoo/cadastros/clientes",icon:Users},
+                {label:"Propriedades",value:farms.data?.items.length,href:"/agrovoo/cadastros/propriedades",icon:Layers},
+                {label:"Talhões",value:fields.data?.items.length,href:"/agrovoo/cadastros/talhoes",icon:MapPinned},
                 {label:"Para conferir",value:count?.prontaEncerrar,href:"/conferencia",icon:ShieldCheck},
               ].map(({label,value,href,icon:Icon})=><Link key={label} href={ROOT + href} className="rounded-md border border-slate-200 p-3 text-slate-800 hover:border-emerald-400"><div className="flex items-center justify-between gap-1 text-xs font-semibold text-slate-600"><span>{label}</span><Icon size={18} className="shrink-0 text-emerald-700"/></div><strong className="mt-1 block text-2xl font-bold tabular-nums text-slate-900">{value ?? "—"}</strong><span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-800">Ver <ArrowRight size={13}/></span></Link>)}
             </div>
@@ -258,7 +258,7 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
                   <option value="">Selecione o talhão</option>{fieldItems.map((item) => <option key={item.entityId} value={item.entityId}>{item.data.nome}</option>)}
                 </select></Field>
                 {clients.error || farms.error || fields.error ? <p role="alert" className="text-sm text-red-700">{clients.error || farms.error || fields.error}</p> : null}
-                <Link href={ROOT + "/gestao?tab=cliente"} className="text-sm font-bold text-emerald-700">Precisa cadastrar cliente, fazenda ou talhão? Abrir cadastros existentes</Link>
+                <Link href={ROOT + "/agrovoo/cadastros/clientes"} className="text-sm font-bold text-emerald-700">Precisa cadastrar cliente, fazenda ou talhão? Abrir cadastros AgroVoo</Link>
               </>}
               {step === 1 && <>
                 <Field label="Cultura *"><input className={inputClass} value={draft.cultura} onChange={(e) => change("cultura", e.target.value)} placeholder="Ex.: Milho"/></Field>
