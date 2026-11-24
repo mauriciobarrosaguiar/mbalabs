@@ -8,3 +8,12 @@ export function estimateFieldDeltaT(temperature:unknown,humidity:unknown){
  if(!Number.isFinite(wet)||wet>t)return null;
  return {wetBulbC:wet,deltaC:t-wet};
 }
+
+/** Additional descriptive data only: absent values stay absent on legacy operations. */
+export function normalizeDropletMicrons(value:unknown):number|null{
+ if(typeof value!=="number"||!Number.isFinite(value)||value<=0||value>10000)return null;
+ return Math.round(value*100)/100||null;
+}
+export function normalizeAssistantName(value:unknown):string{
+ return typeof value==="string"?value.replace(/[\u0000-\u001f\u007f]/g," ").trim().slice(0,120):"";
+}
