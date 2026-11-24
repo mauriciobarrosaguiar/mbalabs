@@ -1,4 +1,5 @@
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import JSZip from "jszip";
 import { validateMapEvidenceFile } from "../src/lib/agrovoo-map-evidence.ts";
@@ -41,4 +42,15 @@ test("AgroVoo: rejeita KMZ sem KML ou com arquivo inválido", async () => {
 
 test("AgroVoo: extensão genérica não é aceita como KML/KMZ", async () => {
   assert.equal(await validateMapEvidenceFile("voo.pdf", Buffer.from(xml)), null);
+});
+
+
+test("AgroVoo: foto selecionada em outra OS não é enviada à missão atual", () => {
+  const source = readFileSync(new URL("../src/app/apps/dronegestor/campo/DroneMapEvidence.tsx", import.meta.url), "utf8");
+  assert.match(source, /pendingOsRef\.current=mission\.ordemServicoId;setPendingFile/);
+  const upload = source.slice(source.indexOf("async function uploadSelected()"));
+  const guard = upload.indexOf("pendingOsRef.current!==mission.ordemServicoId");
+  assert.ok(guard >= 0 && guard < upload.indexOf('fetch("/api/dronegestor/mapa"'));
+  assert.match(upload, /stillCurrent=getMission\(\)\.ordemServicoId===mission\.ordemServicoId/);
+  assert.match(source, /hasOs&&finalidade==="pos_voo"&&<Link/);
 });
