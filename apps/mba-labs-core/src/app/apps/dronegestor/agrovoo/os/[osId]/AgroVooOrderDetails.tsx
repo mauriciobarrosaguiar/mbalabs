@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, FileUp, Loader2, MapPinned, RefreshCw, ShieldCheck, UserRound } from "lucide-react";
+import { AgroDocHero, AgroDocStatus } from "../../../AgroDocUi";
 import { DroneMissionPlanning } from "../../../gestao/planejamento/DroneMissionPlanning";
 
 type Order = {
@@ -152,36 +153,29 @@ export function AgroVooOrderDetails({ osId }: { osId: string }) {
     finally { setSaving(false); }
   }
 
-  return <main className="min-h-screen bg-[#f5f9f6] px-3 pb-24 pt-5 sm:px-6 sm:py-7">
-    <div className="mx-auto grid max-w-5xl gap-4">
+  return <main className="min-h-screen bg-[var(--agro-bg)] pb-24">
+    <div className="mx-auto grid w-full max-w-[1440px] gap-4">
       <Link href={ROOT + "/agrovoo"} className="inline-flex min-h-11 w-fit items-center gap-2 text-sm font-black text-emerald-800 no-underline">
         <ArrowLeft size={18}/> Painel AgroVoo
       </Link>
-      <header className="rounded-3xl bg-gradient-to-r from-[#073d2c] to-[#126f4e] p-5 text-white shadow-sm sm:p-7">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="text-xs font-black uppercase tracking-wider text-emerald-200">AgroVoo · Detalhes da operação</div>
-            <h1 className="mt-2 text-2xl font-black">{order?.data.numero || "Ordem de serviço"}</h1>
-            <p className="mt-2 text-sm text-emerald-100">
-              {order ? [order.data.clienteNome, order.data.fazendaNome, order.data.talhaoNome].filter(Boolean).join(" · ") : "Carregando dados da OS"}
-            </p>
-          </div>
-          <button type="button" onClick={() => void load()} disabled={loading} aria-label="Atualizar dados da OS"
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/15 px-4 text-sm font-bold">
-            <RefreshCw size={16}/> Atualizar
-          </button>
+      <AgroDocHero variant="operations" title={order?.data.numero || "Ordem de serviço"} description={order ? [order.data.clienteNome, order.data.fazendaNome, order.data.talhaoNome].filter(Boolean).join(" · ") || "Detalhes da operação agrícola" : "Detalhes da operação agrícola"}/>
+      <div className="-mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-slate-600">Situação da OS</span>
+          {order && <AgroDocStatus tone={closed(order.data.status) ? "neutral" : order.data.status === "suspensa" ? "warn" : order.data.status === "em_execucao" ? "good" : "neutral"}>{labelStatus(order.data.status)}</AgroDocStatus>}
         </div>
-        {order && <div className="mt-4 inline-flex rounded-full bg-white/20 px-3 py-1.5 text-sm font-bold">
-          {labelStatus(order.data.status)}
-        </div>}
-      </header>
+        <button type="button" onClick={() => void load()} disabled={loading || saving} aria-label="Atualizar dados da OS"
+          className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-emerald-800">
+          <RefreshCw size={16}/> Atualizar
+        </button>
+      </div>
       {error && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-900">{error}</div>}
       {message && <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-900">{message}</div>}
       {loading ? <p className="rounded-2xl bg-white p-6 text-sm text-slate-600"><Loader2 size={17} className="mr-2 inline animate-spin"/>Carregando a operação autorizada...</p> : order && <>
-        <nav aria-label="Etapas desta OS" className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <nav aria-label="Etapas desta OS" className="agro-compact-grid grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white p-2 sm:grid-cols-5">
           {tabs.map((item) => <button key={item.id} type="button" aria-current={tab === item.id ? "page" : undefined}
-            onClick={() => { setError("");setMessage("");setTab(item.id); }}
-            className={"min-h-12 rounded-xl px-2 text-sm font-bold " + (tab === item.id ? "bg-emerald-700 text-white" : "border border-slate-200 bg-white text-slate-800")}>
+            disabled={saving} onClick={() => { setError("");setMessage("");setTab(item.id); }}
+            className={"min-h-12 rounded-xl px-3 text-sm font-bold " + (tab === item.id ? "bg-[var(--agro-green)] text-white" : "border border-slate-200 bg-white text-slate-800 hover:bg-emerald-50")}>
             {item.title}
           </button>)}
         </nav>
