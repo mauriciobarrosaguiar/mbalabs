@@ -125,14 +125,12 @@ export function DroneProductMissionPicker() {
 
   return (
     <>
-      <section className="border-b border-emerald-100 bg-white px-3 py-2.5 sm:px-5">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-emerald-700"><BookOpenCheck size={18}/></span>
-          <div className="min-w-0 flex-1">
-            <strong className="block text-xs font-black text-emerald-950">Produto correto, sem adivinhar</strong>
-            <p className="mt-0.5 text-[11px] leading-4 text-emerald-800">Busque na base oficial para preencher o nome. A dose continua sendo digitada conforme receita/bula.</p>
-          </div>
-          <button disabled={isLocked()} type="button" onClick={() => startSearch()} className="shrink-0 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-black text-white disabled:opacity-50">Buscar</button>
+      <section className="bg-[#f4f8f1] px-3 py-1 sm:px-5">
+        <div className="mx-auto flex w-full max-w-3xl justify-end">
+          <button disabled={isLocked()} type="button" onClick={() => startSearch()}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-3 text-xs font-black text-emerald-800 disabled:opacity-50">
+            <BookOpenCheck size={17}/> Buscar nome do produto
+          </button>
         </div>
       </section>
 
