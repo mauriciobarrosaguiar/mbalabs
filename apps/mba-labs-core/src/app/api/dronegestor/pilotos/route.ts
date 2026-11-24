@@ -1,4 +1,4 @@
-import {canReactivatePilot} from "@/lib/agrovoo-pilot-reactivation";
+import {canReactivatePilot,explicitPilotPermissions} from "@/lib/agrovoo-pilot-reactivation";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { createOrLinkPilotAccount, PilotAccountError } from "@/lib/dronegestor-pilot-account";
@@ -77,16 +77,7 @@ function validEmail(value: string) {
 }
 
 function permissions(value: unknown): Permissions {
-  const source = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-  return {
-    executarOs: source.executarOs !== false,
-    editarParametros: source.editarParametros === true,
-    editarSeguranca: source.editarSeguranca !== false,
-    registrarSarpas: source.registrarSarpas === true,
-    anexarEvidencias: source.anexarEvidencias !== false,
-    finalizarOperacao: source.finalizarOperacao !== false,
-    verRelatorios: source.verRelatorios === true,
-  };
+  return explicitPilotPermissions(defaultPermissions,value);
 }
 
 function sanitize(value: unknown, id: string): Pilot {
@@ -100,7 +91,7 @@ function sanitize(value: unknown, id: string): Pilot {
     observacoes: text(source.observacoes, 500),
     ativo: source.ativo !== false,
     usuarioId: text(source.usuarioId, 80),
-    permissoes: permissions(source.permissoes ?? defaultPermissions),
+    permissoes: permissions(source.permissoes),
     createdAt: text(source.createdAt, 40),
     updatedAt: text(source.updatedAt, 40),
   };

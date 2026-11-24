@@ -149,19 +149,21 @@ export function DronePersistenceSync() {
     let initialized = false;
     let baseline = fingerprint(snapshotDroneLocalState());
 
-    async function hydrate() {
+    const ownerStillCurrent=()=>!disposed&&Boolean(mountedOwner)&&mountedOwner!=="sessao-sem-perfil"&&mountedOwner===localStorage.getItem("dronegestor:deviceOwner:v1");
+    let lastHydrationAttempt=0;
+    async function hydrate(force=false) {
+      if(!ownerStillCurrent()||syncing||!navigator.onLine||getDroneSyncConflict())return;
+      if(!force&&lastHydrationAttempt&&Date.now()-lastHydrationAttempt<15000)return;
+      lastHydrationAttempt=Date.now();syncing=true;
       try {
         const response = await fetch("/api/dronegestor/state", { cache: "no-store" });
-        if (!response.ok) {
-          initialized = true;
-          baseline = fingerprint(snapshotDroneLocalState());
-          return;
-        }
+        if(!response.ok)throw new Error("Consulta inicial indisponível.");
         const payload = await response.json();
-        if (disposed || mountedOwner !== localStorage.getItem("dronegestor:deviceOwner:v1")) return;
-        const remoteRevision = Number(payload?.revision || 0);
+        if(!ownerStillCurrent())return;
+        if(payload?.ok!==true||!Number.isInteger(payload.revision)||payload.revision<0||!("state" in payload)||(payload.state!==null&&(typeof payload.state!=="object"||Array.isArray(payload.state))))throw new Error("Resposta inicial inválida.");
+        const remoteRevision = payload.revision;
         const currentRevision = localRevision();
-        const remoteState = payload?.state && typeof payload.state === "object" ? payload.state as Record<string, unknown> : null;
+        const remoteState = payload.state as Record<string,unknown>|null;
         const localState = snapshotDroneLocalState();
         const localFp = fingerprint(localState);
         const remoteFp = remoteState ? fingerprint(remoteState) : "";
@@ -169,7 +171,7 @@ export function DronePersistenceSync() {
         if (!remoteState) {
           if (meaningfulLocalState()) {
             markDirty(true);
-            const result = await pushState(0);
+            const result = await pushState(remoteRevision);
             if (result.conflict) return;
           } else {
             setLocalRevision(remoteRevision);
@@ -192,37 +194,45 @@ export function DronePersistenceSync() {
           if (result.conflict) return;
         }
 
-        initialized = true;
-        baseline = fingerprint(snapshotDroneLocalState());
+        if(ownerStillCurrent()){
+          initialized = true;
+          baseline = fingerprint(snapshotDroneLocalState());
+        }
       } catch {
-        initialized = true;
-        baseline = fingerprint(snapshotDroneLocalState());
-      }
+        // A failed GET must not authorize a PUT based on an unverified revision.
+        // Preserve local changes and retry reconciliation on the next connection.
+        if(ownerStillCurrent()){
+          if(fingerprint(snapshotDroneLocalState())!==baseline||meaningfulLocalState())markDirty(true);
+          initialized=false;
+        }
+      } finally {syncing=false;}
     }
 
-    async function sync() {
-      if (disposed || mountedOwner !== localStorage.getItem("dronegestor:deviceOwner:v1") || syncing || !initialized || !navigator.onLine || getDroneSyncConflict()) return;
+    async function sync(force=false) {
+      if (!ownerStillCurrent() || syncing || getDroneSyncConflict()) return;
       const currentFingerprint = fingerprint(snapshotDroneLocalState());
       if (currentFingerprint !== baseline) {
         baseline = currentFingerprint;
         markDirty(true);
       }
+      if(!navigator.onLine)return;
+      if(!initialized){await hydrate(force);return;}
       if (!isDirty()) return;
       syncing = true;
       try {
         const result = await pushState(localRevision());
         if (result.conflict) return;
-        baseline = fingerprint(snapshotDroneLocalState());
+        if(ownerStillCurrent())baseline = fingerprint(snapshotDroneLocalState());
       } catch {
-        if (mountedOwner === localStorage.getItem("dronegestor:deviceOwner:v1")) markDirty(true);
+        if (ownerStillCurrent()) markDirty(true);
       } finally {
         syncing = false;
       }
     }
 
-    void hydrate();
+    void hydrate(true);
     const interval = window.setInterval(() => void sync(), 4000);
-    const onOnline = () => void sync();
+    const onOnline = () => void sync(true);
     const onVisibility = () => { if (document.visibilityState === "hidden") void sync(); };
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisibility);
