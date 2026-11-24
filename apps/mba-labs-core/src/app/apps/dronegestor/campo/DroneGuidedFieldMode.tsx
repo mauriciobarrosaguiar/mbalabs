@@ -73,10 +73,11 @@ export function DroneGuidedFieldMode({pilotName}:{pilotName:string}){
 
   function flash(text:string){setNotice(text);window.setTimeout(()=>setNotice(""),4500)}
   function fillNext(){if(!nextLoad.area)return;setAreaInput(String(round(nextLoad.area,3)));setVolumeInput(String(round(nextLoad.volume,2)));flash("Valores calculados preenchidos. Ajuste se o realizado for diferente.")}
-  function registerLoad(){if(paused)return flash("Retome a aplicação antes de registrar a carga.");const area=n(areaInput),volume=n(volumeInput);if(area<=0||volume<=0)return flash("Informe a área e o volume realmente aplicados nesta carga.");if(area>remaining+.01)return flash(`A área informada ultrapassa os ${fmt(remaining,2)} ha restantes.`);if(n(mission?.tanque)>0&&volume>n(mission?.tanque)+.01)return flash("O volume ultrapassa a capacidade cadastrada do tanque. Confira antes de salvar.");const rec:TankRecord={id:id("tanque"),at:new Date().toISOString(),areaHa:round(area,3),volumeL:round(volume,2)};const next=[...tanks,rec],nextProgress=round(Math.min(totalArea,progress+area),3);setTanks(next);setProgress(nextProgress);write(K.tanks,next);write(K.progress,nextProgress);setAreaInput("");setVolumeInput("");flash(nextProgress>=totalArea-.01?"Área planejada atingida. Confira o resumo e conclua a aplicação em campo.":"Carga registrada. O próximo cálculo já foi atualizado.")}
-  function undo(){if(paused||!tanks.length)return;const last=tanks[tanks.length-1];if(!window.confirm(`Desfazer a última carga de ${fmt(last.areaHa,2)} ha / ${fmt(last.volumeL,1)} L?`))return;const next=tanks.slice(0,-1),nextProgress=round(Math.max(0,progress-last.areaHa),3);setTanks(next);setProgress(nextProgress);write(K.tanks,next);write(K.progress,nextProgress)}
-  function togglePause(){const next=!paused;setPaused(next);write(K.paused,next);write(K.status,next?"pausada":"em_execucao");flash(next?"Aplicação pausada. Os dados continuam salvos neste aparelho.":"Aplicação retomada.")}
-  function saveOccurrence(){const note=occNote.trim(),weather=read<Weather>(K.weather,{});const text=`${occType}${note?`: ${note}`:""}`;const item:Occurrence={id:id("oc"),at:new Date().toISOString(),text,categoria:occType,observacao:note,latitude:Number.isFinite(Number(weather.latitude))?Number(weather.latitude):null,longitude:Number.isFinite(Number(weather.longitude))?Number(weather.longitude):null};const next=[...occurrences,item];setOccurrences(next);write(K.occurrences,next);setOccOpen(false);setOccNote("");flash("Ocorrência registrada com horário e localização disponível.")}
+  function hasPartialPending(){return Boolean(localStorage.getItem("dronegestor:partialPayload:v1:"+mission?.ordemServicoId))}
+  function registerLoad(){if(hasPartialPending())return flash("Encerramento parcial sem confirmação. Reenvie a mesma solicitação antes de alterar as cargas.");if(paused)return flash("Retome a aplicação antes de registrar a carga.");const area=n(areaInput),volume=n(volumeInput);if(area<=0||volume<=0)return flash("Informe a área e o volume realmente aplicados nesta carga.");if(area>remaining+.01)return flash(`A área informada ultrapassa os ${fmt(remaining,2)} ha restantes.`);if(n(mission?.tanque)>0&&volume>n(mission?.tanque)+.01)return flash("O volume ultrapassa a capacidade cadastrada do tanque. Confira antes de salvar.");const rec:TankRecord={id:id("tanque"),at:new Date().toISOString(),areaHa:round(area,3),volumeL:round(volume,2)};const next=[...tanks,rec],nextProgress=round(Math.min(totalArea,progress+area),3);setTanks(next);setProgress(nextProgress);write(K.tanks,next);write(K.progress,nextProgress);setAreaInput("");setVolumeInput("");flash(nextProgress>=totalArea-.01?"Área planejada atingida. Confira o resumo e conclua a aplicação em campo.":"Carga registrada. O próximo cálculo já foi atualizado.")}
+  function undo(){if(hasPartialPending())return flash("Aguarde a confirmação do encerramento parcial antes de desfazer cargas.");if(paused||!tanks.length)return;const last=tanks[tanks.length-1];if(!window.confirm(`Desfazer a última carga de ${fmt(last.areaHa,2)} ha / ${fmt(last.volumeL,1)} L?`))return;const next=tanks.slice(0,-1),nextProgress=round(Math.max(0,progress-last.areaHa),3);setTanks(next);setProgress(nextProgress);write(K.tanks,next);write(K.progress,nextProgress)}
+  function togglePause(){if(hasPartialPending())return flash("Confirme o encerramento parcial pendente antes de mudar a execução.");const next=!paused;setPaused(next);write(K.paused,next);write(K.status,next?"pausada":"em_execucao");flash(next?"Aplicação pausada. Os dados continuam salvos neste aparelho.":"Aplicação retomada.")}
+  function saveOccurrence(){if(hasPartialPending())return flash("Confirme o encerramento parcial pendente antes de adicionar ocorrências.");const note=occNote.trim(),weather=read<Weather>(K.weather,{});const text=`${occType}${note?`: ${note}`:""}`;const item:Occurrence={id:id("oc"),at:new Date().toISOString(),text,categoria:occType,observacao:note,latitude:Number.isFinite(Number(weather.latitude))?Number(weather.latitude):null,longitude:Number.isFinite(Number(weather.longitude))?Number(weather.longitude):null};const next=[...occurrences,item];setOccurrences(next);write(K.occurrences,next);setOccOpen(false);setOccNote("");flash("Ocorrência registrada com horário e localização disponível.")}
   function openMap(){const button=document.querySelector('button[aria-label="Registrar mapa usado no voo"]') as HTMLButtonElement|null;if(button){button.click();return}flash("Abra o botão “Mapa do voo” na tela de Campo para anexar a evidência desta OS.")}
   function leaveField(){write(K.view,"inicio");window.location.reload()}
 
@@ -88,9 +89,21 @@ export function DroneGuidedFieldMode({pilotName}:{pilotName:string}){
     setFinishing(true);
     try {
       const requestKey="dronegestor:partialRequest:v1:"+mission?.ordemServicoId;
-      const requestId=localStorage.getItem(requestKey)||id("partial");localStorage.setItem(requestKey,requestId);
-      const response=await fetch("/api/dronegestor/execucao-parcial",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({osId:mission?.ordemServicoId,requestId,reason:partialReason,justification:partialNote,state:snapshotDroneLocalState({progressHa:progress,tankRecords:tanks,occurrences,startedAt})})});
-      const data=await response.json();if(!response.ok)throw new Error(data.error||"Falha ao encerrar parcialmente.");
+      const payloadKey="dronegestor:partialPayload:v1:"+mission?.ordemServicoId;
+      // Freeze the exact payload: lost acknowledgements must retry identical
+      // hectares, loads, timestamps and requestId, never a new snapshot.
+      const frozen=read<Record<string,unknown>|null>(payloadKey,null);
+      const requestId=localStorage.getItem(requestKey)||id("partial");
+      const payload=frozen||{osId:mission?.ordemServicoId,requestId,reason:partialReason,justification:partialNote,state:snapshotDroneLocalState({progressHa:progress,tankRecords:tanks,occurrences,startedAt})};
+      if(!frozen){localStorage.setItem(requestKey,requestId);write(payloadKey,payload);}
+      const response=await fetch("/api/dronegestor/execucao-parcial",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload),cache:"no-store"});
+      const data=await response.json().catch(()=>null);
+      if(!response.ok){
+        // Definitive 4xx validation denies the request without committing it.
+        // A 409 may indicate a conflicting prior commit; keep the frozen data.
+        if(response.status>=400&&response.status<500&&response.status!==409){localStorage.removeItem(payloadKey);localStorage.removeItem(requestKey);}
+        throw new Error(data?.error||"Falha ao encerrar parcialmente.");
+      }
       const savedMission=read<Record<string,unknown>>(K.mission,{});
       write(K.mission,{...savedMission,climaCampoConfirmado:false,climaCampoMedidoEm:""});
       write(K.risk,false);
@@ -99,6 +112,7 @@ export function DroneGuidedFieldMode({pilotName}:{pilotName:string}){
       write(K.checklist,Object.fromEntries(Object.keys(checklist).map(k=>[k,false])));
       write(K.started,false);write(K.paused,true);write(K.status,"parcial");write(K.view,"inicio");
       localStorage.removeItem(requestKey);
+      localStorage.removeItem(payloadKey);
       window.location.reload();
     }catch(error){flash(error instanceof Error?error.message:"Falha ao encerrar parcialmente.");setFinishing(false);}
   }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cloudContext, cloudDb, cloudEvent, cloudScope, CloudError, decryptCloud, driveCall, driveOperationFolder, encryptCloud, googleAccessToken, safeCloudName } from "@/lib/agrodoc-cloud";
-import { requireDroneOsAccess, droneOsErrorResponse } from "@/lib/dronegestor-os-access";
+import { requireDroneOsWriteAccess, droneOsErrorResponse } from "@/lib/dronegestor-os-access";
 
 export const dynamic="force-dynamic";
 export const runtime="nodejs";
@@ -26,7 +26,7 @@ function responseError(error:unknown) {
     {status:osError?.status||(error instanceof CloudError?error.status:500)});
 }
 async function checkOs(context:Awaited<ReturnType<typeof cloudContext>>,osId:string) {
-  return requireDroneOsAccess(cloudDb(),{
+  return requireDroneOsWriteAccess(cloudDb(),{
     userId:context.user_id,empresaId:context.owner_type==="empresa"?context.owner_id:null,
     canManage:context.can_manage
   },osId);

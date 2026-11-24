@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
+import { missionPlanForDocumentDisplay } from "@/lib/dronegestor-planning";
 import {
   droneOsErrorResponse,
   requireDroneOsAccess,
@@ -40,6 +41,7 @@ async function context(): Promise<{ current: Context | null; response: NextRespo
       current: null,
       response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }),
     };
+  if (s.profile.status !== "ativo") return { current: null, response: NextResponse.json({ ok: false, error: "Conta inativa: acesso bloqueado." }, { status: 403 }) };
   const type = normalize(s.profile.tipo || "");
   const master = ["super_admin", "admin_master"].includes(type);
   const allowed = (s.appsLiberados ?? []).some((a) => a.slug === "dronegestor" && a.canAccess);
@@ -106,7 +108,6 @@ export async function GET(request: NextRequest) {
 
     const admin = createSupabaseAdminClient() as any;
     const osAccess = await requireDroneOsAccess(admin, c, osId);
-    const os = osAccess.row;
     const osData = osAccess.data;
     const assigned = osAccess.assignedPilotId;
 
@@ -148,7 +149,12 @@ export async function GET(request: NextRequest) {
       entity(admin, c, ACTIONS.fazenda, text(osData.fazendaId, 100)),
       entity(admin, c, ACTIONS.talhao, text(osData.talhaoId, 100)),
     ]);
-    const storedMission = obj(state.mission);
+    // A confirmed start in a checkpoint is historical even if the OS status is stale.
+    const historicalCheckpoint = Boolean(state.operationStarted || state.startedAt) ||
+      ["em_execucao", "suspensa", "parcial", "pendente_sync", "finalizada"].includes(String(state.missionStatus || ""));
+    const storedMission = historicalCheckpoint
+      ? obj(state.mission)
+      : missionPlanForDocumentDisplay(obj(state.mission), osData, source);
     const mission = {
       ...storedMission,
       ordemServicoId: osId,
@@ -219,8 +225,8 @@ export async function PATCH(request: NextRequest) {
     const osAccess = await requireDroneOsAccess(admin, c, osId);
     const os = osAccess.row;
     const data = osAccess.data;
-    if (text(data.status, 40) === "concluida")
-      return NextResponse.json({ ok: false, error: "Esta OS já está encerrada." }, { status: 409 });
+    if (["concluida", "cancelada"].includes(text(data.status, 40)))
+      return NextResponse.json({ ok: false, error: "OS encerrada ou cancelada: somente consulta." }, { status: 409 });
 
     const responsavelPropriedade = text(body?.responsavelPropriedade, 180);
     const enderecoPropriedade = text(body?.enderecoPropriedade, 240);

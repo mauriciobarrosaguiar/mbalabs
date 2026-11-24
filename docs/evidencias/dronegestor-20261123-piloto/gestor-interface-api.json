@@ -1,0 +1,88 @@
+{
+  "commit": "6f784d2084d44c727f8ca8bd627b8fac367c6e4d",
+  "origin": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app",
+  "account": "HOMOLOGAÇÃO P63 - Gestor operacional",
+  "pages": [
+    {
+      "requested": "/apps/dronegestor/gestao",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/gestao",
+      "heading": "O que precisa da sua atenção agora"
+    },
+    {
+      "requested": "/apps/dronegestor/cadastros",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/cadastros",
+      "heading": "Cadastros"
+    },
+    {
+      "requested": "/apps/dronegestor/conferencia",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/conferencia",
+      "heading": "Conferência de operações"
+    },
+    {
+      "requested": "/apps/dronegestor/pilotos",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/pilotos",
+      "heading": "Pilotos e acessos"
+    },
+    {
+      "requested": "/apps/dronegestor/equipe",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/equipe",
+      "heading": "Minha equipe"
+    },
+    {
+      "requested": "/apps/dronegestor/configuracoes",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/configuracoes",
+      "heading": "Configurações"
+    },
+    {
+      "requested": "/apps/dronegestor/administracao",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor",
+      "heading": "MBA DroneGestor"
+    },
+    {
+      "requested": "/apps/dronegestor/funcionarios",
+      "actual": "https://mbalabs-git-fix-dronegesto-d7a9dd-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor",
+      "heading": "MBA DroneGestor"
+    }
+  ],
+  "apis": [
+    {
+      "path": "/api/dronegestor/cadastros?type=os",
+      "ok": true,
+      "canManage": true,
+      "count": 2,
+      "os": [
+        {
+          "id": "d916cc09-7fbc-45a2-ba00-b0fe35720dd9",
+          "numero": "OS-20261122-D916C",
+          "piloto": "Pulveriza 63"
+        },
+        {
+          "id": "71df64e7-3148-451d-9eb6-d3001393a3f4",
+          "numero": "OS-20261121-71DF6",
+          "piloto": "E2E Piloto Pedro"
+        }
+      ]
+    },
+    {
+      "path": "/api/dronegestor/planejamento?osId=71df64e7-3148-451d-9eb6-d3001393a3f4",
+      "ok": true
+    },
+    {
+      "path": "/api/dronegestor/conferencia?month=2026-11",
+      "ok": true,
+      "canManage": true,
+      "count": 0
+    },
+    {
+      "path": "/api/dronegestor/administracao",
+      "error": "Esta área é exclusiva do gestor do sistema.",
+      "ok": false
+    },
+    {
+      "path": "/api/dronegestor/empresa/usuarios",
+      "error": "Somente o administrador da empresa pode cadastrar funcionários.",
+      "ok": false
+    }
+  ],
+  "noLiveWrites": true
+}

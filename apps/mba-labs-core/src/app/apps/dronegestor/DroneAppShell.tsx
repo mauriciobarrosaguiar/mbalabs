@@ -7,6 +7,7 @@ import {
   BookOpen,
   CircleHelp,
   Folder,
+  FileText,
   Home,
   Layers,
   Leaf,
@@ -24,44 +25,40 @@ import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import { ROOT } from "./AgroDocUi";
 const pages = [
-  { path: "administracao", title: "Administração do sistema", icon: ShieldCheck },
-  { path: "funcionarios", title: "Funcionários e acessos", icon: UserRound },
+  { path: "", title: "Início", icon: Home },
+  { path: "gestao", title: "Ordens de serviço", icon: ClipboardCheck },
   { path: "campo", title: "Modo campo", icon: Drone },
-  { path: "historico", title: "Histórico de operações", icon: Folder },
-  { path: "ferramentas", title: "MBA Calda e calculadoras", icon: ChartNoAxesColumn },
-  { path: "equipamentos", title: "Drones e equipamentos", icon: Drone },
-  { path: "equipe", title: "Minha equipe", icon: UserRound },
-  { path: "regulacao", title: "Legislação e fontes", icon: BookOpen },
-  { path: "", title: "Visão geral", icon: Home },
-  {
-    path: "diagnostico",
-    title: "Diagnóstico e regularização",
-    icon: ShieldCheck,
-  },
-  { path: "gestao", title: "Operações", icon: Drone },
+  { path: "historico", title: "Histórico", icon: Folder },
+  { path: "fichas", title: "Fichas de aplicação", icon: FileText },
   { path: "conferencia", title: "Conferência de operações", icon: ClipboardCheck },
-  {
-    path: "relatorio-mensal",
-    title: "Relatórios MAPA",
-    icon: ChartNoAxesColumn,
-  },
+  { path: "cadastros", title: "Visão dos cadastros", icon: Layers },
+  { path: "equipamentos", title: "Drones e equipamentos", icon: Drone },
+  { path: "pilotos", title: "Pilotos", icon: UserRound },
+  { path: "equipe", title: "Minha equipe", icon: UserRound },
+  { path: "funcionarios", title: "Funcionários e acessos", icon: UserRound },
   { path: "documentos", title: "Documentos", icon: Folder },
-  { path: "cadastros", title: "Cadastros", icon: Layers },
-  { path: "piloto-pro", title: "Piloto Pro", icon: BookOpen },
+  { path: "diagnostico", title: "Diagnóstico e regularização", icon: ShieldCheck },
+  { path: "regulacao", title: "Legislação e fontes", icon: BookOpen },
+  { path: "relatorio-mensal", title: "Relatórios MAPA", icon: ChartNoAxesColumn },
+  { path: "ferramentas", title: "MBA Calda e calculadoras", icon: Calculator },
   { path: "produtos", title: "Defensivos e AGROFIT", icon: Leaf },
+  { path: "piloto-pro", title: "Piloto Pro", icon: BookOpen },
   { path: "perfil-operacional", title: "Perfil operacional", icon: UserRound },
   { path: "configuracoes", title: "Configurações", icon: Settings },
+  { path: "administracao", title: "Administração do sistema", icon: ShieldCheck },
+  { path: "ajuda", title: "Ajuda e como usar", icon: CircleHelp },
 ];
 const navigation = [
- { title: "Visão geral", paths: [""] },
- { title: "Operações", paths: ["gestao", "campo", "historico"] },
- { title: "Ferramentas", paths: ["ferramentas"] },
- { title: "Gestão", paths: ["cadastros", "equipamentos", "equipe", "funcionarios"] },
- { title: "Regularização", paths: ["diagnostico", "documentos", "regulacao", "relatorio-mensal", "conferencia"] },
- { title: "Piloto Pro", paths: ["piloto-pro", "produtos"] },
- { title: "Configurações", paths: ["perfil-operacional", "configuracoes", "administracao"] },
+  { title: "Início", paths: [""] },
+  { title: "Operações", paths: ["gestao", "campo", "historico", "fichas", "conferencia"] },
+  { title: "Cadastros", paths: ["cadastros", "equipamentos", "pilotos", "equipe", "funcionarios"] },
+  { title: "Documentação", paths: ["documentos", "diagnostico", "regulacao", "relatorio-mensal"] },
+  { title: "Ferramentas", paths: ["ferramentas", "produtos"] },
+  { title: "Piloto Pro", paths: ["piloto-pro"] },
+  { title: "Configurações", paths: ["perfil-operacional", "configuracoes", "administracao"] },
+  { title: "Ajuda", paths: ["ajuda"] },
 ];
-const managerPaths = new Set(["conferencia", "cadastros", "pilotos", "equipe", "configuracoes"]);
+const managerPaths = new Set(["conferencia", "cadastros", "pilotos", "equipe", "configuracoes", "relatorio-mensal"]);
 export function DroneAppShell({
   children,
   userName = "Minha conta",
@@ -114,8 +111,8 @@ export function DroneAppShell({
           {navigation.map(group => {
             const entries = group.paths.map(p => availablePages.find(item => item.path === p)).filter((p): p is typeof pages[number] => Boolean(p));
             if (!entries.length) return null;
-            return <details key={group.title} open={entries.some(p => path === `${ROOT}${p.path ? `/${p.path}` : ""}`)}><summary>{group.title}</summary>
-              {entries.map(({path:p,title,icon:Icon}) => <Link key={p} title={title} href={`${ROOT}${p ? `/${p}` : ""}`} onClick={() => setMenu(false)} aria-current={path === `${ROOT}${p ? `/${p}` : ""}` ? "page" : undefined}><Icon/><span>{title}</span></Link>)}
+            return <details key={group.title} open={entries.some(p => path === `${ROOT}${p.path ? `/${p.path}` : ""}` || Boolean(p.path && path.startsWith(`${ROOT}/${p.path}/`)))}><summary>{group.title}</summary>
+              {entries.map(({path:p,title,icon:Icon}) => <Link key={p} title={title} href={`${ROOT}${p ? `/${p}` : ""}`} onClick={() => setMenu(false)} aria-current={path === `${ROOT}${p ? `/${p}` : ""}` || Boolean(p && path.startsWith(`${ROOT}/${p}/`)) ? "page" : undefined}><Icon/><span>{title}</span></Link>)}
             </details>;
           })}
         </nav>
@@ -139,8 +136,8 @@ export function DroneAppShell({
           <div className="agro-search">
             <Search />
             <input
-              aria-label="Buscar páginas no MBA Labs"
-              placeholder="Buscar no MBA Labs"
+              aria-label="Buscar páginas no DroneGestor"
+              placeholder="Buscar no DroneGestor"
               value={query}
               onFocus={() => setSearch(true)}
               onChange={(e) => {
@@ -162,7 +159,7 @@ export function DroneAppShell({
                   .map((p) => (
                     <Link
                       key={p.path}
-                      href={`${ROOT}/${p.path}`}
+                      href={`${ROOT}${p.path ? `/${p.path}` : ""}`}
                       onClick={() => setSearch(false)}
                     >
                       {p.title}
@@ -181,7 +178,7 @@ export function DroneAppShell({
             >
               <Bell />
             </button>
-            <Link href={`${ROOT}/regulacao`} aria-label="Ajuda e regras">
+            <Link href={`${ROOT}/ajuda`} aria-label="Ajuda: como usar o DroneGestor">
               <CircleHelp />
             </Link>
             <details className="agro-account">
@@ -224,19 +221,24 @@ export function DroneAppShell({
       </div>
       <nav
         className="agro-bottom-nav"
-        aria-label="Navegação do piloto"
+        aria-label={canManage ? "Navegação do gestor" : "Navegação do piloto"}
       >
-        {[
+        {(canManage ? [
           { path: "", title: "Início", icon: Home },
-          { path: "gestao", title: "Operações", icon: Drone },
+          { path: "gestao", title: "Operações", icon: ClipboardCheck },
+          { path: "equipe", title: "Equipe", icon: UserRound },
+          { path: "conferencia", title: "Conferência", icon: ClipboardCheck },
+        ] : [
+          { path: "", title: "Início", icon: Home },
+          { path: "gestao", title: "Minhas OS", icon: ClipboardCheck },
+          { path: "campo", title: "Campo", icon: Drone },
           { path: "ferramentas", title: "Calda", icon: Calculator },
-          { path: "piloto-pro", title: "Piloto Pro", icon: BookOpen },
-        ].map(({ path: p, title, icon: Icon }) => (
+        ]).map(({ path: p, title, icon: Icon }) => (
           <Link
             key={p}
             href={`${ROOT}${p ? `/${p}` : ""}`}
             aria-current={
-              (path === `${ROOT}${p ? `/${p}` : ""}` || (p==="gestao"&&path.startsWith(`${ROOT}/campo`))) ? "page" : undefined
+              (path === `${ROOT}${p ? `/${p}` : ""}` || Boolean(p && path.startsWith(`${ROOT}/${p}/`)) || (canManage && p==="gestao" && path.startsWith(`${ROOT}/gestao/`))) ? "page" : undefined
             }
           >
             <Icon />

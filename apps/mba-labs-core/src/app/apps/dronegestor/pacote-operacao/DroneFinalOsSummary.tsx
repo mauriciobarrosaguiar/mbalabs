@@ -3,6 +3,8 @@
 import { CheckCircle2, Clock3, Download, FileCheck2, FileText, MapPinned, PlaneTakeoff, ShieldCheck, Sprout, TriangleAlert, UserRound } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
+import { droneAppliedArea, droneOperationStatusLabel } from "@/lib/dronegestor-operation-summary";
+
 type AnyRecord = Record<string, any>;
 type Doc = { id?: string; tipo?: string; nome?: string; url?: string };
 type OperationPayload = { ok?: boolean; state?: AnyRecord; source?: string; pilotName?: string; syncUpdatedAt?: string; os?: { id?: string; status?: string; numero?: string; fechamentoStatus?: string; pendencias?: string[] }; error?: string };
@@ -59,13 +61,13 @@ export function DroneFinalOsSummary() {
     const tanks = Array.isArray(state.tankRecords) ? state.tankRecords : [];
     const products = Array.isArray(mission.produtos) ? mission.produtos : [];
     const occurrences = Array.isArray(state.occurrences) ? state.occurrences : [];
-    const progress = Number(state.progressHa) || 0, area = Number(mission.area) || 0;
+    const progress = droneAppliedArea(state.progressHa), area = Number(mission.area) || 0;
     const totalReal = tanks.reduce((sum: number, item: AnyRecord) => sum + Math.max(0, Number(item?.volumeL) || 0), 0);
     const weather = state.weather || {};
     const osStatus = payload?.os?.status || "";
     const closure = payload?.os?.fechamentoStatus || "";
     const pending = Array.isArray(payload?.os?.pendencias) ? payload!.os!.pendencias! : [];
-    const status = osStatus === "concluida" ? "OS encerrada" : osStatus === "campo_concluido" ? (closure === "pronto" ? "Pronta para encerrar" : "Campo concluído - regularização") : "Operação em andamento";
+    const status = droneOperationStatusLabel(osStatus, closure);
     return { state, mission, tanks, products, occurrences, progress, area, totalReal, weather, osStatus, closure, pending, status };
   }, [payload]);
 
@@ -76,6 +78,8 @@ export function DroneFinalOsSummary() {
   const sarpasNumero = String(sarpas?.numero || m.sarpasNumero || "");
   const docsCount = docs.length;
   const closed = summary.osStatus === "concluida";
+  const hasFieldSnapshot = payload.source === "live" || payload.source === "finalized";
+  const canExportPdf = payload.source === "finalized";
   const pdfHref = `/api/dronegestor/pacote-operacao/pdf?osId=${encodeURIComponent(String(m.ordemServicoId))}`;
 
   return <section className="mx-auto mt-5 w-full max-w-5xl px-3 sm:px-6">
@@ -90,16 +94,16 @@ export function DroneFinalOsSummary() {
 
       <div className="grid gap-4 p-4 sm:p-5">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Info icon={<UserRound size={18}/>} label="Quem fez" value={payload.pilotName || "Piloto não identificado"} sub={m.drone ? `${m.drone} • ANAC ${m.registroAnac || "não informado"}` : "Drone não informado"}/>
+          <Info icon={<UserRound size={18}/>} label="Piloto responsável" value={payload.pilotName || "Piloto não identificado"} sub={m.drone ? `${m.drone} • ANAC ${m.registroAnac || "não informado"}` : "Drone não informado"}/>
           <Info icon={<MapPinned size={18}/>} label="Onde" value={[m.clienteNome, m.fazendaNome, m.talhaoNome].filter(Boolean).join(" → ") || "Não informado"} sub={[m.municipio, m.uf].filter(Boolean).join("/") || "Localidade não informada"}/>
-          <Info icon={<Sprout size={18}/>} label="O que foi feito" value={`${m.cultura || "Cultura não informada"}${m.alvo ? ` • ${m.alvo}` : ""}`} sub={`${n(summary.progress || summary.area, 2)} ha realizados de ${n(summary.area, 2)} ha`}/>
+          <Info icon={<Sprout size={18}/>} label="Cultura e alvo" value={`${m.cultura || "Cultura não informada"}${m.alvo ? ` • ${m.alvo}` : ""}`} sub={`${n(summary.progress, 2)} ha realizados de ${n(summary.area, 2)} ha`}/>
           <Info icon={<Clock3 size={18}/>} label="Quando" value={`${dt(state.startedAt)} → ${dt(state.endedAt || state.concluidaNoDispositivoEm)}`} sub={`Duração: ${duration(state.startedAt, state.endedAt || state.concluidaNoDispositivoEm)}`}/>
         </div>
 
         <div className="grid gap-3 lg:grid-cols-2">
           <Card title="Aplicação e produtos" icon={<Sprout size={18}/>}>
-            <Line label="Volume planejado" value={`${n(m.volume, 1)} L/ha`}/><Line label="Faixa / velocidade / altura" value={`${n(m.faixa, 1)} m • ${n(m.velocidadeKmh, 1)} km/h • ${n(m.alturaM, 1)} m`}/><Line label="Cargas registradas" value={String(summary.tanks.length)}/><Line label="Volume real registrado" value={`${n(summary.totalReal, 1)} L`}/>
-            <div className="mt-3 grid gap-2">{summary.products.length ? summary.products.map((p: AnyRecord, i: number) => <div key={`${p?.nome || "produto"}-${i}`} className="rounded-xl bg-emerald-50 px-3 py-2 text-sm"><strong>{p?.nome || `Produto ${i + 1}`}</strong><span className="ml-2 text-slate-600">{n(p?.dose, 2)} {p?.unidade || ""}</span></div>) : <p className="text-sm text-slate-500">Nenhum produto registrado.</p>}</div>
+            {hasFieldSnapshot ? <><Line label="Volume planejado" value={`${n(m.volume, 1)} L/ha`}/><Line label="Faixa / velocidade / altura" value={`${n(m.faixa, 1)} m • ${n(m.velocidadeKmh, 1)} km/h • ${n(m.alturaM, 1)} m`}/><Line label="Cargas registradas" value={String(summary.tanks.length)}/><Line label="Volume real registrado" value={`${n(summary.totalReal, 1)} L`}/>
+            <div className="mt-3 grid gap-2">{summary.products.length ? summary.products.map((p: AnyRecord, i: number) => <div key={`${p?.nome || "produto"}-${i}`} className="rounded-xl bg-emerald-50 px-3 py-2 text-sm"><strong>{p?.nome || `Produto ${i + 1}`}</strong><span className="ml-2 text-slate-600">{n(p?.dose, 2)} {p?.unidade || ""}</span></div>) : <p className="text-sm text-slate-500">Nenhum produto registrado.</p>}</div></> : <p className="text-sm text-slate-600">Dados do campo ainda não sincronizados. Confira os parâmetros no planejamento da OS.</p>}
           </Card>
           <Card title="Segurança e ocorrências" icon={<ShieldCheck size={18}/>}>
             <Line label="Calibração" value={yes(Object.values(state.calibration || {}).length > 0 && Object.values(state.calibration || {}).every(Boolean))}/><Line label="Checklist pré-voo" value={yes(Object.values(state.checklist || {}).length > 0 && Object.values(state.checklist || {}).every(Boolean))}/><Line label="Análise de risco" value={yes(state.riskAccepted === true)}/><Line label="GPS" value={Number.isFinite(Number(summary.weather?.latitude)) && Number.isFinite(Number(summary.weather?.longitude)) ? `${Number(summary.weather.latitude).toFixed(5)}, ${Number(summary.weather.longitude).toFixed(5)}` : "Pendente"}/><Line label="Ocorrências" value={String(summary.occurrences.length)}/>
@@ -111,7 +115,7 @@ export function DroneFinalOsSummary() {
           {docsCount > 0 && <div className="mt-3 flex flex-wrap gap-2">{docs.slice(0, 8).map((doc, i) => <span key={doc.id || i} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{doc.nome || doc.tipo || "Documento"}</span>)}</div>}
         </Card>
 
-        <div className="grid gap-2 sm:grid-cols-3"><a href={pdfHref} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-black text-white no-underline"><Download size={18}/>Gerar pacote em PDF</a><a href={`/apps/dronegestor/documentos?osId=${encodeURIComponent(String(m.ordemServicoId))}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 no-underline"><FileText size={18}/>Ver documentos</a><button type="button" onClick={()=>window.print()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700"><FileCheck2 size={18}/>Imprimir resumo</button></div>
+        <div className="grid gap-2 sm:grid-cols-3">{canExportPdf ? <a href={pdfHref} target="_blank" rel="noreferrer" className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-black text-white no-underline"><Download size={18}/>Gerar pacote em PDF</a> : <button type="button" disabled className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 text-sm font-black text-slate-500">PDF aguarda conclusão e sincronização do campo</button>}<a href={`/apps/dronegestor/documentos?osId=${encodeURIComponent(String(m.ordemServicoId))}`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 no-underline"><FileText size={18}/>Ver documentos</a><button type="button" onClick={()=>window.print()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-700"><FileCheck2 size={18}/>Imprimir resumo</button></div>
         <p className="text-xs leading-5 text-slate-500">O PDF é o prontuário interno desta aplicação e reúne os dados e a relação de evidências vinculadas. Ele não substitui o relatório mensal oficial do MAPA.</p>
       </div>
     </div>

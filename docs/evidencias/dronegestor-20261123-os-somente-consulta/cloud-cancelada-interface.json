@@ -1,0 +1,5 @@
+{
+  "profile": "gestor_operacional",
+  "osId": "dd129788-16bc-471f-9366-41e18b81dadd",
+  "response": "{\"ok\":false,\"error\":\"OS encerrada ou cancelada: somente consulta.\"}"
+}

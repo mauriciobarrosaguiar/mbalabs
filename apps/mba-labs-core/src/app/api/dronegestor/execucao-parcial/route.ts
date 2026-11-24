@@ -3,7 +3,7 @@ import { getSessionProfile } from '@/lib/core-data';
 import { canManageDroneGestor } from '@/lib/dronegestor-role';
 import { requireDroneOsAccess, droneOsErrorResponse, DroneOsAccessError } from '@/lib/dronegestor-os-access';
 import { dronePilotPlanningIssue } from '@/lib/dronegestor-planning';
-import { validatePartialExecution } from '@/lib/dronegestor-partial';
+import { validatePartialExecution, validateCumulativeContinuation, sameDroneSnapshot } from '@/lib/dronegestor-partial';
 import { createSupabaseAdminClient } from '@mba-labs/shared/supabase/server';
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
   if (prior) {
     // An acknowledgement lost in transit may be retried, but a new payload must
     // never be acknowledged as if its additional hectares had been committed.
-    if (JSON.stringify(prior.snapshot) !== JSON.stringify(body.state) || prior.motivo !== body.reason || prior.justificativa !== String(body.justification || '').trim())
+    if (!sameDroneSnapshot(prior.snapshot, body.state) || prior.motivo !== body.reason || prior.justificativa !== String(body.justification || '').trim())
       throw new DroneOsAccessError('Este identificador já confirmou outro encerramento. Confira o checkpoint salvo antes de continuar.',409);
     return NextResponse.json({ok:true,duplicate:true,execution:prior});
   }
@@ -42,10 +42,13 @@ export async function POST(request: NextRequest) {
   catch(error){throw new DroneOsAccessError(error instanceof Error?error.message:'Dados inválidos.',400);}
   // Cumulative checkpoints: all previously applied loads must survive continuation.
   const previous = history.at(-1);
-  if (previous && (totals.areaAplicadaHa < previous.areaAplicadaHa || previous.snapshot.tankRecords.some((old:any)=>!state.tankRecords.some((item:any)=>JSON.stringify(item)===JSON.stringify(old)))))
-    throw new DroneOsAccessError('A complementação não pode remover ou alterar cargas anteriores.',409);
+  let continuation = null;
+  if (previous) {
+    try { continuation = validateCumulativeContinuation(previous, state); }
+    catch(error){throw new DroneOsAccessError(error instanceof Error ? error.message : 'Cargas anteriores inválidas.',409);}
+  }
   const at = new Date().toISOString();
-  const execution = {...totals, requestId:body.requestId, at, usuarioId:c.userId, snapshot:state};
+  const execution = {...totals, volumeAplicadoL: Math.round(state.tankRecords.reduce((sum:number,load:any)=>sum+load.volumeL,0)*100)/100, continuacao:continuation, requestId:body.requestId, at, usuarioId:c.userId, snapshot:state};
   const next = {...os.row.detalhes,updatedAt:at,data:{...os.data,status:'suspensa',execucaoParcialAtiva:true,execucoesParciais:[...history,execution]}};
   let update=admin.from('core_logs').update({detalhes:next}).eq('id',os.row.id);
   const version=os.row.detalhes.updatedAt;

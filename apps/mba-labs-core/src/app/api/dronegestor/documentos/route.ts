@@ -5,7 +5,7 @@ import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   droneOsErrorResponse,
-  requireDroneOsAccess,
+  requireDroneOsAccess, requireDroneOsWriteAccess,
   scopeDroneOsQuery,
 } from "@/lib/dronegestor-os-access";
 
@@ -54,6 +54,7 @@ async function context(): Promise<{ current: Context | null; response: NextRespo
       current: null,
       response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }),
     };
+  if (session.profile.status !== "ativo") return { current: null, response: NextResponse.json({ ok: false, error: "Conta inativa: acesso bloqueado." }, { status: 403 }) };
   const type = normalize(session.profile.tipo || "");
   const master = ["super_admin", "admin_master"].includes(type);
   const allowed = (session.appsLiberados ?? []).some(
@@ -194,7 +195,6 @@ export async function POST(request: NextRequest) {
     const file = form.get("arquivo");
     const tipo = text(form.get("tipo"), 60);
     const osId = text(form.get("ordemServicoId"), 120);
-    const osNumero = text(form.get("ordemServicoNumero"), 120);
 
     if (!osId)
       return NextResponse.json(
@@ -205,7 +205,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "Tipo de documento inválido." }, { status: 400 });
 
     const admin = createSupabaseAdminClient() as any;
-    await requireDroneOsAccess(admin, current, osId);
+    const authorizedOs = await requireDroneOsWriteAccess(admin, current, osId);
+    // Never trust a submitted OS number: bind the attachment to the persisted order.
+    const osNumero = text(authorizedOs.data.numero, 120);
     if (!(await canUpload(admin, current)))
       return NextResponse.json(
         { ok: false, error: "O gestor não liberou envio de documentos/evidências para este piloto." },

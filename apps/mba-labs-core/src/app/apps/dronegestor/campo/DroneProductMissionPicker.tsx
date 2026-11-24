@@ -75,6 +75,8 @@ export function DroneProductMissionPicker() {
     setOpen(true);
   }
 
+  useEffect(() => { const handler = () => startSearch(); window.addEventListener("dronegestor:open-product-search", handler); return () => window.removeEventListener("dronegestor:open-product-search", handler); }, [products]);
+
   async function search(event?: FormEvent) {
     event?.preventDefault();
     const value = query.trim();
@@ -125,17 +127,6 @@ export function DroneProductMissionPicker() {
 
   return (
     <>
-      <section className="border-b border-emerald-100 bg-white px-3 py-2.5 sm:px-5">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white text-emerald-700"><BookOpenCheck size={18}/></span>
-          <div className="min-w-0 flex-1">
-            <strong className="block text-xs font-black text-emerald-950">Produto correto, sem adivinhar</strong>
-            <p className="mt-0.5 text-[11px] leading-4 text-emerald-800">Busque na base oficial para preencher o nome. A dose continua sendo digitada conforme receita/bula.</p>
-          </div>
-          <button disabled={isLocked()} type="button" onClick={() => startSearch()} className="shrink-0 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-black text-white disabled:opacity-50">Buscar</button>
-        </div>
-      </section>
-
       {open && (
         <div className="fixed inset-0 z-[120] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-5">
           <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-2xl sm:rounded-[28px] sm:p-6">

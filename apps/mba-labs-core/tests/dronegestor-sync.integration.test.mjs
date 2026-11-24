@@ -11,7 +11,7 @@ function harness() {
  const storage={getItem:k=>memory.get(k)??null,setItem:(k,v)=>memory.set(k,String(v)),removeItem:k=>memory.delete(k)};
  let resolveResponse;
  const network=new Promise(resolve=>{resolveResponse=resolve;});
- const compile=(source,require)=>{const module={exports:{}};runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{module,exports:module.exports,require,localStorage:storage,fetch:()=>network,window:{dispatchEvent(){}},CustomEvent,Date,JSON,Number,Error});return module.exports;};
+ const compile=(source,require)=>{const compiledModule={exports:{}};runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{module:compiledModule,exports:compiledModule.exports,require,localStorage:storage,fetch:()=>network,window:{dispatchEvent(){}},CustomEvent,Date,JSON,Number,Error});return compiledModule.exports;};
  const guard=compile(readFileSync(new URL('../src/lib/dronegestor-sync-guard.ts',import.meta.url),'utf8'),()=>({}));
  const source=readFileSync(new URL('../src/app/apps/dronegestor/campo/DronePersistenceSync.tsx',import.meta.url),'utf8')+'\nexport { pushState };';
  const client=compile(source,name=>name==='@/lib/dronegestor-sync-guard'?guard:{});

@@ -9,7 +9,6 @@ import {
   ClipboardCheck,
   CloudAlert,
   CloudSun,
-  Drone,
   Droplets,
   FileSpreadsheet,
   FileText,
@@ -33,8 +32,12 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { getDroneSyncConflict, snapshotDroneLocalState } from "./DronePersistenceSync";
+import { hasCompleteDroneFieldClimate } from "@/lib/dronegestor-field-climate";
+import { hasNonPlaceholderAnacId, isExplicitHomologationPlaceholder } from "@/lib/dronegestor-document-checks";
+import { DroneGeoMapEvidence } from "./DroneGeoMapEvidence";
+import { DroneMapEvidence } from "./DroneMapEvidence";
 
-type View = "inicio" | "nova" | "calda" | "estrategia" | "seguranca" | "controle" | "calibracao" | "checklist" | "sarpas" | "execucao" | "relatorios" | "config";
+type View = "inicio" | "nova" | "documentacao" | "calda" | "estrategia" | "seguranca" | "controle" | "calibracao" | "checklist" | "sarpas" | "execucao" | "relatorios" | "config";
 type DoseUnit = "mL/ha" | "L/ha" | "g/ha" | "kg/ha" | "mL/100L" | "g/100L";
 type SarpasStatus = "" | "autorizado";
 type MissionStatus = "parcial" | "rascunho" | "preparacao" | "em_execucao" | "pausada" | "pendente_sync" | "finalizada";
@@ -127,7 +130,10 @@ const blankMission: Mission = {
 const defaultSettings: CompanySettings = { insightsObrigatorios: true, margemPreventiva: 90, exigirConfirmacao: true, protocoloBordaduraCigarrinha: false, bloquearMargemPreventiva: true };
 const blankCalibration: CalibrationState = { ar: false, fluxometro: false, bomba: false };
 const blankChecklist: ChecklistState = { area: false, pessoasAnimais: false, obstaculos: false, drone: false, controle: false, pulverizacao: false, clima: false, documentos: false };
-const flow: View[] = ["nova", "calda", "estrategia", "seguranca", "controle", "calibracao", "checklist", "sarpas", "execucao", "relatorios"];
+const flow: View[] = ["nova", "controle", "documentacao", "estrategia", "seguranca", "calibracao", "checklist", "calda", "sarpas", "execucao", "relatorios"];
+const guidedKey = "dronegestor:guided-sequential:v1";
+const guidedPhase: Record<string,number> = {nova:1,controle:2,documentacao:3,estrategia:4,seguranca:4,calibracao:5,checklist:5,calda:6,sarpas:7,execucao:7,relatorios:8};
+const phaseLabels = ["","Ordem de serviço","Planejamento","Documentação","Segurança no local","Equipamento","Preparo da calda","Aplicação","Pós-operação"];
 
 function readRaw<T>(key: string, fallback: T): T { try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; } }
 function n(value: unknown) { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : 0; }
@@ -175,6 +181,11 @@ function protocolFor(target: string, settings: CompanySettings) {
 
 export function DroneGestorAppV3({ userName, userType, canManage }: { userName: string; userType: string; canManage: boolean }) {
   const [hydrated, setHydrated] = useState(false);
+  const [maxUnlocked, setMaxUnlocked] = useState(0);
+  const [docsVerified, setDocsVerified] = useState(false);
+  const [checkingPreflight, setCheckingPreflight] = useState(false);
+  const [caldaReviewed, setCaldaReviewed] = useState(false);
+  const [verifiedProblem, setVerifiedProblem] = useState("");
   const [view, setView] = useState<View>("inicio");
   const [returnView, setReturnView] = useState<View>("inicio");
   const [mission, setMission] = useState<Mission>(blankMission);
@@ -232,7 +243,17 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
     setSyncConflict(getDroneSyncConflict());
     setFinalSaved(isFinalized);
     const savedView = localStorage.getItem(KEYS.view) as View | null;
-    if (savedView && ["inicio", ...flow, "config"].includes(savedView)) setView(savedView);
+    const fingerprint = JSON.stringify([savedMission.ordemServicoId,savedMission.tipoAtividade,savedMission.cultura,savedMission.alvo,savedMission.area,savedMission.drone,savedMission.registroAnac,savedMission.pontaModelo,savedMission.volume,savedMission.tanque,savedMission.faixa,savedMission.velocidadeKmh,savedMission.alturaM,savedMission.produtos]);
+    const previous = readRaw<{osId?:string;fingerprint?:string;maxUnlocked?:number}>(guidedKey, {});
+    const savedStep = previous.osId===savedMission.ordemServicoId&&previous.fingerprint===fingerprint ? Math.max(0,Math.min(10,Number(previous.maxUnlocked)||0)) : 0;
+    const completed = status==="finalizada";
+    const pending = status==="pendente_sync";
+    const started = Boolean(readRaw(KEYS.started, false));
+    setMaxUnlocked(completed?10:pending||started?9:Math.min(savedStep,2));
+    if (completed) setView("relatorios");
+    else if (pending||started) setView("execucao");
+    else if (savedView && flow.includes(savedView)) setView(flow[Math.min(flow.indexOf(savedView),Math.min(savedStep,2))] || "nova");
+    else setView("nova");
     setHydrated(true);
   }, []);
 
@@ -310,7 +331,8 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
   const missionReady = Boolean(mission.cultura.trim() && mission.alvo.trim() && mission.tipoAtividade && mission.drone.trim() && mission.registroAnac.trim() && mission.pontaModelo.trim() && mission.area > 0 && mission.volume > 0 && mission.tanque > 0 && mission.faixa > 0 && mission.velocidadeKmh > 0 && mission.alturaM > 0 && productsReady);
   const sensitiveReady = mission.semAreaSensivel || (mission.distanciaSensivel !== null && mission.distanciaSensivel > 0);
   const marginBlocked = Boolean(settings.bloquearMargemPreventiva && !mission.semAreaSensivel && mission.distanciaSensivel !== null && mission.distanciaSensivel < settings.margemPreventiva);
-  const weatherReady = Boolean(mission.climaCampoConfirmado && mission.climaCampoMedidoEm && mission.direcaoVentoCampo.trim() && mission.ventoCampoKmh !== null && mission.ventoCampoKmh >= 0 && mission.ventoCampoKmh <= 100 && mission.temperaturaCampo !== null && mission.temperaturaCampo >= -20 && mission.temperaturaCampo <= 60 && mission.umidadeCampo !== null && mission.umidadeCampo > 0 && mission.umidadeCampo <= 100);
+  const climateInputReady = sensitiveReady && !marginBlocked && hasCompleteDroneFieldClimate(mission);
+  const weatherReady = Boolean(mission.climaCampoConfirmado && mission.climaCampoMedidoEm && climateInputReady);
   const safetyReady = Boolean(sensitiveReady && !marginBlocked && weatherReady && (!settings.insightsObrigatorios || insightAccepted) && (!settings.exigirConfirmacao || riskAccepted));
   const calibrationReady = calibration.ar && calibration.fluxometro && calibration.bomba;
   const checklistReady = Object.values(checklist).every(Boolean);
@@ -319,39 +341,172 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
   const locked = operationStarted || ["pendente_sync", "finalizada"].includes(missionStatus);
   const canStart = missionReady && safetyReady && calibrationReady && checklistReady && sarpasReady && gpsReady && !syncConflict && !["pendente_sync", "finalizada"].includes(missionStatus);
   const areaDone = mission.area > 0 && progressHa >= mission.area - 0.01;
+  const testDrone = isExplicitHomologationPlaceholder(mission.drone) || isExplicitHomologationPlaceholder(mission.registroAnac);
+  const droneRecordPending = !mission.drone.trim() || !hasNonPlaceholderAnacId(mission.registroAnac) || testDrone;
+
+  const guidedFingerprint = JSON.stringify([mission.ordemServicoId,mission.tipoAtividade,mission.cultura,mission.alvo,mission.area,mission.drone,mission.registroAnac,mission.pontaModelo,mission.volume,mission.tanque,mission.faixa,mission.velocidadeKmh,mission.alturaM,mission.produtos]);
 
   function flash(text: string) { setNotice(text); window.setTimeout(() => setNotice(""), 4200); }
-  function go(next: View) { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  function showView(next: View) { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  function unlock(next: View) {
+    const index=flow.indexOf(next);
+    if(index < 0)return showView(next);
+    const count=Math.max(maxUnlocked,index);
+    localStorage.setItem(guidedKey,JSON.stringify({osId:mission.ordemServicoId,fingerprint:guidedFingerprint,maxUnlocked:count,lastView:next}));
+    setMaxUnlocked(count);
+    showView(next);
+  }
+  function go(next: View) {
+    const index=flow.indexOf(next);
+    if(index>=0&&index>maxUnlocked) {
+      return flash("Conclua a etapa atual antes de avançar. As próximas etapas ficam bloqueadas.");
+    }
+    showView(next);
+  }
   function resumeView(): View {
-    if (["pendente_sync", "finalizada"].includes(missionStatus)) return "relatorios";
-    if (operationStarted) return "execucao";
-    if (!missionReady) return "nova";
-    if (!insightAccepted && settings.insightsObrigatorios) return "estrategia";
-    if (!safetyReady) return "seguranca";
-    if (!calibrationReady) return "calibracao";
-    if (!checklistReady) return "checklist";
-    if (!sarpasReady || !gpsReady) return "sarpas";
-    return "sarpas";
+    if(missionStatus==="finalizada")return "relatorios";
+    if(missionStatus==="pendente_sync")return "execucao";
+    if(operationStarted)return "execucao";
+    return flow[Math.min(Math.max(0,maxUnlocked),8)]||"nova";
   }
-  function guarded(target: View) {
-    if (["pendente_sync", "finalizada"].includes(missionStatus) && !["inicio", "relatorios"].includes(target)) return go("relatorios");
-    if (target === "nova") return go("nova");
-    if (["calda", "estrategia"].includes(target) && !missionReady) { flash("Complete os dados obrigatórios da missão primeiro."); return go("nova"); }
-    if (target === "seguranca" && (!missionReady || (settings.insightsObrigatorios && !insightAccepted))) { flash("Conclua a missão e a estratégia antes da segurança."); return go(resumeView()); }
-    if (["controle", "calibracao"].includes(target) && !safetyReady) { flash("Conclua a análise de segurança antes dos parâmetros e da calibração."); return go(resumeView()); }
-    if (target === "checklist" && !calibrationReady) { flash("Conclua a calibração antes do checklist."); return go("calibracao"); }
-    if (target === "sarpas" && !checklistReady) { flash("Conclua o checklist antes do SARPAS."); return go(resumeView()); }
-    if (target === "execucao" && !operationStarted) { flash("Inicie a operação pela etapa SARPAS."); return go("sarpas"); }
-    go(target);
+  async function preflightCheck() {
+    if(!mission.ordemServicoId)throw new Error("Selecione primeiro uma ordem de serviço.");
+    const response=await fetch("/api/dronegestor/preflight",{
+      method:"POST",headers:{"Content-Type":"application/json"},cache:"no-store",
+      body:JSON.stringify({osId:mission.ordemServicoId,snapshot:{
+        mission,calibration,checklist,weather:modelWeather,
+        riskAccepted,insightAccepted
+      }})
+    });
+    const payload=await response.json().catch(()=>null);
+    if(!response.ok)throw new Error(payload?.error||"Não foi possível validar os requisitos da OS.");
+    const documents=Array.isArray(payload?.items)?payload.items.find((item:{id:string})=>item.id==="documents"):null;
+    setDocsVerified(Boolean(documents?.ok));
+    return payload as {ready:boolean;items:Array<{id:string;ok:boolean;detail:string;label:string}>};
   }
+  async function advance(target: View) {
+    const current=flow.indexOf(view),to=flow.indexOf(target);
+    if(to<=current)return go(target);
+    if(current<0||to!==current+1)return flash("Avance somente para a próxima etapa da sequência.");
+    if(checkingPreflight)return;
+    if(view==="nova"){
+      if(!missionReady||!mission.ordemServicoId){setVerifiedProblem("Confira a OS, o drone e os campos obrigatórios antes de avançar.");return flash("Dados obrigatórios pendentes.");}
+      setCheckingPreflight(true);
+      try{
+        const result=await preflightCheck();
+        const missing=result.items.find(item=>["pilot","drone","mission"].includes(item.id)&&!item.ok);
+        if(missing){setVerifiedProblem(`Etapa 1 pendente — ${missing.label}: ${missing.detail}`);return flash(`Corrija: ${missing.label}`);}
+        setVerifiedProblem("");unlock(target);
+      }catch(error){setVerifiedProblem(error instanceof Error?error.message:"Falha na conferência.");flash("Não foi possível conferir a OS.");}
+      finally{setCheckingPreflight(false);}
+      return;
+    }
+    if(view==="controle"){
+      if(!missionReady)return flash("Volte à OS e confira os parâmetros planejados.");
+      return unlock(target); // toque explícito confirma a revisão dos parâmetros
+    }
+    if(view==="documentacao"){
+      setCheckingPreflight(true);
+      try{
+        const result=await preflightCheck();
+        const documents=result.items.find(item=>item.id==="documents");
+        if(!documents?.ok){setVerifiedProblem(documents?.detail||"Faltam documentos obrigatórios.");return;}
+        setVerifiedProblem("");unlock(target);
+      }catch(error){setVerifiedProblem(error instanceof Error?error.message:"Falha ao verificar documentos.");}
+      finally{setCheckingPreflight(false);}
+      return;
+    }
+    if(view==="estrategia"){
+      if(settings.insightsObrigatorios&&!insightAccepted)return flash("Leia e confirme a orientação técnica antes de continuar.");
+      return unlock(target);
+    }
+    if(view==="seguranca"){
+      if(!safetyReady)return flash("Complete as medições reais e a análise de risco antes de avançar.");
+      if(!gpsReady)return flash("Registre o GPS em campo antes de avançar. O mapa do controle não substitui a localização.");
+      return unlock(target);
+    }
+    if(view==="calibracao"){
+      if(!calibrationReady)return flash("Finalize a calibração física na ordem indicada.");
+      return unlock(target);
+    }
+    if(view==="checklist"){
+      if(!checklistReady)return flash("Marque somente os itens realmente inspecionados.");
+      return unlock(target);
+    }
+    if(view==="calda"){
+      if(!caldaReviewed)return flash("Confira receita, produtos, doses, carga cheia e última carga antes de continuar.");
+      if(!(calc.totalCalda>0&&mission.produtos.every(product=>product.dose>0)))return flash("Não foi possível validar os cálculos de calda.");
+      return unlock(target);
+    }
+    return flash("A aplicação só avança depois da liberação e do registro do servidor.");
+  }
+  function guarded(target: View) {void advance(target);}
   function back() {
-    if (view === "inicio") return;
-    if (view === "config") return go(returnView);
-    if (view === "execucao" && operationStarted) return go("inicio");
-    if (view === "relatorios") return go("inicio");
-    const index = flow.indexOf(view);
-    go(index <= 0 ? "inicio" : flow[index - 1]);
+    if(view==="inicio")return;
+    if(view==="config")return go(returnView);
+    if(["finalizada","pendente_sync"].includes(missionStatus))return;
+    const current=flow.indexOf(view);
+    go(current<=0?"inicio":flow[current-1]);
   }
+
+  // A navegação antiga não prova conclusão: toda etapa nova depende da validação anterior.
+  useEffect(()=>{
+    if(!hydrated||!mission.ordemServicoId||["finalizada","pendente_sync"].includes(missionStatus))return;
+    const saved=readRaw<{osId?:string;fingerprint?:string;maxUnlocked?:number;lastView?:View}>(guidedKey,{});
+    if(saved.osId!==mission.ordemServicoId||saved.fingerprint!==guidedFingerprint){
+      setMaxUnlocked(0);
+      if(flow.indexOf(view)>0)showView("nova");
+      return;
+    }
+  },[hydrated,guidedFingerprint,mission.ordemServicoId]);
+
+  useEffect(()=>{
+    if(!hydrated||!mission.ordemServicoId||["finalizada","pendente_sync"].includes(missionStatus)||operationStarted)return;
+    let active=true;
+    const saved=readRaw<{osId?:string;fingerprint?:string;maxUnlocked?:number;lastView?:View}>(guidedKey,{});
+    const snap={mission,calibration,checklist,weather:modelWeather,riskAccepted,insightAccepted};
+    void fetch("/api/dronegestor/preflight",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({osId:mission.ordemServicoId,snapshot:snap}),cache:"no-store"})
+      .then(async response=>{const data=await response.json().catch(()=>null);if(!response.ok)throw new Error(data?.error||"Conferência indisponível.");return data;})
+      .then(data=>{
+        if(!active)return;
+        const items=Array.isArray(data?.items)?data.items as Array<{id:string;ok:boolean}>:[];
+        const ok=(id:string)=>items.find(item=>item.id===id)?.ok===true;
+        setDocsVerified(ok("documents"));
+        if(saved.osId!==mission.ordemServicoId||saved.fingerprint!==guidedFingerprint)return;
+        const planned=Math.max(0,Math.min(8,Number(saved.maxUnlocked)||0));
+        let permitted=planned;
+        if(!ok("pilot")||!ok("drone")||!ok("mission"))permitted=0;
+        else if(!ok("documents"))permitted=Math.min(permitted,2);
+        else if(settings.insightsObrigatorios&&!insightAccepted)permitted=Math.min(permitted,3);
+        else if(!safetyReady||!gpsReady)permitted=Math.min(permitted,4);
+        else if(!calibrationReady)permitted=Math.min(permitted,5);
+        else if(!checklistReady)permitted=Math.min(permitted,6);
+        setMaxUnlocked(permitted);
+        if(saved.lastView&&flow.includes(saved.lastView))showView(flow[Math.min(flow.indexOf(saved.lastView),permitted)]||"nova");
+      }).catch(error=>{if(active)setVerifiedProblem(error instanceof Error?error.message:"Não foi possível conferir a OS.");});
+    return()=>{active=false;};
+  },[hydrated,mission.ordemServicoId]);
+
+  // If a previously confirmed prerequisite becomes invalid, later steps relock.
+  useEffect(()=>{
+    if(!hydrated||operationStarted||["finalizada","pendente_sync"].includes(missionStatus))return;
+    let limit=maxUnlocked;
+    if(!missionReady)limit=Math.min(limit,0);
+    else if(!docsVerified)limit=Math.min(limit,2);
+    else if(settings.insightsObrigatorios&&!insightAccepted)limit=Math.min(limit,3);
+    else if(!safetyReady||!gpsReady)limit=Math.min(limit,4);
+    else if(!calibrationReady)limit=Math.min(limit,5);
+    else if(!checklistReady)limit=Math.min(limit,6);
+    if(limit>=maxUnlocked)return;
+    setMaxUnlocked(limit);
+    if(flow.indexOf(view)>limit)setView(flow[limit]||"nova");
+    const stored=readRaw<{osId?:string;fingerprint?:string;maxUnlocked?:number;lastView?:View}>(guidedKey,{});
+    if(stored.osId===mission.ordemServicoId&&stored.fingerprint===guidedFingerprint) {
+      localStorage.setItem(guidedKey,JSON.stringify({...stored,maxUnlocked:limit,lastView:flow[limit]||"nova"}));
+    }
+  },[hydrated,operationStarted,missionStatus,missionReady,docsVerified,settings.insightsObrigatorios,insightAccepted,safetyReady,gpsReady,calibrationReady,checklistReady,maxUnlocked,guidedFingerprint,mission.ordemServicoId,view]);
+
   function invalidateCore() {
     setInsightAccepted(false); setRiskAccepted(false); setCalibration(blankCalibration); setChecklist(blankChecklist);
     setMission((current) => ({ ...current, sarpasConfirmado: false, sarpasSituacao: "", sarpasNumero: "" }));
@@ -389,11 +544,12 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
     flash("Medição de campo registrada. Faça a confirmação final de risco.");
   }
   function resetMission() {
+    if (mission.ordemServicoId && localStorage.getItem("dronegestor:partialPayload:v1:" + mission.ordemServicoId)) return flash("Há um encerramento parcial aguardando confirmação. Preserve a operação até reconciliar.");
     if (missionStatus === "parcial") return flash("Retome a complementação desta OS para preservar suas cargas anteriores.");
     if (operationStarted) return flash("Existe uma operação em andamento. Conclua ou trate a ocorrência antes de iniciar outra missão.");
     if (!window.confirm("Limpar a missão atual e iniciar uma nova aplicação? Conclusões offline pendentes continuarão protegidas.")) return;
     setMission(blankMission); setCalibration(blankCalibration); setChecklist(blankChecklist); setInsightAccepted(false); setRiskAccepted(false); setProgressHa(0); setTankRecords([]); setPaused(false); setOccurrences([]); setFinalSaved(false); setMissionStatus("rascunho"); setStartedAt(""); setEndedAt("");
-    localStorage.removeItem(KEYS.operationId); localStorage.removeItem(KEYS.lastFinalized); go("nova");
+    localStorage.removeItem(KEYS.operationId); localStorage.removeItem(KEYS.lastFinalized);localStorage.removeItem(guidedKey);setMaxUnlocked(0);setDocsVerified(false);go("nova");
   }
 
   async function patchOs(status: "em_execucao" | "concluida") {
@@ -405,7 +561,25 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
     return true;
   }
 
+  async function verifyAndStartOperation() {
+    if(checkingPreflight)return;
+    setCheckingPreflight(true);
+    setVerifiedProblem("");
+    try{
+      const result=await preflightCheck();
+      const missing=result.items.find(item=>!item.ok);
+      if(!result.ready||missing){
+        setVerifiedProblem(missing?`Antes de iniciar — ${missing.label}: ${missing.detail}`:"O servidor ainda não liberou esta aplicação.");
+        return;
+      }
+      await startOperation();
+    }catch(error){
+      setVerifiedProblem(error instanceof Error?error.message:"Falha ao conferir a liberação.");
+    }finally{setCheckingPreflight(false);}
+  }
+
   async function startOperation() {
+    if (mission.ordemServicoId && localStorage.getItem("dronegestor:partialPayload:v1:" + mission.ordemServicoId)) return flash("Existe uma solicitação de encerramento parcial pendente. Confirme antes de retomar.");
     if (["pendente_sync", "finalizada"].includes(missionStatus)) return flash("Esta missão já foi concluída e não pode ser reiniciada.");
     if (syncConflict) return flash("Resolva o conflito de sincronização antes de iniciar a operação.");
     const previousSettingsAt = settingsUpdatedAt;
@@ -419,13 +593,14 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
     let id = localStorage.getItem(KEYS.operationId) || "";
     if (!id) { id = createId("op"); localStorage.setItem(KEYS.operationId, id); }
     const now = new Date().toISOString();
-    setStartedAt(startedAt || now); localStorage.removeItem("dronegestor:partialRequest:v1:" + mission.ordemServicoId); setEndedAt(""); setOperationStarted(true); setPaused(false); setMissionStatus("em_execucao"); setFinalSaved(false); go("execucao");
+    setStartedAt(startedAt || now); localStorage.removeItem("dronegestor:partialRequest:v1:" + mission.ordemServicoId); setEndedAt(""); setOperationStarted(true); setPaused(false); setMissionStatus("em_execucao"); setFinalSaved(false); unlock("execucao");
   }
   function togglePause() {
     if (!operationStarted) return;
     const next = !paused; setPaused(next); setMissionStatus(next ? "pausada" : "em_execucao");
   }
   function registerTank() {
+    if (mission.ordemServicoId && localStorage.getItem("dronegestor:partialPayload:v1:" + mission.ordemServicoId)) return flash("Encerramento parcial pendente. Não registre novas cargas antes de confirmar.");
     if (!operationStarted || paused) return flash("Retome a operação antes de registrar um abastecimento.");
     const area = n(tankArea); const volume = n(tankVolume); const remaining = Math.max(0, mission.area - progressHa);
     if (area <= 0 || volume <= 0) return flash("Informe a área realmente tratada e o volume realmente consumido neste abastecimento.");
@@ -496,21 +671,25 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
 
     if (!navigator.onLine) {
       const queue = readRaw<PendingFinalization[]>(KEYS.finalQueue, []); if (!queue.some((item) => item.operationId === operationId)) localStorage.setItem(KEYS.finalQueue, JSON.stringify([...queue, payload]));
-      setPendingCount(queue.some((item) => item.operationId === operationId) ? queue.length : queue.length + 1); setOperationStarted(false); setPaused(false); setMissionStatus("pendente_sync"); setFinalSaved(false); go("relatorios");
+      setPendingCount(queue.some((item) => item.operationId === operationId) ? queue.length : queue.length + 1); setOperationStarted(false); setPaused(false); setMissionStatus("pendente_sync"); setFinalSaved(false); unlock("execucao");
       return flash("Sem internet. A missão foi congelada e ficou protegida na fila para sincronização.");
     }
 
     setSavingFinal(true);
     try {
-      await sendFinalization(payload); localStorage.setItem(KEYS.lastFinalized, operationId); setFinalSaved(true); setOperationStarted(false); setPaused(false); setMissionStatus("finalizada"); go("relatorios"); flash("Operação e OS concluídas e salvas no histórico.");
+      await sendFinalization(payload); localStorage.setItem(KEYS.lastFinalized, operationId); setFinalSaved(true); setOperationStarted(false); setPaused(false); setMissionStatus("finalizada"); unlock("relatorios"); flash("Operação e OS concluídas e salvas no histórico.");
     } catch (error) {
       const queue = readRaw<PendingFinalization[]>(KEYS.finalQueue, []); if (!queue.some((item) => item.operationId === operationId)) localStorage.setItem(KEYS.finalQueue, JSON.stringify([...queue, payload]));
-      setPendingCount(queue.some((item) => item.operationId === operationId) ? queue.length : queue.length + 1); setOperationStarted(false); setPaused(false); setMissionStatus("pendente_sync"); go("relatorios");
+      setPendingCount(queue.some((item) => item.operationId === operationId) ? queue.length : queue.length + 1); setOperationStarted(false); setPaused(false); setMissionStatus("pendente_sync"); unlock("execucao");
       flash(error instanceof Error ? `${error.message} A missão ficou congelada e protegida para nova tentativa.` : "Conclusão pendente de sincronização.");
     } finally { setSavingFinal(false); }
   }
 
   function resolveConflict(mode: "cloud" | "local") {
+    // Neither resolution may overwrite a frozen partial request whose
+    // acknowledgement might already have been committed by the server.
+    if (mission.ordemServicoId && localStorage.getItem("dronegestor:partialPayload:v1:" + mission.ordemServicoId))
+      return flash("Encerramento parcial ainda sem confirmação. Reenvie a solicitação original antes de escolher uma versão para sincronizar.");
     const conflict = getDroneSyncConflict(); if (!conflict) return setSyncConflict(null);
     if (!window.confirm(mode === "cloud" ? "Usar a cópia da nuvem neste aparelho? O estado local divergente será substituído." : "Manter a cópia deste aparelho e torná-la a próxima versão da nuvem?")) return;
     if (mode === "cloud" && conflict.remoteState) {
@@ -541,17 +720,21 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
     downloadText("dronegestor-dados-operacionais.csv", `${header}\n${row}`, "text/csv;charset=utf-8");
   }
 
-  const title: Record<View, string> = { inicio: "Modo campo", nova: "Dados da aplicação", calda: "Cálculo de calda", estrategia: "Estratégia e insight", seguranca: "Mapa e segurança", controle: "Parâmetros do controle", calibracao: "Calibração", checklist: "Checklist pré-voo", sarpas: "SARPAS", execucao: "Operação em andamento", relatorios: "Dados e relatórios", config: "Configurações da empresa" };
+  const title: Record<View, string> = { inicio: "Modo campo", nova: "Dados da aplicação", documentacao:"Documentação da OS", calda: "Cálculo de calda", estrategia: "Estratégia e insight", seguranca: "Mapa e segurança", controle: "Parâmetros do controle", calibracao: "Calibração", checklist: "Checklist pré-voo", sarpas: "SARPAS", execucao: "Operação em andamento", relatorios: "Dados e relatórios", config: "Configurações da empresa" };
   const activeMission = mission.area > 0 && !["finalizada", "pendente_sync"].includes(missionStatus);
 
   if (!hydrated) return <main className="min-h-screen bg-emerald-950 grid place-items-center text-emerald-100"><div className="rounded-2xl border border-emerald-700 bg-emerald-900/70 px-5 py-4 font-bold">Carregando DroneGestor...</div></main>;
 
-  return <main className="agro-field-workspace min-h-screen bg-slate-50 px-3 py-4 sm:px-5 sm:py-7">
+  return <main className="agro-field-workspace min-h-screen bg-slate-50 px-3 pt-3 pb-28 sm:px-5 sm:pt-6 sm:pb-28">
     <div className="mx-auto w-full max-w-5xl rounded-2xl border border-emerald-100 bg-white shadow-sm">
       <header className="flex items-center gap-3 border-b border-emerald-100 bg-white px-4 py-3">
         <button className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700" onClick={back} aria-label="Voltar">{view === "inicio" ? <Home size={20}/> : <ArrowLeft size={20}/>}</button>
-        <div className="min-w-0 flex-1"><span className="block truncate text-[11px] font-black uppercase tracking-[.12em] text-emerald-700">{view === "inicio" ? `Olá, ${userName.split(" ")[0]}` : "Modo campo"}</span><strong className="block truncate text-base font-black text-slate-950">{title[view]}</strong></div>
-        <button className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700" onClick={() => { if (locked) return flash("Configurações ficam bloqueadas durante/após a execução desta missão."); setReturnView(view); go("config"); }} aria-label="Configurações"><Settings2 size={20}/></button>
+        <div className="min-w-0 flex-1">
+          <span className="block text-[11px] font-black uppercase tracking-[.09em] text-emerald-700">{guidedPhase[view] ? `Etapa ${guidedPhase[view]} de 8 · ${phaseLabels[guidedPhase[view]]}` : "Modo Campo"}</span>
+          <strong className="block truncate text-base font-black text-slate-950">{title[view]}</strong>
+        </div>
+        {["seguranca","sarpas"].includes(view)&&<button type="button" className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-emerald-800" onClick={() => window.dispatchEvent(new Event("dronegestor:open-gps-weather"))} aria-label="GPS e clima" title="GPS e clima"><CloudSun size={20}/></button>}
+        {canManage&&<button className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700" onClick={() => { if (locked) return flash("Configurações ficam bloqueadas durante/após a execução desta missão."); setReturnView(view); go("config"); }} aria-label="Configurações"><Settings2 size={20}/></button>}
       </header>
 
       {syncConflict && <div className="mx-4 mt-4 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-950"><div className="flex gap-2"><CloudAlert size={20}/><div><strong>Conflito de sincronização protegido</strong><p className="mt-1">A nuvem e este aparelho possuem versões diferentes. Nada foi sobrescrito.</p></div></div><div className="mt-3 grid grid-cols-2 gap-2"><button className="rounded-xl border border-red-200 bg-white px-3 py-2 font-black" onClick={() => resolveConflict("cloud")}>Usar nuvem</button><button className="rounded-xl bg-red-700 px-3 py-2 font-black text-white" onClick={() => resolveConflict("local")}>Manter aparelho</button></div></div>}
@@ -559,38 +742,120 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
       {notice && <div className="mx-4 mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">{notice}</div>}
 
       <div className="agro-field-body grid gap-4 p-4 sm:p-6">
-        {view === "inicio" && <>
-          <div className="agro-compact-grid grid grid-cols-2 gap-2 rounded-xl bg-emerald-950 p-3 text-white"><Metric icon={<CloudSun size={20}/>} label="Modelo meteorológico" value={modelWeather && weatherNow-Date.parse(modelWeather.capturedAt)>=0 && weatherNow-Date.parse(modelWeather.capturedAt)<30*60000 ? `${fmt(modelWeather.temperature,1)}°C` : "—"} detail={modelWeather?.capturedAt ? `Modelo: ${new Date(modelWeather.capturedAt).toLocaleString("pt-BR")}; confirme no local` : "Sem horário confirmado; confira no local"} dark/><Metric icon={<Wind size={20}/>} label="Vento modelo 10 m" value={modelWeather && weatherNow-Date.parse(modelWeather.capturedAt)>=0 && weatherNow-Date.parse(modelWeather.capturedAt)<30*60000 ? `${fmt(modelWeather.windSpeed,1)} km/h` : "—"} detail="Modelo recente somente; confirme no talhão" dark/></div>
-          {mission.ordemServicoId && <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><strong className="text-emerald-950">{mission.ordemServicoNumero || "OS vinculada"}</strong><p className="mt-1 text-sm text-emerald-800">{[mission.clienteNome, mission.fazendaNome, mission.talhaoNome].filter(Boolean).join(" • ")}</p><small className="mt-1 block font-bold uppercase text-emerald-700">Status: {missionStatus.replaceAll("_", " ")}</small></div>}
-          <CardButton icon={missionStatus === "finalizada" ? <Check/> : missionStatus === "pendente_sync" ? <LockKeyhole/> : <ClipboardCheck/>} title={missionStatus === "parcial" ? "Complementar execução parcial" : missionStatus === "finalizada" ? "Operação finalizada" : missionStatus === "pendente_sync" ? "Conclusão aguardando sincronização" : activeMission ? "Retomar missão" : "Nova operação"} text={missionStatus === "finalizada" ? "Consulta e exportação disponíveis; esta missão não pode ser reiniciada." : missionStatus === "pendente_sync" ? "A missão está congelada até a conclusão ser confirmada na nuvem." : activeMission ? `${fmt(mission.area,1)} ha • ${mission.cultura || "cultura pendente"} • ${mission.alvo || "alvo pendente"}` : "Comece pelos dados reais da aplicação."} onClick={() => guarded(resumeView())} primary/>
-          <div className="grid gap-3 sm:grid-cols-2"><CardButton icon={<Droplets/>} title="Calcular calda" text="Somente após dados obrigatórios completos." onClick={() => guarded("calda")}/><CardButton icon={<Map/>} title="Segurança" text="GPS, área sensível, medição de campo e margem preventiva." onClick={() => guarded("seguranca")}/><CardButton icon={<FileText/>} title="Dados / rascunho" text="Consulta e exportação; não substitui documento oficial." onClick={() => go("relatorios")}/><CardButton icon={<RotateCcw/>} title="Nova aplicação" text="Conclusões offline permanecem protegidas." onClick={resetMission}/></div>
-          <div className="grid gap-2 sm:grid-cols-2"><a className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-black text-slate-800 no-underline" href="/apps/dronegestor/gestao">Clientes e OS</a><a className="min-h-11 rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-black text-slate-800 no-underline" href="/apps/dronegestor/historico">Histórico</a></div>
+        {view === "inicio" && <div className="grid gap-3">
+          <strong className="text-lg text-emerald-950">Sua operação</strong>
+          <p className="text-sm text-slate-600">{mission.ordemServicoNumero||"Nenhuma OS selecionada"}</p>
+          <p className="text-sm text-slate-600">{[mission.fazendaNome,mission.talhaoNome].filter(Boolean).join(" • ")}</p>
+          <Primary onClick={()=>go(resumeView())}>Continuar na etapa atual <ChevronRight size={18}/></Primary>
+          <a className="min-h-12 rounded-xl border border-emerald-200 p-3 text-center text-sm font-black text-emerald-800" href="/apps/dronegestor/gestao">Selecionar outra ordem de serviço</a>
+        </div>}
+
+        {view === "nova" && <>
+          <section aria-label="Dados essenciais da OS" className="rounded-2xl border border-emerald-200 bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <strong className="min-w-0 break-words text-base text-emerald-950">{mission.ordemServicoNumero || "OS não vinculada"}</strong>
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-bold text-slate-700">Etapa 1 de 8</span>
+            </div>
+            <p className="mt-2 break-words text-sm text-slate-700">{[mission.clienteNome,mission.fazendaNome,mission.talhaoNome].filter(Boolean).join(" • ") || "Cliente, fazenda e talhão pendentes"}</p>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+              <div className="min-w-0 rounded-xl bg-slate-50 p-3"><span className="block text-xs text-slate-500">Cultura</span><strong className="block break-words">{mission.cultura || "Pendente"}</strong></div>
+              <div className="min-w-0 rounded-xl bg-slate-50 p-3"><span className="block text-xs text-slate-500">Área</span><strong>{fmt(mission.area,2)} ha</strong></div>
+              <div className="col-span-2 min-w-0 rounded-xl bg-slate-50 p-3"><span className="block text-xs text-slate-500">Drone</span><strong className="block break-words">{mission.drone || "Não definido"}</strong></div>
+            </div>
+            <div className={`mt-3 rounded-xl border p-3 text-sm ${droneRecordPending?"border-amber-200 bg-amber-50 text-amber-950":"border-emerald-200 bg-emerald-50 text-emerald-950"}`}>
+              <strong className="block">{droneRecordPending?"Registro do drone pendente":"Identificação do drone informada"}</strong>
+              <p className="mt-1 break-words">{testDrone?"Esta OS usa um drone e/ou registro fictício de homologação. Pode ser consultada, mas não libera aplicação real.":!mission.registroAnac.trim()?"Ainda não há identificação ANAC vinculada à missão.":"A identificação foi preenchida e será conferida no servidor antes de prosseguir."}</p>
+              {droneRecordPending&&<p className="mt-2 text-xs">Para operar de verdade, o responsável pelo cadastro deve selecionar um drone real com identificação correspondente. Não substitua dados fictícios por números inventados.</p>}
+            </div>
+          </section>
+          <details className="rounded-2xl border border-slate-200 bg-white">
+            <summary className="min-h-12 cursor-pointer px-4 py-3 text-sm font-black text-slate-900">Conferir ou corrigir dados técnicos <span className="block text-xs font-normal text-slate-500">Opcional para consulta; abra se houver algo faltando</span></summary>
+
+          
+          <div className="grid gap-3 border-t border-slate-100 p-3"><FormGrid><SelectField label="Tipo de atividade *" value={mission.tipoAtividade} onChange={(v) => updateMission("tipoAtividade", v)} options={["pulverizacao|Pulverização","dispersao|Dispersão / semeadura","outro|Outro"]}/><TextField label="Cultura *" value={mission.cultura} onChange={(v) => updateMission("cultura",v)}/><TextField label="Alvo *" value={mission.alvo} onChange={(v) => updateMission("alvo",v)}/><NumberField label="Área *" value={mission.area} suffix="ha" onChange={(v) => updateMission("area",v)}/><TextField label="Drone *" value={mission.drone} onChange={(v) => updateMission("drone",v)}/><TextField label="Identificação / registro ANAC *" value={mission.registroAnac} onChange={(v) => updateMission("registroAnac",v)}/><TextField label="Bico / atomizador — tipo/modelo *" value={mission.pontaModelo} onChange={(v) => updateMission("pontaModelo",v)}/><NumberField label="Volume *" value={mission.volume} suffix="L/ha" onChange={(v) => updateMission("volume",v)}/><NumberField label="Tanque *" value={mission.tanque} suffix="L" onChange={(v) => updateMission("tanque",v)}/><NumberField label="Faixa *" value={mission.faixa} suffix="m" onChange={(v) => updateMission("faixa",v)}/><NumberField label="Velocidade *" value={mission.velocidadeKmh} suffix="km/h" onChange={(v) => updateMission("velocidadeKmh",v)}/><NumberField label="Altura planejada *" value={mission.alturaM} suffix="m" onChange={(v) => updateMission("alturaM",v)}/></FormGrid></div></details>
+         <details className="rounded-2xl border border-slate-200 bg-white">
+           <summary className="min-h-12 cursor-pointer px-4 py-3 font-black text-slate-900">Produtos e receita · {mission.produtos.length} item(ns) {productsReady?"✓":"· pendente"} <span className="ml-1 block text-xs font-normal text-slate-500">Ver nome, dose e unidade</span></summary>
+           <div className="grid gap-3 border-t border-slate-100 p-3"><Title icon={<Droplets/>} title="Produto / receita" text="Todos os produtos adicionados precisam estar completos."/>{mission.produtos.map((p,index)=><div key={p.id} className="grid gap-3 rounded-2xl border border-slate-200 p-4"><div className="flex justify-between"><strong>Produto {index+1}</strong>{mission.produtos.length>1&&<button className="text-sm font-bold text-red-600" onClick={()=>removeProduct(p.id)}>Remover</button>}</div><TextField label="Nome comercial *" value={p.nome} onChange={(v)=>updateProduct(p.id,{nome:v})}/><div className="grid grid-cols-[1fr_140px] gap-2"><NumberField label="Dose *" value={p.dose} suffix="" onChange={(v)=>updateProduct(p.id,{dose:v})}/><SelectField label="Unidade" value={p.unidade} onChange={(v)=>updateProduct(p.id,{unidade:v as DoseUnit})} options={["mL/ha|mL/ha","L/ha|L/ha","g/ha|g/ha","kg/ha|kg/ha","mL/100L|mL/100L","g/100L|g/100L"]}/></div></div>)}<div className="flex flex-wrap gap-2"><button className="min-h-11 rounded-xl border border-emerald-300 bg-emerald-50 px-4 font-black text-emerald-800" onClick={addProduct}>+ Adicionar produto</button><button type="button" className="min-h-11 rounded-xl border border-emerald-200 bg-white px-3 text-sm font-black text-emerald-700" onClick={()=>window.dispatchEvent(new Event("dronegestor:open-product-search"))}>Buscar produto</button></div></div></details>
+         <details className="rounded-2xl border border-slate-200 bg-white">
+           <summary className="min-h-12 cursor-pointer px-4 py-3 font-black text-slate-900">Tempos operacionais · opcionais <span className="ml-1 block text-xs font-normal text-slate-500">Só para estimar duração e paradas</span></summary>
+           <div className="grid gap-3 border-t border-slate-100 p-3"><Title icon={<TimerReset/>} title="Tempos operacionais" text="Opcionais; melhoram a estimativa de duração."/><FormGrid><NumberField label="Abastecimento" value={mission.tempoAbastecimentoMin} suffix="min/parada" onChange={(v)=>updateMission("tempoAbastecimentoMin",v)}/><NumberField label="Troca de bateria" value={mission.tempoTrocaBateriaMin} suffix="min" onChange={(v)=>updateMission("tempoTrocaBateriaMin",v)}/><NumberField label="Tanques por bateria" value={mission.tanquesPorBateria} suffix="tanques" onChange={(v)=>updateMission("tanquesPorBateria",v)}/><NumberField label="Deslocamento" value={mission.tempoDeslocamentoMin} suffix="min" onChange={(v)=>updateMission("tempoDeslocamentoMin",v)}/><NumberField label="Bordadura" value={mission.tempoBordaduraMin} suffix="min" onChange={(v)=>updateMission("tempoBordaduraMin",v)}/></FormGrid></div></details>
+         {!missionReady && <p role="status" className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-950">Existem dados obrigatórios pendentes. Abra “Conferir ou corrigir dados técnicos” e “Produtos e receita” somente se necessário.</p>}
+         {verifiedProblem&&<p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-950">{verifiedProblem}</p>}
+         {droneRecordPending&&<p role="status" className="text-sm text-amber-800">Etapa bloqueada: o registro ANAC fictício não permite liberação real. O formulário permanece disponível apenas para conferência.</p>}
+         <Primary disabled={!missionReady||checkingPreflight||droneRecordPending} onClick={()=>guarded("controle")}>{checkingPreflight?"Validando OS...":droneRecordPending?"Etapa 1 bloqueada — registro do drone":"Validar etapa 1 e avançar"} <ChevronRight size={18}/></Primary></>}
+
+        {view === "calda" && <><Title icon={<Calculator/>} title="Cálculo de calda" text="Resultado matemático; não é recomendação agronômica."/><div className="grid grid-cols-2 gap-3"><Metric icon={<Droplets/>} label="Calda planejada" value={`${fmt(calc.totalCalda,1)} L`}/><Metric icon={<Route/>} label="Área por tanque cheio" value={`${fmt(calc.areaTank,2)} ha`}/><Metric icon={<RotateCcw/>} label="Tanques planejados" value={`${calc.tanks}`} detail={`Último: ${fmt(calc.lastTankVolume,1)} L`}/><Metric icon={<Gauge/>} label="Vazão calculada" value={`${fmt(calc.flowLMin,2)} L/min`}/></div>{calc.products.map(({product,total,fullTank,lastTank})=><div key={product.id} className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 p-4 text-sm sm:grid-cols-4"><div><span className="text-slate-500">Produto</span><strong className="block">{product.nome}</strong></div><div><span className="text-slate-500">Total</span><strong className="block">{fmt(total.value,3)} {total.unit}</strong></div><div><span className="text-slate-500">Tanque cheio</span><strong className="block">{fmt(fullTank.value,3)} {fullTank.unit}</strong></div><div><span className="text-slate-500">Último tanque</span><strong className="block">{fmt(lastTank.value,3)} {lastTank.unit}</strong></div></div>)}<Warning>Confirme receita, bula, compatibilidade e ordem de mistura antes de preparar a calda.</Warning><CheckRow checked={caldaReviewed} onChange={setCaldaReviewed} title="Conferi os cálculos e a receita" detail="Revisei as quantidades, a última carga, a bula e o protocolo técnico. Isto não autoriza aplicação por si só."/>
+          <Primary disabled={!caldaReviewed} onClick={()=>guarded("sarpas")}>Confirmar calda e continuar <ChevronRight size={18}/></Primary></>}
+
+        {view === "estrategia" && <><div className="grid grid-cols-2 gap-3"><Metric icon={<Sprout/>} label="Cultura" value={mission.cultura}/><Metric icon={<Target/>} label="Alvo" value={mission.alvo}/></div><Metric icon={<Droplets/>} label="Gota" value={protocol.gota}/><Metric icon={<Route/>} label="Estratégia" value={protocol.strategy}/><Metric icon={<TimerReset/>} label="Janela" value={protocol.janela}/><Info>{protocol.note}</Info><CheckRow checked={insightAccepted} disabled={locked} onChange={setInsightAccepted} title={settings.insightsObrigatorios?"Confirmação obrigatória":"Confirmar leitura"} detail="Li a orientação e vou conferir produto, bula, receita e protocolo técnico."/><Primary disabled={settings.insightsObrigatorios&&!insightAccepted} onClick={()=>guarded("seguranca")}>Confirmar orientação e continuar <ChevronRight size={18}/></Primary></>}
+
+        {view === "seguranca" && <><Title icon={<Map/>} title="Segurança e condição real" text="GPS/modelo localiza; a liberação usa medição feita no talhão e regras internas."/><details className="rounded-2xl border border-slate-200 bg-white">
+           <summary className="min-h-12 cursor-pointer p-3 text-sm font-black text-emerald-800">Mapa da área · importar arquivo, foto do controle ou ambos</summary>
+           <div className="p-3"><DroneGeoMapEvidence/><DroneMapEvidence hideTrigger/></div>
+         </details>{modelWeather?<div className="rounded-3xl overflow-hidden border border-slate-200"><iframe title="Mapa do ponto GPS" className="h-52 w-full" src={`https://www.openstreetmap.org/export/embed.html?bbox=${modelWeather.longitude-.003}%2C${modelWeather.latitude-.003}%2C${modelWeather.longitude+.003}%2C${modelWeather.latitude+.003}&layer=mapnik&marker=${modelWeather.latitude}%2C${modelWeather.longitude}`}/></div>:<Warning>Abra GPS e clima no topo para registrar o ponto. O ponto GPS é obrigatório no registro final enquanto o polígono do talhão ainda não está integrado.</Warning>}<div className={`rounded-2xl border p-4 text-sm ${marginBlocked?"border-red-300 bg-red-50 text-red-950":"border-amber-200 bg-amber-50 text-amber-950"}`}><div><strong>Margem preventiva interna</strong><span className="float-right font-black">{settings.margemPreventiva} m</span></div><div className="mt-2"><strong>Distância informada</strong><span className="float-right font-black">{mission.semAreaSensivel?"Sem área sensível aplicável":mission.distanciaSensivel!==null?`${mission.distanciaSensivel} m`:"Pendente"}</span></div><p className="mt-2">{marginBlocked?"BLOQUEADO pelo padrão preventivo interno da empresa.":"A margem interna não substitui lei, bula ou orientação do RT."}</p></div><FormGrid><NullableNumberField label="Distância da área sensível" value={mission.distanciaSensivel} suffix="m" disabled={mission.semAreaSensivel||locked} onChange={(v)=>updateMission("distanciaSensivel",v)}/><label className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm font-bold"><input disabled={locked} type="checkbox" checked={mission.semAreaSensivel} onChange={(e)=>updateMission("semAreaSensivel",e.target.checked)}/><span>Não identifiquei área sensível aplicável</span></label><NullableNumberField label="Vento medido *" value={mission.ventoCampoKmh} suffix="km/h" disabled={locked} onChange={(v)=>updateMission("ventoCampoKmh",v)}/><TextField label="Direção do vento *" value={mission.direcaoVentoCampo} disabled={locked} onChange={(v)=>updateMission("direcaoVentoCampo",v)} placeholder="Ex.: NE → SO"/><NullableNumberField label="Temperatura medida *" value={mission.temperaturaCampo} suffix="°C" disabled={locked} onChange={(v)=>updateMission("temperaturaCampo",v)}/><NullableNumberField label="Umidade medida *" value={mission.umidadeCampo} suffix="%" disabled={locked} onChange={(v)=>updateMission("umidadeCampo",v)}/></FormGrid><button disabled={locked||!climateInputReady} title={!climateInputReady?"Informe medições reais e dados de área sensível para habilitar a confirmação.":undefined} className={`min-h-11 rounded-xl px-4 font-black disabled:cursor-not-allowed disabled:opacity-50 ${mission.climaCampoConfirmado?"bg-emerald-100 text-emerald-800":"bg-slate-950 text-white"}`} onClick={confirmClimate}>{mission.climaCampoConfirmado?"Medição de campo registrada":"Confirmar medição de campo"}</button>{modelWeather&&<Info>Modelo: {fmt(modelWeather.temperature,1)}°C • UR {fmt(modelWeather.humidity,0)}% • vento 10 m {fmt(modelWeather.windSpeed,1)} km/h • rajada {fmt(modelWeather.windGust,1)} km/h. Compare com a medição local.</Info>}{!climateInputReady && <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-950" role="status">A confirmação só será habilitada após medições reais de vento, direção, temperatura, umidade e análise de área sensível.</p>}<CheckRow disabled={locked||!mission.climaCampoConfirmado||!sensitiveReady||marginBlocked} checked={riskAccepted} onChange={setRiskAccepted} title="Confirmar análise de risco" detail="Só habilita depois da medição de campo e fora do bloqueio preventivo interno."/><Primary disabled={!safetyReady} onClick={()=>guarded("calibracao")}>Validar segurança e continuar <ChevronRight size={18}/></Primary></>}
+
+        {view === "controle" && <>
+          <Title icon={<Gauge/>} title="Conferir planejamento" text="Compare estes valores com o controle do drone e o plano aprovado pelo gestor/RT."/>
+          <div className="grid grid-cols-2 gap-2">
+            <Metric icon={<Droplets/>} label="Volume" value={`${fmt(mission.volume,1)} L/ha`}/>
+            <Metric icon={<Route/>} label="Faixa" value={`${fmt(mission.faixa,1)} m`}/>
+            <Metric icon={<Gauge/>} label="Velocidade" value={`${fmt(mission.velocidadeKmh,1)} km/h`}/>
+            <Metric icon={<Sprout/>} label="Altura" value={`${fmt(mission.alturaM,1)} m`}/>
+          </div>
+          <details className="rounded-xl border border-slate-200 bg-white">
+            <summary className="min-h-12 cursor-pointer p-3 text-sm font-black">Ver vazão e tempo estimado</summary>
+            <div className="grid grid-cols-2 gap-2 p-3">
+              <Metric icon={<Sparkles/>} label="Vazão" value={`${fmt(calc.flowLMin,2)} L/min`}/>
+              <Metric icon={<TimerReset/>} label="Tempo estimado" value={duration(calc.estimatedHours)}/>
+            </div>
+          </details>
+          <Primary disabled={!missionReady} onClick={()=>guarded("documentacao")}>Confirmar planejamento e avançar <ChevronRight size={18}/></Primary>
         </>}
 
-        {view === "nova" && <><Title icon={<Sprout/>} title="Dados da aplicação" text="Alterações técnicas invalidam confirmações dependentes."/>{mission.ordemServicoId && <Info>{mission.ordemServicoNumero} • {[mission.clienteNome,mission.fazendaNome,mission.talhaoNome].filter(Boolean).join(" • ")}</Info>}<FormGrid><SelectField label="Tipo de atividade *" value={mission.tipoAtividade} onChange={(v) => updateMission("tipoAtividade", v)} options={["pulverizacao|Pulverização","dispersao|Dispersão / semeadura","outro|Outro"]}/><TextField label="Cultura *" value={mission.cultura} onChange={(v) => updateMission("cultura",v)}/><TextField label="Alvo *" value={mission.alvo} onChange={(v) => updateMission("alvo",v)}/><NumberField label="Área *" value={mission.area} suffix="ha" onChange={(v) => updateMission("area",v)}/><TextField label="Drone *" value={mission.drone} onChange={(v) => updateMission("drone",v)}/><TextField label="Identificação / registro ANAC *" value={mission.registroAnac} onChange={(v) => updateMission("registroAnac",v)}/><TextField label="Bico / atomizador — tipo/modelo *" value={mission.pontaModelo} onChange={(v) => updateMission("pontaModelo",v)}/><NumberField label="Volume *" value={mission.volume} suffix="L/ha" onChange={(v) => updateMission("volume",v)}/><NumberField label="Tanque *" value={mission.tanque} suffix="L" onChange={(v) => updateMission("tanque",v)}/><NumberField label="Faixa *" value={mission.faixa} suffix="m" onChange={(v) => updateMission("faixa",v)}/><NumberField label="Velocidade *" value={mission.velocidadeKmh} suffix="km/h" onChange={(v) => updateMission("velocidadeKmh",v)}/><NumberField label="Altura planejada *" value={mission.alturaM} suffix="m" onChange={(v) => updateMission("alturaM",v)}/></FormGrid><Title icon={<Droplets/>} title="Produto / receita" text="Todos os produtos adicionados precisam estar completos."/>{mission.produtos.map((p,index)=><div key={p.id} className="grid gap-3 rounded-2xl border border-slate-200 p-4"><div className="flex justify-between"><strong>Produto {index+1}</strong>{mission.produtos.length>1&&<button className="text-sm font-bold text-red-600" onClick={()=>removeProduct(p.id)}>Remover</button>}</div><TextField label="Nome comercial *" value={p.nome} onChange={(v)=>updateProduct(p.id,{nome:v})}/><div className="grid grid-cols-[1fr_140px] gap-2"><NumberField label="Dose *" value={p.dose} suffix="" onChange={(v)=>updateProduct(p.id,{dose:v})}/><SelectField label="Unidade" value={p.unidade} onChange={(v)=>updateProduct(p.id,{unidade:v as DoseUnit})} options={["mL/ha|mL/ha","L/ha|L/ha","g/ha|g/ha","kg/ha|kg/ha","mL/100L|mL/100L","g/100L|g/100L"]}/></div></div>)}<button className="min-h-11 rounded-xl border border-emerald-300 bg-emerald-50 px-4 font-black text-emerald-800" onClick={addProduct}>+ Adicionar produto</button><Title icon={<TimerReset/>} title="Tempos operacionais" text="Opcionais; melhoram a estimativa de duração."/><FormGrid><NumberField label="Abastecimento" value={mission.tempoAbastecimentoMin} suffix="min/parada" onChange={(v)=>updateMission("tempoAbastecimentoMin",v)}/><NumberField label="Troca de bateria" value={mission.tempoTrocaBateriaMin} suffix="min" onChange={(v)=>updateMission("tempoTrocaBateriaMin",v)}/><NumberField label="Tanques por bateria" value={mission.tanquesPorBateria} suffix="tanques" onChange={(v)=>updateMission("tanquesPorBateria",v)}/><NumberField label="Deslocamento" value={mission.tempoDeslocamentoMin} suffix="min" onChange={(v)=>updateMission("tempoDeslocamentoMin",v)}/><NumberField label="Bordadura" value={mission.tempoBordaduraMin} suffix="min" onChange={(v)=>updateMission("tempoBordaduraMin",v)}/></FormGrid><Primary disabled={!missionReady} onClick={()=>guarded("calda")}>Calcular missão <ChevronRight size={18}/></Primary></>}
+        {view === "documentacao" && <>
+          <Title icon={<FileText/>} title="Documentos da OS" text="Confira os documentos necessários antes de seguir para a segurança."/>
+          <div className="rounded-2xl border border-slate-200 p-4">
+            <strong className="block">Certidão SISANT/ANAC e receituário, quando aplicável</strong>
+            <p className="mt-2 text-sm text-slate-600">Abra a documentação da OS, anexe os documentos exigidos e volte para validar.</p>
+            <a href={mission.ordemServicoId?`/apps/dronegestor/documentos?osId=${encodeURIComponent(mission.ordemServicoId)}&returnTo=campo`:"/apps/dronegestor/gestao"} className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-black text-emerald-900 no-underline">Abrir documentos desta OS</a>
+          </div>
+          {verifiedProblem&&<p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-950">{verifiedProblem}</p>}
+          <Primary disabled={checkingPreflight} onClick={()=>guarded("estrategia")}>{checkingPreflight?"Verificando...":"Validar documentos e avançar"} <ChevronRight size={18}/></Primary>
+        </>}
 
-        {view === "calda" && <><Title icon={<Calculator/>} title="Cálculo de calda" text="Resultado matemático; não é recomendação agronômica."/><div className="grid grid-cols-2 gap-3"><Metric icon={<Droplets/>} label="Calda planejada" value={`${fmt(calc.totalCalda,1)} L`}/><Metric icon={<Route/>} label="Área por tanque cheio" value={`${fmt(calc.areaTank,2)} ha`}/><Metric icon={<RotateCcw/>} label="Tanques planejados" value={`${calc.tanks}`} detail={`Último: ${fmt(calc.lastTankVolume,1)} L`}/><Metric icon={<Gauge/>} label="Vazão calculada" value={`${fmt(calc.flowLMin,2)} L/min`}/></div>{calc.products.map(({product,total,fullTank,lastTank})=><div key={product.id} className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 p-4 text-sm sm:grid-cols-4"><div><span className="text-slate-500">Produto</span><strong className="block">{product.nome}</strong></div><div><span className="text-slate-500">Total</span><strong className="block">{fmt(total.value,3)} {total.unit}</strong></div><div><span className="text-slate-500">Tanque cheio</span><strong className="block">{fmt(fullTank.value,3)} {fullTank.unit}</strong></div><div><span className="text-slate-500">Último tanque</span><strong className="block">{fmt(lastTank.value,3)} {lastTank.unit}</strong></div></div>)}<Warning>Confirme receita, bula, compatibilidade e ordem de mistura antes de preparar a calda.</Warning><Primary onClick={()=>go("estrategia")}>Ver estratégia <ChevronRight size={18}/></Primary></>}
+        {view === "calibracao" && <><Title icon={<Wrench/>} title="Calibração" text="Sequência obrigatória: eliminar ar → fluxômetro → bomba."/><Task index="1" title="Eliminar o ar do sistema" detail="Faça a liberação de ar antes das demais calibrações." checked={calibration.ar} disabled={locked} onChange={(v)=>setCalibration({ar:v,fluxometro:v?calibration.fluxometro:false,bomba:v?calibration.bomba:false})}/><Task index="2" title="Calibrar o fluxômetro" detail="Só após eliminar o ar." checked={calibration.fluxometro} disabled={locked||!calibration.ar} onChange={(v)=>setCalibration({...calibration,fluxometro:v,bomba:v?calibration.bomba:false})}/><Task index="3" title="Calibrar a bomba" detail="Última etapa da sequência." checked={calibration.bomba} disabled={locked||!calibration.fluxometro} onChange={(v)=>setCalibration({...calibration,bomba:v})}/><Primary disabled={!calibrationReady} onClick={()=>guarded("checklist")}>Concluir calibração e continuar <ChevronRight size={18}/></Primary></>}
 
-        {view === "estrategia" && <><div className="grid grid-cols-2 gap-3"><Metric icon={<Sprout/>} label="Cultura" value={mission.cultura}/><Metric icon={<Target/>} label="Alvo" value={mission.alvo}/></div><Metric icon={<Droplets/>} label="Gota" value={protocol.gota}/><Metric icon={<Route/>} label="Estratégia" value={protocol.strategy}/><Metric icon={<TimerReset/>} label="Janela" value={protocol.janela}/><Info>{protocol.note}</Info><CheckRow checked={insightAccepted} disabled={locked} onChange={setInsightAccepted} title={settings.insightsObrigatorios?"Confirmação obrigatória":"Confirmar leitura"} detail="Li a orientação e vou conferir produto, bula, receita e protocolo técnico."/><Primary disabled={settings.insightsObrigatorios&&!insightAccepted} onClick={()=>guarded("seguranca")}>Analisar segurança <ChevronRight size={18}/></Primary></>}
+        {view === "checklist" && <><Title icon={<ClipboardCheck/>} title="Checklist pré-voo" text={`${Object.values(checklist).filter(Boolean).length} de 8 itens confirmados.`}/>{([ ["area","Área e decolagem","Área e ponto de decolagem conferidos."], ["pessoasAnimais","Pessoas e animais","Sem pessoas ou animais expostos."], ["obstaculos","Obstáculos e rede elétrica","Árvores, postes, fios, água e áreas sensíveis conferidos."], ["drone","Drone","Estrutura, motores, hélices, sensores e trem de pouso conferidos."], ["controle","Controle e navegação","Controle, bateria, missão, mapa e conexão conferidos."], ["pulverizacao","Pulverização","Tanque, mangueiras, filtros, atomizadores/bicos, bomba e fluxômetro conferidos."], ["clima","Medição climática","Preenchida automaticamente pela confirmação feita em Segurança."], ["documentos","Documentos","Receita/protocolo e documentos/autorizações aplicáveis conferidos."] ] as Array<[keyof ChecklistState,string,string]>).map(([key,t,d],i)=><Task key={key} index={String(i+1)} title={t} detail={d} checked={checklist[key]} disabled={locked||key==="clima"} onChange={(v)=>setChecklist({...checklist,[key]:v})}/>)}<Primary disabled={!checklistReady} onClick={()=>guarded("calda")}>Concluir checklist e continuar <ChevronRight size={18}/></Primary></>}
 
-        {view === "seguranca" && <><Title icon={<Map/>} title="Segurança e condição real" text="GPS/modelo localiza; a liberação usa medição feita no talhão e regras internas."/>{modelWeather?<div className="rounded-3xl overflow-hidden border border-slate-200"><iframe title="Mapa do ponto GPS" className="h-52 w-full" src={`https://www.openstreetmap.org/export/embed.html?bbox=${modelWeather.longitude-.003}%2C${modelWeather.latitude-.003}%2C${modelWeather.longitude+.003}%2C${modelWeather.latitude+.003}&layer=mapnik&marker=${modelWeather.latitude}%2C${modelWeather.longitude}`}/></div>:<Warning>Capture o GPS pelo botão flutuante. O ponto GPS é obrigatório no registro final enquanto o polígono do talhão ainda não está integrado.</Warning>}<div className={`rounded-2xl border p-4 text-sm ${marginBlocked?"border-red-300 bg-red-50 text-red-950":"border-amber-200 bg-amber-50 text-amber-950"}`}><div><strong>Margem preventiva interna</strong><span className="float-right font-black">{settings.margemPreventiva} m</span></div><div className="mt-2"><strong>Distância informada</strong><span className="float-right font-black">{mission.semAreaSensivel?"Sem área sensível aplicável":mission.distanciaSensivel!==null?`${mission.distanciaSensivel} m`:"Pendente"}</span></div><p className="mt-2">{marginBlocked?"BLOQUEADO pelo padrão preventivo interno da empresa.":"A margem interna não substitui lei, bula ou orientação do RT."}</p></div><FormGrid><NullableNumberField label="Distância da área sensível" value={mission.distanciaSensivel} suffix="m" disabled={mission.semAreaSensivel||locked} onChange={(v)=>updateMission("distanciaSensivel",v)}/><label className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm font-bold"><input disabled={locked} type="checkbox" checked={mission.semAreaSensivel} onChange={(e)=>updateMission("semAreaSensivel",e.target.checked)}/><span>Não identifiquei área sensível aplicável</span></label><NullableNumberField label="Vento medido *" value={mission.ventoCampoKmh} suffix="km/h" disabled={locked} onChange={(v)=>updateMission("ventoCampoKmh",v)}/><TextField label="Direção do vento *" value={mission.direcaoVentoCampo} disabled={locked} onChange={(v)=>updateMission("direcaoVentoCampo",v)} placeholder="Ex.: NE → SO"/><NullableNumberField label="Temperatura medida *" value={mission.temperaturaCampo} suffix="°C" disabled={locked} onChange={(v)=>updateMission("temperaturaCampo",v)}/><NullableNumberField label="Umidade medida *" value={mission.umidadeCampo} suffix="%" disabled={locked} onChange={(v)=>updateMission("umidadeCampo",v)}/></FormGrid><button disabled={locked||marginBlocked} className={`min-h-11 rounded-xl px-4 font-black disabled:opacity-50 ${mission.climaCampoConfirmado?"bg-emerald-100 text-emerald-800":"bg-slate-950 text-white"}`} onClick={confirmClimate}>{mission.climaCampoConfirmado?"Medição de campo registrada":"Confirmar medição de campo"}</button>{modelWeather&&<Info>Modelo: {fmt(modelWeather.temperature,1)}°C • UR {fmt(modelWeather.humidity,0)}% • vento 10 m {fmt(modelWeather.windSpeed,1)} km/h • rajada {fmt(modelWeather.windGust,1)} km/h. Compare com a medição local.</Info>}<CheckRow disabled={locked||!mission.climaCampoConfirmado||!sensitiveReady||marginBlocked} checked={riskAccepted} onChange={setRiskAccepted} title="Confirmar análise de risco" detail="Só habilita depois da medição de campo e fora do bloqueio preventivo interno."/><Primary disabled={!safetyReady} onClick={()=>go("controle")}>Gerar parâmetros-base <ChevronRight size={18}/></Primary></>}
+        {view === "sarpas" && <>
+          <Title icon={<ShieldCheck/>} title="Conferência antes do voo" text="A autorização oficial é solicitada no SARPAS. Aqui conferimos os registros vinculados à OS."/>
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+            <strong className="block text-base">{sarpasReady?"SARPAS registrado":"Autorização SARPAS pendente"}</strong>
+            <p className="mt-1">{sarpasReady?`Referência: ${mission.sarpasNumero}`:"Registre a situação oficial e anexe o comprovante antes de iniciar."}</p>
+            <a className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-amber-200 bg-white px-3 font-bold text-amber-900 no-underline" href={mission.ordemServicoId?`/apps/dronegestor/documentos?osId=${encodeURIComponent(mission.ordemServicoId)}&returnTo=campo`:"/apps/dronegestor/gestao"}>Abrir documentos e SARPAS</a>
+          </div>
+          {!gpsReady&&<button type="button" className="min-h-12 rounded-xl border border-slate-200 bg-white px-4 text-sm font-black text-emerald-900" onClick={()=>window.dispatchEvent(new Event("dronegestor:open-gps-weather"))}>Registrar GPS do local</button>}
+          {verifiedProblem&&<p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-bold text-amber-950">{verifiedProblem}</p>}
+          <Primary disabled={checkingPreflight||!canStart} onClick={()=>void verifyAndStartOperation()}>
+            <Play size={18}/>{checkingPreflight?"Validando no servidor...":"Validar e iniciar aplicação"}
+          </Primary>
+          {!canStart&&<p className="text-sm text-amber-800">Conclua os requisitos anteriores e a autorização oficial. A liberação não é automática.</p>}
+        </>}
 
-        {view === "controle" && <><Warning>Parâmetros calculados — ainda não liberados para voo. Faltam calibração, checklist e SARPAS.</Warning><div className="grid grid-cols-2 gap-3"><Metric icon={<Gauge/>} label="Velocidade" value={`${fmt(calc.speedMs,1)} m/s`} detail={`${fmt(mission.velocidadeKmh,1)} km/h`}/><Metric icon={<Droplets/>} label="Volume" value={`${fmt(mission.volume,1)} L/ha`}/><Metric icon={<Route/>} label="Faixa" value={`${fmt(mission.faixa,1)} m`}/><Metric icon={<Sparkles/>} label="Vazão" value={`${fmt(calc.flowLMin,2)} L/min`}/><Metric icon={<Gauge/>} label="Capacidade teórica" value={`${fmt(calc.haH,1)} ha/h`}/><Metric icon={<TimerReset/>} label="Tempo estimado" value={duration(calc.estimatedHours)}/></div><Primary onClick={()=>go("calibracao")}>Ir para calibração <ChevronRight size={18}/></Primary></>}
+        {view === "execucao" && (missionStatus==="pendente_sync"
+          ? <div className="grid gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
+              <strong className="text-lg">Etapa 7 · Aguardando sincronização</strong>
+              <p className="text-sm">O encerramento está protegido neste aparelho, mas ainda não foi confirmado pelo servidor. A etapa 8 só será liberada após a confirmação.</p>
+              <button type="button" className="min-h-12 rounded-xl border border-amber-300 bg-white px-3 text-sm font-black" onClick={()=>window.location.reload()}>Atualizar situação</button>
+            </div>
+          : <><DroneMapEvidence/><div className="rounded-3xl bg-gradient-to-br from-emerald-950 to-emerald-700 p-5 text-white"><span className="text-xs font-black uppercase tracking-wider">{paused?"Operação pausada":"Aplicação em andamento"}</span><h2 className="mt-1 text-xl font-black">{mission.cultura} • {mission.alvo}</h2><div className="mt-4 flex items-end justify-between"><strong className="text-4xl">{fmt(mission.area>0?Math.min(100,progressHa/mission.area*100):0,0)}%</strong><span className="text-sm">{fmt(progressHa,2)} de {fmt(mission.area,2)} ha</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20"><div className="h-full bg-white" style={{width:`${mission.area>0?Math.min(100,progressHa/mission.area*100):0}%`}}/></div></div><div className="grid grid-cols-2 gap-3"><Metric icon={<RotateCcw/>} label="Abastecimentos reais" value={`${tankRecords.length}`}/><Metric icon={<Droplets/>} label="Calda real registrada" value={`${fmt(calc.actualVolume,1)} L`}/><Metric icon={<Map/>} label="Área restante" value={`${fmt(Math.max(0,mission.area-progressHa),2)} ha`}/><Metric icon={<AlertTriangle/>} label="Ocorrências" value={`${occurrences.length}`}/></div><div className="rounded-2xl border border-slate-200 p-4"><strong className="text-sm">Registrar abastecimento concluído</strong><p className="mt-1 text-xs text-slate-500">Informe o que realmente foi executado; o sistema não soma hectares teoricamente.</p><div className="mt-3 grid grid-cols-2 gap-2"><input disabled={paused||areaDone} className="min-h-11 rounded-xl border border-slate-200 px-3" type="number" step="any" placeholder="Área real (ha)" value={tankArea} onChange={(e)=>setTankArea(e.target.value)}/><input disabled={paused||areaDone} className="min-h-11 rounded-xl border border-slate-200 px-3" type="number" step="any" placeholder="Volume usado (L)" value={tankVolume} onChange={(e)=>setTankVolume(e.target.value)}/></div><div className="mt-2 grid grid-cols-2 gap-2"><button disabled={paused||areaDone} className="min-h-11 rounded-xl bg-emerald-600 px-3 font-black text-white disabled:opacity-40" onClick={registerTank}><Check className="mr-1 inline" size={17}/>Registrar</button><button disabled={paused||!tankRecords.length} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 font-black text-slate-700 disabled:opacity-40" onClick={undoLastTank}><Undo2 className="mr-1 inline" size={17}/>Desfazer último</button></div></div><div className="grid grid-cols-2 gap-3"><button className="min-h-12 rounded-xl border border-slate-200 bg-white font-black text-slate-800" onClick={togglePause}>{paused?<><Play className="mr-2 inline" size={18}/>Retomar</>:<><Pause className="mr-2 inline" size={18}/>Pausar</>}</button><button className="min-h-12 rounded-xl border border-amber-200 bg-amber-50 font-black text-amber-900" onClick={addOccurrence}><AlertTriangle className="mr-2 inline" size={18}/>Ocorrência</button></div>{areaDone?<Info>100% da área planejada foi atingida pelos registros reais. Confira volumes, ocorrências e conclua.</Info>:<Warning>A conclusão permanece bloqueada até a soma das áreas realmente registradas atingir 100%.</Warning>}<Primary disabled={!areaDone||!canStart||savingFinal||finalSaved} onClick={()=>void finalizeOperation()}>{savingFinal?"Salvando...":finalSaved?"Operação salva":"Concluir e salvar no histórico"}</Primary></>)}
 
-        {view === "calibracao" && <><Title icon={<Wrench/>} title="Calibração" text="Sequência obrigatória: eliminar ar → fluxômetro → bomba."/><Task index="1" title="Eliminar o ar do sistema" detail="Faça a liberação de ar antes das demais calibrações." checked={calibration.ar} disabled={locked} onChange={(v)=>setCalibration({ar:v,fluxometro:v?calibration.fluxometro:false,bomba:v?calibration.bomba:false})}/><Task index="2" title="Calibrar o fluxômetro" detail="Só após eliminar o ar." checked={calibration.fluxometro} disabled={locked||!calibration.ar} onChange={(v)=>setCalibration({...calibration,fluxometro:v,bomba:v?calibration.bomba:false})}/><Task index="3" title="Calibrar a bomba" detail="Última etapa da sequência." checked={calibration.bomba} disabled={locked||!calibration.fluxometro} onChange={(v)=>setCalibration({...calibration,bomba:v})}/><Primary disabled={!calibrationReady} onClick={()=>go("checklist")}>Ir para checklist <ChevronRight size={18}/></Primary></>}
-
-        {view === "checklist" && <><Title icon={<ClipboardCheck/>} title="Checklist pré-voo" text={`${Object.values(checklist).filter(Boolean).length} de 8 itens confirmados.`}/>{([ ["area","Área e decolagem","Área e ponto de decolagem conferidos."], ["pessoasAnimais","Pessoas e animais","Sem pessoas ou animais expostos."], ["obstaculos","Obstáculos e rede elétrica","Árvores, postes, fios, água e áreas sensíveis conferidos."], ["drone","Drone","Estrutura, motores, hélices, sensores e trem de pouso conferidos."], ["controle","Controle e navegação","Controle, bateria, missão, mapa e conexão conferidos."], ["pulverizacao","Pulverização","Tanque, mangueiras, filtros, atomizadores/bicos, bomba e fluxômetro conferidos."], ["clima","Medição climática","Preenchida automaticamente pela confirmação feita em Segurança."], ["documentos","Documentos","Receita/protocolo e documentos/autorizações aplicáveis conferidos."] ] as Array<[keyof ChecklistState,string,string]>).map(([key,t,d],i)=><Task key={key} index={String(i+1)} title={t} detail={d} checked={checklist[key]} disabled={locked||key==="clima"} onChange={(v)=>setChecklist({...checklist,[key]:v})}/>)}<Primary disabled={!checklistReady} onClick={()=>go("sarpas")}>Ir para SARPAS <ChevronRight size={18}/></Primary></>}
-
-        {view === "sarpas" && <><Title icon={<ShieldCheck/>} title="SARPAS" text="A consulta e a autorização acontecem no sistema oficial. Aqui, o DroneGestor apenas lê o registro salvo nesta OS."/><div className={`rounded-2xl border p-4 ${sarpasReady?"border-emerald-200 bg-emerald-50 text-emerald-950":"border-amber-200 bg-amber-50 text-amber-950"}`}><strong className="block">{sarpasReady?"SARPAS autorizado":"SARPAS ainda não autorizado"}</strong><p className="mt-1 text-sm">{sarpasReady?`Referência registrada: ${mission.sarpasNumero}`:"Registre a situação e anexe o comprovante correto antes de iniciar."}</p></div>{!sarpasReady&&<a className="inline-flex min-h-12 items-center justify-center rounded-xl bg-sky-700 px-4 font-black text-white no-underline" href="/apps/dronegestor/documentos">Abrir documentos e SARPAS</a>}<Info>{gpsReady?`GPS registrado: ${modelWeather?.latitude.toFixed(5)}, ${modelWeather?.longitude.toFixed(5)}`:"GPS ainda pendente. Capture pelo botão flutuante antes de iniciar."}</Info><Warning>O DroneGestor não envia nem aprova solicitações SARPAS automaticamente.</Warning><Primary disabled={!canStart} onClick={()=>void startOperation()}><Play size={18}/> Iniciar operação</Primary>{!canStart&&<p className="text-center text-xs font-semibold text-amber-700">Há validação pendente em missão, segurança, GPS, calibração, checklist ou SARPAS.</p>}</>}
-
-        {view === "execucao" && <><div className="rounded-3xl bg-gradient-to-br from-emerald-950 to-emerald-700 p-5 text-white"><span className="text-xs font-black uppercase tracking-wider">{paused?"Operação pausada":"Aplicação em andamento"}</span><h2 className="mt-1 text-xl font-black">{mission.cultura} • {mission.alvo}</h2><div className="mt-4 flex items-end justify-between"><strong className="text-4xl">{fmt(mission.area>0?Math.min(100,progressHa/mission.area*100):0,0)}%</strong><span className="text-sm">{fmt(progressHa,2)} de {fmt(mission.area,2)} ha</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20"><div className="h-full bg-white" style={{width:`${mission.area>0?Math.min(100,progressHa/mission.area*100):0}%`}}/></div></div><div className="grid grid-cols-2 gap-3"><Metric icon={<RotateCcw/>} label="Abastecimentos reais" value={`${tankRecords.length}`}/><Metric icon={<Droplets/>} label="Calda real registrada" value={`${fmt(calc.actualVolume,1)} L`}/><Metric icon={<Map/>} label="Área restante" value={`${fmt(Math.max(0,mission.area-progressHa),2)} ha`}/><Metric icon={<AlertTriangle/>} label="Ocorrências" value={`${occurrences.length}`}/></div><div className="rounded-2xl border border-slate-200 p-4"><strong className="text-sm">Registrar abastecimento concluído</strong><p className="mt-1 text-xs text-slate-500">Informe o que realmente foi executado; o sistema não soma hectares teoricamente.</p><div className="mt-3 grid grid-cols-2 gap-2"><input disabled={paused||areaDone} className="min-h-11 rounded-xl border border-slate-200 px-3" type="number" step="any" placeholder="Área real (ha)" value={tankArea} onChange={(e)=>setTankArea(e.target.value)}/><input disabled={paused||areaDone} className="min-h-11 rounded-xl border border-slate-200 px-3" type="number" step="any" placeholder="Volume usado (L)" value={tankVolume} onChange={(e)=>setTankVolume(e.target.value)}/></div><div className="mt-2 grid grid-cols-2 gap-2"><button disabled={paused||areaDone} className="min-h-11 rounded-xl bg-emerald-600 px-3 font-black text-white disabled:opacity-40" onClick={registerTank}><Check className="mr-1 inline" size={17}/>Registrar</button><button disabled={paused||!tankRecords.length} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 font-black text-slate-700 disabled:opacity-40" onClick={undoLastTank}><Undo2 className="mr-1 inline" size={17}/>Desfazer último</button></div></div><div className="grid grid-cols-2 gap-3"><button className="min-h-12 rounded-xl border border-slate-200 bg-white font-black text-slate-800" onClick={togglePause}>{paused?<><Play className="mr-2 inline" size={18}/>Retomar</>:<><Pause className="mr-2 inline" size={18}/>Pausar</>}</button><button className="min-h-12 rounded-xl border border-amber-200 bg-amber-50 font-black text-amber-900" onClick={addOccurrence}><AlertTriangle className="mr-2 inline" size={18}/>Ocorrência</button></div>{areaDone?<Info>100% da área planejada foi atingida pelos registros reais. Confira volumes, ocorrências e conclua.</Info>:<Warning>A conclusão permanece bloqueada até a soma das áreas realmente registradas atingir 100%.</Warning>}<Primary disabled={!areaDone||!canStart||savingFinal||finalSaved} onClick={()=>void finalizeOperation()}>{savingFinal?"Salvando...":finalSaved?"Operação salva":"Concluir e salvar no histórico"}</Primary></>}
-
-        {view === "relatorios" && <><Title icon={<FileText/>} title="Dados da operação" text="Rascunho da missão e consulta do estado final."/><div className="rounded-2xl border border-slate-200 p-4"><div className="flex items-center gap-2 text-emerald-700"><Check size={18}/><strong>{missionStatus==="finalizada"?"Operação salva no histórico":missionStatus==="pendente_sync"?"Conclusão congelada aguardando sincronização":"Missão em rascunho"}</strong></div><p className="mt-2 font-black text-slate-950">{mission.cultura||"Sem cultura"} • {fmt(mission.area,1)} ha planejados</p><p className="text-sm text-slate-500">{fmt(progressHa,2)} ha reais • {fmt(calc.actualVolume,1)} L reais • {occurrences.length} ocorrência(s)</p></div><ReportButton icon={<FileText/>} title="Rascunho da operação" detail="Resumo dos parâmetros e progresso real." onClick={exportDraft}/><ReportButton icon={<FileSpreadsheet/>} title="Dados operacionais CSV" detail="Base de conferência; não é relatório oficial MAPA." onClick={exportCsv}/><a className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white font-black text-slate-800 no-underline" href="/apps/dronegestor/historico"><FileText size={18}/> Abrir histórico salvo</a>{["finalizada","pendente_sync"].includes(missionStatus)&&<button className="min-h-12 rounded-xl bg-slate-950 px-4 font-black text-white" onClick={resetMission}>Iniciar uma nova missão</button>}<Warning>O mapa/polígono completo do talhão e o relatório mensal oficial ainda são módulos separados em implantação; este rascunho não os substitui.</Warning></>}
+        {view === "relatorios" && <><Title icon={<FileText/>} title="Dados da operação" text="Rascunho da missão e consulta do estado final."/><div className="rounded-2xl border border-slate-200 p-4"><div className="flex items-center gap-2 text-emerald-700"><Check size={18}/><strong>{missionStatus==="finalizada"?"Operação salva no histórico":missionStatus==="pendente_sync"?"Conclusão congelada aguardando sincronização":"Missão em rascunho"}</strong></div><p className="mt-2 font-black text-slate-950">{mission.cultura||"Sem cultura"} • {fmt(mission.area,1)} ha planejados</p><p className="text-sm text-slate-500">{fmt(progressHa,2)} ha reais • {fmt(calc.actualVolume,1)} L reais • {occurrences.length} ocorrência(s)</p></div><ReportButton icon={<FileText/>} title="Rascunho da operação" detail="Resumo dos parâmetros e progresso real." onClick={exportDraft}/><ReportButton icon={<FileSpreadsheet/>} title="Dados operacionais CSV" detail="Base de conferência; não é relatório oficial MAPA." onClick={exportCsv}/><a className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white font-black text-slate-800 no-underline" href="/apps/dronegestor/historico"><FileText size={18}/> Abrir histórico salvo</a>{["finalizada","pendente_sync"].includes(missionStatus)&&<button className="min-h-12 rounded-xl bg-slate-950 px-4 font-black text-white" onClick={resetMission}>Iniciar uma nova missão</button>}<DroneMapEvidence/><p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">Esta tela é uma conferência interna. O envio de relatórios e documentos oficiais deve ocorrer pelo pacote da OS, após validação do gestor/RT.</p><a href={mission.ordemServicoId?`/apps/dronegestor/pacote-operacao?osId=${encodeURIComponent(mission.ordemServicoId)}`:"/apps/dronegestor/gestao"} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-emerald-700 px-4 text-sm font-black text-white no-underline">Conferir pacote final da OS</a></>}
 
         {view === "config" && <SettingsPanel settings={settings} canManage={canManage} userType={userType} onSave={(next)=>void saveCompanySettings(next)}/>}      
       </div>
 
-      <nav className="agro-field-shortcuts" aria-label="Atalhos da missão"><Nav icon={<Home/>} label="Missão" active={view==="inicio"} onClick={()=>go("inicio")}/><Nav icon={<Drone/>} label={operationStarted?"Retomar":"Operação"} active={flow.includes(view)&&!["seguranca","relatorios"].includes(view)} onClick={()=>guarded(resumeView())}/><Nav icon={<Map/>} label="Segurança" active={view==="seguranca"} onClick={()=>guarded("seguranca")}/><Nav icon={<FileText/>} label="Dados" active={view==="relatorios"} onClick={()=>go("relatorios")}/><Nav icon={<Settings2/>} label="Ajustes" active={view==="config"} onClick={()=>{if(locked)return flash("Configurações bloqueadas nesta fase.");setReturnView(view);go("config");}}/></nav>
+
     </div>
   </main>;
 }

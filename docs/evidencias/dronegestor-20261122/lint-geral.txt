@@ -1,0 +1,306 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+> mba-labs-core@0.1.0 lint
+> eslint .
+
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/public/bikecomanda-static/app.js
+  77:10  warning  'dateOnly' is defined but never used         @typescript-eslint/no-unused-vars
+  82:10  warning  'toInputDateTime' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/public/bikecomanda-static/bike-final-lock.js
+  137:27  warning  'order' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/public/bikecomanda-static/bike-shell-fix.js
+  244:5  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/public/bikecomanda-static/bike-shell-v2.js
+  220:27  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/public/bikecomanda-static/product-ready.js
+  28:9  warning  'FINAL_STATUSES' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/cloud/google/callback/route.ts
+  3:59  warning  'driveCall' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/operacao-os/route.ts
+  109:11  warning  'os' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/api/dronegestor/relatorio-mensal/xlsx/route.ts
+   30:10  warning  'durationHours' is defined but never used  @typescript-eslint/no-unused-vars
+   71:10  warning  'headerMap' is defined but never used      @typescript-eslint/no-unused-vars
+   93:10  warning  'setAdjacent' is defined but never used    @typescript-eslint/no-unused-vars
+  162:10  warning  'buildFallback' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/DroneHomeDashboard.tsx
+   8:3  warning  'ClipboardCheck' is defined but never used  @typescript-eslint/no-unused-vars
+  10:3  warning  'Folder' is defined but never used          @typescript-eslint/no-unused-vars
+  14:3  warning  'Search' is defined but never used          @typescript-eslint/no-unused-vars
+  20:3  warning  'CloudSun' is defined but never used        @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/campo/DroneGestorApp.tsx
+  668:22  warning  'mission' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/campo/DroneGestorAppV2.tsx
+   19:3  warning  'Leaf' is defined but never used                                                                               @typescript-eslint/no-unused-vars
+  409:6  warning  React Hook useEffect has a missing dependency: 'retryQueue'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/campo/DroneGestorAppV3.tsx
+  471:6  warning  React Hook useEffect has a missing dependency: 'retryQueue'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/campo/DroneGuidedFieldMode.tsx
+  107:192  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/campo/DroneMapEvidence.tsx
+  26:1750  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  26:2056  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/conferencia/AgroDocReviewCenter.tsx
+  10:3  warning  'AgroDocTable' is defined but never used  @typescript-eslint/no-unused-vars
+  17:3  warning  'ArrowLeft' is defined but never used     @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/diagnostico/AgroDocDiagnostic.tsx
+  13:3  warning  'ArrowLeft' is defined but never used      @typescript-eslint/no-unused-vars
+  17:3  warning  'RefreshCw' is defined but never used      @typescript-eslint/no-unused-vars
+  19:3  warning  'TriangleAlert' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/documentos/AgroDocDocuments.tsx
+  504:12  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/documentos/DroneDocumentsCenter.tsx
+  57:4  warning  React Hook useMemo has a missing dependency: 'has'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/fichas/DroneOperationSheetsClient.tsx
+  156:197  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/gestao/DroneGestaoClient.tsx
+    4:103  warning  'X' is defined but never used                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  149:5    warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/gestao/DroneGestaoClientV2.tsx
+  163:5  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/gestao/DroneGestaoClientV3.tsx
+   54:7   warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+   56:30  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+   69:11  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+  106:7   warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+  121:5   warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/historico/DroneHistoricoClientV2.tsx
+  98:37  warning  React Hook useEffect has a missing dependency: 'load'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/pacote-operacao/DroneFinalOsSummary.tsx
+  3:75  warning  'PlaneTakeoff' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/pacote-operacao/DroneOperationPackage.tsx
+  63:60  warning  React Hook useEffect has a missing dependency: 'closure'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/relatorio-mensal/DroneMonthlyOfficialReport.tsx
+  59:34  warning  React Hook useEffect has a missing dependency: 'load'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/ElshadayMediaCarousel.tsx
+  45:7  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/ElshadayMobileAppChrome.tsx
+  224:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/ElshadayShell.tsx
+  62:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/PrivateElshadayDashboard.tsx
+   10:3   warning  'MapPin' is defined but never used                                                                                                                                                                                                                                                       @typescript-eslint/no-unused-vars
+  464:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  603:10  warning  'greeting' is defined but never used                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/PublicElshadayHome.tsx
+    2:46  warning  'HandCoins' is defined but never used                                                                                                                                                                                                                                                    @typescript-eslint/no-unused-vars
+  174:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/RecentGalleryAlbums.tsx
+  69:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/actions.ts
+  13:3  warning  'getElshadayPixStatus' is defined but never used        @typescript-eslint/no-unused-vars
+  15:3  warning  'saveElshadayManualPixInput' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/biblia/BibleReader.tsx
+  249:18  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/biblia/BibleReader.tsx:249:18
+  247 |       texto,
+  248 |       favorito,
+> 249 |       updatedAt: Date.now()
+      |                  ^^^^^^^^^^ Cannot call impure function
+  250 |     };
+  251 |
+  252 |     if (!navigator.onLine) {  react-hooks/purity
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/completion-actions.ts
+  870:11  warning  'emails' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  871:11  warning  'cpfs' is assigned a value but never used    @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/configuracoes/page.tsx
+  171:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  297:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/contribuir/page.tsx
+   11:3   warning  'ShieldCheck' is defined but never used                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+  181:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  335:17  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  451:15  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/eventos/[id]/page.tsx
+  81:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/eventos/page.tsx
+   44:15  error    Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/eventos/page.tsx:44:15
+  42 |   if (error) throw new Error("Falha ao carregar eventos: " + error.message);
+  43 |
+> 44 |   const now = Date.now();
+     |               ^^^^^^^^^^ Cannot call impure function
+  45 |   const rows = events ?? [];
+  46 |   const upcoming = rows.filter(
+  47 |     (event: any) => new Date(event.inicio).getTime() >= now && event.status === "agendado"  react-hooks/purity
+  186:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/financeiro/page.tsx
+    8:3   warning  'LockKeyhole' is defined but never used                                                                                                                                                                                                                                                  @typescript-eslint/no-unused-vars
+  292:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/galeria/[id]/GalleryLightbox.tsx
+   69:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  120:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/galeria/[id]/page.tsx
+  229:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/galeria/page.tsx
+  206:21  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/membros/[id]/page.tsx
+   35:7   warning  'ROLES' is assigned a value but never used                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+  244:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  514:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/pregacoes/[id]/page.tsx
+   55:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  295:10  warning  'TextArea' is defined but never used                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/elshaday/pregacoes/page.tsx
+  136:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+  312:10  warning  'TextArea' is defined but never used                                                                                                                                                                                                                                                     @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/lavagestor/operacao/fila/page.tsx
+  71:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/lavagestor/operacao/saida/page.tsx
+  81:19  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/lexgestor/documentos/[documentoId]/page.tsx
+  98:9  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/login/ElshadayLoginView.tsx
+  20:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/mba-escola/academic-grade-panel.tsx
+  113:111  warning  '_sourceRow' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/mba-escola/admin/seguranca/page.tsx
+  111:7  warning  Do not use `window.location.assign()` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/mba-escola/authorizations-panel.tsx
+  15:3  warning  'UsersRound' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/mba-escola/school-directory.tsx
+   4:10  warning  'CheckCircle2' is defined but never used   @typescript-eslint/no-unused-vars
+   4:36  warning  'GraduationCap' is defined but never used  @typescript-eslint/no-unused-vars
+   4:51  warning  'MailPlus' is defined but never used       @typescript-eslint/no-unused-vars
+   4:69  warning  'School' is defined but never used         @typescript-eslint/no-unused-vars
+   4:88  warning  'UserPlus' is defined but never used       @typescript-eslint/no-unused-vars
+   4:98  warning  'UserRoundCog' is defined but never used   @typescript-eslint/no-unused-vars
+  24:65  warning  'role' is defined but never used           @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/components/BikeComandaClient.tsx
+   438:3   warning  'helpers' is defined but never used  @typescript-eslint/no-unused-vars
+  1350:36  warning  'helpers' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/components/LogoUploadInput.tsx
+  69:13  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/components/google-empresas/GoogleCategoryFields.tsx
+   83:13  warning  Elements with the ARIA role "combobox" must have the following attributes defined: aria-controls,aria-expanded  jsx-a11y/role-has-required-aria-props
+  182:15  warning  Elements with the ARIA role "combobox" must have the following attributes defined: aria-controls,aria-expanded  jsx-a11y/role-has-required-aria-props
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/components/lexgestor/ChecklistCaso.tsx
+  82:7  warning  Do not use `window.location.href` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/components/lexgestor/LogoutButtonLexGestor.tsx
+  14:5  warning  Do not use `window.location.assign()` to navigate to internal Next.js pages. Use `redirect()` in the render phase, or `useRouter().push()` in Client Components' event handlers instead. See: https://nextjs.org/docs/messages/no-location-assign-relative-destination  @next/next/no-location-assign-relative-destination
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/components/lexgestor/MobileNavLexGestor.tsx
+  22:36  warning  '_props' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/components/lexgestor/SidebarLexGestor.tsx
+  27:34  warning  '_props' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/actions/admin-actions.ts
+  22:10  warning  'syncPagamentoManualComAssinatura' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/actions/lavagestor-actions.ts
+  1259:16  warning  'enqueuePagamentoWhatsapp' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/lavagestor-relatorios-data.ts
+  83:9  warning  'closedVales' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/lib/lexgestor/data.ts
+  302:10  warning  'buildWorkspace' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/modules/cotacoes/components/admin/quotation-reports.tsx
+  43:32  warning  React Hook useEffect has a missing dependency: 'load'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/modules/cotacoes/components/products/catalog-admin-panel.tsx
+  36:39  warning  React Hook useEffect has a missing dependency: 'refresh'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/modules/cotacoes/components/quotations/seller-response-form.tsx
+  150:6  warning  React Hook useEffect has missing dependencies: 'distributors', 'initialResponse?.status', and 'lockedReason'. Either include them or remove the dependency array. If 'setSelectedDistributorIds' needs the current value of 'distributors', you can also switch to useReducer instead of useState and read 'distributors' in the reducer  react-hooks/exhaustive-deps
+  194:6  warning  React Hook useEffect has a missing dependency: 'distributors'. Either include it or remove the dependency array                                                                                                                                                                                                                           react-hooks/exhaustive-deps
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/modules/cotacoes/components/quotations/supplier-links-table.tsx
+  161:6  warning  React Hook useEffect has a missing dependency: 'startSemiAutomatic'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/modules/cotacoes/components/settings/tenant-whatsapp-connect.tsx
+  87:11  warning  Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/auth/quotation-access.ts
+  36:3  warning  'requestedTenantId' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/data/demo-repository.ts
+  390:73  warning  '_tenantId' is defined but never used  @typescript-eslint/no-unused-vars
+  399:71  warning  '_tenantId' is defined but never used  @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/data/public-response-repository.ts
+    2:1  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+  218:9  warning  'hasAvailableOffer' is assigned a value but never used                                                 @typescript-eslint/no-unused-vars
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/data/supabase-operational.ts
+  2:1  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/data/supabase-repository.ts
+  2:1  warning  Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/modules/cotacoes/lib/whatsapp/evolution-status-webhook.ts
+  106:58  warning  Expected an assignment or function call and instead saw an expression  @typescript-eslint/no-unused-expressions
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/tests/cotacoes-admin-routing.test.mjs
+  10:2  error  Do not assign to the variable `module`. See: https://nextjs.org/docs/messages/no-assign-module-variable  @next/next/no-assign-module-variable
+
+✖ 121 problems (3 errors, 118 warnings)
+  0 errors and 3 warnings potentially fixable with the `--fix` option.
+

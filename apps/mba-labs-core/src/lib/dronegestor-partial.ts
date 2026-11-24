@@ -25,3 +25,102 @@ export function validatePartialExecution(state: RecordValue, plannedArea: number
   if (!Number.isFinite(Date.parse(state.startedAt))) throw new Error('Horário inicial não registrado.');
   return { areaPlanejadaHa: plannedArea, areaAplicadaHa: area, areaRestanteHa: Math.round((plannedArea-area)*1e6)/1e6, motivo: reason as string, justificativa: justification.trim() };
 }
+
+
+/**
+ * Verify append-only hectares and individual loads across a partial checkpoint.
+ * A resumed application must not silently replace, remove, reorder or duplicate
+ * an acknowledged load. No database writes or synthetic flight approvals here.
+ */
+export function validateCumulativeContinuation(previous: RecordValue, state: RecordValue) {
+  const oldLoads = previous?.snapshot?.tankRecords;
+  const loads = state?.tankRecords;
+  const previousArea = Number(previous?.areaAplicadaHa);
+  const currentArea = Number(state?.progressHa);
+  if (!Array.isArray(oldLoads) || !oldLoads.length || !Array.isArray(loads) ||
+      !Number.isFinite(previousArea) || previousArea <= 0 ||
+      !Number.isFinite(currentArea) || currentArea <= previousArea + 0.000001) {
+    throw new Error('A complementação deve acrescentar área real e preservar as cargas anteriores.');
+  }
+  if (loads.length <= oldLoads.length) throw new Error('A complementação precisa registrar novas cargas reais.');
+  for (let i = 0; i < oldLoads.length; i++) {
+    if (!sameDroneSnapshot(loads[i], oldLoads[i])) {
+      throw new Error('A ordem, os hectares e os volumes das cargas anteriores não podem ser alterados.');
+    }
+  }
+  if (state.startedAt !== previous.snapshot.startedAt) {
+    throw new Error('A complementação deve preservar o início original da operação.');
+  }
+  const ids = new Set<string>();
+  let totalArea = 0, totalVolume = 0;
+  for (const load of loads) {
+    if (!load || typeof load.id !== 'string' || !load.id || ids.has(load.id) ||
+        !Number.isFinite(load.areaHa) || load.areaHa <= 0 ||
+        !Number.isFinite(load.volumeL) || load.volumeL <= 0 ||
+        !Number.isFinite(Date.parse(load.at))) {
+      throw new Error('Carga inexistente, duplicada ou com hectares/volume/horário inválidos.');
+    }
+    ids.add(load.id);
+    totalArea += load.areaHa;
+    totalVolume += load.volumeL;
+  }
+  if (Math.abs(totalArea - currentArea) > 0.001) {
+    throw new Error('A soma acumulada dos hectares não coincide com as cargas registradas.');
+  }
+  return {
+    hectaresAnteriores: previousArea,
+    hectaresAcrescentados: Math.round((currentArea - previousArea) * 1e6) / 1e6,
+    hectaresAcumulados: currentArea,
+    cargasAnteriores: oldLoads.length,
+    novasCargas: loads.length - oldLoads.length,
+    volumeAcumuladoL: Math.round(totalVolume * 100) / 100,
+  };
+}
+
+/** New field completion requires a server-confirmed started OS.
+ * Already completed OSs are handled separately by the idempotency lookup.
+ */
+export function validateFieldCompletionState(osData: RecordValue) {
+  if (osData?.execucaoParcialAtiva)
+    throw new Error('Retome a execução parcial com nova conferência pré-voo antes de concluir.');
+  if (!['em_execucao', 'suspensa'].includes(osData?.status))
+    throw new Error('A OS não está em execução: não é possível registrar outra conclusão de campo.');
+  if (typeof osData?.iniciadaEm !== 'string' || !Number.isFinite(Date.parse(osData.iniciadaEm)))
+    throw new Error('A OS não possui início de execução confirmado no servidor.');
+}
+
+/** Public, non-sensitive execution progress for lists. Never expose raw checkpoint snapshots here. */
+export function partialExecutionSummary(osData: RecordValue) {
+  const history = Array.isArray(osData?.execucoesParciais) ? osData.execucoesParciais : [];
+  const last = history.at(-1);
+  if (!last) return null;
+  const planned = Number(osData.areaHa);
+  const applied = Number(last.areaAplicadaHa);
+  if (!Number.isFinite(planned) || planned <= 0 || !Number.isFinite(applied) || applied < 0 || applied > planned) return null;
+  const loads = Array.isArray(last.snapshot?.tankRecords) ? last.snapshot.tankRecords : [];
+  const volume = loads.reduce((sum:number,item:RecordValue)=>sum+(Number.isFinite(item?.volumeL)&&item.volumeL>0?item.volumeL:0),0);
+  return {
+    areaAplicadaHa: applied,
+    areaRestanteHa: Math.round((planned-applied)*1e6)/1e6,
+    volumeAplicadoL: Math.round(volume*100)/100,
+    cargasRegistradas: loads.length,
+    complementacoes: Math.max(0,history.length-1),
+    motivo: typeof last.motivo === 'string' ? last.motivo : '',
+    atualizadoEm: typeof last.at === 'string' ? last.at : '',
+  };
+}
+
+/** JSONB may reorder keys. Idempotency compares values, not object insertion order. */
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return '[' + value.map(canonicalJson).join(',') + ']';
+  if (value && typeof value === 'object') {
+    const object = value as Record<string, unknown>;
+    return '{' + Object.keys(object).sort()
+      .filter(key => object[key] !== undefined)
+      .map(key => JSON.stringify(key) + ':' + canonicalJson(object[key])).join(',') + '}';
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+export function sameDroneSnapshot(a: unknown, b: unknown): boolean {
+  return canonicalJson(a) === canonicalJson(b);
+}

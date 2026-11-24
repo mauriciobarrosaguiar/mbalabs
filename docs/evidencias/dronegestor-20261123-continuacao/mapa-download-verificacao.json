@@ -1,0 +1,28 @@
+{
+  "downloadPelaInterface": true,
+  "perfil": "HOMOLOGAÇÃO P63 - Gestor operacional",
+  "competencia": "2026-11",
+  "operacoesAprovadas": 0,
+  "bytes": 4021748,
+  "sha256": "237644b899f3d35845cbeb79e29ea5b1fcf02ed0d7b15222b12f5df81d0e1ac7",
+  "zipIntegro": true,
+  "abas": [
+    "JAN",
+    "UF_MUN",
+    "Outras Listas",
+    "Plan2",
+    "FEV",
+    "MAR",
+    "ABR",
+    "MAI",
+    "JUN",
+    "JUL",
+    "AGO",
+    "SET",
+    "OUT",
+    "NOV",
+    "DEZ",
+    "TOTAL"
+  ],
+  "NOV_linhas_com_valores_nao_formula_a_partir_da_linha6": 0
+}

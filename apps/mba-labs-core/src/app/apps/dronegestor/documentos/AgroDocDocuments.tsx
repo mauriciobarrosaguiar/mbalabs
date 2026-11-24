@@ -1,7 +1,10 @@
 "use client";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { DroneDocumentsCenter } from "./DroneDocumentsCenter";
 import { uploadAgroDocToDrive } from "@/lib/agrodoc-cloud-upload-client";
-import { useState, useEffect, type ReactNode, useRef } from "react";
+import { agroDocFolders as folders, attachmentsInFolder } from "@/lib/dronegestor-document-folders";
+import { useState, useEffect, useRef } from "react";
 import {
   Folder,
   FileText,
@@ -23,7 +26,7 @@ import {
   agroGet,
   ROOT,
 } from "../AgroDocUi";
-type Order = { entityId: string; data: { numero?: string } };
+type Order = { entityId: string; data: { numero?: string; status?: string } };
 type Doc = {
   id: string;
   nome: string;
@@ -34,25 +37,8 @@ type Doc = {
   ordemServicoNumero: string;
   ordemServicoId: string;
 };
-const folders = [
-  { label: "Todos", types: [] },
-  { label: "Relatórios operacionais", types: ["relatorio_mapa","relatorio_operacional"] },
-  {
-    label: "Comprovantes",
-    types: [
-      "sarpas_autorizacao",
-      "sisant_certidao",
-      "registro_mapa",
-      "seguro",
-      "exame_piloto_anac",
-    ],
-  },
-  { label: "Mapas de aplicação", types: ["mapa_aplicacao"] },
-  { label: "Receituários agronômicos", types: ["receituario"] },
-  { label: "Fotos e evidências", types: ["outro", "avaliacao_risco","foto","video"] },
-  { label: "Histórico de voo", types: ["historico_voo"] },
-];
-export function AgroDocDocuments({ children }: { children: ReactNode }) {
+export function AgroDocDocuments() {
+  const searchParams=useSearchParams();
   const orders = useAgroData<{ items: Order[] }>(
     "/api/dronegestor/cadastros?type=os",
   );
@@ -70,7 +56,10 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
     [progress,setProgress] = useState<number|null>(null),
     [cloudAvailable,setCloudAvailable] = useState(false),
     [reload, setReload] = useState(0);
+  const [fieldOsId,setFieldOsId]=useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const fileOsRef = useRef("");
+  const sendingRef = useRef(false);
   useEffect(() => {
     fetch("/api/dronegestor/cloud",{cache:"no-store"})
       .then(async r=>r.ok?await r.json():null)
@@ -78,7 +67,12 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
       .catch(()=>setCloudAvailable(false));
   },[]);
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("osId");
+    const params=searchParams;
+    setFieldOsId("");
+    if(params.get("returnTo")==="campo"){
+      try{setFieldOsId(JSON.parse(localStorage.getItem("dronegestor:mission:v2")||"{}").ordemServicoId||"")}catch{}
+    }
+    const id = params.get("osId");
     if (id) setOs(id);
     else
       try {
@@ -87,7 +81,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
             .ordemServicoId || "",
         );
       } catch {}
-  }, []);
+  }, [searchParams]);
   useEffect(() => {
     setSelected(null);
     setDocs([]);
@@ -114,13 +108,29 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
       active = false;
     };
   }, [os, reload]);
+  const selectedOrder = orders.data?.items.find(item => item.entityId === os);
+  const readOnly = !selectedOrder || ["cancelada", "concluida"].includes(selectedOrder.data.status || "");
+  function cancelUpload() {
+    if (sendingRef.current) return;
+    setFile(null); setUpload(false); setProgress(null); fileOsRef.current = "";
+    if (fileRef.current) fileRef.current.value = "";
+  }
+  function changeOrder(nextOs: string) {
+    if (sendingRef.current || busy || nextOs === os) return;
+    if (file) { setError("Envie ou cancele o arquivo selecionado antes de trocar de OS."); return; }
+    cancelUpload(); setError(""); setOs(nextOs);
+  }
   const visible = docs.filter(
     (x) =>
-      (!folder || folders[folder].types.includes(x.tipo)) &&
+      (!folder || attachmentsInFolder([x], folders[folder]).length > 0) &&
       x.nome.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
   );
   async function send() {
+    if (sendingRef.current) return;
+    if (readOnly) { setError("OS encerrada ou cancelada: somente consulta."); return; }
     if (!file || !os) return;
+    if (fileOsRef.current !== os) { cancelUpload(); setError("A OS mudou. Selecione novamente o arquivo para a OS atual."); return; }
+    sendingRef.current = true;
     setBusy(true);
     setError("");
     try {
@@ -148,6 +158,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro no upload");
     } finally {
+      sendingRef.current = false;
       setBusy(false);
       setProgress(null);
     }
@@ -200,7 +211,8 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
         <select
           aria-label="Operação vinculada"
           value={os}
-          onChange={(e) => setOs(e.target.value)}
+          disabled={busy}
+          onChange={(e) => changeOrder(e.target.value)}
         >
           <option value="">Selecionar OS</option>
           {orders.data?.items.map((x) => (
@@ -222,12 +234,14 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
         </select>
         <button
           className="agro-button agro-button-primary"
-          disabled={!os}
+          disabled={!os || readOnly}
           onClick={() => setUpload(true)}
         >
           <Upload size={18} />
           Enviar documento
         </button>
+        {os && os===fieldOsId && <Link className="agro-button" href={`${ROOT}/campo`}>Retornar à etapa no Modo Campo</Link>}
+        {os && <Link className="agro-button" href={`${ROOT}/gestao?tab=os&osId=${encodeURIComponent(os)}`}>Voltar à ordem de serviço</Link>}
         {!os && <p className="agro-form-note" role="status" style={{gridColumn:"1 / -1"}}>Selecione uma ordem de serviço para habilitar o envio de documentos.</p>}
       </div>
       <div className="agro-kpis agro-kpis-three">
@@ -241,7 +255,11 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
           icon={TriangleAlert}
           value="Consultar"
           note="Checklist documental da OS"
-          href="#agro-document-checklist"
+          href={`${ROOT}/documentos?${new URLSearchParams({
+            ...(os ? {osId:os} : {}),
+            ...(searchParams.get("returnTo")==="campo" ? {returnTo:"campo"} : {}),
+            checklist:"1",
+          }).toString()}#agro-document-checklist`}
         />
         <AgroDocKpiCard
           title="Armazenamento"
@@ -264,7 +282,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
               <span>
                 <b>{f.label}</b>
                 <small>
-                  {docs.filter((x) => f.types.includes(x.tipo)).length} arquivos
+                  {attachmentsInFolder(docs, f).length} arquivos
                   nesta OS
                 </small>
               </span>
@@ -272,6 +290,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
           ))}
         </AgroDocCard>
         <AgroDocCard title="Últimos arquivos" icon={FileText}>
+          <div className="hidden sm:block">
           <AgroDocTable head={["Arquivo", "Operação", "Data", "Ações"]}>
             {visible.map((x) => (
               <tr
@@ -308,6 +327,28 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
               </tr>
             ))}
           </AgroDocTable>
+          </div>
+          <div className="grid gap-3 sm:hidden">
+            {visible.map((x) => (
+              <article key={x.id} className="min-w-0 rounded-2xl border border-[#d9e8df] bg-white p-4">
+                <button type="button" className="block w-full break-all text-left font-bold text-[#143d31]" onClick={() => setSelected(x)}>
+                  {x.nome}
+                </button>
+                <p className="mt-2 break-words text-sm text-slate-600">OS: {x.ordemServicoNumero || "—"}</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Data: {new Date(x.uploadedAt).toLocaleDateString("pt-BR")}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button type="button" onClick={() => setSelected(x)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#bcd5c6] px-3 font-semibold text-[#176a4c]">
+                    <Eye size={18} /> Visualizar
+                  </button>
+                  <button type="button" onClick={() => void openDocument(x, true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[#bcd5c6] px-3 font-semibold text-[#176a4c]">
+                    <Download size={18} /> Baixar
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
           {!visible.length && (
             <AgroDocEmpty>
               {loading
@@ -399,12 +440,13 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();
-          if (!os) {
+          if (!os || readOnly) {
             setError("Selecione uma OS antes de anexar.");
             return;
           }
           const f = e.dataTransfer.files[0];
-          if (f) {
+          if (f && !sendingRef.current) {
+            fileOsRef.current = os;
             setFile(f);
             setUpload(true);
           }
@@ -416,7 +458,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
             setUpload(true);
             fileRef.current?.click();
           }}
-          disabled={!os}
+          disabled={!os || readOnly}
         >
           <b>Arraste arquivos ou clique para anexar</b>
         </button>
@@ -424,7 +466,8 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
           Arquivos autorizados · Google Drive até 2 GB; Supabase até 10 MB · OS obrigatória
         </small>
       </div>
-      {upload && (
+      {readOnly && selectedOrder && <p role="status">OS encerrada ou cancelada: somente consulta. Os documentos existentes continuam disponíveis.</p>}
+      {upload && !readOnly && (
         <section className="agro-card agro-form" style={{ marginTop: 16 }}>
           <h2>Enviar documento para a OS selecionada</h2>
           <select
@@ -450,9 +493,10 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
           </select>
           <input
             ref={fileRef}
+            disabled={busy}
             type="file"
             accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.mp4,.mov,.zip,.kml,.kmz"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            onChange={(e) => { if (sendingRef.current) return; fileOsRef.current = os; setFile(e.target.files?.[0] || null); }}
           />
           {file && <p>{file.name}</p>}
           {!cloudAvailable && <p className="agro-form-note">Sem Drive conectado, anexos são armazenados no Supabase (até 10 MB).</p>}
@@ -461,7 +505,7 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
             className="agro-button agro-button-primary"
             disabled={
               !file ||
-              !os ||
+              !os || readOnly ||
               busy ||
               Boolean(file && file.size > 2 * 1024 * 1024 * 1024)
             }
@@ -472,16 +516,16 @@ export function AgroDocDocuments({ children }: { children: ReactNode }) {
           {file && file.size > 2 * 1024 * 1024 * 1024 && (
             <p role="alert">Arquivo maior que 2 GB.</p>
           )}
-          <button className="agro-button" onClick={() => setUpload(false)}>
+          <button className="agro-button" disabled={busy} onClick={cancelUpload}>
             Cancelar
           </button>
         </section>
       )}
-      <details id="agro-document-checklist" style={{ marginTop: 20 }}>
+      <details id="agro-document-checklist" open={searchParams.get("checklist")==="1"} style={{ marginTop: 20 }}>
         <summary className="agro-button">
-          Checklist documental e autorização SARPAS da operação ativa
+          Fase 3 — Checklist documental e autorização SARPAS da OS selecionada
         </summary>
-        <div className="agro-legacy">{children}</div>
+        <div className="agro-legacy">{os && <DroneDocumentsCenter key={`${os}:${reload}`} osId={os} readOnly={readOnly}/>}</div>
       </details>
     </>
   );

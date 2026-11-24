@@ -4,7 +4,7 @@ import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   droneOsErrorResponse,
-  requireDroneOsAccess,
+  requireDroneOsAccess, requireDroneOsWriteAccess,
   scopeDroneOsQuery,
 } from "@/lib/dronegestor-os-access";
 
@@ -36,6 +36,7 @@ async function context(): Promise<{ current: Context | null; response: NextRespo
       current: null,
       response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }),
     };
+  if (s.profile.status !== "ativo") return { current: null, response: NextResponse.json({ ok: false, error: "Conta inativa: acesso bloqueado." }, { status: 403 }) };
   const t = normalize(s.profile.tipo || "");
   const master = ["super_admin", "admin_master"].includes(t);
   const allowed = (s.appsLiberados ?? []).some((a) => a.slug === "dronegestor" && a.canAccess);
@@ -162,7 +163,7 @@ export async function POST(request: NextRequest) {
       );
 
     const admin = createSupabaseAdminClient() as any;
-    await requireDroneOsAccess(admin, current, sarpas.ordemServicoId);
+    await requireDroneOsWriteAccess(admin, current, sarpas.ordemServicoId);
     if (!(await canRegisterSarpas(admin, current)))
       return NextResponse.json(
         {

@@ -6,16 +6,13 @@ import { DroneFinishLabelBridge } from "./DroneFinishLabelBridge";
 import { DroneGestorAppV3 } from "./DroneGestorAppV3";
 import { DroneGuidedFieldMode } from "./DroneGuidedFieldMode";
 import { DroneMissionContextReset } from "./DroneMissionContextReset";
-import { DroneMissionGateHint } from "./DroneMissionGateHint";
 import { DroneMixerCalculator } from "./DroneMixerCalculator";
-import { DroneOperationNextStep } from "./DroneOperationNextStep";
 import { DroneOsLifecycleSync } from "./DroneOsLifecycleSync";
 import { DronePersistenceSync } from "./DronePersistenceSync";
 import { DronePilotPermissionBridge } from "./DronePilotPermissionBridge";
 import { DroneProductMissionPicker } from "./DroneProductMissionPicker";
 import { DroneRegulatoryGuard } from "./DroneRegulatoryGuard";
 import { DroneSarpasStateBridge } from "./DroneSarpasStateBridge";
-import { DroneSimpleFlowUX } from "./DroneSimpleFlowUX";
 import { DroneWeatherSync } from "./DroneWeatherSync";
 
 export const dynamic = "force-dynamic";
@@ -30,9 +27,6 @@ export default async function DroneGestorCampoPage() {
     <DroneMissionContextReset />
     <DroneSarpasAgriculturalGuard />
     <DroneEquipmentPicker canManage={canManage} />
-    <DroneSimpleFlowUX />
-    <DroneOperationNextStep />
-    <DroneMissionGateHint />
     <DroneRegulatoryGuard canManage={canManage} />
     <DroneProductMissionPicker />
     <DroneSarpasStateBridge />

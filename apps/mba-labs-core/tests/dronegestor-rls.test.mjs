@@ -29,7 +29,29 @@ test('migration RLS: pilot isolation, direct forgery, restrictive composition an
  ('A','rt','dronegestor','ordem_servico','{"data":{"pilotoResponsavelId":"pedro"}}'),
  ('A','pedro','cotacoes','audit','{}'), ('B','outro','cotacoes','audit','{}');
  `);
+ // Mirror the two permissive policies currently installed in production.
+ await db.exec(`
+ create policy core_logs_select on core_logs for select to authenticated
+   using (is_admin_master() or empresa_id=current_empresa_id());
+ create policy core_logs_insert on core_logs for insert to authenticated
+   with check (is_admin_master() or empresa_id=current_empresa_id());
+ `);
  await db.exec(await readFile(new URL('../../../supabase/migrations/20260815140001_restrict_dronegestor_logs_by_role.sql',import.meta.url),'utf8'));
+ // The migration may only ADD restrictive guards; shared policies must survive.
+ const basePolicies=(await db.query(`
+ select policyname,cmd,permissive from pg_policies
+ where tablename='core_logs' and policyname in ('core_logs_select','core_logs_insert')
+ order by policyname
+ `)).rows;
+ assert.deepEqual(basePolicies.map(x=>[x.policyname,x.cmd,x.permissive]),[
+   ['core_logs_insert','INSERT','PERMISSIVE'],
+   ['core_logs_select','SELECT','PERMISSIVE'],
+ ]);
+ // A second application is safe: old policies and four restrictive guards remain.
+ await db.exec(await readFile(new URL('../../../supabase/migrations/20260815140001_restrict_dronegestor_logs_by_role.sql',import.meta.url),'utf8'));
+ assert.equal((await db.query(`select count(*)::int as n from pg_policies
+ where tablename='core_logs' and policyname like 'dronegestor_logs_api_%'`)).rows[0].n,4);
+
  // Worst-case permissive policy must not reopen DroneGestor, including UPDATE promotion.
  await db.exec(`create policy legacy_broad on core_logs for all to authenticated using (empresa_id=current_empresa_id()) with check (empresa_id=current_empresa_id());`);
  for (const [user,role,company] of [['pedro','piloto','A'],['joao','piloto','A'],['gestor','gestor_operacional','A'],['rt','responsavel_tecnico','A'],['admin','admin_empresa','A'],['master','admin_master','A'],['outro','piloto','B'],['sem','usuario','A'],['invalid','','']]) {
@@ -41,6 +63,14 @@ test('migration RLS: pilot isolation, direct forgery, restrictive composition an
  await assert.rejects(db.exec("insert into core_logs(empresa_id,usuario_id,app_slug) values(current_empresa_id(),current_usuario_id(),'dronegestor')"),/row-level security/);
  if(company==='A') {
  assert.equal((await db.query("select * from core_logs where app_slug='cotacoes' and empresa_id='A'")).rows.length,1);
+ if(user==='pedro'){
+   // Other MBA Labs applications keep their preexisting INSERT and SELECT semantics.
+   await db.exec('begin');
+   await db.exec("insert into core_logs(empresa_id,usuario_id,app_slug,acao,detalhes) values('A','pedro','cotacoes','audit','{}')");
+   assert.equal((await db.query("select * from core_logs where app_slug='cotacoes' and empresa_id='A'")).rows.length,2);
+   await db.exec('rollback');
+ }
+
  await assert.rejects(db.exec("update core_logs set app_slug='dronegestor' where app_slug='cotacoes' and empresa_id='A'"),/row-level security/);
  }
  await db.exec('reset role');

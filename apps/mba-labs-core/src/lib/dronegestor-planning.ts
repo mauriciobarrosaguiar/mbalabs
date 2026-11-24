@@ -7,6 +7,19 @@ export function mergeDroneMissionPlan(base: Record<string, any>, osData: Record<
   next.planejamentoAtualizadoEm = osData.planejamentoAtualizadoEm || '';
   return next;
 }
+/** Display the authoritative pre-operation plan in documents.
+ * Never overlay a newer plan on the snapshot of an already started, suspended
+ * or finished operation. This is for reading, not validating a flight.
+ */
+export function missionPlanForDocumentDisplay(
+  snapshot: Record<string, any>,
+  osData: Record<string, any>,
+  source: "os" | "live" | "finalized",
+) {
+  if (source === "finalized") return snapshot;
+  if (!["aberta", "preparacao", "em_preparacao"].includes(String(osData.status || ""))) return snapshot;
+  return mergeDroneMissionPlan(snapshot, osData);
+}
 export function validateDronePlan(body: Record<string, any>, equipment: Record<string, any>) {
   const positive = (v: unknown) => Number.isFinite(Number(v)) && Number(v) > 0;
   const text = (v: unknown) => typeof v === 'string' ? v.trim().slice(0,180) : '';

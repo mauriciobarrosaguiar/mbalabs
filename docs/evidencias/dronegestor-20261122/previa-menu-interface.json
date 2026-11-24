@@ -1,0 +1,162 @@
+[
+  {
+    "menu": "Ordens de serviço",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/gestao",
+    "heading": "O que precisa da sua atenção agora",
+    "active": [
+      "Ordens de serviço"
+    ]
+  },
+  {
+    "menu": "Histórico",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/historico",
+    "heading": "Histórico de operações",
+    "active": [
+      "Histórico"
+    ]
+  },
+  {
+    "menu": "Fichas de aplicação",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/fichas",
+    "heading": "Fichas das operações",
+    "active": [
+      "Fichas de aplicação"
+    ]
+  },
+  {
+    "menu": "Conferência de operações",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/conferencia",
+    "heading": "Conferência de operações",
+    "active": [
+      "Conferência de operações"
+    ]
+  },
+  {
+    "menu": "Visão dos cadastros",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/cadastros",
+    "heading": "Cadastros",
+    "active": [
+      "Visão dos cadastros"
+    ]
+  },
+  {
+    "menu": "Drones e equipamentos",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/equipamentos",
+    "heading": "Drones e equipamentos",
+    "active": [
+      "Drones e equipamentos"
+    ]
+  },
+  {
+    "menu": "Pilotos",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/pilotos",
+    "heading": "Pilotos e acessos",
+    "active": [
+      "Pilotos"
+    ]
+  },
+  {
+    "menu": "Minha equipe",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/equipe",
+    "heading": "Minha equipe",
+    "active": [
+      "Minha equipe"
+    ]
+  },
+  {
+    "menu": "Funcionários e acessos",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/funcionarios",
+    "heading": "Funcionários e acessos",
+    "active": [
+      "Funcionários e acessos"
+    ]
+  },
+  {
+    "menu": "Documentos",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/documentos",
+    "heading": "MBA DroneGestor · Documentos",
+    "active": [
+      "Documentos"
+    ]
+  },
+  {
+    "menu": "Diagnóstico e regularização",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/diagnostico",
+    "heading": "Diagnóstico e regularização",
+    "active": [
+      "Diagnóstico e regularização"
+    ]
+  },
+  {
+    "menu": "Legislação e fontes",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/regulacao",
+    "heading": "Legislação e fontes",
+    "active": [
+      "Legislação e fontes"
+    ]
+  },
+  {
+    "menu": "Relatórios MAPA",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/relatorio-mensal",
+    "heading": "Relatórios MAPA",
+    "active": [
+      "Relatórios MAPA"
+    ]
+  },
+  {
+    "menu": "MBA Calda e calculadoras",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/ferramentas",
+    "heading": "MBA Calda",
+    "active": [
+      "MBA Calda e calculadoras"
+    ]
+  },
+  {
+    "menu": "Defensivos e AGROFIT",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/produtos",
+    "heading": "Defensivos e AGROFIT",
+    "active": [
+      "Defensivos e AGROFIT"
+    ]
+  },
+  {
+    "menu": "Piloto Pro",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/piloto-pro",
+    "heading": "Piloto Pro",
+    "active": [
+      "Piloto Pro"
+    ]
+  },
+  {
+    "menu": "Perfil operacional",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/perfil-operacional",
+    "heading": "Perfil operacional",
+    "active": [
+      "Perfil operacional"
+    ]
+  },
+  {
+    "menu": "Configurações",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/configuracoes",
+    "heading": "Configurações",
+    "active": [
+      "Configurações"
+    ]
+  },
+  {
+    "menu": "Administração do sistema",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/administracao",
+    "heading": "Administração do DroneGestor",
+    "active": [
+      "Administração do sistema"
+    ]
+  },
+  {
+    "menu": "Ajuda e como usar",
+    "url": "https://mbalabs-fpglt10xe-emsgenericosto-3419s-projects.vercel.app/apps/dronegestor/ajuda",
+    "heading": "Como usar o MBA DroneGestor",
+    "active": [
+      "Ajuda e como usar"
+    ]
+  }
+]

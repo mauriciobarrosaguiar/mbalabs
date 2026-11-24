@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { droneGestorRole } from "@/lib/dronegestor-role";
 import { dronePilotPlanningIssue } from "@/lib/dronegestor-planning";
+import { validateCumulativeContinuation, validateFieldCompletionState, sameDroneSnapshot } from "@/lib/dronegestor-partial";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   DroneOsAccessError,
@@ -631,8 +632,6 @@ export async function POST(request: NextRequest) {
     const settings = await loadSettings(admin, current);
     const summary = buildOperationSummary(state, pilotName, settings);
 
-    validateFinalization(summary, state, settings);
-
     const osAccess = await requireDroneOsAccess(
       admin,
       accessContext(current),
@@ -641,8 +640,10 @@ export async function POST(request: NextRequest) {
     const osData = osAccess.data;
     if (osData.execucaoParcialAtiva) throw new DroneOsAccessError("Retome a execução parcial com nova conferência pré-voo antes de concluir.", 409);
     const checkpoint = Array.isArray(osData.execucoesParciais) ? osData.execucoesParciais.at(-1) : null;
-    if (checkpoint && (Number(state.progressHa) < checkpoint.areaAplicadaHa || checkpoint.snapshot.tankRecords.some((old: any) => !Array.isArray(state.tankRecords) || !state.tankRecords.some((item: any) => JSON.stringify(item) === JSON.stringify(old)))))
-      throw new DroneOsAccessError("As cargas anteriores da execução parcial precisam ser preservadas.", 409);
+    if (checkpoint) {
+      try { validateCumulativeContinuation(checkpoint, state); }
+      catch(error){throw new DroneOsAccessError(error instanceof Error ? error.message : "As cargas anteriores precisam ser preservadas.",409);}
+    }
     const planIssue = await dronePilotPlanningIssue(admin, accessContext(current), osData, objectValue(state.mission));
     if(planIssue) throw new DroneOsAccessError(planIssue, 403);
     const assigned = textValue(osData.pilotoResponsavelId || osData.pilotoId);
@@ -664,13 +665,8 @@ export async function POST(request: NextRequest) {
         403,
       );
 
-    await validateServerPreflight(
-      admin,
-      current,
-      summary.ordemServicoId,
-      summary.tipoAtividade,
-    );
-
+    // A retry of an already committed operation must remain acknowledgeable
+    // after weather, preflight or configuration rules have changed.
     const { data: existing, error: existingError } = await scopeOwnState(admin.from("core_logs"), current)
       .select("id,detalhes,created_at")
       .eq("app_slug", "dronegestor")
@@ -687,6 +683,10 @@ export async function POST(request: NextRequest) {
           "A conclusão protegida pertence a outra OS. Nenhum dado foi alterado.",
           409,
         );
+      if (!sameDroneSnapshot(existing.detalhes?.state, state))
+        throw new DroneOsAccessError("Este identificador pertence a outra versão da conclusão. Preserve os dados originais e confira o histórico.", 409);
+      if (osData.status === "campo_concluido" && textValue(osData.operacaoId) !== operationId)
+        throw new DroneOsAccessError("A OS já foi concluída em campo por outra operação.", 409);
       await setFieldCompleted(admin, current, osAccess.row, operationId);
       return NextResponse.json({
         ok: true,
@@ -704,6 +704,18 @@ export async function POST(request: NextRequest) {
 
     if (osData.status === "concluida")
       throw new DroneOsAccessError("Esta OS já foi encerrada.", 409);
+    try { validateFieldCompletionState(osData); }
+    catch (error) {
+      throw new DroneOsAccessError(error instanceof Error ? error.message : "Esta OS não pode receber conclusão de campo.", 409);
+    }
+
+    validateFinalization(summary, state, settings);
+    await validateServerPreflight(
+      admin,
+      current,
+      summary.ordemServicoId,
+      summary.tipoAtividade,
+    );
 
     const finalizedAt = new Date().toISOString();
     const detalhes = {

@@ -1,3 +1,4 @@
+import { droneAppliedArea, droneOperationStatusLabel } from "@/lib/dronegestor-operation-summary";
 import { NextRequest, NextResponse } from "next/server";
 import { formatDroneReportDate } from "@/lib/dronegestor-report-date";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
@@ -37,7 +38,7 @@ function fmt(v: unknown, d = 1) {
 const dt = formatDroneReportDate;
 async function getContext() {
   const s = await getSessionProfile();
-  if (!s.user || !s.profile)
+  if (!s.user || !s.profile || s.profile.status !== "ativo")
     return {
       current: null,
       response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }),
@@ -178,7 +179,7 @@ async function buildPdf(data: {
   const products = Array.isArray(m.produtos) ? m.produtos : Array.isArray(s.produtos) ? s.produtos : [];
   const occ = Array.isArray(state.occurrences) ? state.occurrences : [];
   const area = num(m.area) || num(s.areaHa);
-  const real = num(state.progressHa) || num(s.areaConcluidaHa);
+  const real = droneAppliedArea(state.progressHa, s.areaConcluidaHa);
   const realVolume =
     tanks.reduce((sum: number, item: any) => sum + Math.max(0, num(item?.volumeL)), 0) ||
     num(s.totalCaldaRealL);
@@ -197,11 +198,7 @@ async function buildPdf(data: {
   w.section("Identificação");
   w.row(
     "Situação",
-    data.osData.status === "concluida"
-      ? "OS encerrada"
-      : data.osData.status === "campo_concluido"
-        ? "Campo concluído - regularização"
-        : "Operação em andamento",
+    droneOperationStatusLabel(data.osData.status, data.osData.fechamentoStatus),
   );
   w.row("OS", text(data.osData.numero, 80) || text(m.ordemServicoNumero, 80) || data.osId);
   w.row("Piloto", pilot);

@@ -14,7 +14,7 @@ function str(v:unknown,n=300){return typeof v==="string"?v.trim().slice(0,n):""}
 function object(v:unknown):Record<string,any>{return v&&typeof v==="object"&&!Array.isArray(v)?v as Record<string,any>:{}}
 async function context():Promise<{user?:Context;error?:NextResponse}>{
  const s=await getSessionProfile();
- if(!s.user||!s.profile)return{error:NextResponse.json({error:"Autenticação necessária."},{status:401})};
+ if(!s.user||!s.profile || s.profile.status !== "ativo")return{error:NextResponse.json({error:"Autenticação necessária."},{status:401})};
  const t=str(s.profile.tipo).toLowerCase(),master=["super_admin","admin_master"].includes(t);
  if(!master&&!(s.appsLiberados??[]).some(a=>a.slug==="dronegestor"&&a.canAccess))
     return{error:NextResponse.json({error:"Acesso ao DroneGestor não liberado."},{status:403})};

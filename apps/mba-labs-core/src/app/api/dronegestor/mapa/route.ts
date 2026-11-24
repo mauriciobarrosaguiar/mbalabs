@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
+import { mapPhotoLogAction, mapPhotoPurpose } from "@/lib/dronegestor-map-photo-purpose";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
 import {
   droneOsErrorResponse,
-  requireDroneOsAccess,
+  requireDroneOsAccess, requireDroneOsWriteAccess,
   scopeDroneOsQuery,
 } from "@/lib/dronegestor-os-access";
 
 export const dynamic = "force-dynamic";
 
 const BUCKET = "dronegestor-map-evidence";
-const ACTION = "mapa_voo_evidencia";
+// Planning and post-flight photos have distinct log actions, with legacy records intact.
 const PILOT_ACTION = "piloto_operacional_v1";
 const MAX_BYTES = 8 * 1024 * 1024;
 
@@ -51,6 +52,7 @@ async function getContext(): Promise<{ current: Context | null; response: NextRe
       response: NextResponse.json({ ok: false, error: "Autenticação necessária." }, { status: 401 }),
     };
   }
+  if (session.profile.status !== "ativo") return { current: null, response: NextResponse.json({ ok: false, error: "Conta inativa: acesso bloqueado." }, { status: 403 }) };
   const type = normalizeType(session.profile.tipo || "");
   const admin = ["super_admin", "admin_master"].includes(type);
   const allowed = (session.appsLiberados ?? []).some(
@@ -128,6 +130,7 @@ async function signedEvidence(admin: any, row: any) {
     url: signed.data.signedUrl,
     uploadedAt: text(details.uploadedAt, 60) || row.created_at,
     source: text(details.source, 20),
+    finalidade: mapPhotoPurpose(details.finalidade),
     ordemServicoId: text(details.ordemServicoId, 100),
     ordemServicoNumero: text(details.ordemServicoNumero, 100),
     talhaoNome: text(details.talhaoNome, 180),
@@ -141,6 +144,8 @@ export async function GET(request: NextRequest) {
     if (access.response) return access.response;
     const current = access.current!;
     const osId = text(request.nextUrl.searchParams.get("osId"), 100);
+    const finalidade = mapPhotoPurpose(request.nextUrl.searchParams.get("finalidade"));
+    const action = mapPhotoLogAction(finalidade);
     if (!osId) return NextResponse.json({ ok: true, evidence: null });
 
     const admin = createSupabaseAdminClient() as any;
@@ -150,7 +155,7 @@ export async function GET(request: NextRequest) {
       .from("core_logs")
       .select("id,detalhes,created_at")
       .eq("app_slug", "dronegestor")
-      .eq("acao", ACTION)
+      .eq("acao", action)
       .contains("detalhes", { ordemServicoId: osId })
       .order("created_at", { ascending: false })
       .limit(1);
@@ -178,6 +183,8 @@ export async function POST(request: NextRequest) {
     const admin = createSupabaseAdminClient() as any;
 
     const form = await request.formData();
+    const finalidade = mapPhotoPurpose(form.get("finalidade"));
+    const action = mapPhotoLogAction(finalidade);
     const file = form.get("foto");
     const ordemServicoId = text(form.get("ordemServicoId"), 100);
     if (!ordemServicoId) {
@@ -189,7 +196,7 @@ export async function POST(request: NextRequest) {
 
     // Confere a OS antes de ler e armazenar o arquivo. Isso evita mapa órfão ou anexado
     // pelo piloto errado em outra OS da mesma empresa.
-    await requireDroneOsAccess(admin, current, ordemServicoId);
+    await requireDroneOsWriteAccess(admin, current, ordemServicoId);
     if (!(await canUpload(admin, current))) {
       return NextResponse.json(
         { ok: false, error: "O gestor não liberou envio de evidências para este piloto." },
@@ -230,6 +237,7 @@ export async function POST(request: NextRequest) {
       storagePath,
       uploadedAt,
       source,
+      finalidade,
       ordemServicoId,
       ordemServicoNumero,
       talhaoNome,
@@ -244,7 +252,7 @@ export async function POST(request: NextRequest) {
         empresa_id: current.empresaId,
         usuario_id: current.userId,
         app_slug: "dronegestor",
-        acao: ACTION,
+        acao: action,
         detalhes: details,
       })
       .select("id,detalhes,created_at")

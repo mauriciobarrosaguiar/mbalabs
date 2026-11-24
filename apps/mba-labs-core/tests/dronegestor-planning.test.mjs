@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {registerHooks} from 'node:module';
 import {NextRequest} from 'next/server.js';
 import {state} from './helpers/dronegestor-planning-fixture.mjs';
-import {mergeDroneMissionPlan,validateDronePlan} from '../src/lib/dronegestor-planning.ts';
+import {mergeDroneMissionPlan,validateDronePlan,missionPlanForDocumentDisplay} from '../src/lib/dronegestor-planning.ts';
 const fixture=new URL('./helpers/dronegestor-planning-fixture.mjs',import.meta.url).href;
 const hook=registerHooks({resolve(s,c,n){if(['@/lib/core-data','@mba-labs/shared/supabase/server'].includes(s))return {url:fixture,shortCircuit:true};if(s.startsWith('@/lib/'))return {url:new URL('../src/lib/'+s.slice(6)+'.ts',import.meta.url).href,shortCircuit:true};if(s==='next/server')return n('next/server.js',c);return n(s,c);}});
 const {GET,PATCH}=await import('../src/app/api/dronegestor/planejamento/route.ts');hook.deregister();
@@ -58,4 +58,31 @@ test('missão legada já iniciada preserva parâmetros do snapshot de servidor, 
  const mission={...validateDronePlan(input,equipment),ordemServicoId:'os-1',area:1.5,cultura:'Milho',alvo:'HOMOLOGAÇÃO'},os={status:'em_execucao',areaHa:1.5,cultura:'Milho',alvo:'HOMOLOGAÇÃO'};
  state.rows.push({acao:'piloto_operacional_v1',app_slug:'dronegestor',empresa_id:'company-A',detalhes:{usuarioId:'pedro',ativo:true,permissoes:{executarOs:true,editarParametros:false}}},{acao:'estado_campo_v2',app_slug:'dronegestor',empresa_id:'company-A',usuario_id:'pedro',detalhes:{state:{mission}}});
  const admin=createSupabaseAdminClient(),current={userId:'pedro',empresaId:'company-A',canManage:false};assert.equal(await dronePilotPlanningIssue(admin,current,os,mission),null);assert.ok(await dronePilotPlanningIssue(admin,current,os,{...mission,volume:999}));
+});
+
+test('document checkpoint presents planned drone/activity for an OS still in preparation',()=>{
+ const planned=validateDronePlan(input,equipment);
+ const os={status:'em_preparacao',missaoPlanejada:planned,planejamentoAtualizadoEm:'v2'};
+ const r=missionPlanForDocumentDisplay({ordemServicoId:'os-1',clienteId:'cliente-1'},os,'os');
+ assert.equal(r.tipoAtividade,'pulverizacao');
+ assert.equal(r.registroAnac,planned.registroAnac);
+ assert.equal(r.drone,planned.drone);
+ assert.equal(r.ordemServicoId,'os-1');
+ assert.equal(r.clienteId,'cliente-1');
+ assert.equal(r.planejamentoAtualizadoEm,'v2');
+ const withUnsyncedPlan=missionPlanForDocumentDisplay({ordemServicoId:'os-1',tipoAtividade:'outro'},os,'live');
+ assert.equal(withUnsyncedPlan.tipoAtividade,'pulverizacao');
+});
+
+test('document checkpoint never changes historical technical snapshot after operation begins',()=>{
+ const before={ordemServicoId:'os-1',tipoAtividade:'dispersao',registroAnac:'REGISTRO-HISTORICO',drone:'Drone usado',tanque:15};
+ const nextPlan={...validateDronePlan(input,equipment),registroAnac:'NOVO-REGISTRO'};
+ for(const status of ['em_execucao','suspensa','campo_concluido','concluida','cancelada']){
+   for(const source of ['os','live','finalized']){
+     const resolved=missionPlanForDocumentDisplay(before,{status,missaoPlanejada:nextPlan},source);
+     assert.deepEqual(resolved,before);
+   }
+ }
+ assert.deepEqual(missionPlanForDocumentDisplay(before,{status:'em_preparacao',missaoPlanejada:nextPlan},'finalized'),before);
+ assert.deepEqual(missionPlanForDocumentDisplay(before,{status:'em_preparacao'},'os'),before);
 });

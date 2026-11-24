@@ -25,6 +25,7 @@ export class CloudError extends Error {
 export async function cloudContext(): Promise<CloudContext> {
   const session = await getSessionProfile();
   if (!session.user || !session.profile) throw new CloudError("Autenticação necessária.", 401);
+  if (session.profile.status !== "ativo") throw new CloudError("Conta inativa: acesso bloqueado.", 403);
   const type = String(session.profile.tipo || "").toLowerCase();
   const master = ["super_admin", "admin_master"].includes(type);
   const allowed = (session.appsLiberados || []).some((a) => a.slug === "dronegestor" && a.canAccess);

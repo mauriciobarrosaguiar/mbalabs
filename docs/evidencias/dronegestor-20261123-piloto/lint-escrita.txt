@@ -1,0 +1,7 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+/workspace/scratch/772a616c0314/mbalabs/apps/mba-labs-core/src/app/apps/dronegestor/campo/DroneGestorAppV3.tsx
+  471:6  warning  React Hook useEffect has a missing dependency: 'retryQueue'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+✖ 1 problem (0 errors, 1 warning)
+

@@ -16,7 +16,7 @@ test('exportador real preenche o modelo original fornecido', {skip:!process.env.
   }});
   let GET;try{({GET}=await import('../src/app/api/dronegestor/relatorio-mensal/xlsx/route.ts'));}finally{hooks.deregister();}
   qa.template=await readFile(process.env.DRONE_QA_ORIGINAL_XLSX);
-  qa.session={user:{id:'QA-AUTH'},profile:{id:'QA-RT',tipo:'usuario',nome:'RT HOMOLOGAÇÃO',empresa_id:'QA'},appsLiberados:[{slug:'dronegestor',canAccess:true}],permissoes:[{appSlug:'dronegestor',perfil:'responsavel_tecnico'}]};
+  qa.session={user:{id:'QA-AUTH'},profile:{id:'QA-RT',tipo:'usuario',status:'ativo',nome:'RT HOMOLOGAÇÃO',empresa_id:'QA'},appsLiberados:[{slug:'dronegestor',canAccess:true}],permissoes:[{appSlug:'dronegestor',perfil:'responsavel_tecnico'}]};
   const row=(acao,detalhes,id=acao)=>({id,acao,detalhes,empresa_id:'QA',usuario_id:'QA-RT',app_slug:'dronegestor',created_at:'2026-11-22T12:00:00Z'});
   qa.rows=[
     row('modelo_relatorio_mapa_2026_v1',{storagePath:'TEST-ONLY.xlsx'}),

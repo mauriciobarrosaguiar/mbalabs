@@ -84,8 +84,10 @@ export function DroneMissionGateHint() {
     };
   }, []);
 
-  if (!state.visible) return null;
-  const ready = state.missing.length === 0;
+  // The main OS summary and preflight card already show the successful state.
+  // Show this hint only when the user has missing fields to fix.
+  if (!state.visible || state.missing.length === 0) return null;
+  const ready = false;
 
   return (
     <section className="bg-[#f4f8f1] px-3 pt-2 sm:px-5">
