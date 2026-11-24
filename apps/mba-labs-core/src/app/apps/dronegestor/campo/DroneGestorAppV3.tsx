@@ -30,13 +30,14 @@ import {
   Wind,
   Wrench
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getDroneSyncConflict, snapshotDroneLocalState } from "./DronePersistenceSync";
 import { hasCompleteDroneFieldClimate } from "@/lib/dronegestor-field-climate";
 import { hasNonPlaceholderAnacId, isExplicitHomologationPlaceholder } from "@/lib/dronegestor-document-checks";
 import { DroneGeoMapEvidence } from "./DroneGeoMapEvidence";
 import { DroneMapEvidence } from "./DroneMapEvidence";
 import {AgroVooProductSearch} from "../agrovoo/piloto/AgroVooProductSearch";
+import {readFinalizationQueue,acknowledgeFinalization} from "@/lib/agrovoo-finalization-queue";
 import {normalizeDropletMicrons,normalizeAssistantName} from "@/lib/agrovoo-field-reference";
 import {FieldReferenceSection,ReferenceValues,DeltaTDisplay} from "./AgroVooFieldReference";
 
@@ -221,6 +222,10 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
   const [savingFinal, setSavingFinal] = useState(false);
   const [finalSaved, setFinalSaved] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const retryInFlight=useRef(false);
+  const [retrying,setRetrying]=useState(false);
+  const [retryNotice,setRetryNotice]=useState("");
+  const [verticalReview,setVerticalReview]=useState(false);
   const [syncConflict, setSyncConflict] = useState<SyncConflict>(null);
 
   useEffect(() => {
@@ -650,26 +655,58 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
   async function sendFinalization(payload: PendingFinalization) {
     const response = await fetch("/api/dronegestor/state", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ state: payload.state, operationId: payload.operationId, pilotName: payload.pilotName }), cache: "no-store", keepalive: true });
     const data = await response.json().catch(() => null);
-    if (!response.ok) throw new Error(data?.error || "Não foi possível registrar a operação.");
+    if (!response.ok||data?.ok!==true) throw new Error(data?.error || "Não foi possível registrar a operação.");
     if (payload.ordemServicoId && data?.osConcluida !== true) throw new Error("A operação foi registrada, mas a confirmação da OS não foi concluída.");
     return data;
   }
   async function retryQueue() {
-    if (!navigator.onLine) return;
-    const queue = readRaw<PendingFinalization[]>(KEYS.finalQueue, []); if (!queue.length) { setPendingCount(0); return; }
-    const remaining: PendingFinalization[] = [];
-    for (const item of queue) {
-      try {
-        await sendFinalization(item); localStorage.setItem(KEYS.lastFinalized, item.operationId);
-        if (localStorage.getItem(KEYS.operationId) === item.operationId) { localStorage.setItem(KEYS.status, JSON.stringify("finalizada")); setMissionStatus("finalizada"); setFinalSaved(true); }
-      } catch { remaining.push(item); }
-    }
-    localStorage.setItem(KEYS.finalQueue, JSON.stringify(remaining)); setPendingCount(remaining.length);
+    if(retryInFlight.current)return;
+    if(!navigator.onLine){setRetryNotice("Sem conexão. Os registros permanecem no aparelho.");return;}
+    const owner=localStorage.getItem("dronegestor:deviceOwner:v1");
+    const sameOwner=()=>Boolean(owner&&owner.endsWith(":"+currentUserId)&&localStorage.getItem("dronegestor:deviceOwner:v1")===owner);
+    if(!sameOwner())return;
+    const queue=readFinalizationQueue<PendingFinalization>(localStorage.getItem(KEYS.finalQueue));
+    if(!queue){setRetryNotice("Fila local inválida. Não foi apagada; solicite suporte.");return;}
+    if(!queue.length){setPendingCount(0);return;}
+    retryInFlight.current=true;setRetrying(true);setRetryNotice("");
+    try{
+      for(const item of queue){
+        if(!sameOwner())return;
+        // Do not resend a record already acknowledged by another attempt.
+        const before=readFinalizationQueue<PendingFinalization>(localStorage.getItem(KEYS.finalQueue));
+        if(!before){setRetryNotice("Fila local inválida. Registros preservados.");return;}
+        if(!before.some(x=>JSON.stringify(x)===JSON.stringify(item)))continue;
+        try{
+          await sendFinalization(item);
+          if(!sameOwner())return;
+          const latest=readFinalizationQueue<PendingFinalization>(localStorage.getItem(KEYS.finalQueue));
+          if(!latest){setRetryNotice("Resposta recebida, mas a fila local não pôde ser conferida. Registros preservados.");return;}
+          const next=acknowledgeFinalization(latest,item);
+          if(next.length===latest.length)continue;
+          localStorage.setItem(KEYS.finalQueue,JSON.stringify(next));
+          if(localStorage.getItem(KEYS.operationId)===item.operationId){
+            localStorage.setItem(KEYS.lastFinalized,item.operationId);
+            localStorage.setItem(KEYS.status,JSON.stringify("finalizada"));
+            setMissionStatus("finalizada");setFinalSaved(true);
+          }
+          setPendingCount(next.length);
+        }catch(error){
+          if(sameOwner())setRetryNotice(error instanceof Error?error.message:"Envio ainda não confirmado.");
+        }
+      }
+      if(sameOwner()){
+        const latest=readFinalizationQueue<PendingFinalization>(localStorage.getItem(KEYS.finalQueue));
+        if(latest){setPendingCount(latest.length);if(!latest.length)setRetryNotice("Todos os encerramentos da fila foram confirmados.");}
+      }
+    }finally{retryInFlight.current=false;if(sameOwner())setRetrying(false);}
   }
   useEffect(() => {
-    if (!hydrated) return; void retryQueue();
-    const online = () => void retryQueue(); window.addEventListener("online", online); return () => window.removeEventListener("online", online);
-  }, [hydrated]);
+    if(!hydrated)return;
+    void retryQueue();
+    const online=()=>void retryQueue();
+    window.addEventListener("online",online);
+    return()=>window.removeEventListener("online",online);
+  },[hydrated,currentUserId]);
 
   async function finalizeOperation() {
     if (!operationStarted || !areaDone || !canStart || savingFinal || finalSaved) return flash("A conclusão só é liberada depois de 100% da área real registrada e de todas as validações obrigatórias.");
@@ -765,10 +802,24 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
       {!canManage && guidedPhase[view] && <div className="border-b border-slate-100 px-4 py-2" aria-label={`Etapa atual ${guidedPhase[view]} de 8; indicador de navegação, não de aprovação`}><div className="grid grid-cols-8 gap-1" aria-hidden="true">{Array.from({length:8},(_,i)=><span key={i} className={`h-1.5 rounded-full ${i+1===guidedPhase[view]?"bg-emerald-700":"bg-slate-200"}`}/>)}</div></div>}
 
       {syncConflict && <div className="mx-4 mt-4 rounded-2xl border border-red-300 bg-red-50 p-4 text-sm text-red-950"><div className="flex gap-2"><CloudAlert size={20}/><div><strong>Conflito de sincronização protegido</strong><p className="mt-1">A nuvem e este aparelho possuem versões diferentes. Nada foi sobrescrito.</p></div></div><div className="mt-3 grid grid-cols-2 gap-2"><button className="rounded-xl border border-red-200 bg-white px-3 py-2 font-black" onClick={() => resolveConflict("cloud")}>Usar nuvem</button><button className="rounded-xl bg-red-700 px-3 py-2 font-black text-white" onClick={() => resolveConflict("local")}>Manter aparelho</button></div></div>}
-      {pendingCount > 0 && <div className="mx-4 mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">{pendingCount} conclusão(ões) protegida(s) aguardando sincronização.</div>}
+      {(pendingCount>0||retryNotice)&&<div className="mx-3 mt-3 grid gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950" role="status"><strong>{pendingCount} conclusão(ões) aguardando sincronização</strong>{retryNotice&&<p className="text-xs">{retryNotice}</p>}{pendingCount>0&&<button type="button" disabled={retrying} onClick={()=>void retryQueue()} className="min-h-11 rounded-md border border-amber-300 bg-white px-3 font-semibold disabled:opacity-50">{retrying?"Enviando…":"Sincronizar agora"}</button>}</div>}
       {notice && <div className="mx-4 mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">{notice}</div>}
 
-      <div className="agro-field-body grid gap-4 p-4 sm:p-6">
+      {!canManage&&Boolean(mission.ordemServicoId)&&!operationStarted&&<section className="mx-3 mt-3 rounded-lg border border-slate-200 bg-white">
+        <button type="button" aria-expanded={verticalReview} onClick={()=>setVerticalReview(v=>!v)} className="flex min-h-11 w-full items-center justify-between gap-2 px-3 text-left text-sm font-semibold text-emerald-900"><span>Ficha vertical da aplicação</span><span className="text-xs">{verticalReview?"Recolher":"Conferir tudo"}</span></button>
+        {verticalReview&&<div className="grid gap-2 border-t border-slate-100 p-2.5">
+          <FieldReferenceSection tone="basic" title="1. Informações básicas"><ReferenceValues items={[{label:"OS",value:mission.ordemServicoNumero||""},{label:"Cliente",value:mission.clienteNome||""},{label:"Propriedade / talhão",value:[mission.fazendaNome,mission.talhaoNome].filter(Boolean).join(" / ")},{label:"Área registrada / planejada",value:fmt(progressHa,2)+" / "+fmt(mission.area,2)+" ha"}]}/></FieldReferenceSection>
+          <FieldReferenceSection tone="gps" title="2. Localização GPS"><ReferenceValues items={[{label:"Latitude",value:modelWeather&&Number.isFinite(modelWeather.latitude)?String(modelWeather.latitude):""},{label:"Longitude",value:modelWeather&&Number.isFinite(modelWeather.longitude)?String(modelWeather.longitude):""}]}/></FieldReferenceSection>
+          <FieldReferenceSection tone="weather" title="3. Condições meteorológicas"><ReferenceValues items={[{label:"Vento medido",value:mission.ventoCampoKmh==null?"":fmt(mission.ventoCampoKmh)+" km/h"},{label:"Direção",value:mission.direcaoVentoCampo},{label:"Temperatura medida",value:mission.temperaturaCampo==null?"":fmt(mission.temperaturaCampo)+" °C"},{label:"Umidade medida",value:mission.umidadeCampo==null?"":fmt(mission.umidadeCampo)+" %"}]}/><DeltaTDisplay temperature={mission.temperaturaCampo} humidity={mission.umidadeCampo}/></FieldReferenceSection>
+          <FieldReferenceSection tone="technical" title="4. Parâmetros técnicos"><ReferenceValues items={[{label:"Drone",value:mission.drone},{label:"Bico / atomizador",value:mission.pontaModelo},{label:"Altura",value:fmt(mission.alturaM)+" m"},{label:"Faixa",value:fmt(mission.faixa)+" m"},{label:"Velocidade",value:fmt(mission.velocidadeKmh)+" km/h"},{label:"Volume",value:fmt(mission.volume)+" L/ha"},{label:"Gota nominal",value:mission.gotaMicra?fmt(mission.gotaMicra)+" µm":""}]}/></FieldReferenceSection>
+          <FieldReferenceSection tone="team" title="5. Equipe"><ReferenceValues items={[{label:"Piloto",value:userName},{label:"Ajudante informado",value:mission.ajudanteNome||""}]}/></FieldReferenceSection>
+          <FieldReferenceSection tone="notes" title="6. Observações"><p className="text-sm">{occurrences.length} ocorrência(s) registrada(s) · {tankRecords.length} carga(s)</p></FieldReferenceSection>
+          <FieldReferenceSection tone="evidence" title="7. Evidências e conclusão"><p className="text-sm text-slate-600">Foto do mapa do controle ou KML/KMZ. O envio e o encerramento usam o fluxo protegido da OS.</p></FieldReferenceSection>
+          <p className="text-xs text-slate-600">Ficha de consulta, não comprova liberação de voo. Edite somente na etapa correspondente.</p>
+          <div className="grid gap-1">{flow.map((step,index)=><button key={step} type="button" disabled={index>maxUnlocked||locked||checkingPreflight} aria-current={view===step?"step":undefined} onClick={()=>{setVerticalReview(false);go(step);}} className={"flex min-h-11 items-center justify-between gap-2 rounded-md border px-2 text-left text-xs font-semibold disabled:opacity-45 "+(view===step?"border-emerald-700 bg-emerald-50":"border-slate-200")}><span>{title[step]}</span><span>{view===step?"Atual":index>maxUnlocked?"Bloqueada":"Consultar etapa"}</span></button>)}</div>
+        </div>}
+      </section>}
+      <div className="agro-field-body grid gap-3 p-3 sm:gap-4 sm:p-6">
         {view === "inicio" && <div className="grid gap-3">
           <strong className="text-lg text-emerald-950">Sua operação</strong>
           <p className="text-sm text-slate-600">{mission.ordemServicoNumero||"Nenhuma OS selecionada"}</p>
@@ -875,7 +926,7 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
           ? <div className="grid gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950">
               <strong className="text-lg">Etapa 7 · Aguardando sincronização</strong>
               <p className="text-sm">O encerramento está protegido neste aparelho, mas ainda não foi confirmado pelo servidor. A etapa 8 só será liberada após a confirmação.</p>
-              <button type="button" className="min-h-12 rounded-xl border border-amber-300 bg-white px-3 text-sm font-black" onClick={()=>window.location.reload()}>Atualizar situação</button>
+              <button type="button" className="min-h-12 rounded-xl border border-amber-300 bg-white px-3 text-sm font-black" disabled={retrying} onClick={()=>void retryQueue()}>{retrying?"Enviando…":"Sincronizar agora"}</button>
             </div>
           : <><DroneMapEvidence/><div className="rounded-3xl bg-gradient-to-br from-emerald-950 to-emerald-700 p-5 text-white"><span className="text-xs font-black uppercase tracking-wider">{paused?"Operação pausada":"Aplicação em andamento"}</span><h2 className="mt-1 text-xl font-black">{mission.cultura} • {mission.alvo}</h2><div className="mt-4 flex items-end justify-between"><strong className="text-4xl">{fmt(mission.area>0?Math.min(100,progressHa/mission.area*100):0,0)}%</strong><span className="text-sm">{fmt(progressHa,2)} de {fmt(mission.area,2)} ha</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20"><div className="h-full bg-white" style={{width:`${mission.area>0?Math.min(100,progressHa/mission.area*100):0}%`}}/></div></div><div className="grid grid-cols-2 gap-3"><Metric icon={<RotateCcw/>} label="Abastecimentos reais" value={`${tankRecords.length}`}/><Metric icon={<Droplets/>} label="Calda real registrada" value={`${fmt(calc.actualVolume,1)} L`}/><Metric icon={<Map/>} label="Área restante" value={`${fmt(Math.max(0,mission.area-progressHa),2)} ha`}/><Metric icon={<AlertTriangle/>} label="Ocorrências" value={`${occurrences.length}`}/></div><div className="rounded-2xl border border-slate-200 p-4"><strong className="text-sm">Registrar abastecimento concluído</strong><p className="mt-1 text-xs text-slate-500">Informe o que realmente foi executado; o sistema não soma hectares teoricamente.</p><div className="mt-3 grid grid-cols-2 gap-2"><input disabled={paused||areaDone} className="min-h-11 rounded-xl border border-slate-200 px-3" type="number" step="any" placeholder="Área real (ha)" value={tankArea} onChange={(e)=>setTankArea(e.target.value)}/><input disabled={paused||areaDone} className="min-h-11 rounded-xl border border-slate-200 px-3" type="number" step="any" placeholder="Volume usado (L)" value={tankVolume} onChange={(e)=>setTankVolume(e.target.value)}/></div><div className="mt-2 grid grid-cols-2 gap-2"><button disabled={paused||areaDone} className="min-h-11 rounded-xl bg-emerald-600 px-3 font-black text-white disabled:opacity-40" onClick={registerTank}><Check className="mr-1 inline" size={17}/>Registrar</button><button disabled={paused||!tankRecords.length} className="min-h-11 rounded-xl border border-slate-200 bg-white px-3 font-black text-slate-700 disabled:opacity-40" onClick={undoLastTank}><Undo2 className="mr-1 inline" size={17}/>Desfazer último</button></div></div><div className="grid grid-cols-2 gap-3"><button className="min-h-12 rounded-xl border border-slate-200 bg-white font-black text-slate-800" onClick={togglePause}>{paused?<><Play className="mr-2 inline" size={18}/>Retomar</>:<><Pause className="mr-2 inline" size={18}/>Pausar</>}</button><button className="min-h-12 rounded-xl border border-amber-200 bg-amber-50 font-black text-amber-900" onClick={addOccurrence}><AlertTriangle className="mr-2 inline" size={18}/>Ocorrência</button></div>{areaDone?<Info>100% da área planejada foi atingida pelos registros reais. Confira volumes, ocorrências e conclua.</Info>:<Warning>A conclusão permanece bloqueada até a soma das áreas realmente registradas atingir 100%.</Warning>}<Primary disabled={!areaDone||!canStart||savingFinal||finalSaved} onClick={()=>void finalizeOperation()}>{savingFinal?"Salvando...":finalSaved?"Operação salva":"Concluir e salvar no histórico"}</Primary></>)}
 
