@@ -23,9 +23,9 @@ export async function GET(){
   try{
     const a=await access();if(a.response)return a.response;
     const c=a.context!,db=createSupabaseAdminClient() as any;
-    const {data,error}=await scope(db.from(TABLE).select(fields),c).order("due_date",{ascending:false}).order("id",{ascending:true}).limit(1001);
+    const {data,error,count}=await scope(db.from(TABLE).select(fields,{count:"exact"}),c).order("due_date",{ascending:false}).order("id",{ascending:true}).limit(1000);
     if(error)return unavailable();
-    if((data??[]).length>1000)return reply({ok:false,error:"Limite de consulta atingido. A paginação integral no servidor é necessária antes de exibir totais."},422);
+    if(count===null||typeof count!=="number"||count>(data??[]).length)return reply({ok:false,error:"Limite de consulta atingido. A paginação integral no servidor é necessária antes de exibir totais."},422);
     return reply({ok:true,items:data??[]});
   }catch{return unavailable();}
 }
