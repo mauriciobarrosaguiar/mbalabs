@@ -6,7 +6,7 @@ import { DroneHomeDashboard } from "./DroneHomeDashboard";
 
 export const dynamic = "force-dynamic";
 
-export default async function DroneGestorPage() {
+export default async function DroneGestorPage({searchParams}:{searchParams:Promise<{legacy?:string}>}) {
   const current = await requireAppAccess("dronegestor", "/apps/dronegestor");
   const canManage = canManageDroneGestor({
     tipo: current.tipo,
@@ -14,6 +14,8 @@ export default async function DroneGestorPage() {
     permissoes: current.permissoes,
   });
   if (isDroneGestorPilot({tipo:current.tipo,isAdminMaster:current.isAdminMaster,permissoes:current.permissoes})) redirect("/apps/dronegestor/agrovoo/piloto");
+  const {legacy}=await searchParams;
+  if(canManage&&legacy!=="1"&&(process.env.VERCEL_ENV==="preview"||process.env.NODE_ENV==="development"))redirect("/apps/dronegestor/agrovoo");
   return <>
     {canManage && <div className="mx-auto mt-4 flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:mt-6">
       <div>

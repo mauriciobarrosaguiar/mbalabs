@@ -88,7 +88,7 @@ export function AgroVooAdminShell({ children, userName, canAdministerCompany, is
         {canAdministerCompany && <Link href={ROOT + "/funcionarios"} title="Funcionários e acessos" className={linkClass}><Users size={19}/><span className={compact ? "lg:sr-only" : ""}>Funcionários e acessos</span></Link>}
         {isSystemAdmin && <Link href={ROOT + "/administracao"} title="Administração do sistema" className={linkClass}><ShieldCheck size={19}/><span className={compact ? "lg:sr-only" : ""}>Administração do sistema</span></Link>}
       </nav>
-      <div className={"border-t border-slate-200 bg-slate-50 p-3 text-slate-600 " + (compact ? "lg:hidden" : "")}><small className="block text-[11px] font-semibold uppercase">Conectado como</small><strong className="block truncate text-sm text-slate-900">{userName}</strong><Link className="mt-2 inline-flex min-h-9 items-center text-xs font-semibold text-emerald-800" href={ROOT}>Painel anterior</Link></div>
+      <div className={"border-t border-slate-200 bg-slate-50 p-3 text-slate-600 " + (compact ? "lg:hidden" : "")}><small className="block text-[11px] font-semibold uppercase">Conectado como</small><strong className="block truncate text-sm text-slate-900">{userName}</strong><Link className="mt-2 inline-flex min-h-9 items-center text-xs font-semibold text-emerald-800" href={ROOT+"?legacy=1"}>Painel anterior</Link></div>
     </aside>
     <div className={"min-w-0 transition-[margin] " + (compact ? "lg:ml-[76px]" : "lg:ml-[250px]")}>
       <div className="mx-auto max-w-[1600px] p-3 sm:p-5">{children}</div>
