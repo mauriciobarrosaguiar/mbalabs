@@ -1,3 +1,4 @@
+import { agrovooSafetyChecklistReady } from "@/lib/agrovoo-preflight-rules";
 import { hasDroneCoordinates } from "@/lib/dronegestor-coordinates";
 import { NextRequest, NextResponse } from "next/server";
 import { dronePilotPlanningIssue } from "@/lib/dronegestor-planning";
@@ -12,7 +13,6 @@ const ACTIONS = { cliente: "cadastro_cliente", fazenda: "cadastro_fazenda", talh
 const OS_EVENT_ACTION = "ordem_servico_evento";
 const PILOT_ACTION = "piloto_operacional_v1";
 const EQUIPMENT_ACTION = "cadastro_equipamento";
-const DOC_ACTION = "documento_operacao_v1";
 const SARPAS_ACTION = "sarpas_operacao_v1";
 const CONFIG_ACTION = "configuracao_empresa_v1";
 type ResourceType = keyof typeof ACTIONS;
@@ -136,24 +136,18 @@ async function requireStartPreflight(admin: any, current: ApiContext, osId: stri
   if (settings.exigirConfirmacao !== false && snapshot.riskAccepted !== true) throw new Error("Confirme a análise de risco antes de iniciar.");
   if (settings.insightsObrigatorios !== false && snapshot.insightAccepted !== true) throw new Error("Leia e confirme o insight obrigatório de segurança.");
   if (!allTrue(snapshot.calibration)) throw new Error("Conclua a calibração antes de iniciar.");
-  if (!allTrue(snapshot.checklist)) throw new Error("Conclua o checklist pré-voo antes de iniciar.");
+  if (!agrovooSafetyChecklistReady(snapshot.checklist)) throw new Error("Conclua o checklist pré-voo antes de iniciar.");
   const weather = objectValue(snapshot.weather);
   if (!hasDroneCoordinates(weather)) throw new Error("Capture o GPS no local da operação.");
 
-  let docsQuery = admin.from("core_logs").select("detalhes").eq("app_slug", "dronegestor").eq("acao", DOC_ACTION).contains("detalhes", { ordemServicoId: osId }).limit(500);
-  docsQuery = scopeQuery(docsQuery, current);
+  // Anexos documentais são acompanhados separadamente; a autorização oficial permanece exigida.
   let sarpasQuery = admin.from("core_logs").select("detalhes").eq("app_slug", "dronegestor").eq("acao", SARPAS_ACTION).contains("detalhes", { ordemServicoId: osId }).order("created_at", { ascending: false }).limit(1);
   sarpasQuery = scopeQuery(sarpasQuery, current);
-  const [docsResult, sarpasResult] = await Promise.all([docsQuery, sarpasQuery.maybeSingle()]);
-  if (docsResult.error) throw docsResult.error;
+  const sarpasResult = await sarpasQuery.maybeSingle();
   if (sarpasResult.error) throw sarpasResult.error;
-  const documentTypes = new Set((docsResult.data ?? []).map((row: any) => cleanText(row?.detalhes?.tipo, 80)));
-  if (!documentTypes.has("sisant_certidao")) throw new Error("Falta anexar a Certidão SISANT/ANAC desta OS.");
-  if ((cleanText(mission.tipoAtividade) || "pulverizacao") === "pulverizacao" && !documentTypes.has("receituario")) throw new Error("Falta anexar o receituário desta pulverização.");
   const sarpas = objectValue(sarpasResult.data?.detalhes);
   if (cleanText(sarpas.status) !== "autorizado") throw new Error("SARPAS ainda não autorizado. Abra Documentos e SARPAS.");
   if (!cleanText(sarpas.numero)) throw new Error("Informe a referência da autorização SARPAS.");
-  if (!documentTypes.has("sarpas_autorizacao")) throw new Error("Falta anexar o comprovante da autorização SARPAS.");
 }
 
 export async function GET(request: NextRequest) { try { const access = await getContext(); if (access.response) return access.response; const current = access.current!, type = request.nextUrl.searchParams.get("type"); if (!isResourceType(type)) return NextResponse.json({ ok: false, error: "Tipo de cadastro inválido." }, { status: 400 }); const admin = createSupabaseAdminClient() as any; let query = admin.from("core_logs").select("id,detalhes,created_at").eq("app_slug", "dronegestor").eq("acao", ACTIONS[type]).order("created_at", { ascending: false }).limit(500); query = scopeQuery(query, current); const { data, error } = await query; if (error) throw error; let allowedEntityIds: Set<string> | null = null;
