@@ -18,8 +18,8 @@ test("the mobile pilot stage header is concise and secondary navigation is hidde
 test("prefilled OS and technical data are summarized and expandable without altering values or gates", () => {
   const source = read("../src/app/apps/dronegestor/campo/DroneGestorAppV3.tsx");
   assert.match(source, /Resumo da aplicação/);
-  assert.match(source, /<details defaultOpen=\{!missionReady\}/);
-  assert.match(source, /<details defaultOpen=\{!productsReady\}/);
+  assert.match(source, /<details open=\{!missionReady\}/);
+  assert.match(source, /<details open=\{!productsReady\}/);
   assert.match(source, /Tempos operacionais · opcionais/);
   assert.match(source, /<Primary disabled=\{!missionReady\} onClick=\{\(\)=>guarded\("controle"\)\}/);
   assert.match(source, /const canStart = missionReady && safetyReady && calibrationReady && checklistReady && sarpasReady && gpsReady/);
