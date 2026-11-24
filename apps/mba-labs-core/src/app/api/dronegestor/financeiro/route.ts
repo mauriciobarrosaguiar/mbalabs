@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
 import { canAdministerDroneCompany, isDroneSystemAdministrator } from "@/lib/dronegestor-company-access";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
-import { financeToday, nextFinanceState, validateFinanceInput, type FinanceEntry } from "@/lib/agrovoo-finance";
+import { financeToday, nextFinanceState, validateFinanceInput, type FinanceEntry, type FinanceInput } from "@/lib/agrovoo-finance";
 
 export const dynamic="force-dynamic";
 const TABLE="agrovoo_finance_entries";
-const fields="id,kind,description,category,amount_cents,due_date,status,settled_date";
+const fields="id,kind,description,category,amount_cents,due_date,status,settled_date,competence_date,os_id,cost_center,counterparty,os_label,updated_at";
 const reply=(body:object,status=200)=>NextResponse.json(body,{status,headers:{"Cache-Control":"no-store"}});
 async function access(){
   const s=await getSessionProfile();
@@ -18,6 +18,16 @@ async function access(){
   return {response:null,context:{scope_kind:s.profile.empresa_id?"empresa":"usuario",scope_id:s.profile.empresa_id||s.profile.id,user:s.profile.id}};
 }
 function scope(query:any,c:{scope_kind:string;scope_id:string}){return query.eq("scope_kind",c.scope_kind).eq("scope_id",c.scope_id);}
+type Context={scope_kind:string;scope_id:string;user:string};
+async function withOrder(db:any,c:Context,data:FinanceInput){
+  if(!data.os_id)return {...data,os_id:null,os_label:null};
+  let query=db.from("core_logs").select("detalhes").eq("app_slug","dronegestor").eq("acao","ordem_servico").contains("detalhes",{entityId:data.os_id,ativo:true});
+  query=c.scope_kind==="empresa"?query.eq("empresa_id",c.scope_id):query.eq("usuario_id",c.scope_id);
+  const {data:os,error}=await query.limit(1).maybeSingle();
+  if(error)throw error;
+  if(!os)return null;
+  return {...data,os_label:String(os.detalhes?.data?.numero||data.os_id).slice(0,120)};
+}
 const unavailable=()=>reply({ok:false,error:"Não foi possível acessar o financeiro. Nenhum resultado presumido."},503);
 export async function GET(){
   try{
@@ -34,7 +44,8 @@ export async function POST(request:NextRequest){
     const a=await access();if(a.response)return a.response;
     const c=a.context!;let data;try{data=validateFinanceInput(await request.json());}catch(e){return reply({ok:false,error:e instanceof Error?e.message:"Lançamento inválido."},400);}
     const db=createSupabaseAdminClient() as any;
-    const {data:row,error}=await db.from(TABLE).insert({...data,scope_kind:c.scope_kind,scope_id:c.scope_id,created_by:c.user,status:"pendente",settled_date:null}).select(fields).single();
+    const linked=await withOrder(db,c,data);if(!linked)return reply({ok:false,error:"OS não encontrada neste cadastro."},404);
+    const {data:row,error}=await db.from(TABLE).insert({...linked,competence_date:data.competence_date||data.due_date,scope_kind:c.scope_kind,scope_id:c.scope_id,created_by:c.user,status:"pendente",settled_date:null}).select(fields).single();
     if(error)return unavailable();
     return reply({ok:true,item:row},201);
   }catch{return unavailable();}
@@ -48,8 +59,16 @@ export async function PATCH(request:NextRequest){
     const {data:entry,error}=await scope(db.from(TABLE).select(fields),c).eq("id",id).maybeSingle();
     if(error)return unavailable();
     if(!entry)return reply({ok:false,error:"Lançamento não encontrado."},404);
-    let next;try{next=nextFinanceState(entry as FinanceEntry,body.action,body.date,financeToday());}catch(e){return reply({ok:false,error:e instanceof Error?e.message:"Transição inválida."},409);}
-    const {data:updated,error:updateError}=await scope(db.from(TABLE).update({...next,updated_at:new Date().toISOString(),updated_by:c.user}),c).eq("id",id).eq("status","pendente").select(fields).maybeSingle();
+    let next;
+    try{
+      if(body.action==="editar"){
+        if(entry.status!=="pendente")throw new Error("Somente lançamentos pendentes podem ser editados.");
+        const data=validateFinanceInput(body.data);
+        const linked=await withOrder(db,c,data);if(!linked)return reply({ok:false,error:"OS não encontrada neste cadastro."},404);
+        next={...linked,competence_date:data.competence_date||data.due_date};
+      }else next=nextFinanceState(entry as FinanceEntry,body.action,body.date,financeToday());
+    }catch(e){return reply({ok:false,error:e instanceof Error?e.message:"Transição inválida."},409);}
+    const {data:updated,error:updateError}=await scope(db.from(TABLE).update({...next,updated_at:new Date().toISOString(),updated_by:c.user}),c).eq("id",id).eq("status","pendente").eq("updated_at",entry.updated_at).select(fields).maybeSingle();
     if(updateError)return unavailable();
     if(!updated)return reply({ok:false,error:"Lançamento alterado por outra sessão. Atualize a página."},409);
     return reply({ok:true,item:updated});
