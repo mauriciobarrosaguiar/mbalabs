@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { paginateAgroVooOrders } from "@/lib/agrovoo-board-view";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -90,7 +91,7 @@ function strongPassword() {
   return Array.from(values, (value) => characters[value % characters.length]).join("");
 }
 
-export function DronePilotsManager() {
+export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
   const [items, setItems] = useState<Pilot[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [form, setForm] = useState<PilotForm>(empty);
@@ -108,6 +109,9 @@ export function DronePilotsManager() {
   const [open, setOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [expanded, setExpanded] = useState("");
+  const [query,setQuery]=useState("");
+  const [page,setPage]=useState(0);
+  const [size,setSize]=useState(10);
   const [message, setMessage] = useState("");
   const formRef = useRef<HTMLFormElement | null>(null);
 
@@ -150,6 +154,10 @@ export function DronePilotsManager() {
     void load();
   }, []);
 
+  const normalize=(value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");
+  const filtered=compact?items.filter(item=>[item.nome,item.email,item.telefone].some(value=>normalize(String(value||"")).includes(normalize(query.trim())))):items;
+  const {currentPage,totalPages,visibleOrders}=paginateAgroVooOrders(filtered,page,size);
+  const visiblePilots=compact?visibleOrders:items;
   const linkedPilots = useMemo(() => items.filter((item) => Boolean(item.usuarioId)), [items]);
   const selectedOrder = useMemo(() => orders.find((item) => item.entityId === orderId) || null, [orders, orderId]);
   const selectedPilot = useMemo(
@@ -315,11 +323,11 @@ export function DronePilotsManager() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f8f1] px-3 pb-28 pt-4 text-[#143d31] sm:px-6 sm:py-8">
-      <div className="mx-auto grid w-full max-w-3xl gap-4">
+    <main className={compact?"grid gap-4 pb-8 text-slate-900":"min-h-screen bg-[#f4f8f1] px-3 pb-28 pt-4 text-[#143d31] sm:px-6 sm:py-8"}>
+      <div className={"mx-auto grid w-full gap-4 "+(compact?"max-w-[1500px]":"max-w-3xl")}>
         <header className="flex items-center gap-3">
           <Link
-            href="/apps/dronegestor/equipe"
+            href={compact?"/apps/dronegestor/agrovoo":"/apps/dronegestor/equipe"}
             aria-label="Voltar"
             className="grid size-11 shrink-0 place-items-center rounded-2xl border border-[#d9e5dc] bg-white text-[#315d4d]"
           >
@@ -525,6 +533,7 @@ export function DronePilotsManager() {
           </section>
         )}
 
+        {compact&&<div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-3"><input aria-label="Buscar pilotos" type="search" value={query} placeholder="Buscar por nome, e-mail ou telefone" onChange={e=>{setQuery(e.target.value);setPage(0);}} className="min-h-11 flex-1 rounded-md border border-slate-300 px-3 text-sm"/><span className="text-xs text-slate-600">{filtered.length} registros</span></div>}
         {loading ? (
           <div className="grid min-h-36 place-items-center rounded-2xl bg-white">
             <Loader2 className="animate-spin text-[#087a55]" />
@@ -536,7 +545,8 @@ export function DronePilotsManager() {
           </div>
         ) : (
           <div className="grid gap-2">
-            {items.map((item) => (
+            {visiblePilots.length===0&&<p className="rounded-md bg-white p-4 text-sm text-slate-600">Nenhum piloto encontrado.</p>}
+            {visiblePilots.map((item) => (
               <PilotCard
                 key={item.id}
                 item={item}
@@ -551,6 +561,7 @@ export function DronePilotsManager() {
             ))}
           </div>
         )}
+        {compact&&!loading&&<div className="flex flex-wrap items-center justify-end gap-2 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600"><select aria-label="Pilotos por página" value={size} onChange={e=>{setSize(Number(e.target.value));setPage(0);}} className="min-h-11 !w-auto rounded-md border border-slate-200 px-2">{[10,25,50].map(n=><option key={n} value={n}>{n}</option>)}</select><button type="button" disabled={currentPage===0} onClick={()=>setPage(currentPage-1)} className="min-h-11 rounded-md border px-3 disabled:opacity-40">Anterior</button><span>{currentPage+1}/{totalPages}</span><button type="button" disabled={currentPage>=totalPages-1} onClick={()=>setPage(currentPage+1)} className="min-h-11 rounded-md border px-3 disabled:opacity-40">Próxima</button></div>}
       </div>
     </main>
   );
