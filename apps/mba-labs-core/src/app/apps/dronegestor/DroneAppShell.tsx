@@ -78,7 +78,8 @@ export function DroneAppShell({
   canAdministerCompany?: boolean;
 }) {
   const path = usePathname();
-  const availablePages = pages.filter(p => (canManage || !managerPaths.has(p.path)) && (p.path !== "administracao" || isSystemAdmin) && (p.path !== "funcionarios" || canAdministerCompany));
+  const pilotField=isPilot&&!canManage&&path===`${ROOT}/campo`;
+  const availablePages = pages.filter(p => (!pilotField||["","gestao","campo","historico","fichas","documentos","ferramentas","piloto-pro","perfil-operacional","ajuda"].includes(p.path)) && (canManage || !managerPaths.has(p.path)) && (p.path !== "administracao" || isSystemAdmin) && (p.path !== "funcionarios" || canAdministerCompany));
   const [collapsed, setCollapsed] = useState(false);
   const [menu, setMenu] = useState(false),
     [query, setQuery] = useState(""),
@@ -90,7 +91,7 @@ export function DroneAppShell({
   if (isPilot && !canManage && pilotShellPaths.some(p=>path === `${ROOT}/${p}` || path.startsWith(`${ROOT}/${p}/`))) return <AgroVooPilotShell userName={userName}>{children}</AgroVooPilotShell>;
   if (canManage && (path === `${ROOT}/agrovoo` || path.startsWith(`${ROOT}/agrovoo/`))) return <AgroVooAdminShell userName={userName} canAdministerCompany={canAdministerCompany} isSystemAdmin={isSystemAdmin}>{children}</AgroVooAdminShell>;
   return (
-    <div className={`agro-shell ${collapsed ? "agro-shell-collapsed" : ""}`}>
+    <div className={`agro-shell ${collapsed ? "agro-shell-collapsed" : ""} ${pilotField?"agrovoo-pilot-field":""}`}>
       <aside className={`agro-sidebar ${menu ? "agro-sidebar-open" : ""}`}>
         <Link className="agro-logo" href="/dashboard">
           <Leaf />
@@ -101,7 +102,7 @@ export function DroneAppShell({
             <Drone />
           </span>
           <div>
-            <b>MBA DroneGestor</b>
+            <b>{pilotField?"AgroVoo Piloto":"MBA DroneGestor"}</b>
             <small>
               Drones Agrícolas ·<br />
               Operações · Piloto Pro
@@ -121,7 +122,7 @@ export function DroneAppShell({
             const entries = group.paths.map(p => availablePages.find(item => item.path === p)).filter((p): p is typeof pages[number] => Boolean(p));
             if (!entries.length) return null;
             return <details key={group.title} open={entries.some(p => path === `${ROOT}${p.path ? `/${p.path}` : ""}` || Boolean(p.path && path.startsWith(`${ROOT}/${p.path}/`)))}><summary>{group.title}</summary>
-              {entries.map(({path:p,title,icon:Icon}) => <Link key={p} title={title} href={`${ROOT}${p ? `/${p}` : ""}`} onClick={() => setMenu(false)} aria-current={path === `${ROOT}${p ? `/${p}` : ""}` || Boolean(p && path.startsWith(`${ROOT}/${p}/`)) ? "page" : undefined}><Icon/><span>{title}</span></Link>)}
+              {entries.map(({path:p,title,icon:Icon}) => <Link key={p} title={title} href={pilotField&&!p?`${ROOT}/agrovoo/piloto`:`${ROOT}${p ? `/${p}` : ""}`} onClick={() => setMenu(false)} aria-current={path === `${ROOT}${p ? `/${p}` : ""}` || Boolean(p && path.startsWith(`${ROOT}/${p}/`)) ? "page" : undefined}><Icon/><span>{title}</span></Link>)}
             </details>;
           })}
         </nav>
@@ -130,9 +131,9 @@ export function DroneAppShell({
       {menu && <button className="agro-menu-dismiss fixed inset-0 z-[80] bg-black/40" aria-label="Fechar menu" onClick={()=>setMenu(false)}/>}
       <div className="agro-workspace">
         <header className="agro-header">
-          <Link href={ROOT} className="agro-mobile-brand">
-            <Leaf />
-            MBA <em>DroneGestor</em>
+          <Link href={pilotField?`${ROOT}/agrovoo/piloto`:ROOT} className="agro-mobile-brand">
+            {pilotField?<Drone/>:<Leaf/>}
+            {pilotField?<>Agro<em>Voo</em><small> Piloto</small></>:<>MBA <em>DroneGestor</em></>}
           </Link>
           <button
             className="agro-menu-button"
