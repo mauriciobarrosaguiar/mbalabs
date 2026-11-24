@@ -8,6 +8,7 @@ const preflight=read("../src/app/api/dronegestor/preflight/route.ts");
 
 test("only one step navigation exists, in the field app",()=>{
  assert.doesNotMatch(page,/<DroneSimpleFlowUX\s*\/>/);
+ assert.doesNotMatch(page,/<DroneOperationNextStep\s*\/>/);
  assert.doesNotMatch(page,/<DroneMissionGateHint\s*\/>/);
  assert.doesNotMatch(app,/agro-field-shortcuts/);
  assert.match(app,/Etapa \$\{guidedPhase\[view\]\} de 8/);
@@ -35,6 +36,8 @@ test("the pilot confirms calda, physical inspection, climate and GPS before late
  assert.match(app,/if\(!checklistReady\)return flash/);
  assert.match(app,/if\(!caldaReviewed\)return flash/);
  assert.match(app,/unlock\("execucao"\)/);
+ assert.match(app,/const result=await preflightCheck\(\)/);
+ assert.match(app,/await startOperation\(\)/);
  assert.match(app,/unlock\("relatorios"\)/);
 });
 test("map file or controller photo stays in the safety step, and field map is inline",()=>{
