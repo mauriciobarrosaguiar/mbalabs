@@ -7,7 +7,6 @@ import { DroneGestorAppV3 } from "./DroneGestorAppV3";
 import { DroneGuidedFieldMode } from "./DroneGuidedFieldMode";
 import { DroneMissionContextReset } from "./DroneMissionContextReset";
 import { DroneMixerCalculator } from "./DroneMixerCalculator";
-import { DroneOperationNextStep } from "./DroneOperationNextStep";
 import { DroneOsLifecycleSync } from "./DroneOsLifecycleSync";
 import { DronePersistenceSync } from "./DronePersistenceSync";
 import { DronePilotPermissionBridge } from "./DronePilotPermissionBridge";
@@ -28,7 +27,6 @@ export default async function DroneGestorCampoPage() {
     <DroneMissionContextReset />
     <DroneSarpasAgriculturalGuard />
     <DroneEquipmentPicker canManage={canManage} />
-    <DroneOperationNextStep />
     <DroneRegulatoryGuard canManage={canManage} />
     <DroneProductMissionPicker />
     <DroneSarpasStateBridge />
