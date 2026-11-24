@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
 import {useEffect,useState} from "react";
-import {BookOpen,CalendarDays,ClipboardList,Clock,FileText,FlaskConical,Grid3X3,History,MapPin,Plus,RefreshCw,Search,UserRound} from "lucide-react";
+import {BookOpen,ClipboardList,FileText,FlaskConical,Grid3X3,History,MapPin,Plus,RefreshCw,Search,UserRound} from "lucide-react";
 import {AgroDocDroneIcon as Drone} from "../../AgroDocDroneIcon";
 import {useAgroData,ROOT} from "../../AgroDocUi";
 import {ownPilotOrders,pilotOrderState,sortPilotOrders,pilotOrderHref,type PilotOrder} from "@/lib/agrovoo-pilot-view";
+import {usePilotPendingSync} from "./usePilotPendingSync";
 import {formatFinanceDate} from "@/lib/agrovoo-finance";
 
 type Application={id:string;usuario_id?:string;created_at?:string;detalhes?:{operationId?:string;finalizedAt?:string;summary?:{ordemServicoId?:string;ordemServicoNumero?:string;areaConcluidaHa?:number;iniciadaEm?:string;finalizadaEm?:string;piloto?:string;clienteNome?:string}}};
@@ -20,7 +21,8 @@ const secondary="inline-flex min-h-11 items-center justify-center gap-2 rounded-
 function Field({label,value,icon:Icon}:{label:string;value:string;icon:typeof UserRound}){return <div className="flex min-w-0 items-start gap-2"><Icon size={16} className="mt-1 shrink-0 text-emerald-700"/><div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className="break-words text-xs font-semibold text-slate-800">{value||"Não informado"}</p></div></div>;}
 function ApplicationCard({row}:{row:Application}){const s=row.detalhes?.summary??{};return <article className="grid gap-1.5 rounded-lg border border-slate-200 bg-white p-3 shadow-sm"><div className="flex flex-wrap items-center justify-between gap-1"><strong className="text-sm">Aplicação {formatFinanceDate(day(s.iniciadaEm||row.detalhes?.finalizedAt||row.created_at||""))}</strong><span className="rounded px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 bg-emerald-50">Salvo no sistema</span></div><p className="text-xs text-slate-600">OS: {s.ordemServicoNumero||"—"}</p><p className="text-xs text-slate-600">Horário: {time(s.iniciadaEm)} – {time(s.finalizadaEm)}</p><p className="text-xs text-slate-600">Área aplicada: {typeof s.areaConcluidaHa==="number"?fmt(s.areaConcluidaHa)+" ha":"Não informada"}</p><p className="text-xs text-slate-600">Piloto: {s.piloto||"Não informado"}</p></article>;}
 
-export function AgroVooPilotHome({userId,userName,trainingEnabled=false}:{userId:string;userName:string;trainingEnabled?:boolean}){
+export function AgroVooPilotHome({userId,userName,deviceOwner,trainingEnabled=false}:{userId:string;userName:string;deviceOwner:string;trainingEnabled?:boolean}){
+ const pending=usePilotPendingSync(deviceOwner);
  const source=useAgroData<{ok:boolean;items:PilotOrder[];canManage:boolean}>("/api/dronegestor/cadastros?type=os");
  const history=useAgroData<{ok:boolean;items:Application[];hasMore:boolean}>("/api/dronegestor/state?history=1&limit=500");
  const [online,setOnline]=useState<boolean|null>(null);
@@ -46,9 +48,10 @@ export function AgroVooPilotHome({userId,userName,trainingEnabled=false}:{userId
  const docs=order?ROOT+"/documentos?osId="+encodeURIComponent(order.entityId):ROOT+"/documentos";
  return <main className="mx-auto grid w-full max-w-lg gap-3 pb-6 text-slate-900 sm:max-w-2xl" aria-label={"Painel de "+userName}>
   <div className="agro-compact-grid grid grid-cols-2 gap-2">
-   {[{label:"Aplicações hoje",value:fullHistory?String(todayRows.length):"—",color:"text-blue-700"},{label:"Área aplicada (histórico)",value:fullHistory?fmt(area)+" ha":"—",color:"text-emerald-700"},{label:"Sincronização",value:online===false?"Offline":online===true?"Rede online":"—",color:online===false?"text-amber-700":"text-slate-700"},{label:"Ordens ativas",value:authorized?String(active.length):"—",color:"text-cyan-700"}].map(m=><div key={m.label} className="grid min-h-[76px] place-content-center gap-1 rounded-xl border border-slate-200 bg-white p-2 text-center shadow-sm"><strong className={"text-lg tabular-nums "+m.color}>{m.value}</strong><span className="text-[11px] text-slate-600">{m.label}</span></div>)}
+   {[{label:"Aplicações hoje",value:fullHistory?String(todayRows.length):"—",color:"text-blue-700"},{label:"Área aplicada (histórico)",value:fullHistory?fmt(area)+" ha":"—",color:"text-emerald-700"},{label:"Envios pendentes neste aparelho",value:pending===null?"—":String(pending),color:pending?"text-amber-700":"text-slate-700"},{label:"Ordens ativas",value:authorized?String(active.length):"—",color:"text-cyan-700"}].map(m=><div key={m.label} className="grid min-h-[76px] place-content-center gap-1 rounded-xl border border-slate-200 bg-white p-2 text-center shadow-sm"><strong className={"text-lg tabular-nums "+m.color}>{m.value}</strong><span className="text-[11px] text-slate-600">{m.label}</span></div>)}
   </div>
   {online===false&&<p role="status" className="rounded-md bg-amber-50 p-2 text-xs text-amber-900">Sem conexão. O modo campo preserva a operação já carregada. Não troque de OS enquanto houver registros pendentes.</p>}
+  {pending!==null&&pending>0&&<p className="rounded-md bg-amber-50 p-2 text-xs text-amber-900">Existem registros aguardando envio. <Link href={ROOT+"/campo"} className="font-semibold underline">Abrir modo campo para sincronizar</Link>.</p>}
   {history.data?.hasMore&&<p className="text-xs text-slate-500">Histórico parcial nesta consulta. Consulte a página de histórico completo para os totais.</p>}
   <section className={panel}>
    <h1 className={header}><ClipboardList size={16} className="text-emerald-700"/> Ordem de referência</h1>
