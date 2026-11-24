@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, CircleHelp, FileText, FolderCheck, PlaneTakeoff, TriangleAlert } from "lucide-react";
+import { CheckCircle2, ChevronDown, FileText, FolderCheck, PlaneTakeoff, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { DroneGeoMapEvidence } from "./DroneGeoMapEvidence";
 import { DroneMapEvidence } from "./DroneMapEvidence";
@@ -128,18 +128,37 @@ export function DroneSimpleFlowUX(){
 
   return <>
     {active && <section className="agro-field-phase bg-slate-50 px-3 pt-3 sm:px-5 sm:pt-5">
-      <div className="mx-auto w-full max-w-3xl overflow-hidden rounded-xl bg-emerald-950 p-3 text-white sm:p-4">
+      <div className="mx-auto w-full max-w-3xl rounded-2xl bg-emerald-950 p-4 text-white">
         <div className="flex items-start justify-between gap-3">
-          <div><span className="text-[11px] font-black uppercase tracking-[.14em] text-[#8fe0b4]">Fase {active.number} de {phases.length}</span><h2 className="mt-1 text-xl font-black leading-6">{active.label}</h2><p className="mt-1 text-xs text-[#c8ddd2]">{active.detail}</p></div>
-          <div className="grid size-11 shrink-0 place-items-center rounded-full bg-white/10 text-lg font-black">{active.number}</div>
+          <div className="min-w-0">
+            <span className="text-[11px] font-black uppercase tracking-wider text-emerald-200">Etapa {active.number} de {phases.length} · Apenas consulta</span>
+            <h2 className="mt-1 text-xl font-black leading-tight">{active.label}</h2>
+          </div>
+          <span className="shrink-0 rounded-xl bg-white/10 px-3 py-2 text-sm font-black">{active.number}/{phases.length}</span>
         </div>
-        <p className="mt-3 text-xs text-white/80">Etapa em consulta. Navegar não conclui fases; a liberação depende das conferências e do servidor.</p>
-        <div className="mobile-hide-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1">
-          {phases.map((phase)=>{ const current=phase.number===active.number; return <div key={phase.number} className={`flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[10px] font-black ${current?"bg-[#65dca0] text-[#063b29]":"bg-white/10 text-white/80"}`}><span className="grid size-4 place-items-center rounded-full bg-white/10">{phase.number}</span><span>{phase.label}</span></div>; })}
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/15" role="progressbar" aria-label="Posição no roteiro, não conclusão das etapas" aria-valuenow={active.number} aria-valuemin={1} aria-valuemax={phases.length}>
+          <div className="h-full rounded-full bg-emerald-300" style={{width:`${active.number/phases.length*100}%`}}/>
         </div>
+        <p className="mt-3 text-sm leading-5 text-white/90"><strong>{tip.title}:</strong> {tip.text}</p>
+        <p className="mt-2 text-[11px] text-emerald-100/75">A posição não significa que a fase foi concluída. A liberação depende das verificações do servidor.</p>
       </div>
-      <div className="mx-auto mt-2 flex w-full max-w-3xl flex-wrap gap-2"><Link className="min-h-11 rounded-xl border bg-white p-3 text-xs font-bold" href={osId?`/apps/dronegestor/gestao?osId=${encodeURIComponent(osId)}`:"/apps/dronegestor/gestao"}>OS e planejamento</Link><Link className="min-h-11 rounded-xl border bg-white p-3 text-xs font-bold" href={osId?`/apps/dronegestor/documentos?osId=${encodeURIComponent(osId)}&returnTo=campo`:"/apps/dronegestor/gestao"}>Fase 3: conferir documentos</Link><Link className="min-h-11 rounded-xl border bg-white p-3 text-xs font-bold" href={osId?`/apps/dronegestor/pacote-operacao?osId=${encodeURIComponent(osId)}`:"/apps/dronegestor/gestao"}>Fase 8: conferência e pacote</Link></div>
-      <div className="mx-auto mt-2 flex w-full max-w-3xl gap-2 rounded-2xl border border-[#cfe4d7] bg-white px-3 py-3 shadow-sm"><CircleHelp size={18} className="mt-0.5 shrink-0 text-[#087a55]"/><div><strong className="block text-xs font-black text-[#123d30]">{tip.title}</strong><p className="mt-0.5 text-[11px] leading-4 text-[#6c7a72]">{tip.text}</p></div></div>
+      <details className="mx-auto mt-2 w-full max-w-3xl rounded-xl border border-slate-200 bg-white text-slate-800">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 text-sm font-black focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600">
+          <span>Ver roteiro completo e outros acessos</span><ChevronDown size={18} className="shrink-0"/>
+        </summary>
+        <div className="border-t border-slate-100 p-3">
+          <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Oito etapas do processo">
+            {phases.map(phase=><li key={phase.number} className={`rounded-lg px-2 py-2 text-xs ${phase.number===active.number?"bg-emerald-50 font-black text-emerald-950":"bg-slate-50 text-slate-600"}`}>
+              <span className="font-black">{phase.number}.</span> {phase.label}
+            </li>)}
+          </ol>
+          <nav aria-label="Outras telas de gestão" className="mt-3 grid gap-2 sm:grid-cols-3">
+            <Link className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-emerald-950" href={osId?`/apps/dronegestor/gestao?osId=${encodeURIComponent(osId)}`:"/apps/dronegestor/gestao"}>Ordem de serviço / gestor</Link>
+            <Link className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-emerald-950" href={osId?`/apps/dronegestor/documentos?osId=${encodeURIComponent(osId)}&returnTo=campo`:"/apps/dronegestor/gestao"}>Documentação e SARPAS</Link>
+            <Link className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-emerald-950" href={osId?`/apps/dronegestor/pacote-operacao?osId=${encodeURIComponent(osId)}`:"/apps/dronegestor/gestao"}>Conferência e pacote final</Link>
+          </nav>
+        </div>
+      </details>
     </section>}
 
     {view==="sarpas" && <section className="bg-[#f4f8f1] px-3 pt-2 sm:px-5"><div className="mx-auto w-full max-w-3xl">
