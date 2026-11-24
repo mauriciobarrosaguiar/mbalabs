@@ -96,7 +96,7 @@ export function DroneFinalOsSummary() {
 
       <div className="grid gap-3 p-3 sm:p-4">
         <div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-4">
-          <Info icon={<UserRound size={18}/>} label="Piloto responsável" value={payload.pilotName || "Piloto não identificado"} sub={m.drone ? `${m.drone} • ANAC ${m.registroAnac || "não informado"}` : "Drone não informado"}/>
+          <Info icon={<UserRound size={18}/>} label="Piloto responsável" value={payload.pilotName || "Piloto não identificado"} sub={m.drone ? `${m.drone} • ANAC ${m.registroAnac || "não informado"}` : "Drone não informado"}/><Info icon={<UserRound size={18}/>} label="Ajudante informado" value={String(m.ajudanteNome||"Não informado")} sub={typeof m.gotaMicra==="number"&&m.gotaMicra>0?`Gota nominal: ${m.gotaMicra} µm`:"Gota nominal não informada"}/>
           <Info icon={<MapPinned size={18}/>} label="Onde" value={[m.clienteNome, m.fazendaNome, m.talhaoNome].filter(Boolean).join(" → ") || "Não informado"} sub={[m.municipio, m.uf].filter(Boolean).join("/") || "Localidade não informada"}/>
           <Info icon={<Sprout size={18}/>} label="Cultura e alvo" value={`${m.cultura || "Cultura não informada"}${m.alvo ? ` • ${m.alvo}` : ""}`} sub={`${n(summary.progress, 2)} ha realizados de ${n(summary.area, 2)} ha`}/>
           <Info icon={<Clock3 size={18}/>} label="Quando" value={`${dt(state.startedAt)} → ${dt(state.endedAt || state.concluidaNoDispositivoEm)}`} sub={`Duração: ${duration(state.startedAt, state.endedAt || state.concluidaNoDispositivoEm)}`}/>
