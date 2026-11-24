@@ -13,6 +13,6 @@ export default async function DroneGestorGestaoPage() {
   return <>
     {canManage && <DroneManagerOperationsPanel />}
     <DroneOsPilotStep canManage={canManage} />
-    <div id="drone-os-management"><DroneGestaoClientV3 pilotPreview={pilotPreview} canManage={canManage} currentUserId={current.usuario.id} currentUserName={current.usuario.nome || "Operador"} /></div>
+    <div id="drone-os-management"><DroneGestaoClientV3 pilotPreview={pilotPreview} canManage={canManage} currentDeviceOwner={`${current.empresaId||"solo"}:${current.usuario.id}`} currentUserId={current.usuario.id} currentUserName={current.usuario.nome || "Operador"} /></div>
   </>;
 }
