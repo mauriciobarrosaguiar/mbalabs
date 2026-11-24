@@ -25,6 +25,7 @@ import { usePathname } from "next/navigation";
 import { type ReactNode, useState } from "react";
 import { ROOT } from "./AgroDocUi";
 import { AgroVooAdminShell } from "./agrovoo/AgroVooAdminShell";
+import { AgroVooPilotShell } from "./agrovoo/AgroVooPilotShell";
 const pages = [
   { path: "", title: "Início", icon: Home },
   { path: "agrovoo", title: "AgroVoo Gestão (prévia)", icon: Home },
@@ -65,12 +66,14 @@ export function DroneAppShell({
   children,
   userName = "Minha conta",
   canManage = false,
+  isPilot = false,
   isSystemAdmin = false,
   canAdministerCompany = false,
 }: {
   children: ReactNode;
   userName?: string;
   canManage?: boolean;
+  isPilot?: boolean;
   isSystemAdmin?: boolean;
   canAdministerCompany?: boolean;
 }) {
@@ -82,6 +85,9 @@ export function DroneAppShell({
     [search, setSearch] = useState(false),
     [notice, setNotice] = useState(false);
   if (path === `${ROOT}/calculadora`) return <>{children}</>;
+  // The field screen retains its proven navigation and operational overlays.
+  const pilotShellPaths = ["agrovoo/piloto","gestao","historico","fichas","documentos","ferramentas","piloto-pro","perfil-operacional","ajuda","pacote-operacao"];
+  if (isPilot && !canManage && pilotShellPaths.some(p=>path === `${ROOT}/${p}` || path.startsWith(`${ROOT}/${p}/`))) return <AgroVooPilotShell userName={userName}>{children}</AgroVooPilotShell>;
   if (canManage && (path === `${ROOT}/agrovoo` || path.startsWith(`${ROOT}/agrovoo/`))) return <AgroVooAdminShell userName={userName} canAdministerCompany={canAdministerCompany} isSystemAdmin={isSystemAdmin}>{children}</AgroVooAdminShell>;
   return (
     <div className={`agro-shell ${collapsed ? "agro-shell-collapsed" : ""}`}>
