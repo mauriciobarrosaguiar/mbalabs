@@ -6,13 +6,13 @@ function read(relative) {
   return readFileSync(new URL(relative, import.meta.url), "utf8");
 }
 
-test("the mobile pilot stage header is concise and secondary navigation is hidden by default", () => {
-  const source = read("../src/app/apps/dronegestor/campo/DroneSimpleFlowUX.tsx");
-  assert.match(source, /Etapa \{active\.number\} de \{phases\.length\} · Apenas consulta/);
-  assert.match(source, /<details className="mx-auto mt-2/);
-  assert.match(source, /Ver roteiro completo e outros acessos/);
-  assert.match(source, /A posição não significa que a fase foi concluída/);
-  assert.match(source, /\{view==="seguranca" && <div/);
+test("the field has a single compact phase header and no secondary wizard bar", () => {
+  const field = read("../src/app/apps/dronegestor/campo/DroneGestorAppV3.tsx");
+  const page = read("../src/app/apps/dronegestor/campo/page.tsx");
+  assert.match(field, /Etapa \$\{guidedPhase\[view\]\} de 8/);
+  assert.doesNotMatch(field, /agro-field-shortcuts/);
+  assert.doesNotMatch(page, /<DroneSimpleFlowUX\s*\/>/);
+  assert.doesNotMatch(page, /<DroneMissionGateHint\s*\/>/);
 });
 
 test("prefilled OS and technical data are summarized and expandable without altering values or gates", () => {
@@ -21,7 +21,7 @@ test("prefilled OS and technical data are summarized and expandable without alte
   assert.match(source, /<details open=\{!missionReady\}/);
   assert.match(source, /<details open=\{!productsReady\}/);
   assert.match(source, /Tempos operacionais · opcionais/);
-  assert.match(source, /<Primary disabled=\{!missionReady\} onClick=\{\(\)=>guarded\("controle"\)\}/);
+  assert.match(source, /<Primary disabled=\{!missionReady\|\|checkingPreflight\} onClick=\{\(\)=>guarded\("controle"\)\}/);
   assert.match(source, /const canStart = missionReady && safetyReady && calibrationReady && checklistReady && sarpasReady && gpsReady/);
   assert.match(source, /registro ANAC válido ou liberação de voo/);
 });
