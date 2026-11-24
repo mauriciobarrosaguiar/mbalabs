@@ -191,7 +191,7 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
   const [view, setView] = useState<View>("inicio");
   const [returnView, setReturnView] = useState<View>("inicio");
   const [mission, setMission] = useState<Mission>(blankMission);
-  const [productPermission,setProductPermission]=useState(false);
+  const [productPermission,setProductPermission]=useState("");
   const [productSearchId,setProductSearchId]=useState("");
   const [settings, setSettings] = useState<CompanySettings>(defaultSettings);
   const [settingsUpdatedAt, setSettingsUpdatedAt] = useState("");
@@ -344,19 +344,20 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
   const gpsReady = Boolean(modelWeather && Number.isFinite(modelWeather.latitude) && Number.isFinite(modelWeather.longitude));
   const locked = operationStarted || ["pendente_sync", "finalizada"].includes(missionStatus);
   // Product edits use the same React mission state, never a second localStorage writer.
-  const canEditProducts=(canManage||productPermission)&&!locked&&missionStatus!=="parcial"&&progressHa===0&&tankRecords.length===0&&view==="nova";
+  const permissionKey=currentUserId+":"+String(mission.ordemServicoId||"");
+  const canEditProducts=(canManage||Boolean(mission.ordemServicoId&&productPermission===permissionKey))&&!locked&&missionStatus!=="parcial"&&progressHa===0&&tankRecords.length===0&&view==="nova";
   useEffect(()=>{
-    setProductSearchId("");setProductPermission(false);
+    setProductSearchId("");setProductPermission("");
     if(canManage||view!=="nova"||!currentUserId||!mission.ordemServicoId)return;
     const controller=new AbortController();
     fetch("/api/dronegestor/pilotos",{cache:"no-store",signal:controller.signal}).then(async response=>{
       const data=await response.json().catch(()=>null);
       if(controller.signal.aborted)return;
       const own=response.ok&&data?.ok===true&&data.currentUserId===currentUserId&&Array.isArray(data.items)?data.items.find((p:{usuarioId?:string;ativo?:boolean;permissoes?:{editarParametros?:boolean}})=>p.usuarioId===currentUserId&&p.ativo===true):null;
-      setProductPermission(own?.permissoes?.editarParametros===true);
-    }).catch(()=>{if(!controller.signal.aborted)setProductPermission(false);});
+      setProductPermission(own?.permissoes?.editarParametros===true?permissionKey:"");
+    }).catch(()=>{if(!controller.signal.aborted)setProductPermission("");});
     return()=>controller.abort();
-  },[canManage,currentUserId,mission.ordemServicoId,view]);
+  },[canManage,currentUserId,mission.ordemServicoId,view,permissionKey]);
 
   const canStart = missionReady && safetyReady && calibrationReady && checklistReady && sarpasReady && gpsReady && !syncConflict && !["pendente_sync", "finalizada"].includes(missionStatus);
   const areaDone = mission.area > 0 && progressHa >= mission.area - 0.01;
@@ -546,7 +547,7 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
   }
   function updateProduct(id: string, patch: Partial<Product>) {
     if (!canEditProducts) return flash("Produtos em somente leitura nesta fase ou para este perfil.");
-    setMission((current) => ({ ...current, produtos: current.produtos.map((p) => p.id === id ? { ...p, ...patch } : p), sarpasConfirmado: false, sarpasSituacao: "", sarpasNumero: "" }));
+    setMission((current) => ({ ...current, produtos: current.produtos.map((p) => p.id === id ? { ...p, ...patch, ...(typeof patch.nome==="string"&&patch.nome!==p.nome?{dose:0}:{}) } : p), sarpasConfirmado: false, sarpasSituacao: "", sarpasNumero: "" }));
     setInsightAccepted(false); setRiskAccepted(false); setCalibration(blankCalibration); setChecklist(blankChecklist);
   }
   function addProduct() { if (!canEditProducts) return; setMission((current) => ({ ...current, produtos: [...current.produtos, { id: createId("produto"), nome: "", dose: 0, unidade: "mL/ha" }] })); invalidateCore(); }
@@ -796,7 +797,7 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
           <div className="grid gap-3 border-t border-slate-100 p-3"><FieldReferenceSection tone="technical" title="4. Parâmetros técnicos de voo"><FormGrid><SelectField label="Tipo de atividade *" value={mission.tipoAtividade} onChange={(v) => updateMission("tipoAtividade", v)} options={["pulverizacao|Pulverização","dispersao|Dispersão / semeadura","outro|Outro"]}/><TextField label="Cultura *" value={mission.cultura} onChange={(v) => updateMission("cultura",v)}/><TextField label="Alvo *" value={mission.alvo} onChange={(v) => updateMission("alvo",v)}/><NumberField label="Área *" value={mission.area} suffix="ha" onChange={(v) => updateMission("area",v)}/><TextField label="Drone *" value={mission.drone} onChange={(v) => updateMission("drone",v)}/><TextField label="Identificação / registro ANAC *" value={mission.registroAnac} onChange={(v) => updateMission("registroAnac",v)}/><TextField label="Bico / atomizador — tipo/modelo *" value={mission.pontaModelo} onChange={(v) => updateMission("pontaModelo",v)}/><NumberField label="Volume *" value={mission.volume} suffix="L/ha" onChange={(v) => updateMission("volume",v)}/><NumberField label="Tanque *" value={mission.tanque} suffix="L" onChange={(v) => updateMission("tanque",v)}/><NumberField label="Faixa *" value={mission.faixa} suffix="m" onChange={(v) => updateMission("faixa",v)}/><NumberField label="Velocidade *" value={mission.velocidadeKmh} suffix="km/h" onChange={(v) => updateMission("velocidadeKmh",v)}/><NumberField label="Altura planejada *" value={mission.alturaM} suffix="m" onChange={(v) => updateMission("alturaM",v)}/></FormGrid></FieldReferenceSection></div></details>
          <details className="rounded-2xl border border-slate-200 bg-white">
            <summary className="min-h-12 cursor-pointer px-4 py-3 font-black text-slate-900">Produtos e receita · {mission.produtos.length} item(ns) {productsReady?"✓":"· pendente"} <span className="ml-1 block text-xs font-normal text-slate-500">Ver nome, dose e unidade</span></summary>
-           <div className="grid gap-3 border-t border-slate-100 p-3"><p className="text-xs text-slate-600">Confira produto, dose e unidade do planejamento. A inclusão não substitui receituário agronômico nem revisão do RT.</p>{!canEditProducts&&<p className="rounded-md bg-amber-50 p-2 text-xs text-amber-950">Somente consulta: edição depende da permissão e da fase da operação, antes de qualquer área aplicada ou carga registrada.</p>}
+           <div className="grid gap-3 border-t border-slate-100 p-3"><p className="text-xs text-slate-600">Confira produto, dose e unidade do planejamento. A inclusão não substitui receituário agronômico nem revisão do RT. Ao trocar o nome, informe novamente a dose prescrita.</p>{!canEditProducts&&<p className="rounded-md bg-amber-50 p-2 text-xs text-amber-950">Somente consulta: edição depende da permissão e da fase da operação, antes de qualquer área aplicada ou carga registrada.</p>}
           {mission.produtos.map((p,index)=><div key={p.id} className="grid gap-2 rounded-lg border border-slate-200 p-3"><div className="flex items-center justify-between gap-2"><strong className="text-sm">Produto {index+1}</strong>{canEditProducts&&mission.produtos.length>1&&<button type="button" className="min-h-11 text-sm font-semibold text-red-700" onClick={()=>removeProduct(p.id)}>Remover</button>}</div><TextField label="Nome comercial *" value={p.nome} disabled={!canEditProducts} onChange={(v)=>updateProduct(p.id,{nome:v})}/><div className="agro-compact-grid grid grid-cols-2 gap-2"><NumberField label="Dose *" value={p.dose} suffix="" disabled={!canEditProducts} onChange={(v)=>updateProduct(p.id,{dose:v})}/><SelectField label="Unidade" value={p.unidade} disabled={!canEditProducts} onChange={(v)=>updateProduct(p.id,{unidade:v as DoseUnit})} options={["mL/ha|mL/ha","L/ha|L/ha","g/ha|g/ha","kg/ha|kg/ha","mL/100L|mL/100L","g/100L|g/100L"]}/></div>{canEditProducts&&<button type="button" onClick={()=>setProductSearchId(old=>old===p.id?"":p.id)} className="min-h-11 rounded-md border border-emerald-200 px-2 text-xs font-semibold text-emerald-800">Buscar produto AGROFIT</button>}{canEditProducts&&productSearchId===p.id&&<AgroVooProductSearch key={(mission.ordemServicoId||"")+":"+p.id} initialQuery={p.nome} onClose={()=>setProductSearchId("")} onSelect={name=>{if(!canEditProducts)return;updateProduct(p.id,{nome:name});setProductSearchId("");}}/>}</div>)}
           <button type="button" disabled={!canEditProducts} className="min-h-11 rounded-md bg-[#185a47] px-3 text-sm font-semibold text-white disabled:opacity-40" onClick={addProduct}>+ Adicionar produto</button></div></details>
          <details className="rounded-2xl border border-slate-200 bg-white">
