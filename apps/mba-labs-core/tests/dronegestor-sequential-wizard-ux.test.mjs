@@ -54,3 +54,13 @@ test("an offline finalization stays in stage seven until server reconciliation",
  assert.match(app,/setMissionStatus\("pendente_sync"\); unlock\("execucao"\)/);
  assert.match(app,/setMissionStatus\("finalizada"\); unlock\("relatorios"\)/);
 });
+
+test("fictional ANAC and drone values cannot unlock stage one",()=>{
+ assert.match(app,/isExplicitHomologationPlaceholder\(mission\.drone\)/);
+ assert.match(app,/hasNonPlaceholderAnacId\(mission\.registroAnac\)/);
+ assert.match(app,/disabled=\{!missionReady\|\|checkingPreflight\|\|droneRecordPending\}/);
+ assert.match(app,/Etapa 1 bloqueada — registro do drone/);
+ assert.match(app,/Não substitua dados fictícios por números inventados/);
+ assert.match(app,/Conferir ou corrigir dados técnicos/);
+ assert.doesNotMatch(app,/<details open=\{!missionReady\}/);
+});
