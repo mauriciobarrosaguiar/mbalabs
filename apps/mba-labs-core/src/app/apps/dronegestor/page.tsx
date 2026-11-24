@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireAppAccess } from "@/lib/core-data";
-import { canManageDroneGestor } from "@/lib/dronegestor-role";
+import { canManageDroneGestor, isDroneGestorPilot } from "@/lib/dronegestor-role";
 import { DroneHomeDashboard } from "./DroneHomeDashboard";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ export default async function DroneGestorPage() {
     isAdminMaster: current.isAdminMaster,
     permissoes: current.permissoes,
   });
+  if (isDroneGestorPilot({tipo:current.tipo,isAdminMaster:current.isAdminMaster,permissoes:current.permissoes})) redirect("/apps/dronegestor/agrovoo/piloto");
   return <>
     {canManage && <div className="mx-auto mt-4 flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 sm:mt-6">
       <div>
