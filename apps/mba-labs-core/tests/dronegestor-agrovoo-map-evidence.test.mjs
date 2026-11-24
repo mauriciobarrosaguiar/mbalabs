@@ -82,3 +82,18 @@ test("AgroVoo: campo abre anexo pós-voo diretamente e mapa não depende do Driv
  const docs=read("documentos/AgroDocDocuments.tsx");
  assert.match(docs,/if\(type!=="mapa_aplicacao"\)\{\s*const statusResponse=await fetch\("\/api\/dronegestor\/cloud"/);
 });
+
+test("AgroVoo: extensão do arquivo no formulário admite mapas reais e restringe KML/KMZ à categoria correta",()=>{
+ const source=readFileSync(new URL("../src/app/apps/dronegestor/documentos/AgroDocDocuments.tsx",import.meta.url),"utf8");
+ const allowLine=source.split("\n").find(l=>l.includes('type==="mapa_aplicacao" && !/'));
+ const restrictLine=source.split("\n").find(l=>l.includes('type!=="mapa_aplicacao" && /'));
+ function rule(line){const m=line?.match(/\/([^/]+)\/i\.test\(file\.name\)/);assert.ok(m);return new RegExp(m[1],"i");}
+ const allow=rule(allowLine),restrict=rule(restrictLine);
+ for(const name of ["voo.kml","controle.JPG","mapa.KMZ","foto.png","foto.webp"])assert.ok(allow.test(name),name);
+ for(const name of ["voo.exe","mapa.kml.exe","mapakml"])assert.equal(allow.test(name),false,name);
+ assert.ok(restrict.test("mapa.kmz"));assert.equal(restrict.test("mapa.jpg"),false);
+});
+test("AgroVoo: KML em UTF-8 inválido é recusado sem exceção",async()=>{
+ const bytes=Buffer.concat([Buffer.from(xml),Buffer.from([0xff,0xfe])]);
+ assert.equal(await validateMapEvidenceFile("mapa.kml",bytes),null);
+});
