@@ -104,3 +104,10 @@ export function financeCsv(entries:FinanceEntry[]){
   const rows=[["Tipo","Descrição","Categoria","Centro de custo","Contraparte","OS","Competência","Vencimento","Liquidação","Situação","Valor (R$)"],...entries.map(e=>[e.kind,e.description,e.category,e.cost_center,e.counterparty,e.os_label||e.os_id,e.competence_date||e.due_date,e.due_date,e.settled_date,e.status,(e.amount_cents/100).toFixed(2).replace(".",",")])];
   return "\uFEFF"+rows.map(row=>row.map(cell).join(";")).join("\r\n");
 }
+
+// Datas civis: não converter para horário local e nem alterar o valor enviado à API.
+export function formatFinanceDate(value:unknown):string {
+  if(!validDate(value))return "—";
+  const [year,month,day]=value.split("-");
+  return day+"/"+month+"/"+year;
+}
