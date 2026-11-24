@@ -26,3 +26,16 @@ export function sortPilotOrders(orders:PilotOrder[]){
 // Consultar a OS pela tela que já protege seleção, sincronização e preparação.
 // Não iniciar voo, alterar estado ou gerar localStorage nesta área.
 export function pilotOrderHref(osId:string){return "/apps/dronegestor/gestao?osId="+encodeURIComponent(osId);}
+
+/** Only inspect pending records of the authenticated owner; never modify the queue. */
+export function pilotPendingSyncCount(storage:Pick<Storage,"getItem"|"key"|"length">,owner:string):number|null{
+ try{
+  if(!owner||storage.getItem("dronegestor:deviceOwner:v1")!==owner)return null;
+  const queue=JSON.parse(storage.getItem("dronegestor:finalizationQueue:v4")||"[]");
+  if(!Array.isArray(queue)||queue.some(x=>!x||typeof x.operationId!=="string"||!x.operationId))return null;
+  const ids=new Set<string>(queue.map(x=>x.operationId));
+  let count=ids.size;
+  for(let i=0;i<storage.length;i++){const key=storage.key(i);if(key?.startsWith("dronegestor:partialPayload:v1:")&&storage.getItem(key))count++;}
+  return count;
+ }catch{return null;}
+}
