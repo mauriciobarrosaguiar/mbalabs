@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {ownPilotOrders,pilotOrderState,sortPilotOrders,pilotOrderHref} from "../src/lib/agrovoo-pilot-view.ts";
+import {ownPilotOrders,pilotOrderState,sortPilotOrders,pilotOrderHref,pilotPendingSyncCount} from "../src/lib/agrovoo-pilot-view.ts";
 const order=(id,pilot,status,dataPrevista)=>({entityId:id,data:{pilotoResponsavelId:pilot,status,dataPrevista}});
 test("AgroVoo piloto: filtra estritamente por usuário e elimina duplicatas",()=>{
  const rows=[order("1","pedro","aberta"),order("2","outro","em_execucao"),order("1","pedro","aberta"),order("3","","aberta"),{entityId:"4"},order("","pedro","aberta")];
@@ -65,4 +65,28 @@ test("AgroVoo piloto: indicador de etapas não permite saltos e execução prese
  const field=read("DroneGuidedFieldMode.tsx");
  for(const handler of ["registerLoad","togglePause","undo","fillNext"])assert.ok(field.includes("onClick={"+handler+"}"));
  assert.ok(field.includes("Encerrar execução parcial"));
+});
+
+test("AgroVoo referência: fila local lida apenas pelo dono autenticado",()=>{
+ const data=new Map([["dronegestor:deviceOwner:v1","empresa:pedro"],["dronegestor:finalizationQueue:v4",JSON.stringify([{operationId:"op1"},{operationId:"op1"},{operationId:"op2"}])],["dronegestor:partialPayload:v1:os3","{}"]]);
+ const store={getItem:k=>data.get(k)??null,key:i=>Array.from(data.keys())[i]??null,length:data.size};
+ assert.equal(pilotPendingSyncCount(store,"empresa:pedro"),3);
+ assert.equal(pilotPendingSyncCount(store,"empresa:outro"),null);
+ data.set("dronegestor:finalizationQueue:v4","inválido");
+ assert.equal(pilotPendingSyncCount(store,"empresa:pedro"),null);
+});
+test("AgroVoo referência: abas contextualizadas e uso do fluxo operacional protegido",()=>{
+ const read=p=>readFileSync(new URL("../src/app/apps/dronegestor/"+p,import.meta.url),"utf8");
+ const home=read("agrovoo/piloto/AgroVooPilotHome.tsx");
+ assert.ok(home.includes("Ordem de referência"));
+ for(const label of ["Receituário","Aplicações","Histórico","Nova aplicação"])assert.ok(home.includes(label));
+ assert.ok(home.includes("summary?.ordemServicoId===order?.entityId"));
+ assert.ok(home.includes("x.usuario_id===userId"));
+ assert.ok(home.includes("pilotOrderHref(order.entityId)"));
+ assert.ok(home.includes("usePilotPendingSync(deviceOwner)"));
+ assert.ok(!home.includes("method:"));
+ const shell=read("agrovoo/AgroVooPilotShell.tsx");
+ assert.ok(shell.includes("!referenceHome&&<nav"));
+ const page=read("agrovoo/piloto/page.tsx");
+ assert.ok(page.includes('current.empresaId||"solo"'));
 });
