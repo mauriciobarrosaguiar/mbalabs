@@ -2061,3 +2061,18 @@
 
 .agro-mobile-account{display:none;}
 @media(max-width:767px){.agro-shell .agro-field-phase{padding:0 0 8px;}.agro-shell .agro-mobile-account{display:grid;gap:8px;padding:12px 8px;color:#fff;font-size:13px;}.agro-shell .agro-mobile-account a,.agro-shell .agro-mobile-account button{display:flex;align-items:center;gap:8px;min-height:44px;color:#fff;}.agro-shell .agro-mobile-account form button{width:100%;}.agro-shell .agro-sidebar-open{background-color:#052f25;}.agro-shell .agro-bottom-nav a{white-space:nowrap;}.agro-shell .agro-header{position:sticky;top:0;}}
+
+/* Campo do piloto: preservar estrutura dos bridges e overlays, uniformizar somente a apresentação. */
+.agrovoo-pilot-field .agro-header {background:#123e38;color:white;}
+.agrovoo-pilot-field .agro-mobile-brand {color:white;}
+.agrovoo-pilot-field .agro-mobile-brand em {color:#bef264;}
+.agrovoo-pilot-field .agro-mobile-brand small {font-size:12px;font-weight:500;color:white;}
+@media(max-width:1023px){
+ .agro-shell.agrovoo-pilot-field .agro-bottom-nav{background:white;color:#475569;border-radius:0;border-top:1px solid #e2e8f0;padding:0 0 env(safe-area-inset-bottom,0px);min-height:64px;}
+ .agro-shell.agrovoo-pilot-field .agro-bottom-nav a,.agro-shell.agrovoo-pilot-field .agro-bottom-nav button{min-height:64px;border-radius:0;font-size:10px;color:#475569;background:white;}
+ .agro-shell.agrovoo-pilot-field .agro-bottom-nav a[aria-current="page"]{background:#ecfdf5;color:#065f46;font-weight:700;}
+ .agro-shell.agrovoo-pilot-field .agro-page-content{padding-bottom:calc(120px + env(safe-area-inset-bottom,0px));}
+ .agro-shell.agrovoo-pilot-field .agro-field-workspace{padding-bottom:calc(36px + env(safe-area-inset-bottom,0px))!important;}
+ .agro-shell.agrovoo-pilot-field .agro-field-body{padding-bottom:24px!important;}
+}
+.dronegestor-ui .drone-mobile-nav > a,.dronegestor-ui .drone-mobile-nav > button{font-size:10px;line-height:1.15;font-weight:600;}
