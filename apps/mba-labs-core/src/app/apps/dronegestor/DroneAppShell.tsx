@@ -22,7 +22,7 @@ import {
   X,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { ROOT } from "./AgroDocUi";
 import { AgroVooAdminShell } from "./agrovoo/AgroVooAdminShell";
 import { AgroVooPilotShell } from "./agrovoo/AgroVooPilotShell";
@@ -81,6 +81,8 @@ export function DroneAppShell({
   const pilotField=isPilot&&!canManage&&path===`${ROOT}/campo`;
   const availablePages = pages.filter(p => (!pilotField||["","gestao","campo","historico","fichas","documentos","ferramentas","piloto-pro","perfil-operacional","ajuda"].includes(p.path)) && (canManage || !managerPaths.has(p.path)) && (p.path !== "administracao" || isSystemAdmin) && (p.path !== "funcionarios" || canAdministerCompany));
   const [collapsed, setCollapsed] = useState(false);
+  const [fieldOnline,setFieldOnline]=useState<boolean|null>(null);
+  useEffect(()=>{if(!pilotField)return;const update=()=>setFieldOnline(navigator.onLine);update();window.addEventListener("online",update);window.addEventListener("offline",update);return()=>{window.removeEventListener("online",update);window.removeEventListener("offline",update);};},[pilotField]);
   const [menu, setMenu] = useState(false),
     [query, setQuery] = useState(""),
     [search, setSearch] = useState(false),
@@ -182,6 +184,7 @@ export function DroneAppShell({
             )}
           </div>
           <div className="agro-header-actions">
+            {pilotField&&<span className="agro-field-online" role="status"><span style={{background:fieldOnline===true?"#a3e635":fieldOnline===false?"#f87171":"#94a3b8"}}/>{fieldOnline===true?"Online":fieldOnline===false?"Offline":"—"}</span>}
             <button
               aria-label="Abrir pendências"
               onClick={() => setNotice((v) => !v)}
