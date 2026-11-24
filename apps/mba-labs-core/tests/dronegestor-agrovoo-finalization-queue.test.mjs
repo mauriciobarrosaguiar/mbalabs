@@ -11,9 +11,9 @@ test("Fila: confirmação antiga não apaga novas operações ou versão diferen
 });
 test("Ficha vertical: consulta sem salto e sincronização sem sobrescrever fila antiga",()=>{
  const s=readFileSync(new URL("../src/app/apps/dronegestor/campo/DroneGestorAppV3.tsx",import.meta.url),"utf8");
- assert.ok(s.includes("Ficha vertical da aplicação"));
+ assert.ok(s.includes("Formulário da aplicação"));
  assert.ok(s.includes("index>maxUnlocked||locked||checkingPreflight"));
- assert.ok(s.includes("setVerticalReview(false);go(step)"));
+ assert.ok(s.includes("onClick={()=>go(step)}"));
  assert.ok(s.includes("if(retryInFlight.current)return"));
  assert.ok(s.includes("if(!sameOwner())return"));
  assert.ok(s.includes("acknowledgeFinalization(latest,item)"));

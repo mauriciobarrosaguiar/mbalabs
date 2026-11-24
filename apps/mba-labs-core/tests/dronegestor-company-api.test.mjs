@@ -5,6 +5,7 @@ import {state} from './helpers/dronegestor-company-fixture.mjs';
 const fixture = new URL('./helpers/dronegestor-company-fixture.mjs',import.meta.url).href;
 const hooks = registerHooks({resolve(s,c,n){
   if(['@/lib/core-data','@mba-labs/shared/supabase/server','@/lib/dronegestor-pilot-account'].includes(s))return {url:fixture,shortCircuit:true};
+  if(s==='@/lib/agrovoo-pilot-reactivation')return {url:new URL('../src/lib/agrovoo-pilot-reactivation.ts',import.meta.url).href,shortCircuit:true};
   if(s==='@/lib/dronegestor-company-access')return {url:new URL('../src/lib/dronegestor-company-access.ts',import.meta.url).href,shortCircuit:true};
   if(s==='@/lib/dronegestor-role')return {url:new URL('../src/lib/dronegestor-role.ts',import.meta.url).href,shortCircuit:true};
   if(s==='./dronegestor-role')return {url:new URL('../src/lib/dronegestor-role.ts',import.meta.url).href,shortCircuit:true};
