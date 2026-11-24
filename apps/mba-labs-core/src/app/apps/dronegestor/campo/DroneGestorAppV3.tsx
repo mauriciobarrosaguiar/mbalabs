@@ -730,7 +730,7 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
           <span className="block text-[11px] font-black uppercase tracking-[.09em] text-emerald-700">{guidedPhase[view] ? `Etapa ${guidedPhase[view]} de 8 · ${phaseLabels[guidedPhase[view]]}` : "Modo Campo"}</span>
           <strong className="block truncate text-base font-black text-slate-950">{title[view]}</strong>
         </div>
-        <button type="button" className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-emerald-800" onClick={() => window.dispatchEvent(new Event("dronegestor:open-gps-weather"))} aria-label="GPS e clima" title="GPS e clima"><CloudSun size={20}/></button>
+        {["seguranca","sarpas"].includes(view)&&<button type="button" className="grid size-10 shrink-0 place-items-center rounded-xl border border-slate-200 bg-white text-emerald-800" onClick={() => window.dispatchEvent(new Event("dronegestor:open-gps-weather"))} aria-label="GPS e clima" title="GPS e clima"><CloudSun size={20}/></button>}
         {canManage&&<button className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-700" onClick={() => { if (locked) return flash("Configurações ficam bloqueadas durante/após a execução desta missão."); setReturnView(view); go("config"); }} aria-label="Configurações"><Settings2 size={20}/></button>}
       </header>
 
