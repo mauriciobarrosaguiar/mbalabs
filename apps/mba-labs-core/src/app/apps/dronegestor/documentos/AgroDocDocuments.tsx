@@ -143,8 +143,8 @@ export function AgroDocDocuments() {
         status=await statusResponse.json();
         setCloudAvailable(status?.google?.status==="connected");
       }
-      if(type==="mapa_aplicacao" && !/\\.(?:jpe?g|png|webp|kml|kmz)$/i.test(file.name)) throw new Error("Mapa: envie JPG, PNG, WebP, KML ou KMZ.");
-      if(type!=="mapa_aplicacao" && /\\.(?:kml|kmz)$/i.test(file.name)) throw new Error("KML/KMZ devem ser enviados na categoria mapa_aplicacao.");
+      if(type==="mapa_aplicacao" && !/\.(?:jpe?g|png|webp|kml|kmz)$/i.test(file.name)) throw new Error("Mapa: envie JPG, PNG, WebP, KML ou KMZ.");
+      if(type!=="mapa_aplicacao" && /\.(?:kml|kmz)$/i.test(file.name)) throw new Error("KML/KMZ devem ser enviados na categoria mapa_aplicacao.");
       if((type==="mapa_aplicacao" || status?.google?.status!=="connected") && file.size > 10*1024*1024) throw new Error("Para o mapa ou armazenamento no Supabase, o limite é 10 MB.");
       if(status?.google?.status==="connected" && type!=="mapa_aplicacao"){
         setProgress(0);
