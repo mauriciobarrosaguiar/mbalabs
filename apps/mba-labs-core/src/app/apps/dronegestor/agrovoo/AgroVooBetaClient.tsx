@@ -192,7 +192,7 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
                   <p className="mt-2 text-sm font-semibold text-slate-700">{os.cliente || "Cliente"} · {os.fazenda || "Propriedade"}</p>
                   <p className="mt-1 text-xs text-slate-500">{os.talhao || "Talhão"} · {fmt(os.progressHa)} de {fmt(os.areaHa)} ha · {os.pilotName || "Piloto não atribuído"}</p>
                 </div>
-                <Link href={ROOT + "/gestao?tab=os&osId=" + encodeURIComponent(os.osId)}
+                <Link href={ROOT + "/agrovoo/os/" + encodeURIComponent(os.osId)}
                   className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-emerald-200 px-3 text-sm font-bold text-emerald-800 no-underline">
                   Ver OS <ArrowRight size={16}/>
                 </Link>
@@ -229,10 +229,10 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
           {createdId ? <div className="grid gap-4">
             <FileCheck2 size={36} className="text-emerald-700"/>
             <h2 className="text-xl font-black">OS criada com sucesso</h2>
-            <p className="text-sm leading-6 text-slate-700">A OS foi gravada na empresa. Agora atribua o piloto e complete o planejamento técnico na tela existente. Esta criação não representa autorização para decolar.</p>
-            <Link href={ROOT + "/gestao/planejamento?osId=" + encodeURIComponent(createdId)}
+            <p className="text-sm leading-6 text-slate-700">A OS foi gravada na empresa. Abra os detalhes para vincular o piloto e completar o planejamento técnico, antes de encaminhar a missão. Criar não representa autorização para decolar.</p>
+            <Link href={ROOT + "/agrovoo/os/" + encodeURIComponent(createdId)}
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 font-bold text-white no-underline">
-              Continuar planejamento <ArrowRight size={17}/>
+              Abrir OS e concluir planejamento <ArrowRight size={17}/>
             </Link>
             <button type="button" onClick={() => { setScreen("home"); board.refresh(); }} className="min-h-11 rounded-xl border border-slate-200 text-sm font-bold">Voltar ao painel</button>
           </div> : <>
