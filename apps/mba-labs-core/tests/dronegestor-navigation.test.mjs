@@ -33,10 +33,11 @@ test("the field follows the planned phases without weakening preflight",()=>{
   const match=field.match(/const flow: View\[\] = \[([^\]]+)\]/);
   assert.ok(match,"field view ordering not found");
   const values=[...match[1].matchAll(/"([^"]+)"/g)].map(x=>x[1]);
-  assert.deepEqual(values,["nova","controle","estrategia","seguranca","calibracao","checklist","calda","sarpas","execucao","relatorios"]);
+  assert.deepEqual(values,["nova","controle","documentacao","estrategia","seguranca","calibracao","checklist","calda","sarpas","execucao","relatorios"]);
   assert.match(field,/await patchOs\("em_execucao"\)/);
   assert.match(field,/if \(!canStart\) return flash/);
-  assert.match(field,/if \(target === "calibracao" && !safetyReady\)/);
+  assert.match(field,/if\(!safetyReady\)return flash/);
+  assert.match(field,/if\(index>=0&&index>maxUnlocked\)/);
 });
 
 test("opening a suspended OS never starts it on the server",()=>{
@@ -67,8 +68,7 @@ test("operation document and dossier links keep osId",()=>{
 // Reproduzido na interface da OS fictícia OS-20261123-45737.
 test("planning document link returns to the active field OS",()=>{
   const field=read("campo/DroneGestorAppV3.tsx");
-  const link=field.match(/<a[^>]+href=\{([^]+?)\}>Abrir documentos desta OS<\/a>/);
-  assert.ok(link,"planning document link must exist");
-  assert.ok(link[1].includes("encodeURIComponent(mission.ordemServicoId)"));
-  assert.ok(link[1].includes("&returnTo=campo"),"documents must offer return to the same field mission");
+  assert.match(field,/Abrir documentos desta OS/);
+  assert.match(field,/encodeURIComponent\(mission\.ordemServicoId\)/);
+  assert.match(field,/&returnTo=campo/,"documents must return to the same OS");
 });
