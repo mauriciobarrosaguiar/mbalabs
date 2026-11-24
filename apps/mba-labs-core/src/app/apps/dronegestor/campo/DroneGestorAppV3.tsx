@@ -252,7 +252,7 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
     setSyncConflict(getDroneSyncConflict());
     setFinalSaved(isFinalized);
     const savedView = localStorage.getItem(KEYS.view) as View | null;
-    const fingerprint = JSON.stringify([savedMission.ordemServicoId,savedMission.tipoAtividade,savedMission.cultura,savedMission.alvo,savedMission.area,savedMission.drone,savedMission.registroAnac,savedMission.pontaModelo,savedMission.volume,savedMission.tanque,savedMission.faixa,savedMission.velocidadeKmh,savedMission.alturaM,savedMission.gotaMicra??null,savedMission.produtos]);
+    const fingerprint = JSON.stringify([savedMission.ordemServicoId,savedMission.tipoAtividade,savedMission.cultura,savedMission.alvo,savedMission.area,savedMission.drone,savedMission.registroAnac,savedMission.pontaModelo,savedMission.volume,savedMission.tanque,savedMission.faixa,savedMission.velocidadeKmh,savedMission.alturaM,savedMission.produtos,...(savedMission.gotaMicra!=null?[savedMission.gotaMicra]:[])]);
     const previous = readRaw<{osId?:string;fingerprint?:string;maxUnlocked?:number}>(guidedKey, {});
     const savedStep = previous.osId===savedMission.ordemServicoId&&previous.fingerprint===fingerprint ? Math.max(0,Math.min(10,Number(previous.maxUnlocked)||0)) : 0;
     const completed = status==="finalizada";
@@ -369,7 +369,7 @@ export function DroneGestorAppV3({ userName, userType, canManage, currentUserId 
   const testDrone = isExplicitHomologationPlaceholder(mission.drone) || isExplicitHomologationPlaceholder(mission.registroAnac);
   const droneRecordPending = !mission.drone.trim() || !hasNonPlaceholderAnacId(mission.registroAnac) || testDrone;
 
-  const guidedFingerprint = JSON.stringify([mission.ordemServicoId,mission.tipoAtividade,mission.cultura,mission.alvo,mission.area,mission.drone,mission.registroAnac,mission.pontaModelo,mission.volume,mission.tanque,mission.faixa,mission.velocidadeKmh,mission.alturaM,mission.gotaMicra??null,mission.produtos]);
+  const guidedFingerprint = JSON.stringify([mission.ordemServicoId,mission.tipoAtividade,mission.cultura,mission.alvo,mission.area,mission.drone,mission.registroAnac,mission.pontaModelo,mission.volume,mission.tanque,mission.faixa,mission.velocidadeKmh,mission.alturaM,mission.produtos,...(mission.gotaMicra!=null?[mission.gotaMicra]:[])]);
 
   function flash(text: string) { setNotice(text); window.setTimeout(() => setNotice(""), 4200); }
   function showView(next: View) { setView(next); window.scrollTo({ top: 0, behavior: "smooth" }); }
