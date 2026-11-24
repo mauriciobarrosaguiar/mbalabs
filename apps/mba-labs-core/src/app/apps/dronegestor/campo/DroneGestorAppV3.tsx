@@ -9,7 +9,6 @@ import {
   ClipboardCheck,
   CloudAlert,
   CloudSun,
-  Drone,
   Droplets,
   FileSpreadsheet,
   FileText,
@@ -34,8 +33,10 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { getDroneSyncConflict, snapshotDroneLocalState } from "./DronePersistenceSync";
 import { hasCompleteDroneFieldClimate } from "@/lib/dronegestor-field-climate";
+import { DroneGeoMapEvidence } from "./DroneGeoMapEvidence";
+import { DroneMapEvidence } from "./DroneMapEvidence";
 
-type View = "inicio" | "nova" | "calda" | "estrategia" | "seguranca" | "controle" | "calibracao" | "checklist" | "sarpas" | "execucao" | "relatorios" | "config";
+type View = "inicio" | "nova" | "documentacao" | "calda" | "estrategia" | "seguranca" | "controle" | "calibracao" | "checklist" | "sarpas" | "execucao" | "relatorios" | "config";
 type DoseUnit = "mL/ha" | "L/ha" | "g/ha" | "kg/ha" | "mL/100L" | "g/100L";
 type SarpasStatus = "" | "autorizado";
 type MissionStatus = "parcial" | "rascunho" | "preparacao" | "em_execucao" | "pausada" | "pendente_sync" | "finalizada";
@@ -128,7 +129,10 @@ const blankMission: Mission = {
 const defaultSettings: CompanySettings = { insightsObrigatorios: true, margemPreventiva: 90, exigirConfirmacao: true, protocoloBordaduraCigarrinha: false, bloquearMargemPreventiva: true };
 const blankCalibration: CalibrationState = { ar: false, fluxometro: false, bomba: false };
 const blankChecklist: ChecklistState = { area: false, pessoasAnimais: false, obstaculos: false, drone: false, controle: false, pulverizacao: false, clima: false, documentos: false };
-const flow: View[] = ["nova", "controle", "estrategia", "seguranca", "calibracao", "checklist", "calda", "sarpas", "execucao", "relatorios"];
+const flow: View[] = ["nova", "controle", "documentacao", "estrategia", "seguranca", "calibracao", "checklist", "calda", "sarpas", "execucao", "relatorios"];
+const guidedKey = "dronegestor:guided-sequential:v1";
+const guidedPhase: Record<string,number> = {nova:1,controle:2,documentacao:3,estrategia:4,seguranca:4,calibracao:5,checklist:5,calda:6,sarpas:7,execucao:7,relatorios:8};
+const phaseLabels = ["","Ordem de serviço","Planejamento","Documentação","Segurança no local","Equipamento","Preparo da calda","Aplicação","Pós-operação"];
 
 function readRaw<T>(key: string, fallback: T): T { try { const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) as T : fallback; } catch { return fallback; } }
 function n(value: unknown) { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : 0; }
@@ -176,6 +180,11 @@ function protocolFor(target: string, settings: CompanySettings) {
 
 export function DroneGestorAppV3({ userName, userType, canManage }: { userName: string; userType: string; canManage: boolean }) {
   const [hydrated, setHydrated] = useState(false);
+  const [maxUnlocked, setMaxUnlocked] = useState(0);
+  const [docsVerified, setDocsVerified] = useState(false);
+  const [checkingPreflight, setCheckingPreflight] = useState(false);
+  const [caldaReviewed, setCaldaReviewed] = useState(false);
+  const [verifiedProblem, setVerifiedProblem] = useState("");
   const [view, setView] = useState<View>("inicio");
   const [returnView, setReturnView] = useState<View>("inicio");
   const [mission, setMission] = useState<Mission>(blankMission);
@@ -233,7 +242,16 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
     setSyncConflict(getDroneSyncConflict());
     setFinalSaved(isFinalized);
     const savedView = localStorage.getItem(KEYS.view) as View | null;
-    if (savedView && ["inicio", ...flow, "config"].includes(savedView)) setView(savedView);
+    const fingerprint = JSON.stringify([savedMission.ordemServicoId,savedMission.tipoAtividade,savedMission.cultura,savedMission.alvo,savedMission.area,savedMission.drone,savedMission.registroAnac,savedMission.pontaModelo,savedMission.volume,savedMission.tanque,savedMission.faixa,savedMission.velocidadeKmh,savedMission.alturaM,savedMission.produtos]);
+    const previous = readRaw<{osId?:string;fingerprint?:string;maxUnlocked?:number}>(guidedKey, {});
+    const savedStep = previous.osId===savedMission.ordemServicoId&&previous.fingerprint===fingerprint ? Math.max(0,Math.min(10,Number(previous.maxUnlocked)||0)) : 0;
+    const completed = ["finalizada","pendente_sync"].includes(status);
+    const started = Boolean(readRaw(KEYS.started, false));
+    setMaxUnlocked(completed?10:started?9:Math.min(savedStep,2));
+    if (completed) setView("relatorios");
+    else if (started) setView("execucao");
+    else if (savedView && flow.includes(savedView)) setView(flow[Math.min(flow.indexOf(savedView),Math.min(savedStep,2))] || "nova");
+    else setView("nova");
     setHydrated(true);
   }, []);
 
@@ -550,7 +568,7 @@ export function DroneGestorAppV3({ userName, userType, canManage }: { userName: 
     downloadText("dronegestor-dados-operacionais.csv", `${header}\n${row}`, "text/csv;charset=utf-8");
   }
 
-  const title: Record<View, string> = { inicio: "Modo campo", nova: "Dados da aplicação", calda: "Cálculo de calda", estrategia: "Estratégia e insight", seguranca: "Mapa e segurança", controle: "Parâmetros do controle", calibracao: "Calibração", checklist: "Checklist pré-voo", sarpas: "SARPAS", execucao: "Operação em andamento", relatorios: "Dados e relatórios", config: "Configurações da empresa" };
+  const title: Record<View, string> = { inicio: "Modo campo", nova: "Dados da aplicação", documentacao:"Documentação da OS", calda: "Cálculo de calda", estrategia: "Estratégia e insight", seguranca: "Mapa e segurança", controle: "Parâmetros do controle", calibracao: "Calibração", checklist: "Checklist pré-voo", sarpas: "SARPAS", execucao: "Operação em andamento", relatorios: "Dados e relatórios", config: "Configurações da empresa" };
   const activeMission = mission.area > 0 && !["finalizada", "pendente_sync"].includes(missionStatus);
 
   if (!hydrated) return <main className="min-h-screen bg-emerald-950 grid place-items-center text-emerald-100"><div className="rounded-2xl border border-emerald-700 bg-emerald-900/70 px-5 py-4 font-bold">Carregando DroneGestor...</div></main>;
