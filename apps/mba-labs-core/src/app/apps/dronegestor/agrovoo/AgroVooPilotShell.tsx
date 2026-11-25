@@ -5,8 +5,8 @@ import {useEffect,useState,type ReactNode} from "react";
 import {BookOpen,Calculator,ChevronDown,ClipboardList,Folder,History,Home,Menu,UserRound,X,CircleHelp,LogOut} from "lucide-react";
 import {AgroVooInstall} from "./piloto/AgroVooInstall";
 import {AgroDocDroneIcon as Drone} from "../AgroDocDroneIcon";
-const ROOT="/apps/dronegestor";
-const HOME=ROOT+"/agrovoo/piloto";
+const ROOT="/apps/agrovoo";
+const HOME=ROOT+"/piloto";
 const links=[
  {label:"Início",href:HOME,icon:Home},
  {label:"Minhas OS",href:ROOT+"/gestao",icon:ClipboardList},

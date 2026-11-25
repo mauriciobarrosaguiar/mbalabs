@@ -10,7 +10,7 @@ import { useAgroData } from "../AgroDocUi";
 import { filterAgroVooOrders, paginateAgroVooOrders } from "@/lib/agrovoo-board-view";
 import { buildAgroVooOsPayload, validateAgroVooStep, type AgroVooOsDraft } from "@/lib/agrovoo-os-wizard";
 
-const ROOT = "/apps/dronegestor";
+const ROOT = "/apps/agrovoo";
 type OsStage = {
   osId: string;
   numero: string;
@@ -157,18 +157,18 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
             <div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-5">
               <button type="button" onClick={openNew} className="flex min-h-14 items-center justify-center gap-2 rounded-md bg-[#185a47] px-3 py-3 text-sm font-bold text-white hover:brightness-110"><Plus size={19}/> Nova ordem</button>
               {[
-                {title:"Clientes",href:"/agrovoo/cadastros/clientes",icon:Users,color:"bg-[#16734e]"},
-                {title:"Propriedades",href:"/agrovoo/cadastros/propriedades",icon:Layers,color:"bg-[#146779]"},
-                {title:"Aeronaves",href:"/agrovoo/cadastros/aeronaves",icon:MapPinned,color:"bg-[#a45916]"},
-                {title:"Pilotos",href:"/agrovoo/cadastros/pilotos",icon:UserRound,color:"bg-[#66528d]"},
+                {title:"Clientes",href:"/cadastros/clientes",icon:Users,color:"bg-[#16734e]"},
+                {title:"Propriedades",href:"/cadastros/propriedades",icon:Layers,color:"bg-[#146779]"},
+                {title:"Aeronaves",href:"/cadastros/aeronaves",icon:MapPinned,color:"bg-[#a45916]"},
+                {title:"Pilotos",href:"/cadastros/pilotos",icon:UserRound,color:"bg-[#66528d]"},
               ].map(({title,href,icon:Icon,color})=><Link key={href} href={ROOT + href} className={"flex min-h-14 items-center justify-center gap-2 rounded-md px-3 py-3 text-sm font-bold text-white hover:brightness-110 " + color}><Icon size={19} className="shrink-0"/>{title}</Link>)}
             </div>
             <div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-5">
               {[
                 {label:"Ordens ativas",value:count?.total,href:"/gestao",icon:ClipboardCheck},
-                {label:"Clientes",value:clients.data?.items.length,href:"/agrovoo/cadastros/clientes",icon:Users},
-                {label:"Propriedades",value:farms.data?.items.length,href:"/agrovoo/cadastros/propriedades",icon:Layers},
-                {label:"Talhões",value:fields.data?.items.length,href:"/agrovoo/cadastros/talhoes",icon:MapPinned},
+                {label:"Clientes",value:clients.data?.items.length,href:"/cadastros/clientes",icon:Users},
+                {label:"Propriedades",value:farms.data?.items.length,href:"/cadastros/propriedades",icon:Layers},
+                {label:"Talhões",value:fields.data?.items.length,href:"/cadastros/talhoes",icon:MapPinned},
                 {label:"Para conferir",value:count?.prontaEncerrar,href:"/conferencia",icon:ShieldCheck},
               ].map(({label,value,href,icon:Icon})=><Link key={label} href={ROOT + href} className="rounded-md border border-slate-200 p-3 text-slate-800 hover:border-emerald-400"><div className="flex items-center justify-between gap-1 text-xs font-semibold text-slate-600"><span>{label}</span><Icon size={18} className="shrink-0 text-emerald-700"/></div><strong className="mt-1 block text-2xl font-bold tabular-nums text-slate-900">{value ?? "—"}</strong><span className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-emerald-800">Ver <ArrowRight size={13}/></span></Link>)}
             </div>
@@ -195,10 +195,10 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
             : <>
               <div role="region" aria-label="Tabela de ordens de serviço" tabIndex={0} className="hidden overflow-x-auto md:block">
                 <table className="w-full border-collapse text-left text-sm"><thead className="bg-slate-100 text-xs font-semibold text-slate-600"><tr>{["OS","Cliente / propriedade","Piloto","Área planejada","Situação","Ação"].map(label=><th key={label} scope="col" className="px-3 py-3">{label}</th>)}</tr></thead><tbody>
-                  {visibleOrders.map(os=><tr key={os.osId} className="border-b border-slate-100 even:bg-slate-50/70"><td className="px-3 py-3 font-semibold">{os.numero || "OS"}</td><td className="px-3 py-3"><strong className="block font-medium">{os.cliente || "Cliente"}</strong><span className="text-xs text-slate-500">{os.fazenda} · {os.talhao}</span></td><td className="px-3 py-3">{os.pilotName || "Não atribuído"}</td><td className="px-3 py-3 tabular-nums">{fmt(os.areaHa)} ha</td><td className="px-3 py-3"><span className={"inline-flex rounded-full px-2 py-1 text-xs font-semibold " + statusTone(os.status)}>{os.stageLabel || os.status}</span></td><td className="px-3 py-3"><Link href={ROOT + "/agrovoo/os/" + encodeURIComponent(os.osId)} className="inline-flex min-h-11 items-center gap-1 rounded-md border border-emerald-200 px-3 text-xs font-semibold text-emerald-800">Ver OS <ArrowRight size={14}/></Link></td></tr>)}
+                  {visibleOrders.map(os=><tr key={os.osId} className="border-b border-slate-100 even:bg-slate-50/70"><td className="px-3 py-3 font-semibold">{os.numero || "OS"}</td><td className="px-3 py-3"><strong className="block font-medium">{os.cliente || "Cliente"}</strong><span className="text-xs text-slate-500">{os.fazenda} · {os.talhao}</span></td><td className="px-3 py-3">{os.pilotName || "Não atribuído"}</td><td className="px-3 py-3 tabular-nums">{fmt(os.areaHa)} ha</td><td className="px-3 py-3"><span className={"inline-flex rounded-full px-2 py-1 text-xs font-semibold " + statusTone(os.status)}>{os.stageLabel || os.status}</span></td><td className="px-3 py-3"><Link href={ROOT + "/os/" + encodeURIComponent(os.osId)} className="inline-flex min-h-11 items-center gap-1 rounded-md border border-emerald-200 px-3 text-xs font-semibold text-emerald-800">Ver OS <ArrowRight size={14}/></Link></td></tr>)}
                 </tbody></table>
               </div>
-              <div className="grid gap-2 px-3 pb-3 md:hidden">{visibleOrders.map(os=><article key={os.osId} className="rounded-md border border-slate-200 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><strong>{os.numero || "OS"}</strong><span className={"rounded-full px-2 py-1 text-xs font-semibold " + statusTone(os.status)}>{os.stageLabel || os.status}</span></div><p className="mt-2 text-sm font-medium">{os.cliente} · {os.fazenda}</p><p className="mt-1 text-xs text-slate-600">{os.talhao} · {fmt(os.areaHa)} ha · {os.pilotName}</p><Link href={ROOT + "/agrovoo/os/" + encodeURIComponent(os.osId)} className="mt-2 flex min-h-11 items-center gap-1 text-sm font-semibold text-emerald-800">Ver OS <ArrowRight size={15}/></Link></article>)}</div>
+              <div className="grid gap-2 px-3 pb-3 md:hidden">{visibleOrders.map(os=><article key={os.osId} className="rounded-md border border-slate-200 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><strong>{os.numero || "OS"}</strong><span className={"rounded-full px-2 py-1 text-xs font-semibold " + statusTone(os.status)}>{os.stageLabel || os.status}</span></div><p className="mt-2 text-sm font-medium">{os.cliente} · {os.fazenda}</p><p className="mt-1 text-xs text-slate-600">{os.talhao} · {fmt(os.areaHa)} ha · {os.pilotName}</p><Link href={ROOT + "/os/" + encodeURIComponent(os.osId)} className="mt-2 flex min-h-11 items-center gap-1 text-sm font-semibold text-emerald-800">Ver OS <ArrowRight size={15}/></Link></article>)}</div>
             </>}
           {board.data && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 p-3 text-xs text-slate-600">
             <span>{filtered.length ? currentPage*pageSize+1 : 0}–{Math.min((currentPage+1)*pageSize,filtered.length)} de {filtered.length} ordens disponíveis</span>
@@ -234,7 +234,7 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
             <FileCheck2 size={36} className="text-emerald-700"/>
             <h2 className="text-xl font-black">OS criada com sucesso</h2>
             <p className="text-sm leading-6 text-slate-700">A OS foi gravada na empresa. Abra os detalhes para vincular o piloto e completar o planejamento técnico, antes de encaminhar a missão. Criar não representa autorização para decolar.</p>
-            <Link href={ROOT + "/agrovoo/os/" + encodeURIComponent(createdId)}
+            <Link href={ROOT + "/os/" + encodeURIComponent(createdId)}
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 font-bold text-white no-underline">
               Abrir OS e concluir planejamento <ArrowRight size={17}/>
             </Link>
@@ -258,7 +258,7 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
                   <option value="">Selecione o talhão</option>{fieldItems.map((item) => <option key={item.entityId} value={item.entityId}>{item.data.nome}</option>)}
                 </select></Field>
                 {clients.error || farms.error || fields.error ? <p role="alert" className="text-sm text-red-700">{clients.error || farms.error || fields.error}</p> : null}
-                <Link href={ROOT + "/agrovoo/cadastros/clientes"} className="text-sm font-bold text-emerald-700">Precisa cadastrar cliente, fazenda ou talhão? Abrir cadastros AgroVoo</Link>
+                <Link href={ROOT + "/cadastros/clientes"} className="text-sm font-bold text-emerald-700">Precisa cadastrar cliente, fazenda ou talhão? Abrir cadastros AgroVoo</Link>
               </>}
               {step === 1 && <>
                 <Field label="Cultura *"><input className={inputClass} value={draft.cultura} onChange={(e) => change("cultura", e.target.value)} placeholder="Ex.: Milho"/></Field>
@@ -300,7 +300,7 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
         </section>
       </>}
       <p className="pb-6 text-center text-xs text-slate-500">
-        AgroVoo Gestão · prévia vinculada às APIs atuais · nenhuma migração de dados.
+        AgroVoo Gestão
       </p>
     </div>
   </main>;

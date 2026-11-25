@@ -6,15 +6,15 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Bell, BookOpen, Calculator, ChevronDown, ClipboardCheck, CircleHelp, FileText, Folder, Home, Layers, Leaf, LogOut, Menu, Settings, ShieldCheck, UserRound, Users, Wallet, X, ChartNoAxesColumn } from "lucide-react";
 import { AgroDocDroneIcon as Drone } from "../AgroDocDroneIcon";
 
-const ROOT = "/apps/dronegestor";
+const ROOT = "/apps/agrovoo";
 const items = [
-  { label: "Principal", links: [{ title: "Dashboard", path: "agrovoo", icon: Home }] },
+  { label: "Principal", links: [{ title: "Dashboard", path: "painel", icon: Home }] },
   { label: "Cadastros", links: [
-    { title: "Clientes", path: "agrovoo/cadastros/clientes", icon: Users },
-    { title: "Propriedades", path: "agrovoo/cadastros/propriedades", icon: Layers },
-    { title: "Talhões", path: "agrovoo/cadastros/talhoes", icon: Layers },
-    { title: "Aeronaves e equipamentos", path: "agrovoo/cadastros/aeronaves", icon: Drone },
-    { title: "Pilotos", path: "agrovoo/cadastros/pilotos", icon: UserRound },
+    { title: "Clientes", path: "cadastros/clientes", icon: Users },
+    { title: "Propriedades", path: "cadastros/propriedades", icon: Layers },
+    { title: "Talhões", path: "cadastros/talhoes", icon: Layers },
+    { title: "Aeronaves e equipamentos", path: "cadastros/aeronaves", icon: Drone },
+    { title: "Pilotos", path: "cadastros/pilotos", icon: UserRound },
     { title: "Equipe", path: "equipe", icon: Users },
     { title: "Defensivos e AGROFIT", path: "produtos", icon: Leaf },
     { title: "Visão dos cadastros", path: "cadastros", icon: Folder },
@@ -27,7 +27,7 @@ const items = [
     { title: "Conferência", path: "conferencia", icon: ClipboardCheck },
     { title: "Relatório mensal MAPA", path: "relatorio-mensal", icon: ChartNoAxesColumn },
   ] },
-  { label: "Financeiro", links: [{ title: "Receitas e despesas", path: "agrovoo/financeiro", icon: Wallet }] },
+  { label: "Financeiro", links: [{ title: "Receitas e despesas", path: "financeiro", icon: Wallet }] },
   { label: "Documentação", links: [
     { title: "Regularização", path: "diagnostico", icon: ShieldCheck },
     { title: "Documentos", path: "documentos", icon: Folder },
@@ -62,7 +62,7 @@ export function AgroVooAdminShell({ children, userName, canAdministerCompany, is
       <div className="flex items-center gap-2">
         <button type="button" onClick={() => setMobileOpen(v => !v)} aria-label="Abrir menu AgroVoo" aria-expanded={mobileOpen} className="grid h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/15 lg:hidden"><Menu size={22}/></button>
         <button type="button" onClick={() => setCompact(v => !v)} aria-label={compact ? "Expandir menu AgroVoo" : "Recolher menu AgroVoo"} aria-expanded={!compact} className="hidden h-11 w-11 shrink-0 place-items-center rounded-md hover:bg-white/15 lg:grid"><Menu size={22}/></button>
-        <Link href={ROOT + "/agrovoo"} className="flex items-center gap-2 text-xl font-bold tracking-tight text-white"><Drone size={27}/><span>Agro<span className="text-lime-300">Voo</span></span></Link>
+        <Link href={ROOT + "/painel"} className="flex items-center gap-2 text-xl font-bold tracking-tight text-white"><Drone size={27}/><span>Agro<span className="text-lime-300">Voo</span></span></Link>
       </div>
       <div className="flex items-center gap-1 sm:gap-3">
         <Link href={ROOT + "/diagnostico"} className="hidden min-h-11 items-center gap-2 px-2 text-sm font-semibold text-white sm:flex"><ShieldCheck size={18}/> Regularização</Link>
@@ -83,12 +83,12 @@ export function AgroVooAdminShell({ children, userName, canAdministerCompany, is
       <nav aria-label="Menu de gestão AgroVoo" className="flex-1 overflow-y-auto p-3">
         {items.filter(group=>group.label!=="Financeiro"||canAdministerCompany).map(group => <details key={group.label} open={group.label === "Principal" || group.label === "Operacional" || compact || group.links.some(link=>pathname===ROOT+"/"+link.path)} className="mb-3">
           <summary className={"flex min-h-9 cursor-pointer list-none items-center justify-between gap-1 px-2 text-[11px] font-bold uppercase tracking-wide text-slate-500 " + (compact ? "lg:justify-center lg:px-0" : "")}><span className={compact ? "lg:sr-only" : ""}>{group.label}</span><ChevronDown size={14}/></summary>
-          {group.links.map(({title,path,icon:Icon}) => { const selected = pathname === ROOT + "/" + path || (path === "agrovoo" && pathname.startsWith(ROOT + "/agrovoo/os/")); return <Link key={path} title={title} href={ROOT + "/" + path} onClick={() => setMobileOpen(false)} aria-current={selected ? "page" : undefined} className={linkClass + (selected ? " bg-emerald-100 !text-emerald-950" : "") + (compact ? " lg:justify-center lg:px-0" : "")}><Icon size={19} className="shrink-0"/><span className={compact ? "lg:sr-only" : ""}>{title}</span></Link>; })}
+          {group.links.map(({title,path,icon:Icon}) => { const selected = pathname === ROOT + "/" + path || (path === "painel" && pathname.startsWith(ROOT + "/os/")); return <Link key={path} title={title} href={ROOT + "/" + path} onClick={() => setMobileOpen(false)} aria-current={selected ? "page" : undefined} className={linkClass + (selected ? " bg-emerald-100 !text-emerald-950" : "") + (compact ? " lg:justify-center lg:px-0" : "")}><Icon size={19} className="shrink-0"/><span className={compact ? "lg:sr-only" : ""}>{title}</span></Link>; })}
         </details>)}
         {canAdministerCompany && <Link href={ROOT + "/funcionarios"} title="Funcionários e acessos" className={linkClass}><Users size={19}/><span className={compact ? "lg:sr-only" : ""}>Funcionários e acessos</span></Link>}
         {isSystemAdmin && <Link href={ROOT + "/administracao"} title="Administração do sistema" className={linkClass}><ShieldCheck size={19}/><span className={compact ? "lg:sr-only" : ""}>Administração do sistema</span></Link>}
       </nav>
-      <div className={"border-t border-slate-200 bg-slate-50 p-3 text-slate-600 " + (compact ? "lg:hidden" : "")}><small className="block text-[11px] font-semibold uppercase">Conectado como</small><strong className="block truncate text-sm text-slate-900">{userName}</strong><Link className="mt-2 inline-flex min-h-9 items-center text-xs font-semibold text-emerald-800" href={ROOT+"?legacy=1"}>Painel anterior</Link></div>
+      <div className={"border-t border-slate-200 bg-slate-50 p-3 text-slate-600 " + (compact ? "lg:hidden" : "")}><small className="block text-[11px] font-semibold uppercase">Conectado como</small><strong className="block truncate text-sm text-slate-900">{userName}</strong></div>
     </aside>
     <div className={"min-w-0 transition-[margin] " + (compact ? "lg:ml-[76px]" : "lg:ml-[250px]")}>
       <div className="mx-auto max-w-[1600px] p-3 sm:p-5">{children}</div>

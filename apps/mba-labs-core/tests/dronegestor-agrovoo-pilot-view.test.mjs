@@ -16,11 +16,11 @@ test("AgroVoo piloto: retomada e execução aparecem primeiro, sem marcar estado
  assert.equal(pilotOrderState("em_preparacao").active,true);
 });
 test("AgroVoo piloto: link apenas consulta OS no fluxo existente",()=>{
- assert.equal(pilotOrderHref("a&b"),"/apps/dronegestor/gestao?osId=a%26b");
+ assert.equal(pilotOrderHref("a&b"),"/apps/agrovoo/gestao?osId=a%26b");
  const read=p=>readFileSync(new URL("../src/app/apps/dronegestor/"+p,import.meta.url),"utf8");
  const page=read("agrovoo/piloto/page.tsx");
  assert.match(page,/requireAppAccess\("dronegestor"/);
- assert.match(page,/if\(!isDroneGestorPilot\(role\)\)redirect/);
+ assert.match(page,/if\(canManageDroneGestor\(role\)\|\|!isDroneGestorPilot\(role\)\)redirect/);
  const home=read("agrovoo/piloto/AgroVooPilotHome.tsx");
  assert.ok(home.includes("ownPilotOrders(source.data!.items,userId)"));
  assert.ok(home.includes("source.data.canManage===false"));

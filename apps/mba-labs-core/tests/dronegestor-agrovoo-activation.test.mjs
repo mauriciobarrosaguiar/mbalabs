@@ -4,7 +4,7 @@ import {readFileSync} from "node:fs";
 const read=p=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
 test("AgroVoo: instalação separada sem credenciais no manifesto",()=>{
  const m=JSON.parse(read("public/agrovoo-piloto.webmanifest"));
- assert.equal(m.start_url,"/apps/dronegestor/agrovoo/piloto");
+ assert.equal(m.start_url,"/apps/agrovoo/piloto");
  assert.equal(m.display,"standalone");
  assert.ok(m.start_url.startsWith(m.scope));
  assert.deepEqual(m.icons.map(x=>x.sizes),["192x192","512x512"]);

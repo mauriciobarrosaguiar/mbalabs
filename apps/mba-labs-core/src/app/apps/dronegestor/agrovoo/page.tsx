@@ -7,12 +7,12 @@ export const dynamic = "force-dynamic";
 
 export default async function AgroVooBetaPage() {
   // Fase 2: versão isolada, com acesso herdado do DroneGestor e sem migração.
-  const current = await requireAppAccess("dronegestor", "/apps/dronegestor/agrovoo");
+  const current = await requireAppAccess("dronegestor", "/apps/agrovoo/painel");
   const canManage = canManageDroneGestor({
     tipo: current.tipo,
     isAdminMaster: current.isAdminMaster,
     permissoes: current.permissoes,
   });
-  if (!canManage) redirect("/apps/dronegestor/gestao");
+  if (!canManage) redirect("/apps/agrovoo");
   return <AgroVooBetaClient userName={current.usuario.nome || "Gestor"} />;
 }

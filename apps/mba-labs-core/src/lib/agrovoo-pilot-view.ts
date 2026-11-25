@@ -25,7 +25,7 @@ export function sortPilotOrders(orders:PilotOrder[]){
 }
 // Consultar a OS pela tela que já protege seleção, sincronização e preparação.
 // Não iniciar voo, alterar estado ou gerar localStorage nesta área.
-export function pilotOrderHref(osId:string,open=false){return "/apps/dronegestor/gestao?osId="+encodeURIComponent(osId)+(open?"&abrir=1":"");}
+export function pilotOrderHref(osId:string,open=false){return "/apps/agrovoo/gestao?osId="+encodeURIComponent(osId)+(open?"&abrir=1":"");}
 
 /** Only inspect pending records of the authenticated owner; never modify the queue. */
 export function pilotPendingSyncCount(storage:Pick<Storage,"getItem"|"key"|"length">,owner:string):number|null{

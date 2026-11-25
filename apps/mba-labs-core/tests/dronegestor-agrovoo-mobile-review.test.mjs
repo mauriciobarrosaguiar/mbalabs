@@ -4,7 +4,7 @@ import {readFileSync} from "node:fs";
 import {pilotOrderHref} from "../src/lib/agrovoo-pilot-view.ts";
 const read=p=>readFileSync(new URL("../src/app/apps/dronegestor/"+p,import.meta.url),"utf8");
 test("Abertura direta reusa validações de atribuição e estado local",()=>{
- assert.equal(pilotOrderHref("a&b",true),"/apps/dronegestor/gestao?osId=a%26b&abrir=1");
+ assert.equal(pilotOrderHref("a&b",true),"/apps/agrovoo/gestao?osId=a%26b&abrir=1");
  const board=read("gestao/DroneGestaoClientV3.tsx");
  assert.ok(board.includes('searchParams.get("abrir")!=="1"'));
  assert.ok(board.includes("void openOrder(selected)"));

@@ -23,12 +23,13 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
+import {internalAgroVooPath,canonicalAgroVooPath} from "@/lib/agrovoo-routes";
 import { ROOT } from "./AgroDocUi";
 import { AgroVooAdminShell } from "./agrovoo/AgroVooAdminShell";
 import { AgroVooPilotShell } from "./agrovoo/AgroVooPilotShell";
 const pages = [
   { path: "", title: "Início", icon: Home },
-  { path: "agrovoo", title: "AgroVoo Gestão (prévia)", icon: Home },
+  { path: "agrovoo", title: "AgroVoo Gestão", icon: Home },
   { path: "gestao", title: "Ordens de serviço", icon: ClipboardCheck },
   { path: "campo", title: "Modo campo", icon: Drone },
   { path: "historico", title: "Histórico", icon: Folder },
@@ -77,7 +78,7 @@ export function DroneAppShell({
   isSystemAdmin?: boolean;
   canAdministerCompany?: boolean;
 }) {
-  const path = usePathname();
+  const path = internalAgroVooPath(usePathname());
   const pilotField=isPilot&&!canManage&&path===`${ROOT}/campo`;
   const availablePages = pages.filter(p => (!pilotField||["","gestao","campo","historico","fichas","documentos","ferramentas","piloto-pro","perfil-operacional","ajuda"].includes(p.path)) && (canManage || !managerPaths.has(p.path)) && (p.path !== "administracao" || isSystemAdmin) && (p.path !== "funcionarios" || canAdministerCompany));
   const [collapsed, setCollapsed] = useState(false);
@@ -91,7 +92,7 @@ export function DroneAppShell({
   // The field screen retains its proven navigation and operational overlays.
   const pilotShellPaths = ["agrovoo/piloto","gestao","historico","fichas","documentos","ferramentas","piloto-pro","perfil-operacional","ajuda","pacote-operacao"];
   if (isPilot && !canManage && pilotShellPaths.some(p=>path === `${ROOT}/${p}` || path.startsWith(`${ROOT}/${p}/`))) return <AgroVooPilotShell userName={userName}>{children}</AgroVooPilotShell>;
-  if (canManage && (path === `${ROOT}/agrovoo` || path.startsWith(`${ROOT}/agrovoo/`))) return <AgroVooAdminShell userName={userName} canAdministerCompany={canAdministerCompany} isSystemAdmin={isSystemAdmin}>{children}</AgroVooAdminShell>;
+  if (canManage && path !== `${ROOT}/campo`) return <AgroVooAdminShell userName={userName} canAdministerCompany={canAdministerCompany} isSystemAdmin={isSystemAdmin}>{children}</AgroVooAdminShell>;
   return (
     <div className={`agro-shell ${collapsed ? "agro-shell-collapsed" : ""} ${pilotField?"agrovoo-pilot-field":""}`}>
       <aside className={`agro-sidebar ${menu ? "agro-sidebar-open" : ""}`}>
@@ -104,7 +105,7 @@ export function DroneAppShell({
             <Drone />
           </span>
           <div>
-            <b>{pilotField?"AgroVoo Piloto":"MBA DroneGestor"}</b>
+            <b>{pilotField?"AgroVoo Piloto":"AgroVoo"}</b>
             <small>
               Drones Agrícolas ·<br />
               Operações · Piloto Pro
@@ -119,12 +120,12 @@ export function DroneAppShell({
           <X />
         </button>
         <button className="agro-collapse-toggle" onClick={() => setCollapsed(v => !v)} aria-expanded={!collapsed}>{collapsed ? "Expandir menu" : "Recolher menu"}</button>
-        <nav aria-label="MBA DroneGestor">
+        <nav aria-label="AgroVoo">
           {navigation.map(group => {
             const entries = group.paths.map(p => availablePages.find(item => item.path === p)).filter((p): p is typeof pages[number] => Boolean(p));
             if (!entries.length) return null;
             return <details key={group.title} open={entries.some(p => path === `${ROOT}${p.path ? `/${p.path}` : ""}` || Boolean(p.path && path.startsWith(`${ROOT}/${p.path}/`)))}><summary>{group.title}</summary>
-              {entries.map(({path:p,title,icon:Icon}) => <Link key={p} title={title} href={pilotField&&!p?`${ROOT}/agrovoo/piloto`:`${ROOT}${p ? `/${p}` : ""}`} onClick={() => setMenu(false)} aria-current={path === `${ROOT}${p ? `/${p}` : ""}` || Boolean(p && path.startsWith(`${ROOT}/${p}/`)) ? "page" : undefined}><Icon/><span>{title}</span></Link>)}
+              {entries.map(({path:p,title,icon:Icon}) => <Link key={p} title={title} href={canonicalAgroVooPath(pilotField&&!p?`${ROOT}/agrovoo/piloto`:`${ROOT}${p ? `/${p}` : ""}`)} onClick={() => setMenu(false)} aria-current={path === `${ROOT}${p ? `/${p}` : ""}` || Boolean(p && path.startsWith(`${ROOT}/${p}/`)) ? "page" : undefined}><Icon/><span>{title}</span></Link>)}
             </details>;
           })}
         </nav>
@@ -133,9 +134,9 @@ export function DroneAppShell({
       {menu && <button className="agro-menu-dismiss fixed inset-0 z-[80] bg-black/40" aria-label="Fechar menu" onClick={()=>setMenu(false)}/>}
       <div className="agro-workspace">
         <header className="agro-header">
-          <Link href={pilotField?`${ROOT}/agrovoo/piloto`:ROOT} className="agro-mobile-brand">
+          <Link href={canonicalAgroVooPath(pilotField?`${ROOT}/agrovoo/piloto`:ROOT)} className="agro-mobile-brand">
             {pilotField?<Drone/>:<Leaf/>}
-            {pilotField?<>Agro<em>Voo</em><small> Piloto</small></>:<>MBA <em>DroneGestor</em></>}
+            {pilotField?<>Agro<em>Voo</em><small> Piloto</small></>:<>Agro<em>Voo</em></>}
           </Link>
           <button
             className="agro-menu-button"
@@ -148,8 +149,8 @@ export function DroneAppShell({
           <div className="agro-search">
             <Search />
             <input
-              aria-label="Buscar páginas no DroneGestor"
-              placeholder="Buscar no DroneGestor"
+              aria-label="Buscar páginas no AgroVoo"
+              placeholder="Buscar no AgroVoo"
               value={query}
               onFocus={() => setSearch(true)}
               onChange={(e) => {
@@ -191,7 +192,7 @@ export function DroneAppShell({
             >
               <Bell />
             </button>
-            <Link href={`${ROOT}/ajuda`} aria-label="Ajuda: como usar o DroneGestor">
+            <Link href={`${ROOT}/ajuda`} aria-label="Ajuda: como usar o AgroVoo">
               <CircleHelp />
             </Link>
             <details className="agro-account">
@@ -249,7 +250,7 @@ export function DroneAppShell({
         ]).map(({ path: p, title, icon: Icon }) => (
           <Link
             key={p}
-            href={`${ROOT}${p ? `/${p}` : ""}`}
+            href={canonicalAgroVooPath(`${ROOT}${p ? `/${p}` : ""}`)}
             aria-current={
               (path === `${ROOT}${p ? `/${p}` : ""}` || Boolean(p && path.startsWith(`${ROOT}/${p}/`)) || (canManage && p==="gestao" && path.startsWith(`${ROOT}/gestao/`))) ? "page" : undefined
             }

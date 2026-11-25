@@ -61,7 +61,7 @@ const nextConfig: NextConfig = {
         headers: noCacheHeaders
       },
       {
-        source: "/apps/dronegestor/calculadora",
+        source: "/apps/agrovoo/calculadora",
         headers: noCacheHeaders
       },
       {
