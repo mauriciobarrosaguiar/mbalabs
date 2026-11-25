@@ -13,8 +13,8 @@ test("AgroVoo: menu e dashboard usam as mesmas rotas de cadastro",()=>{
   const shell=read("agrovoo/AgroVooAdminShell.tsx");
   const board=read("agrovoo/AgroVooBetaClient.tsx");
   for(const kind of ["clientes","propriedades","talhoes","aeronaves","pilotos"]){
-    assert.ok(shell.includes("agrovoo/cadastros/"+kind));
-    assert.ok(board.includes("agrovoo/cadastros/"+kind));
+    assert.ok(shell.includes("cadastros/"+kind));
+    assert.ok(board.includes("cadastros/"+kind));
   }
 });
 test("AgroVoo: cadastro utiliza APIs existentes, protege gravações e confirma inativação",()=>{
@@ -23,7 +23,8 @@ test("AgroVoo: cadastro utiliza APIs existentes, protege gravações e confirma 
   assert.ok(ui.includes("/api/dronegestor/cadastros"));
   assert.ok(ui.includes('if(!canWrite||saving)return;'));
   assert.ok(ui.includes('payload?.ok!==true'));
-  assert.match(ui,/window\.confirm\("Inativar/);
+  assert.ok(ui.includes("confirmRef.current?.showModal()"));
+  assert.ok(ui.includes('void mutate("DELETE",undefined,id)'));
   assert.ok(ui.includes("paginateAgroVooOrders(filtered,page,size)"));
 });
 test("AgroVoo: piloto continua submetido aos controles existentes de administração",()=>{

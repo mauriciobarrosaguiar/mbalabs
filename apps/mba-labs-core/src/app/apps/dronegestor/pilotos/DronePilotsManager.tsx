@@ -104,7 +104,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
   const [currentUserId, setCurrentUserId] = useState("");
   const [currentUserName, setCurrentUserName] = useState("Gestor");
   const [orderId, setOrderId] = useState("");
-  const [pilotChoice, setPilotChoice] = useState("self");
+  const [pilotChoice, setPilotChoice] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
@@ -171,6 +171,11 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
     [pilotChoice, linkedPilots],
   );
 
+  useEffect(()=>{
+    const id=selectedOrder?.data.pilotoResponsavelId;
+    setPilotChoice(id&&id===currentUserId?"self":linkedPilots.find(p=>p.usuarioId===id)?.id||"");
+  },[selectedOrder,linkedPilots,currentUserId]);
+  const samePilot=Boolean(selectedOrder?.data.pilotoResponsavelId && selectedOrder.data.pilotoResponsavelId===(pilotChoice==="self"?currentUserId:selectedPilot?.usuarioId));
   function openNewPilot() {
     setForm(empty);
     setPilotId("");
@@ -240,7 +245,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
       setExpanded(payload.item?.id || "");
       setMessage(
         payload.createdAccount
-          ? "Piloto cadastrado e acesso liberado. Ele já pode entrar no DroneGestor com o e-mail e a senha informados."
+          ? "Piloto cadastrado e acesso liberado. Ele já pode entrar no AgroVoo com o e-mail e a senha informados."
           : "Piloto vinculado ao acesso que já existia nesta empresa. A senha anterior não foi alterada.",
       );
       await load();
@@ -273,11 +278,11 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
   }
 
   async function assignPilot() {
-    if (!loaded || !canManage || saving || !selectedOrder || !currentUserId) return;
+    if (!loaded || !canManage || saving || !selectedOrder || !currentUserId || !pilotChoice || samePilot) return;
     const assignedPilotId = pilotChoice === "self" ? currentUserId : String(selectedPilot?.usuarioId || "");
     const pilotName = pilotChoice === "self" ? currentUserName : String(selectedPilot?.nome || "");
     if (!assignedPilotId || !pilotName) {
-      setMessage("Escolha um piloto com acesso ativo ao DroneGestor.");
+      setMessage("Escolha um piloto com acesso ativo ao AgroVoo.");
       return;
     }
 
@@ -318,7 +323,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
   }
 
   async function remove(id: string) {
-    if (!loaded || saving || !canAdministerTeam || !window.confirm("Inativar este piloto? O acesso dele ao DroneGestor será bloqueado e o histórico será preservado.")) {
+    if (!loaded || saving || !canAdministerTeam || !window.confirm("Inativar este piloto? O acesso dele ao AgroVoo será bloqueado e o histórico será preservado.")) {
       return;
     }
     setSaving(true);
@@ -331,7 +336,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload?.error || "Não foi possível inativar o piloto.");
-      setMessage("Piloto inativado. O acesso ao DroneGestor foi bloqueado e o histórico foi preservado.");
+      setMessage("Piloto inativado. O acesso ao AgroVoo foi bloqueado e o histórico foi preservado.");
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível inativar o piloto.");
@@ -345,7 +350,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
       <div className={"mx-auto grid w-full gap-4 "+(compact?"max-w-[1500px]":"max-w-3xl")}>
         <header className="flex items-center gap-3">
           <Link
-            href={compact?"/apps/dronegestor/agrovoo":"/apps/dronegestor/equipe"}
+            href={compact?"/apps/agrovoo/painel":"/apps/agrovoo/equipe"}
             aria-label="Voltar"
             className="grid size-11 shrink-0 place-items-center rounded-2xl border border-[#d9e5dc] bg-white text-[#315d4d]"
           >
@@ -358,12 +363,12 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
           </div>
         </header>
 
-        {compact&&<section className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm">Situação dos pilotos cadastrados</strong><button type="button" disabled={loading||saving} onClick={()=>void load()} className="min-h-11 rounded-md border border-slate-300 px-3 text-xs font-semibold">Atualizar</button></div><div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-4">{[{label:"Cadastros ativos",value:items.length},{label:"Acesso ativo",value:linked.length},{label:"Autorizados a executar OS",value:authorized.length},{label:"Sem acesso",value:items.length-linked.length}].map(m=><div key={m.label} className="rounded-md border border-slate-200 p-2.5"><span className="block text-xs text-slate-600">{m.label}</span><strong className="block text-xl text-emerald-900">{loaded&&!teamUnavailable?m.value:"—"}</strong></div>)}</div><p className="text-xs text-slate-600">Contagem dos cadastros retornados; não representa limite contratado, presença online ou licença de voo. O acesso ao aplicativo não autoriza uma aplicação real.</p>{canAdministerTeam&&<Link href="/apps/dronegestor/funcionarios" className="text-sm font-semibold text-emerald-800 underline">Gerenciar funcionários e acessos</Link>}</section>}
+        {compact&&<section className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm">Situação dos pilotos cadastrados</strong><button type="button" disabled={loading||saving} onClick={()=>void load()} className="min-h-11 rounded-md border border-slate-300 px-3 text-xs font-semibold">Atualizar</button></div><div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-4">{[{label:"Cadastros ativos",value:items.length},{label:"Acesso ativo",value:linked.length},{label:"Autorizados a executar OS",value:authorized.length},{label:"Sem acesso",value:items.length-linked.length}].map(m=><div key={m.label} className="rounded-md border border-slate-200 p-2.5"><span className="block text-xs text-slate-600">{m.label}</span><strong className="block text-xl text-emerald-900">{loaded&&!teamUnavailable?m.value:"—"}</strong></div>)}</div><p className="text-xs text-slate-600">Contagem dos cadastros retornados; não representa limite contratado, presença online ou licença de voo. O acesso ao aplicativo não autoriza uma aplicação real.</p>{canAdministerTeam&&<Link href="/apps/agrovoo/funcionarios" className="text-sm font-semibold text-emerald-800 underline">Gerenciar funcionários e acessos</Link>}</section>}
         {message && <p className="rounded-2xl border border-[#cfe0d5] bg-white px-4 py-3 text-sm font-bold leading-5">{message}</p>}
 
         <section className="rounded-[26px] border border-[#dce7df] bg-white p-4 shadow-sm sm:p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
+          <div className="agrovoo-pilot-create flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
               <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#e8f4eb] text-[#087a55]">
                 <UsersRound size={22} />
               </span>
@@ -378,7 +383,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
               <button
                 type="button"
                 onClick={openNewPilot}
-                className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-xl bg-[#087a55] px-4 text-sm font-black text-white"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#087a55] px-4 text-sm font-black !text-white sm:w-auto sm:shrink-0"
               >
                 <Plus size={17} />
                 Autorizar / cadastrar piloto
@@ -390,7 +395,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
             <form ref={formRef} onSubmit={submit} className="mt-4 grid scroll-mt-3 gap-3 border-t border-[#e4ece7] pt-4">
               <div className="rounded-2xl bg-[#eef8f1] p-3 text-sm leading-5 text-[#315d4d]">
                 <strong className="block">O acesso será criado agora.</strong>
-                O piloto entrará diretamente no DroneGestor com o e-mail e a senha abaixo. Não é necessário cadastrá-lo no painel da MBA Labs.
+                O piloto entrará diretamente no AgroVoo com o e-mail e a senha abaixo. Não é necessário cadastrá-lo no painel da MBA Labs.
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Nome do piloto *" value={form.nome} set={(value) => setForm({ ...form, nome: value })} required />
@@ -520,6 +525,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
                     onChange={(event) => setPilotChoice(event.target.value)}
                     className="min-h-12 w-full rounded-xl border border-[#d8e3db] bg-white px-3 text-sm font-bold"
                   >
+                    <option value="">Selecione um responsável</option>
                     <option value="self">{currentUserName} — gestor/piloto</option>
                     {linkedPilots.map((item) => (
                       <option key={item.id} value={item.id}>
@@ -540,7 +546,7 @@ export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
                 )}
                 <button
                   type="button"
-                  disabled={saving || !orderId}
+                  disabled={saving || !orderId || !pilotChoice || samePilot || !loaded}
                   onClick={() => void assignPilot()}
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#087a55] px-4 text-sm font-black text-white disabled:opacity-50"
                 >

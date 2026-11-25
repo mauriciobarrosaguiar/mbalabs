@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { Bell, BookOpen, Calculator, ChevronDown, ClipboardCheck, CircleHelp, FileText, Folder, Home, Layers, Leaf, LogOut, Menu, Settings, ShieldCheck, UserRound, Users, Wallet, X, ChartNoAxesColumn } from "lucide-react";
+import { Bell, BookOpen, Calculator, ChevronDown, ClipboardCheck, CircleHelp, FileText, Folder, Home, Layers, MapPinned, Leaf, LogOut, Menu, Settings, ShieldCheck, UserRound, Users, Wallet, X, ChartNoAxesColumn } from "lucide-react";
 import { AgroDocDroneIcon as Drone } from "../AgroDocDroneIcon";
 
 const ROOT = "/apps/agrovoo";
@@ -12,7 +12,7 @@ const items = [
   { label: "Cadastros", links: [
     { title: "Clientes", path: "cadastros/clientes", icon: Users },
     { title: "Propriedades", path: "cadastros/propriedades", icon: Layers },
-    { title: "Talhões", path: "cadastros/talhoes", icon: Layers },
+    { title: "Talhões", path: "cadastros/talhoes", icon: MapPinned },
     { title: "Aeronaves e equipamentos", path: "cadastros/aeronaves", icon: Drone },
     { title: "Pilotos", path: "cadastros/pilotos", icon: UserRound },
     { title: "Equipe", path: "equipe", icon: Users },
@@ -72,7 +72,7 @@ export function AgroVooAdminShell({ children, userName, canAdministerCompany, is
           {notice && <div className="absolute right-0 top-12 z-[95] grid w-60 gap-1 rounded-lg border border-slate-200 bg-white p-3 text-slate-900 shadow-lg"><strong>Pendências</strong><Link onClick={() => setNotice(false)} className={linkClass} href={ROOT + "/diagnostico"}>Documentos e vencimentos</Link><Link onClick={() => setNotice(false)} className={linkClass} href={ROOT + "/conferencia"}>Conferência operacional</Link></div>}
         </div>
         <details className="relative">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-md px-2 hover:bg-white/15"><UserRound size={22}/><span className="hidden max-w-36 truncate text-sm font-semibold md:block">{userName}</span><ChevronDown size={14}/></summary>
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-md px-2 hover:bg-white/15"><UserRound size={22}/><span className="hidden max-w-36 truncate text-sm font-semibold md:block">{userName}</span><ChevronDown size={14} className="agrovoo-menu-chevron"/></summary>
           <div className="absolute right-0 top-12 z-[95] grid w-56 rounded-lg border border-slate-200 bg-white p-2 text-slate-900 shadow-lg"><Link className={linkClass} href={ROOT + "/perfil-operacional"}>Meu perfil</Link><Link className={linkClass} href="/dashboard">Voltar à MBA Labs</Link><form action="/sair" method="post"><button type="submit" className={linkClass + " w-full"}><LogOut size={18}/> Sair</button></form></div>
         </details>
       </div>
@@ -81,11 +81,10 @@ export function AgroVooAdminShell({ children, userName, canAdministerCompany, is
     <aside className={"fixed bottom-0 left-0 top-0 z-[80] flex w-[270px] max-w-[85vw] flex-col border-r border-slate-200 bg-white transition-transform lg:top-16 lg:z-[65] lg:max-w-none lg:translate-x-0 lg:visible " + (mobileOpen ? "visible translate-x-0 " : "invisible -translate-x-full ") + (compact ? "lg:w-[76px]" : "lg:w-[250px]")}>
       <div className="flex min-h-16 items-center justify-between border-b border-slate-100 px-4 lg:hidden"><strong className="text-lg text-emerald-950">AgroVoo</strong><button type="button" className="grid h-11 w-11 place-items-center" onClick={() => setMobileOpen(false)} aria-label="Fechar menu AgroVoo"><X/></button></div>
       <nav aria-label="Menu de gestão AgroVoo" className="flex-1 overflow-y-auto p-3">
-        {items.filter(group=>group.label!=="Financeiro"||canAdministerCompany).map(group => <details key={group.label} open={group.label === "Principal" || group.label === "Operacional" || compact || group.links.some(link=>pathname===ROOT+"/"+link.path)} className="mb-3">
+        {items.filter(group=>group.label!=="Financeiro"||canAdministerCompany).map(group => <details key={group.label} open={group.label === "Principal" || group.label === "Operacional" || compact || group.links.some(link=>pathname===ROOT+"/"+link.path)} className="agrovoo-menu-group mb-1">
           <summary className={"flex min-h-9 cursor-pointer list-none items-center justify-between gap-1 px-2 text-[11px] font-bold uppercase tracking-wide text-slate-500 " + (compact ? "lg:justify-center lg:px-0" : "")}><span className={compact ? "lg:sr-only" : ""}>{group.label}</span><ChevronDown size={14}/></summary>
-          {group.links.map(({title,path,icon:Icon}) => { const selected = pathname === ROOT + "/" + path || (path === "painel" && pathname.startsWith(ROOT + "/os/")); return <Link key={path} title={title} href={ROOT + "/" + path} onClick={() => setMobileOpen(false)} aria-current={selected ? "page" : undefined} className={linkClass + (selected ? " bg-emerald-100 !text-emerald-950" : "") + (compact ? " lg:justify-center lg:px-0" : "")}><Icon size={19} className="shrink-0"/><span className={compact ? "lg:sr-only" : ""}>{title}</span></Link>; })}
+          {[...group.links,...(group.label==="Cadastros"&&canAdministerCompany?[{title:"Funcionários e acessos",path:"funcionarios",icon:Users}]:[])].map(({title,path,icon:Icon}) => { const selected = pathname === ROOT + "/" + path || (path === "painel" && pathname.startsWith(ROOT + "/os/")); return <Link key={path} title={title} href={ROOT + "/" + path} onClick={() => setMobileOpen(false)} aria-current={selected ? "page" : undefined} className={linkClass + (selected ? " bg-emerald-100 !text-emerald-950" : "") + (compact ? " lg:justify-center lg:px-0" : "")}><Icon size={19} className="shrink-0"/><span className={compact ? "lg:sr-only" : ""}>{title}</span></Link>; })}
         </details>)}
-        {canAdministerCompany && <Link href={ROOT + "/funcionarios"} title="Funcionários e acessos" className={linkClass}><Users size={19}/><span className={compact ? "lg:sr-only" : ""}>Funcionários e acessos</span></Link>}
         {isSystemAdmin && <Link href={ROOT + "/administracao"} title="Administração do sistema" className={linkClass}><ShieldCheck size={19}/><span className={compact ? "lg:sr-only" : ""}>Administração do sistema</span></Link>}
       </nav>
       <div className={"border-t border-slate-200 bg-slate-50 p-3 text-slate-600 " + (compact ? "lg:hidden" : "")}><small className="block text-[11px] font-semibold uppercase">Conectado como</small><strong className="block truncate text-sm text-slate-900">{userName}</strong></div>

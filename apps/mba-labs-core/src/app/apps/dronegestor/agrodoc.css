@@ -2090,3 +2090,12 @@
 .agrovoo-pilot-field .agro-field-online{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:10px;color:#fff;}
 .agrovoo-pilot-field .agro-field-online>span{height:7px;width:7px;border-radius:50%;}
 @media(max-width:767px){.agrovoo-pilot-field .agro-header .agro-menu-button{order:-1;}.agrovoo-pilot-field .agro-mobile-brand{gap:3px;font-size:16px;}.agrovoo-pilot-field .agro-header-actions{gap:4px;}.agrovoo-pilot-field .agro-header-actions>button{width:32px;min-width:32px;}}
+
+/* AgroVoo: administrative mobile review. Keep operational controls unchanged. */
+.agro-shell .agrovoo-pilot-create{min-width:0;}
+.agro-shell .agrovoo-pilot-create>div{min-width:0;}
+.agro-shell .agrovoo-menu-group .agrovoo-menu-chevron{transition:transform .15s;}
+.agro-shell .agrovoo-menu-group[open] .agrovoo-menu-chevron{transform:rotate(180deg);}
+.agro-shell .agrovoo-confirm-dialog{position:fixed;inset:0;margin:auto;width:min(440px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;border:1px solid #cbd5e1;border-radius:14px;padding:20px;background:#fff;color:#0f172a;box-shadow:0 12px 42px #0003;}
+.agro-shell .agrovoo-confirm-dialog::backdrop{background:rgb(0 0 0 / .55);}
+@media(max-width:767px){.agro-shell .agrovoo-pilot-create{display:grid!important;grid-template-columns:minmax(0,1fr)!important;align-items:stretch!important;}.agro-shell .agrovoo-pilot-create>button{width:100%;white-space:normal;}.agro-shell .agrovoo-pilot-create>div>div{min-width:0;overflow-wrap:normal;word-break:normal;}}

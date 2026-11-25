@@ -161,11 +161,10 @@ export function AgroVooBetaClient({ userName }: { userName: string }) {
                 {title:"Propriedades",href:"/cadastros/propriedades",icon:Layers,color:"bg-[#146779]"},
                 {title:"Aeronaves",href:"/cadastros/aeronaves",icon:MapPinned,color:"bg-[#a45916]"},
                 {title:"Pilotos",href:"/cadastros/pilotos",icon:UserRound,color:"bg-[#66528d]"},
-              ].map(({title,href,icon:Icon,color})=><Link key={href} href={ROOT + href} className={"flex min-h-14 items-center justify-center gap-2 rounded-md px-3 py-3 text-sm font-bold text-white hover:brightness-110 " + color}><Icon size={19} className="shrink-0"/>{title}</Link>)}
+              ].map(({title,href,icon:Icon,color})=><Link key={href} href={ROOT + href} className={"flex min-h-14 items-center justify-center gap-2 rounded-md px-3 py-3 text-sm font-bold !text-white hover:brightness-110 " + color}><Icon size={19} className="shrink-0"/>{title}</Link>)}
             </div>
             <div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-5">
               {[
-                {label:"Ordens ativas",value:count?.total,href:"/gestao",icon:ClipboardCheck},
                 {label:"Clientes",value:clients.data?.items.length,href:"/cadastros/clientes",icon:Users},
                 {label:"Propriedades",value:farms.data?.items.length,href:"/cadastros/propriedades",icon:Layers},
                 {label:"Talhões",value:fields.data?.items.length,href:"/cadastros/talhoes",icon:MapPinned},
