@@ -44,7 +44,7 @@ const pages = [
   { path: "diagnostico", title: "Diagnóstico e regularização", icon: ShieldCheck },
   { path: "regulacao", title: "Legislação e fontes", icon: BookOpen },
   { path: "relatorio-mensal", title: "Relatórios MAPA", icon: ChartNoAxesColumn },
-  { path: "ferramentas", title: "MBA Calda e calculadoras", icon: Calculator },
+  { path: "ferramentas", title: "Calculadoras", icon: Calculator },
   { path: "produtos", title: "Defensivos e AGROFIT", icon: Leaf },
   { path: "piloto-pro", title: "Piloto Pro", icon: BookOpen },
   { path: "perfil-operacional", title: "Perfil operacional", icon: UserRound },
