@@ -58,6 +58,7 @@ export function AgroDocDocuments() {
     [reload, setReload] = useState(0);
   const [fieldOsId,setFieldOsId]=useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const uploadDialog = useRef<HTMLDialogElement>(null);
   const fileOsRef = useRef("");
   const sendingRef = useRef(false);
   useEffect(() => {
@@ -86,7 +87,7 @@ export function AgroDocDocuments() {
   useEffect(() => {
     setSelected(null);
     setDocs([]);
-    if (!os) return;
+    if (!os) {setLoading(false);return;}
     let active = true;
     setLoading(true);
     setError("");
@@ -111,6 +112,7 @@ export function AgroDocDocuments() {
   }, [os, reload]);
   const selectedOrder = orders.data?.items.find(item => item.entityId === os);
   const readOnly = !selectedOrder || ["cancelada", "concluida"].includes(selectedOrder.data.status || "");
+  useEffect(()=>{const dialog=uploadDialog.current;if(!dialog)return;if(upload&&!readOnly&&!dialog.open)dialog.showModal();else if((!upload||readOnly)&&dialog.open)dialog.close();},[upload,readOnly]);
   function cancelUpload() {
     if (sendingRef.current) return;
     setFile(null); setUpload(false); setProgress(null); fileOsRef.current = "";
@@ -202,7 +204,7 @@ export function AgroDocDocuments() {
         variant="documents"
         title={
           <>
-            MBA <em>DroneGestor</em> · Documentos
+            Documentos <em>AgroVoo</em>
           </>
         }
         description="Central de arquivos, evidências, relatórios e comprovantes."
@@ -260,13 +262,13 @@ export function AgroDocDocuments() {
         <AgroDocKpiCard
           title="Pendências de anexo"
           icon={TriangleAlert}
-          value="Consultar"
+          value={os?"Consultar":"—"}
           note="Checklist documental da OS"
-          href={`${ROOT}/documentos?${new URLSearchParams({
+          href={os?`${ROOT}/documentos?${new URLSearchParams({
             ...(os ? {osId:os} : {}),
             ...(searchParams.get("returnTo")==="campo" ? {returnTo:"campo"} : {}),
             checklist:"1",
-          }).toString()}#agro-document-checklist`}
+          }).toString()}#agro-document-checklist`:undefined}
         />
         <AgroDocKpiCard
           title="Armazenamento"
@@ -276,7 +278,7 @@ export function AgroDocDocuments() {
         />
       </div>
       <AgroDocError error={error || orders.error} />
-      <div className="agro-doc-columns">
+      {os&&<div className="agro-doc-columns">
         <AgroDocCard title="Pastas principais" icon={Folder}>
           {folders.slice(1).map((f, i) => (
             <button
@@ -289,8 +291,7 @@ export function AgroDocDocuments() {
               <span>
                 <b>{f.label}</b>
                 <small>
-                  {attachmentsInFolder(docs, f).length} arquivos
-                  nesta OS
+                  {attachmentsInFolder(docs, f).length} arquivo(s) nesta OS
                 </small>
               </span>
             </button>
@@ -366,7 +367,7 @@ export function AgroDocDocuments() {
             </AgroDocEmpty>
           )}
         </AgroDocCard>
-        <AgroDocCard
+        {selected&&<AgroDocCard
           title={selected?.nome || "Visualização do documento"}
           icon={FileText}
         >
@@ -440,9 +441,9 @@ export function AgroDocDocuments() {
           ) : (
             <AgroDocEmpty>Selecione um arquivo para visualizar.</AgroDocEmpty>
           )}
-        </AgroDocCard>
-      </div>
-      <div
+        </AgroDocCard>}
+      </div>}
+      {os&&!readOnly&&<div
         className="agro-upload"
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
@@ -463,7 +464,7 @@ export function AgroDocDocuments() {
         <button
           onClick={() => {
             setUpload(true);
-            fileRef.current?.click();
+            // O seletor de arquivo é exibido no diálogo de envio.
           }}
           disabled={!os || readOnly}
         >
@@ -472,10 +473,12 @@ export function AgroDocDocuments() {
         <small>
           Arquivos autorizados · Google Drive até 2 GB; Supabase até 10 MB · OS obrigatória
         </small>
-      </div>
+      </div>}
       {readOnly && selectedOrder && <p role="status">OS encerrada ou cancelada: somente consulta. Os documentos existentes continuam disponíveis.</p>}
+      <dialog ref={uploadDialog} aria-label="Enviar documento" className="agrovoo-confirm-dialog" onCancel={e=>{e.preventDefault();cancelUpload();}}>
       {upload && !readOnly && (
-        <section className="agro-card agro-form" style={{ marginTop: 16 }}>
+        <section className="agro-form">
+          {error&&<p role="alert" className="agro-form-note">{error}</p>}
           <h2>Enviar documento para a OS selecionada</h2>
           <select
             aria-label="Categoria do anexo"
@@ -527,13 +530,13 @@ export function AgroDocDocuments() {
             Cancelar
           </button>
         </section>
-      )}
-      <details id="agro-document-checklist" open={searchParams.get("checklist")==="1"} style={{ marginTop: 20 }}>
+      )}</dialog>
+      {os&&<details id="agro-document-checklist" open={searchParams.get("checklist")==="1"} style={{ marginTop: 20 }}>
         <summary className="agro-button">
-          Fase 3 — Checklist documental e autorização SARPAS da OS selecionada
+          Checklist documental e situação SARPAS
         </summary>
         <div className="agro-legacy">{os && <DroneDocumentsCenter key={`${os}:${reload}`} osId={os} readOnly={readOnly}/>}</div>
-      </details>
+      </details>}
     </>
   );
 }
