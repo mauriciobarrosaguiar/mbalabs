@@ -37,7 +37,7 @@ export const FEDERAL_ARP_RULES: RegulatoryRule[] = [
     blocksAutomatically: true,
     notes: [
       "A Portaria também manda respeitar restrições maiores previstas na legislação específica e na recomendação do produto.",
-      "A exceção do art. 9º, II, para certos agentes biológicos/produtos fitossanitários da agricultura orgânica depende das condições expressas no próprio dispositivo; não é aplicada automaticamente pelo DroneGestor."
+      "A exceção do art. 9º, II, para certos agentes biológicos/produtos fitossanitários da agricultura orgânica depende das condições expressas no próprio dispositivo; não é aplicada automaticamente pelo AgroVoo."
     ]
   },
   {
@@ -82,7 +82,7 @@ export const FEDERAL_ARP_RULES: RegulatoryRule[] = [
     verifiedAt: "2026-08-12",
     applicability: "review",
     blocksAutomatically: false,
-    notes: ["O enquadramento e a necessidade/condições da solicitação dependem da operação pretendida. O DroneGestor não presume autorização apenas por existir cadastro."]
+    notes: ["O enquadramento e a necessidade/condições da solicitação dependem da operação pretendida. O AgroVoo não presume autorização apenas por existir cadastro."]
   },
   {
     id: "sarpas-sisant-precondition-2026",
@@ -125,7 +125,7 @@ export const FEDERAL_ARP_RULES: RegulatoryRule[] = [
     verifiedAt: "2026-08-12",
     applicability: "automatic",
     blocksAutomatically: false,
-    notes: ["O DroneGestor registra a identificação ANAC e permite guardar a certidão SISANT, mas não renova cadastro automaticamente."]
+    notes: ["O AgroVoo registra a identificação ANAC e permite guardar a certidão SISANT, mas não renova cadastro automaticamente."]
   },
   {
     id: "anac-rbac100-1005-categorias",
@@ -158,7 +158,7 @@ export const FEDERAL_ARP_RULES: RegulatoryRule[] = [
     verifiedAt: "2026-08-12",
     applicability: "review",
     blocksAutomatically: false,
-    notes: ["O DroneGestor não marca automaticamente a operação como isenta: a exceção depende de todas as condições do dispositivo estarem presentes."]
+    notes: ["O AgroVoo não marca automaticamente a operação como isenta: a exceção depende de todas as condições do dispositivo estarem presentes."]
   }
 ];
 
@@ -179,7 +179,7 @@ export const STATE_RULES: Record<string, RegulatoryRule[]> = {
       applicability: "review",
       blocksAutomatically: false,
       notes: [
-        "A própria Lei estadual define 'pulverização por via aérea' como realizada por aviões, hidroaviões e helicópteros. Por isso, o DroneGestor NÃO aplica automaticamente esses 250/500 m a ARP sem confirmação da Agrodefesa/RT para o caso.",
+        "A própria Lei estadual define 'pulverização por via aérea' como realizada por aviões, hidroaviões e helicópteros. Por isso, o AgroVoo NÃO aplica automaticamente esses 250/500 m a ARP sem confirmação da Agrodefesa/RT para o caso.",
         "A Lei nº 24.389/2026 alterou a Lei nº 19.423/2016; a fonte acima já apresenta a redação atualizada."
       ]
     }
@@ -213,7 +213,7 @@ export const STATE_RULES: Record<string, RegulatoryRule[]> = {
       verifiedAt: "2026-08-12",
       applicability: "informational",
       blocksAutomatically: false,
-      notes: ["O DroneGestor não transforma relatos de campo sobre 90 m em obrigação legal. O ADMIN/RT pode manter margem interna superior sem rotulá-la como lei."]
+      notes: ["O AgroVoo não transforma relatos de campo sobre 90 m em obrigação legal. O ADMIN/RT pode manter margem interna superior sem rotulá-la como lei."]
     }
   ]
 };
