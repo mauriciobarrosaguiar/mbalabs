@@ -34,7 +34,7 @@ const items = [
     { title: "Legislação e fontes", path: "regulacao", icon: BookOpen },
   ] },
   { label: "Ferramentas", links: [
-    { title: "Calculadora de calda", path: "ferramentas", icon: Calculator },
+    { title: "Calculadora de Calda", path: "ferramentas", icon: Calculator },
     { title: "Piloto Pro", path: "piloto-pro", icon: BookOpen },
   ] },
   { label: "Conta", links: [
