@@ -61,8 +61,11 @@ test("operation document and dossier links keep osId",()=>{
   const documents=read("documentos/AgroDocDocuments.tsx");
   assert.match(documents,/gestao\?tab=os&osId=/);
   const registry=read("cadastros/AgroDocRegistry.tsx");
-  assert.match(registry,/gestao\?tab=fazenda/);
-  assert.match(registry,/gestao\?tab=cliente/);
+  assert.match(registry,/cadastros\/propriedades/);
+  assert.match(registry,/cadastros\/clientes/);
+  assert.match(registry,/cadastros\/talhoes/);
+  assert.ok(existsSync(path.join(root,"agrovoo","cadastros","[tipo]","page.tsx")));
+  assert.match(registry,/const ROOT="\/apps\/agrovoo"/);
 });
 
 // Reproduzido na interface da OS fictícia OS-20261123-45737.
