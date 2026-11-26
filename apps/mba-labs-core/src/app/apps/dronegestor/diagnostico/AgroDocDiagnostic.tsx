@@ -238,9 +238,9 @@ export function AgroDocDiagnostic() {
       />
       <div className="agro-kpis">
         {[
-          ["Itens para conferir", TASKS.length],
+          ["Itens do checklist", TASKS.length],
           [
-            "Regularizados",
+            "Concluídos (declarados)",
             TASKS.filter((t) => taskItem(data, t.id).status === "concluido")
               .length,
           ],
@@ -338,7 +338,8 @@ export function AgroDocDiagnostic() {
               </div>
             </AgroDocCard>
             <AgroDocCard title="Checklist de regularização">
-              <AgroDocTable
+              <p className="mb-3 text-sm text-slate-600">Situações declaradas pelo operador, não verificadas pelos órgãos oficiais.</p>
+              <div className="hidden md:block"><AgroDocTable
                 head={[
                   "Item / órgão",
                   "Responsável",
@@ -436,7 +437,8 @@ export function AgroDocDiagnostic() {
                     </tr>
                   );
                 })}
-              </AgroDocTable>
+              </AgroDocTable></div>
+              <div className="grid gap-3 md:hidden">{TASKS.map(task=>{const cur=taskItem(data,task.id);return <article key={task.id} className="grid min-w-0 gap-3 rounded-xl border border-slate-200 bg-white p-3"><div><a className="font-bold text-emerald-800" href={task.id==="estadual"&&data.uf!=="TO"?"https://www.gov.br/pt-br":task.link} target="_blank" rel="noreferrer">{task.name}</a><p className="mt-1 text-xs text-slate-600">{task.owner}</p>{dateStatus(cur.validade)&&<p className="text-sm text-amber-800">{dateStatus(cur.validade)}</p>}</div><div className="agro-form"><label>Situação<select disabled={!canManage} value={cur.status} onChange={e=>setTask(task.id,{status:e.target.value as State})}>{STATUSES.map(([id,label])=><option key={id} value={id}>{label}</option>)}</select></label>{cur.status==="nao_aplica"&&<label>Justificativa<input disabled={!canManage} value={cur.justificativa} onChange={e=>setTask(task.id,{justificativa:e.target.value})}/></label>}<label>Nº / protocolo<input disabled={!canManage} value={cur.numero} onChange={e=>setTask(task.id,{numero:e.target.value})}/></label><label>Validade<input type="date" disabled={!canManage} value={cur.validade} onChange={e=>setTask(task.id,{validade:e.target.value})}/></label></div></article>})}</div>
             </AgroDocCard>
           </div>
           <div className="agro-diagnostic-lower">
@@ -473,7 +475,7 @@ export function AgroDocDiagnostic() {
                   ))}
               </div>
               {pending === 0 && (
-                <p>Sem ações pendentes no diagnóstico registrado.</p>
+                <p>Nenhum item declarado pendente. Confira a validade e autenticidade dos registros.</p>
               )}
             </AgroDocCard>
             <AgroDocCard title="Direcionamento oficial" icon={ExternalLink}>
