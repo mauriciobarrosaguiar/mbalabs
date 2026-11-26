@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
+import { validateMapEvidenceFile } from "@/lib/agrovoo-map-evidence";
 import { getSessionProfile } from "@/lib/core-data";
 import { canManageDroneGestor } from "@/lib/dronegestor-role";
 import { createSupabaseAdminClient } from "@mba-labs/shared/supabase/server";
@@ -220,9 +221,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "Arquivo maior que 10 MB." }, { status: 400 });
 
     const bytes = Buffer.from(await file.arrayBuffer());
-    const detected = detect(bytes);
+    const mapGeometryFile = /\\.(?:kml|kmz)$/i.test(file.name);
+    const detected = tipo === "mapa_aplicacao" && mapGeometryFile
+      ? await validateMapEvidenceFile(file.name, bytes).catch(() => null)
+      : detect(bytes);
     if (!detected)
-      return NextResponse.json({ ok: false, error: "Envie PDF, JPG, PNG, WebP ou XLSX." }, { status: 400 });
+      return NextResponse.json({ ok: false, error: tipo === "mapa_aplicacao"
+        ? "Mapa inválido. Envie uma foto JPG/PNG/WebP do controle ou um arquivo KML/KMZ válido."
+        : "Envie PDF, JPG, PNG, WebP ou XLSX." }, { status: 400 });
+    if (tipo === "mapa_aplicacao" && !["jpg","png","webp","kml","kmz"].includes(detected.ext))
+      return NextResponse.json({ ok: false, error: "O mapa precisa ser uma foto JPG/PNG/WebP ou um KML/KMZ." }, { status: 400 });
+    if (tipo !== "mapa_aplicacao" && mapGeometryFile)
+      return NextResponse.json({ ok: false, error: "KML/KMZ são exclusivos do mapa da aplicação." }, { status: 400 });
 
     const sha256 = createHash("sha256").update(bytes).digest("hex");
     let duplicates = admin.from("core_logs").select("id,detalhes,created_at")

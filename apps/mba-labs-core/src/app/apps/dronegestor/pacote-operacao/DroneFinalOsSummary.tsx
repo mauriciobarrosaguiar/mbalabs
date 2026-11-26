@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { droneAppliedArea, droneOperationStatusLabel } from "@/lib/dronegestor-operation-summary";
 
 type AnyRecord = Record<string, any>;
-type Doc = { id?: string; tipo?: string; nome?: string; url?: string };
+type Doc = { id?: string; tipo?: string; nome?: string; url?: string; ordemServicoId?: string };
 type OperationPayload = { ok?: boolean; state?: AnyRecord; source?: string; pilotName?: string; syncUpdatedAt?: string; os?: { id?: string; status?: string; numero?: string; fechamentoStatus?: string; pendencias?: string[] }; error?: string };
 
 function n(value: unknown, decimals = 1) {
@@ -45,15 +45,15 @@ export function DroneFinalOsSummary() {
     void Promise.all([
       fetch(`/api/dronegestor/operacao-os?osId=${encoded}`, { cache: "no-store" }),
       fetch(`/api/dronegestor/documentos?osId=${encoded}`, { cache: "no-store" }),
-      fetch(`/api/dronegestor/mapa?osId=${encoded}`, { cache: "no-store" }),
+      fetch(`/api/dronegestor/mapa?osId=${encoded}&finalidade=pos_voo`, { cache: "no-store" }),
       fetch(`/api/dronegestor/sarpas?osId=${encoded}`, { cache: "no-store" }),
     ]).then(async ([o, d, m, s]) => {
       const [op, dp, mp, sp] = await Promise.all([o.json().catch(() => null), d.json().catch(() => null), m.json().catch(() => null), s.json().catch(() => null)]);
       if (o.ok && op?.ok) setPayload(op);
-      if (d.ok) setDocs(Array.isArray(dp?.items) ? dp.items : []);
-      if (m.ok) setMapOk(Boolean(mp?.evidence?.url || mp?.evidence));
+      if (d.ok && dp?.ok===true) setDocs(Array.isArray(dp.items) ? dp.items.filter((doc:Doc)=>doc.ordemServicoId===osId) : []);
+      if (m.ok && mp?.ok===true) setMapOk(Boolean(mp.evidence?.url && mp.evidence.ordemServicoId===osId && (mp.evidence.finalidade||"pos_voo")==="pos_voo"));
       if (s.ok) setSarpas(sp?.sarpas || {});
-    }).finally(() => setLoading(false));
+    }).catch(()=>{setPayload(null);setDocs([]);setMapOk(false);}).finally(() => setLoading(false));
   }, []);
 
   const summary = useMemo(() => {
@@ -77,14 +77,16 @@ export function DroneFinalOsSummary() {
   const sarpasStatus = String(sarpas?.status || m.sarpasSituacao || "");
   const sarpasNumero = String(sarpas?.numero || m.sarpasNumero || "");
   const docsCount = docs.length;
+  const hasMapDocument = docs.some(doc=>doc.tipo==="mapa_aplicacao" && Boolean(doc.url));
+  const mapReceived = mapOk || hasMapDocument;
   const closed = summary.osStatus === "concluida";
   const hasFieldSnapshot = payload.source === "live" || payload.source === "finalized";
   const canExportPdf = payload.source === "finalized";
   const pdfHref = `/api/dronegestor/pacote-operacao/pdf?osId=${encodeURIComponent(String(m.ordemServicoId))}`;
 
-  return <section className="mx-auto mt-5 w-full max-w-5xl px-3 sm:px-6">
-    <div className="overflow-hidden rounded-[28px] border border-emerald-200 bg-white shadow-sm">
-      <header className="bg-[linear-gradient(135deg,#064e3b,#087a55)] p-5 text-white sm:p-6">
+  return <section className="mx-auto mt-3 w-full max-w-5xl px-1 sm:px-4">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <header className="bg-[#123e38] p-3 text-white sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div><div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-wider"><FileCheck2 size={15}/> Resumo da OS</div><h2 className="mt-3 text-2xl font-black">{payload.os?.numero || m.ordemServicoNumero || "Ordem de serviço"}</h2><p className="mt-1 text-sm text-emerald-100">{m.fazendaNome || "Fazenda"} • {m.talhaoNome || "Talhão"} • {n(m.area, 2)} ha</p></div>
           <span className={`rounded-full px-3 py-2 text-xs font-black ${closed ? "bg-emerald-200 text-emerald-950" : summary.osStatus === "campo_concluido" ? "bg-amber-200 text-amber-950" : "bg-white/15 text-white"}`}>{summary.status}</span>
@@ -92,9 +94,9 @@ export function DroneFinalOsSummary() {
         <p className="mt-4 max-w-3xl text-sm leading-6 text-emerald-100">Este é o resumo simples da aplicação. Use os blocos abaixo para conferir o serviço sem precisar procurar informação em várias telas.</p>
       </header>
 
-      <div className="grid gap-4 p-4 sm:p-5">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Info icon={<UserRound size={18}/>} label="Piloto responsável" value={payload.pilotName || "Piloto não identificado"} sub={m.drone ? `${m.drone} • ANAC ${m.registroAnac || "não informado"}` : "Drone não informado"}/>
+      <div className="grid gap-3 p-3 sm:p-4">
+        <div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-4">
+          <Info icon={<UserRound size={18}/>} label="Piloto responsável" value={payload.pilotName || "Piloto não identificado"} sub={m.drone ? `${m.drone} • ANAC ${m.registroAnac || "não informado"}` : "Drone não informado"}/><Info icon={<UserRound size={18}/>} label="Ajudante informado" value={String(m.ajudanteNome||"Não informado")} sub={typeof m.gotaMicra==="number"&&m.gotaMicra>0?`Gota nominal: ${m.gotaMicra} µm`:"Gota nominal não informada"}/>
           <Info icon={<MapPinned size={18}/>} label="Onde" value={[m.clienteNome, m.fazendaNome, m.talhaoNome].filter(Boolean).join(" → ") || "Não informado"} sub={[m.municipio, m.uf].filter(Boolean).join("/") || "Localidade não informada"}/>
           <Info icon={<Sprout size={18}/>} label="Cultura e alvo" value={`${m.cultura || "Cultura não informada"}${m.alvo ? ` • ${m.alvo}` : ""}`} sub={`${n(summary.progress, 2)} ha realizados de ${n(summary.area, 2)} ha`}/>
           <Info icon={<Clock3 size={18}/>} label="Quando" value={`${dt(state.startedAt)} → ${dt(state.endedAt || state.concluidaNoDispositivoEm)}`} sub={`Duração: ${duration(state.startedAt, state.endedAt || state.concluidaNoDispositivoEm)}`}/>
@@ -111,7 +113,7 @@ export function DroneFinalOsSummary() {
         </div>
 
         <Card title="Regularização e documentos" icon={<FileText size={18}/>}>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"><Status ok={sarpasStatus === "autorizado" && Boolean(sarpasNumero)} label="SARPAS" detail={sarpasStatus === "autorizado" ? `Autorizado • ${sarpasNumero || "sem referência"}` : "Pendente"}/><Status ok={docsCount > 0} label="Documentos" detail={`${docsCount} arquivo(s) vinculado(s)`}/><Status ok={mapOk} label="Mapa do voo" detail={mapOk ? "Evidência vinculada" : "Pendente"}/><Status ok={summary.pending.length === 0 && summary.osStatus === "concluida"} label="Fechamento" detail={summary.osStatus === "concluida" ? "OS encerrada" : summary.pending.length ? `${summary.pending.length} pendência(s)` : "Aguardando encerramento"}/></div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"><Status ok={sarpasStatus === "autorizado" && Boolean(sarpasNumero)} label="SARPAS" detail={sarpasStatus === "autorizado" ? `Autorizado • ${sarpasNumero || "sem referência"}` : "Pendente"}/><Status ok={docsCount > 0} label="Documentos" detail={`${docsCount} arquivo(s) vinculado(s)`}/><Status ok={mapReceived} label="Mapa do voo" detail={mapReceived ? "Evidência vinculada (foto ou arquivo)" : "Pendente"}/><Status ok={summary.pending.length === 0 && summary.osStatus === "concluida"} label="Fechamento" detail={summary.osStatus === "concluida" ? "OS encerrada" : summary.pending.length ? `${summary.pending.length} pendência(s)` : "Aguardando encerramento"}/></div>
           {docsCount > 0 && <div className="mt-3 flex flex-wrap gap-2">{docs.slice(0, 8).map((doc, i) => <span key={doc.id || i} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{doc.nome || doc.tipo || "Documento"}</span>)}</div>}
         </Card>
 

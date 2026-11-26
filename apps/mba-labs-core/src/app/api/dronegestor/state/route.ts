@@ -1,3 +1,4 @@
+import {normalizeDropletMicrons,normalizeAssistantName} from "@/lib/agrovoo-field-reference";
 import { hasDroneCoordinates } from "@/lib/dronegestor-coordinates";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
@@ -189,6 +190,8 @@ function buildOperationSummary(state: StoredState, pilotName: string, settings: 
   );
   return {
     piloto: pilotName,
+    ajudanteNome: normalizeAssistantName(mission.ajudanteNome),
+    gotaMicra: normalizeDropletMicrons(mission.gotaMicra),
     ordemServicoId: textValue(mission.ordemServicoId),
     ordemServicoNumero: textValue(mission.ordemServicoNumero),
     clienteId: textValue(mission.clienteId),
@@ -361,7 +364,7 @@ async function pilotCanFinalize(admin: any, current: ApiContext) {
   const { data, error } = await query.maybeSingle();
   if (error) throw error;
   if (!data) return false;
-  return data.detalhes?.permissoes?.finalizarOperacao !== false;
+  return data.detalhes?.permissoes?.finalizarOperacao === true && data.detalhes?.permissoes?.executarOs === true;
 }
 
 async function validateServerPreflight(

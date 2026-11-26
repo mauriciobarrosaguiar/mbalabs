@@ -341,7 +341,7 @@ export function DroneHomeDashboard({
           <div className="agro-pilot-steps">
             {[
               { icon: Drone, label: "Modo campo", path: "campo" },
-              { icon: Calculator, label: "MBA Calda", path: "ferramentas" },
+              { icon: Calculator, label: "Calculadora de Calda", path: "ferramentas" },
               { icon: BookOpen, label: "Piloto Pro", path: "piloto-pro" },
               { icon: Camera, label: "Documentos", path: "documentos" },
               { icon: ShieldCheck, label: "Regularização", path: "diagnostico" },

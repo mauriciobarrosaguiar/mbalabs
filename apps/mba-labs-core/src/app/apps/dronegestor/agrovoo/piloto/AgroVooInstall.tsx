@@ -1,0 +1,10 @@
+"use client";
+import {useEffect,useState} from "react";
+import {Download} from "lucide-react";
+type InstallEvent=Event&{prompt:()=>Promise<void>;userChoice:Promise<{outcome:string}>};
+export function AgroVooInstall(){
+ const [prompt,setPrompt]=useState<InstallEvent|null>(null),[standalone,setStandalone]=useState(false),[help,setHelp]=useState(false),[busy,setBusy]=useState(false);
+ useEffect(()=>{const update=()=>setStandalone(window.matchMedia("(display-mode: standalone)").matches||(navigator as Navigator&{standalone?:boolean}).standalone===true);update();const before=(event:Event)=>{event.preventDefault();setPrompt(event as InstallEvent);};const installed=()=>{setPrompt(null);update();};window.addEventListener("beforeinstallprompt",before);window.addEventListener("appinstalled",installed);return()=>{window.removeEventListener("beforeinstallprompt",before);window.removeEventListener("appinstalled",installed);};},[]);
+ async function install(){if(!prompt){setHelp(true);return;}setBusy(true);try{await prompt.prompt();await prompt.userChoice;}catch{setHelp(true);}finally{setPrompt(null);setBusy(false);}}
+ return <section className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3"><strong className="flex items-center gap-2 text-sm"><Download size={17}/> AgroVoo no celular</strong>{standalone?<p className="text-xs text-emerald-800">Aberto no modo aplicativo.</p>:<button type="button" disabled={busy} onClick={()=>void install()} className="min-h-11 rounded-md border border-emerald-200 px-3 text-sm font-semibold text-emerald-900">Instalar / adicionar à tela inicial</button>}{help&&<p className="text-xs text-slate-700">Android: no Chrome, abra o menu ⋮ e escolha Instalar aplicativo ou Adicionar à tela inicial. iPhone: no Safari, use Compartilhar → Adicionar à Tela de Início. Se a opção não aparecer, abra no navegador normal.</p>}<p className="text-xs text-slate-600">A instalação não cria nem autoriza acesso. É necessário entrar com sua conta. A abertura inicial e a recuperação da sessão precisam de rede; não feche a operação carregada se estiver sem conexão.</p></section>;
+}

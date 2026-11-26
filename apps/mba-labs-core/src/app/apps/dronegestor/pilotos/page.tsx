@@ -8,6 +8,6 @@ export default async function Page(){
   await requireDroneManagementPage( "/apps/dronegestor/pilotos");
   return <>
     <DronePilotQualifications />
-    <DronePilotsManager/>
+    <DronePilotsManager compact/>
   </>;
 }

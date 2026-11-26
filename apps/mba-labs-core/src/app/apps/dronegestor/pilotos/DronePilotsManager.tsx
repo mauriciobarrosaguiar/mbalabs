@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { paginateAgroVooOrders } from "@/lib/agrovoo-board-view";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -90,8 +91,9 @@ function strongPassword() {
   return Array.from(values, (value) => characters[value % characters.length]).join("");
 }
 
-export function DronePilotsManager() {
+export function DronePilotsManager({compact=false}: {compact?:boolean} = {}) {
   const [items, setItems] = useState<Pilot[]>([]);
+  const [inactiveItems,setInactiveItems]=useState<{id:string;nome:string;email:string}[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [form, setForm] = useState<PilotForm>(empty);
   const [pilotId, setPilotId] = useState("");
@@ -102,20 +104,25 @@ export function DronePilotsManager() {
   const [currentUserId, setCurrentUserId] = useState("");
   const [currentUserName, setCurrentUserName] = useState("Gestor");
   const [orderId, setOrderId] = useState("");
-  const [pilotChoice, setPilotChoice] = useState("self");
+  const [pilotChoice, setPilotChoice] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [expanded, setExpanded] = useState("");
+  const [query,setQuery]=useState("");
+  const [accessFilter,setAccessFilter]=useState("todos");
+  const [loaded,setLoaded]=useState(false);
+  const [page,setPage]=useState(0);
+  const [size,setSize]=useState(10);
   const [message, setMessage] = useState("");
   const formRef = useRef<HTMLFormElement | null>(null);
 
   async function load() {
-    setLoading(true);
+    setLoading(true);setLoaded(false);
     try {
       const [pilotResponse, orderResponse] = await Promise.all([
-        fetch("/api/dronegestor/pilotos", { cache: "no-store" }),
+        fetch("/api/dronegestor/pilotos?includeInactive=1", { cache: "no-store" }),
         fetch("/api/dronegestor/cadastros?type=os", { cache: "no-store" }),
       ]);
       const pilotPayload = await pilotResponse.json().catch(() => null);
@@ -127,7 +134,7 @@ export function DronePilotsManager() {
       const nextOrders = ((orderPayload.items || []) as Order[]).filter((item) =>
         ["aberta", "preparacao", "em_preparacao"].includes(item.data.status || "aberta"),
       );
-      setItems(nextPilots);
+      setItems(nextPilots);setInactiveItems(Array.isArray(pilotPayload.inactiveItems)?pilotPayload.inactiveItems:[]);setLoaded(true);
       setOrders(nextOrders);
       setCanManage(Boolean(pilotPayload.canManage));
       setCanCreatePilot(Boolean(pilotPayload.canCreatePilot));
@@ -140,6 +147,7 @@ export function DronePilotsManager() {
         current && nextOrders.some((item) => item.entityId === current) ? current : nextOrders[0]?.entityId || "",
       );
     } catch (error) {
+      setLoaded(false);setItems([]);setInactiveItems([]);setOrders([]);setCanManage(false);setCanAdministerTeam(false);setCanCreatePilot(false);
       setMessage(error instanceof Error ? error.message : "Não foi possível carregar os pilotos.");
     } finally {
       setLoading(false);
@@ -150,13 +158,24 @@ export function DronePilotsManager() {
     void load();
   }, []);
 
-  const linkedPilots = useMemo(() => items.filter((item) => Boolean(item.usuarioId)), [items]);
+  const normalize=(value:string)=>value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");
+  const linked=items.filter(item=>Boolean(item.usuarioId));
+  const authorized=linked.filter(item=>item.permissoes.executarOs===true);
+  const filtered=compact?items.filter(item=>(accessFilter==="todos"||accessFilter==="acesso"&&Boolean(item.usuarioId)||accessFilter==="autorizados"&&Boolean(item.usuarioId)&&item.permissoes.executarOs===true||accessFilter==="restritos"&&Boolean(item.usuarioId)&&item.permissoes.executarOs!==true||accessFilter==="sem_acesso"&&!item.usuarioId)&&[item.nome,item.email,item.telefone].some(value=>normalize(String(value||"")).includes(normalize(query.trim())))):items;
+  const {currentPage,totalPages,visibleOrders}=paginateAgroVooOrders(filtered,page,size);
+  const visiblePilots=compact?visibleOrders:items;
+  const linkedPilots = useMemo(() => items.filter((item) => Boolean(item.usuarioId) && item.permissoes.executarOs===true), [items]);
   const selectedOrder = useMemo(() => orders.find((item) => item.entityId === orderId) || null, [orders, orderId]);
   const selectedPilot = useMemo(
     () => (pilotChoice === "self" ? null : linkedPilots.find((item) => item.id === pilotChoice) || null),
     [pilotChoice, linkedPilots],
   );
 
+  useEffect(()=>{
+    const id=selectedOrder?.data.pilotoResponsavelId;
+    setPilotChoice(id&&id===currentUserId?"self":linkedPilots.find(p=>p.usuarioId===id)?.id||"");
+  },[selectedOrder,linkedPilots,currentUserId]);
+  const samePilot=Boolean(selectedOrder?.data.pilotoResponsavelId && selectedOrder.data.pilotoResponsavelId===(pilotChoice==="self"?currentUserId:selectedPilot?.usuarioId));
   function openNewPilot() {
     setForm(empty);
     setPilotId("");
@@ -226,7 +245,7 @@ export function DronePilotsManager() {
       setExpanded(payload.item?.id || "");
       setMessage(
         payload.createdAccount
-          ? "Piloto cadastrado e acesso liberado. Ele já pode entrar no DroneGestor com o e-mail e a senha informados."
+          ? "Piloto cadastrado e acesso liberado. Ele já pode entrar no AgroVoo com o e-mail e a senha informados."
           : "Piloto vinculado ao acesso que já existia nesta empresa. A senha anterior não foi alterada.",
       );
       await load();
@@ -238,7 +257,7 @@ export function DronePilotsManager() {
   }
 
   async function savePermissions(pilot: Pilot, next: Permissions) {
-    if (!canAdministerTeam || saving) return;
+    if (!loaded || !canAdministerTeam || saving) return;
     setSaving(true);
     setMessage("");
     try {
@@ -259,11 +278,11 @@ export function DronePilotsManager() {
   }
 
   async function assignPilot() {
-    if (!canManage || saving || !selectedOrder || !currentUserId) return;
+    if (!loaded || !canManage || saving || !selectedOrder || !currentUserId || !pilotChoice || samePilot) return;
     const assignedPilotId = pilotChoice === "self" ? currentUserId : String(selectedPilot?.usuarioId || "");
     const pilotName = pilotChoice === "self" ? currentUserName : String(selectedPilot?.nome || "");
     if (!assignedPilotId || !pilotName) {
-      setMessage("Escolha um piloto com acesso ativo ao DroneGestor.");
+      setMessage("Escolha um piloto com acesso ativo ao AgroVoo.");
       return;
     }
 
@@ -291,8 +310,20 @@ export function DronePilotsManager() {
     }
   }
 
+  async function reactivate(id:string){
+    if(!loaded||!canAdministerTeam||saving||!inactiveItems.some(p=>p.id===id)||!window.confirm("Reativar o acesso existente, mantendo a senha e o perfil anteriores?"))return;
+    setSaving(true);setMessage("");
+    try{
+      const response=await fetch("/api/dronegestor/pilotos",{method:"PATCH",headers:{"content-type":"application/json"},body:JSON.stringify({id,action:"reativar"}),cache:"no-store"});
+      const payload=await response.json().catch(()=>null);
+      if(!response.ok||payload?.ok!==true)throw Error(payload?.error||"Reativação não confirmada.");
+      setMessage("Acesso existente reativado. A senha e o perfil não foram alterados.");await load();
+    }catch(error){setMessage(error instanceof Error?error.message:"Falha na reativação.");}
+    finally{setSaving(false);}
+  }
+
   async function remove(id: string) {
-    if (!canAdministerTeam || !window.confirm("Inativar este piloto? O acesso dele ao DroneGestor será bloqueado e o histórico será preservado.")) {
+    if (!loaded || saving || !canAdministerTeam || !window.confirm("Inativar este piloto? O acesso dele ao AgroVoo será bloqueado e o histórico será preservado.")) {
       return;
     }
     setSaving(true);
@@ -305,7 +336,7 @@ export function DronePilotsManager() {
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload?.error || "Não foi possível inativar o piloto.");
-      setMessage("Piloto inativado. O acesso ao DroneGestor foi bloqueado e o histórico foi preservado.");
+      setMessage("Piloto inativado. O acesso ao AgroVoo foi bloqueado e o histórico foi preservado.");
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível inativar o piloto.");
@@ -315,11 +346,11 @@ export function DronePilotsManager() {
   }
 
   return (
-    <main className="min-h-screen bg-[#f4f8f1] px-3 pb-28 pt-4 text-[#143d31] sm:px-6 sm:py-8">
-      <div className="mx-auto grid w-full max-w-3xl gap-4">
+    <main className={compact?"grid gap-4 pb-8 text-slate-900":"min-h-screen bg-[#f4f8f1] px-3 pb-28 pt-4 text-[#143d31] sm:px-6 sm:py-8"}>
+      <div className={"mx-auto grid w-full gap-4 "+(compact?"max-w-[1500px]":"max-w-3xl")}>
         <header className="flex items-center gap-3">
           <Link
-            href="/apps/dronegestor/equipe"
+            href={compact?"/apps/agrovoo/painel":"/apps/agrovoo/equipe"}
             aria-label="Voltar"
             className="grid size-11 shrink-0 place-items-center rounded-2xl border border-[#d9e5dc] bg-white text-[#315d4d]"
           >
@@ -327,22 +358,23 @@ export function DronePilotsManager() {
           </Link>
           <div className="min-w-0">
             <p className="text-xs font-black uppercase tracking-[.16em] text-[#087a55]">Equipe</p>
-            <h1 className="text-2xl font-black">Pilotos e acessos</h1>
-            <p className="mt-1 text-sm text-[#718078]">Cadastre o piloto aqui, sem sair do DroneGestor.</p>
+            <h1 className="text-2xl font-black">Módulo Piloto — autorizações e acessos</h1>
+            <p className="mt-1 text-sm text-[#718078]">Gerencie o acesso individual ao AgroVoo e a autorização operacional.</p>
           </div>
         </header>
 
+        {compact&&<section className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm">Situação dos pilotos cadastrados</strong><button type="button" disabled={loading||saving} onClick={()=>void load()} className="min-h-11 rounded-md border border-slate-300 px-3 text-xs font-semibold">Atualizar</button></div><div className="agro-compact-grid grid grid-cols-2 gap-2 lg:grid-cols-4">{[{label:"Cadastros ativos",value:items.length},{label:"Acesso ativo",value:linked.length},{label:"Autorizados a executar OS",value:authorized.length},{label:"Sem acesso",value:items.length-linked.length}].map(m=><div key={m.label} className="rounded-md border border-slate-200 p-2.5"><span className="block text-xs text-slate-600">{m.label}</span><strong className="block text-xl text-emerald-900">{loaded&&!teamUnavailable?m.value:"—"}</strong></div>)}</div><p className="text-xs text-slate-600">Contagem dos cadastros retornados; não representa limite contratado, presença online ou licença de voo. O acesso ao aplicativo não autoriza uma aplicação real.</p>{canAdministerTeam&&<Link href="/apps/agrovoo/funcionarios" className="text-sm font-semibold text-emerald-800 underline">Gerenciar funcionários e acessos</Link>}</section>}
         {message && <p className="rounded-2xl border border-[#cfe0d5] bg-white px-4 py-3 text-sm font-bold leading-5">{message}</p>}
 
         <section className="rounded-[26px] border border-[#dce7df] bg-white p-4 shadow-sm sm:p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 items-center gap-3">
+          <div className="agrovoo-pilot-create flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
               <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[#e8f4eb] text-[#087a55]">
                 <UsersRound size={22} />
               </span>
               <div>
                 <strong className="block text-lg">
-                  {teamUnavailable?"Equipe indisponível":`${items.length} ${items.length === 1 ? "piloto ativo" : "pilotos ativos"}`}
+                  {teamUnavailable||!loaded?"Equipe indisponível":`${items.length} ${items.length === 1 ? "cadastro ativo" : "cadastros ativos"}`}
                 </strong>
                 <span className="text-xs text-[#718078]">Cada piloto usa seu próprio acesso.</span>
               </div>
@@ -351,10 +383,10 @@ export function DronePilotsManager() {
               <button
                 type="button"
                 onClick={openNewPilot}
-                className="inline-flex min-h-12 shrink-0 items-center gap-2 rounded-xl bg-[#087a55] px-4 text-sm font-black text-white"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#087a55] px-4 text-sm font-black !text-white sm:w-auto sm:shrink-0"
               >
                 <Plus size={17} />
-                Cadastrar piloto
+                Autorizar / cadastrar piloto
               </button>
             )}
           </div>
@@ -363,7 +395,7 @@ export function DronePilotsManager() {
             <form ref={formRef} onSubmit={submit} className="mt-4 grid scroll-mt-3 gap-3 border-t border-[#e4ece7] pt-4">
               <div className="rounded-2xl bg-[#eef8f1] p-3 text-sm leading-5 text-[#315d4d]">
                 <strong className="block">O acesso será criado agora.</strong>
-                O piloto entrará diretamente no DroneGestor com o e-mail e a senha abaixo. Não é necessário cadastrá-lo no painel da MBA Labs.
+                O piloto entrará diretamente no AgroVoo com o e-mail e a senha abaixo. Não é necessário cadastrá-lo no painel da MBA Labs.
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="Nome do piloto *" value={form.nome} set={(value) => setForm({ ...form, nome: value })} required />
@@ -493,6 +525,7 @@ export function DronePilotsManager() {
                     onChange={(event) => setPilotChoice(event.target.value)}
                     className="min-h-12 w-full rounded-xl border border-[#d8e3db] bg-white px-3 text-sm font-bold"
                   >
+                    <option value="">Selecione um responsável</option>
                     <option value="self">{currentUserName} — gestor/piloto</option>
                     {linkedPilots.map((item) => (
                       <option key={item.id} value={item.id}>
@@ -513,7 +546,7 @@ export function DronePilotsManager() {
                 )}
                 <button
                   type="button"
-                  disabled={saving || !orderId}
+                  disabled={saving || !orderId || !pilotChoice || samePilot || !loaded}
                   onClick={() => void assignPilot()}
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#087a55] px-4 text-sm font-black text-white disabled:opacity-50"
                 >
@@ -525,6 +558,7 @@ export function DronePilotsManager() {
           </section>
         )}
 
+        {compact&&<div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white p-3"><input aria-label="Buscar pilotos" type="search" value={query} placeholder="Buscar por nome, e-mail ou telefone" onChange={e=>{setQuery(e.target.value);setPage(0);}} className="min-h-11 flex-1 rounded-md border border-slate-300 px-3 text-sm"/><select aria-label="Filtrar autorização do piloto" value={accessFilter} onChange={e=>{setAccessFilter(e.target.value);setPage(0);}} className="min-h-11 rounded-md border border-slate-300 px-2 text-sm">{[["todos","Todos"],["acesso","Acesso ativo"],["autorizados","Autorizados a executar OS"],["restritos","Acesso sem execução"],["sem_acesso","Sem acesso"]].map(([value,label])=><option key={value} value={value}>{label}</option>)}</select><span className="text-xs text-slate-600">{filtered.length} registros</span></div>}
         {loading ? (
           <div className="grid min-h-36 place-items-center rounded-2xl bg-white">
             <Loader2 className="animate-spin text-[#087a55]" />
@@ -536,7 +570,8 @@ export function DronePilotsManager() {
           </div>
         ) : (
           <div className="grid gap-2">
-            {items.map((item) => (
+            {visiblePilots.length===0&&<p className="rounded-md bg-white p-4 text-sm text-slate-600">Nenhum piloto encontrado.</p>}
+            {visiblePilots.map((item) => (
               <PilotCard
                 key={item.id}
                 item={item}
@@ -551,6 +586,8 @@ export function DronePilotsManager() {
             ))}
           </div>
         )}
+        {loaded&&canAdministerTeam&&inactiveItems.length>0&&<section className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3"><h2 className="text-sm font-semibold">Pilotos inativados ({inactiveItems.length})</h2><p className="text-xs text-slate-600">Recupere somente vínculos existentes. A reativação não cria conta, muda senha nem altera perfil.</p>{inactiveItems.map(p=><div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-slate-200 p-2"><div className="min-w-0"><strong className="block text-sm">{p.nome}</strong><p className="break-words text-xs text-slate-600">{p.email}</p></div><button type="button" disabled={saving||loading} onClick={()=>void reactivate(p.id)} className="min-h-11 rounded-md border border-emerald-200 px-3 text-xs font-semibold text-emerald-800">Reativar acesso</button></div>)}</section>}
+        {compact&&!loading&&<div className="flex flex-wrap items-center justify-end gap-2 rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600"><select aria-label="Pilotos por página" value={size} onChange={e=>{setSize(Number(e.target.value));setPage(0);}} className="min-h-11 !w-auto rounded-md border border-slate-200 px-2">{[10,25,50].map(n=><option key={n} value={n}>{n}</option>)}</select><button type="button" disabled={currentPage===0} onClick={()=>setPage(currentPage-1)} className="min-h-11 rounded-md border px-3 disabled:opacity-40">Anterior</button><span>{currentPage+1}/{totalPages}</span><button type="button" disabled={currentPage>=totalPages-1} onClick={()=>setPage(currentPage+1)} className="min-h-11 rounded-md border px-3 disabled:opacity-40">Próxima</button></div>}
       </div>
     </main>
   );
@@ -589,8 +626,8 @@ function PilotCard({
               item.usuarioId ? "bg-emerald-100 text-emerald-800" : "bg-amber-50 text-amber-800"
             }`}
           >
-            {item.usuarioId ? "Acesso ao DroneGestor ativo" : "Sem acesso ao aplicativo"}
-          </span>
+            {item.usuarioId ? "Acesso ao AgroVoo ativo" : "Sem acesso ao aplicativo"}
+          </span>{item.usuarioId&&<p className="mt-1 text-xs font-semibold text-slate-700">{item.permissoes.executarOs?"Execução de OS autorizada":"Execução de OS não autorizada"}</p>}
         </div>
         <button
           type="button"
@@ -607,7 +644,7 @@ function PilotCard({
             disabled={saving}
             onClick={onRemove}
             className="grid size-10 shrink-0 place-items-center rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600"
-            aria-label={`Inativar ${item.nome}`}
+            aria-label={`Inativar ${item.nome}`} title="Revogar acesso e preservar histórico"
           >
             <Trash2 size={17} />
           </button>

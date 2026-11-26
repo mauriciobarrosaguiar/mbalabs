@@ -1,6 +1,7 @@
 ﻿import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getCurrentUserProfileFromSupabase, type SharedAppAccess, type SharedPermissao } from "@mba-labs/shared/auth/profile";
+import {canonicalAgroVooPath} from "./agrovoo-routes";
 import { getInternalAppBySlug, internalAppRouteOptions, internalAppSlugOptions, internalApps } from "./app-registry";
 import { getSupabaseServer } from "./supabase";
 
@@ -210,7 +211,7 @@ function getFallbackDestination(profile: CoreProfile, appsLiberados: SharedAppAc
   }
 
   if (availableApps.length === 1) {
-    return availableApps[0].urlPath;
+    return canonicalAgroVooPath(availableApps[0].urlPath);
   }
 
   return "/selecionar-app";
@@ -258,9 +259,9 @@ export async function getDashboardData() {
         ? fallbackApps
         : current.appsLiberados.filter((app) => app.canAccess).map((app) => ({
             slug: app.slug,
-            nome: app.nome,
+            nome: app.slug==="dronegestor"?"AgroVoo":app.nome,
             descricao: app.descricao ?? "Sistema MBA Labs.",
-            url_path: app.urlPath,
+            url_path: canonicalAgroVooPath(app.urlPath),
             status: app.status,
             canAccess: true
           })),
@@ -291,7 +292,7 @@ export async function getDashboardData() {
       slug: app.slug,
       nome: app.nome,
       descricao: app.descricao ?? "Sistema MBA Labs.",
-      url_path: access?.urlPath ?? resolveAppUrlPath(app),
+      url_path: canonicalAgroVooPath(access?.urlPath ?? resolveAppUrlPath(app)),
       status: access?.status ?? "sem_assinatura",
       canAccess: Boolean(access?.canAccess)
     };
@@ -1169,7 +1170,7 @@ function sanitizeInternalPath(path: string) {
     return "/dashboard";
   }
 
-  return path;
+  return canonicalAgroVooPath(path);
 }
 
 function canAccessRequestedPath(path: string, profile: CoreProfile, appsLiberados: SharedAppAccess[]) {
@@ -1214,6 +1215,7 @@ function canAccessRequestedPath(path: string, profile: CoreProfile, appsLiberado
 }
 
 function getAppSlugFromPath(path: string) {
+  if(path==="/apps/agrovoo"||path.startsWith("/apps/agrovoo/"))return "dronegestor";
   if (path === "/elshaday" || path.startsWith("/elshaday/")) {
     return "elshaday";
   }

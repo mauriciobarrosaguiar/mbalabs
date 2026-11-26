@@ -35,7 +35,7 @@ test('rejeita zero, infinitos, negativos e eficiência inválida', () => {
   assert.throws(()=>calculateYield({areaHa:1,speedKmh:1,widthM:1,rateLHa:1,tankL:1,refillMin:0,batteryMin:0,travelMin:0,efficiencyPercent:101}));
 });
 
-test('MBA Calda: vários produtos, mistura completa e parcial',()=>{
+test('Calculadora de Calda: vários produtos, mistura completa e parcial',()=>{
  const plan=calculateLoads(49,10,200), drone=calculateLoads(49,10,25);
  assert.equal(plan.fullLoads,2);assert.equal(plan.lastL,90);assert.equal(drone.loads,20);assert.equal(drone.lastL,15);
  assert.equal(calculateProductForVolume(1,'L/ha',200,10).amount,20);

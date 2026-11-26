@@ -21,7 +21,7 @@ const RBAC_137_ARP_2026: RegulatoryRule = {
   blocksAutomatically: false,
   notes: [
     "A Emenda 07 foi alterada pela Resolução ANAC nº 805, de 15/06/2026.",
-    "O DroneGestor não usa essa dispensa para remover exigências do MAPA, da ANAC/RBAC 100, do DECEA ou da legislação estadual/local."
+    "O AgroVoo não usa essa dispensa para remover exigências do MAPA, da ANAC/RBAC 100, do DECEA ou da legislação estadual/local."
   ]
 };
 

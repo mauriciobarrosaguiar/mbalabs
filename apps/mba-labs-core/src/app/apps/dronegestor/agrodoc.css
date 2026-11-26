@@ -2061,3 +2061,54 @@
 
 .agro-mobile-account{display:none;}
 @media(max-width:767px){.agro-shell .agro-field-phase{padding:0 0 8px;}.agro-shell .agro-mobile-account{display:grid;gap:8px;padding:12px 8px;color:#fff;font-size:13px;}.agro-shell .agro-mobile-account a,.agro-shell .agro-mobile-account button{display:flex;align-items:center;gap:8px;min-height:44px;color:#fff;}.agro-shell .agro-mobile-account form button{width:100%;}.agro-shell .agro-sidebar-open{background-color:#052f25;}.agro-shell .agro-bottom-nav a{white-space:nowrap;}.agro-shell .agro-header{position:sticky;top:0;}}
+
+/* Campo do piloto: preservar estrutura dos bridges e overlays, uniformizar somente a apresentação. */
+.agrovoo-pilot-field .agro-header {background:#123e38;color:white;}
+.agrovoo-pilot-field .agro-mobile-brand {color:white;}
+.agrovoo-pilot-field .agro-mobile-brand em {color:#bef264;}
+.agrovoo-pilot-field .agro-mobile-brand small {font-size:12px;font-weight:500;color:white;}
+@media(max-width:1023px){
+ .agro-shell.agrovoo-pilot-field .agro-bottom-nav{background:white;color:#475569;border-radius:0;border-top:1px solid #e2e8f0;padding:0 0 env(safe-area-inset-bottom,0px);min-height:64px;}
+ .agro-shell.agrovoo-pilot-field .agro-bottom-nav a,.agro-shell.agrovoo-pilot-field .agro-bottom-nav button{min-height:64px;border-radius:0;font-size:10px;color:#475569;background:white;}
+ .agro-shell.agrovoo-pilot-field .agro-bottom-nav a[aria-current="page"]{background:#ecfdf5;color:#065f46;font-weight:700;}
+ .agro-shell.agrovoo-pilot-field .agro-page-content{padding-bottom:calc(120px + env(safe-area-inset-bottom,0px));}
+ .agro-shell.agrovoo-pilot-field .agro-field-workspace{padding-bottom:calc(36px + env(safe-area-inset-bottom,0px))!important;}
+ .agro-shell.agrovoo-pilot-field .agro-field-body{padding-bottom:24px!important;}
+}
+.dronegestor-ui .drone-mobile-nav > a,.dronegestor-ui .drone-mobile-nav > button{font-size:10px;line-height:1.15;font-weight:600;}
+
+/* Compact pilot form after mobile review 24/11. Scope to the field view. */
+.agrovoo-pilot-field .agro-field-compact-form{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:start;}
+.agrovoo-pilot-field .agro-field-compact-form>label{min-width:0;font-size:12px;}
+.agrovoo-pilot-field .agro-field-compact-form>label.agro-field-text,.agrovoo-pilot-field .agro-field-compact-form>label.agro-field-select{grid-column:1/-1;}
+.agrovoo-pilot-field .agro-field-compact-form input,.agrovoo-pilot-field .agro-field-compact-form select{width:100%;min-width:0;font-size:14px;}
+.agrovoo-pilot-field .agro-field-compact-form label>div{padding-inline:8px;}
+.agrovoo-pilot-field .agro-field-full-value{display:block;overflow-wrap:anywhere;}
+.agrovoo-pilot-field .agro-field-body button:disabled{opacity:1;color:#475569;}
+.agrovoo-pilot-field .agro-field-body [id^="agrovoo-stage-"]{scroll-margin-top:76px;}
+
+.agrovoo-pilot-field .agro-field-online{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;font-size:10px;color:#fff;}
+.agrovoo-pilot-field .agro-field-online>span{height:7px;width:7px;border-radius:50%;}
+@media(max-width:767px){.agrovoo-pilot-field .agro-header .agro-menu-button{order:-1;}.agrovoo-pilot-field .agro-mobile-brand{gap:3px;font-size:16px;}.agrovoo-pilot-field .agro-header-actions{gap:4px;}.agrovoo-pilot-field .agro-header-actions>button{width:32px;min-width:32px;}}
+
+/* AgroVoo: administrative mobile review. Keep operational controls unchanged. */
+.agro-shell .agrovoo-pilot-create{min-width:0;}
+.agro-shell .agrovoo-pilot-create>div{min-width:0;}
+.agro-shell .agrovoo-menu-group .agrovoo-menu-chevron{transition:transform .15s;}
+.agro-shell .agrovoo-menu-group[open] .agrovoo-menu-chevron{transform:rotate(180deg);}
+.agro-shell .agrovoo-confirm-dialog{position:fixed;inset:0;margin:auto;width:min(440px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;border:1px solid #cbd5e1;border-radius:14px;padding:20px;background:#fff;color:#0f172a;box-shadow:0 12px 42px #0003;}
+.agro-shell .agrovoo-confirm-dialog::backdrop{background:rgb(0 0 0 / .55);}
+@media(max-width:767px){.agro-shell .agrovoo-pilot-create{display:grid!important;grid-template-columns:minmax(0,1fr)!important;align-items:stretch!important;}.agro-shell .agrovoo-pilot-create>button{width:100%;white-space:normal;}.agro-shell .agrovoo-pilot-create>div>div{min-width:0;overflow-wrap:normal;word-break:normal;}}
+
+/* AgroVoo — configurações mobile, sem comprimir textos entre ícone e ação. */
+@media(max-width:767px){
+ .agrovoo-admin .agro-settings .agro-row{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:8px 12px;}
+ .agrovoo-admin .agro-settings .agro-row>div{min-width:0;overflow-wrap:break-word;}
+ .agrovoo-admin .agro-settings .agro-row>.agro-status,.agrovoo-admin .agro-settings .agro-row>a,.agrovoo-admin .agro-settings .agro-row>button{grid-column:2;justify-self:start;max-width:100%;white-space:normal;}
+ .agrovoo-admin .agro-settings .agro-row>svg:last-child:not(:first-child){grid-column:2;}
+ .agrovoo-admin .agro-settings-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;gap:5px;}
+ .agrovoo-admin .agro-settings-nav a{min-width:0!important;white-space:normal!important;font-size:12px;gap:6px;padding:9px;}
+ .agrovoo-admin .agro-settings-nav a svg{flex-shrink:0;width:18px;}
+ .agrovoo-admin .agro-settings [id^="agro-"]{scroll-margin-top:80px;}
+ .agrovoo-admin .agro-doc-columns .agro-empty{min-height:0;padding:16px 8px;}
+}

@@ -1,4 +1,5 @@
 import { hasDroneCoordinates } from "@/lib/dronegestor-coordinates";
+import { agrovooSafetyChecklistReady, agrovooPreflightReady, agrovooNextBlockingStep } from "@/lib/agrovoo-preflight-rules";
 import { hasNonPlaceholderAnacId, isExplicitHomologationPlaceholder } from "@/lib/dronegestor-document-checks";
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionProfile } from "@/lib/core-data";
@@ -208,7 +209,7 @@ export async function POST(request: NextRequest) {
     const insightOk = settings.insightsObrigatorios === false || snapshot.insightAccepted === true;
     const safetyCore = Boolean(sensitive && !marginBlocked && climate && riskOk && insightOk);
     const calibrationOk = allTrue(snapshot.calibration);
-    const checklistOk = allTrue(snapshot.checklist);
+    const checklistOk = agrovooSafetyChecklistReady(snapshot.checklist);
     const safetyOk = safetyCore && calibrationOk && checklistOk;
     const safetyDetail = !safetyCore
       ? "Conclua clima, área de risco e confirmação de segurança."
@@ -235,14 +236,14 @@ export async function POST(request: NextRequest) {
     const sarpasStatus = text(sarpas.status);
     const sarpasNumber = text(sarpas.numero) || text(mission.sarpasNumero);
     const sarpasDoc = types.has("sarpas_autorizacao");
-    const sarpasOk = sarpasStatus === "autorizado" && Boolean(sarpasNumber) && sarpasDoc;
+    const sarpasOk = sarpasStatus === "autorizado" && Boolean(sarpasNumber);
     const sarpasDetail =
       sarpasStatus !== "autorizado"
         ? "A autorização SARPAS ainda não está registrada como autorizada."
         : !sarpasNumber
           ? "Informe o número/referência emitido no SARPAS."
           : !sarpasDoc
-            ? "Falta anexar o comprovante da autorização SARPAS."
+            ? "Autorização informada; comprovante documental pendente (sem bloqueio automático). Confira o portal oficial."
             : `Autorização SARPAS conferida • ${sarpasNumber}`;
 
     const weather = obj(snapshot.weather);
@@ -290,8 +291,8 @@ export async function POST(request: NextRequest) {
         nextView: "seguranca",
       },
     ];
-    const ready = items.every((item) => item.ok);
-    const next = items.find((item) => !item.ok) || null;
+    const ready = agrovooPreflightReady(items);
+    const next = items.find((item) => item.id === agrovooNextBlockingStep(items)) || null;
     return NextResponse.json({
       ok: true,
       ready,

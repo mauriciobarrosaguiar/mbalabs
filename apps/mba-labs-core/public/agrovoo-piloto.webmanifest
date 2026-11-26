@@ -1,0 +1,26 @@
+{
+  "id": "/apps/dronegestor/agrovoo/piloto",
+  "name": "AgroVoo Piloto",
+  "short_name": "AgroVoo",
+  "description": "Área de trabalho do piloto AgroVoo",
+  "start_url": "/apps/agrovoo/piloto",
+  "scope": "/apps/agrovoo/",
+  "display": "standalone",
+  "background_color": "#f5f7f8",
+  "theme_color": "#123e38",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/pwa/agrovoo/192",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/pwa/agrovoo/512",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

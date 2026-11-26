@@ -138,15 +138,15 @@ export const internalApps: InternalAppDefinition[] = [
   },
   {
     slug: "dronegestor",
-    name: "DroneGestor",
+    name: "AgroVoo",
     description: "Gestão simples da operação com drone agrícola: OS, calda, segurança, checklist, SARPAS, execução e histórico.",
-    urlPath: "/apps/dronegestor",
+    urlPath: "/apps/agrovoo",
     alternatePaths: [
-      { label: "Entrada do DroneGestor - /apps/dronegestor", value: "/apps/dronegestor" },
-      { label: "Operação de campo - /apps/dronegestor/campo", value: "/apps/dronegestor/campo" },
-      { label: "Clientes e OS - /apps/dronegestor/gestao", value: "/apps/dronegestor/gestao" },
-      { label: "Histórico - /apps/dronegestor/historico", value: "/apps/dronegestor/historico" },
-      { label: "Calculadora pública - /apps/dronegestor/calculadora", value: "/apps/dronegestor/calculadora" }
+      { label: "Entrada do AgroVoo - /apps/agrovoo", value: "/apps/agrovoo" },
+      { label: "Operação de campo - /apps/agrovoo/campo", value: "/apps/agrovoo/campo" },
+      { label: "Clientes e OS - /apps/agrovoo/gestao", value: "/apps/agrovoo/gestao" },
+      { label: "Histórico - /apps/agrovoo/historico", value: "/apps/agrovoo/historico" },
+      { label: "Calculadora pública - /apps/agrovoo/calculadora", value: "/apps/agrovoo/calculadora" }
     ],
     profileOptions: [
       { label: "Admin da empresa", value: "admin_empresa" },
@@ -186,7 +186,7 @@ export const internalApps: InternalAppDefinition[] = [
 ];
 
 export const internalAppSlugOptions = internalApps.map((app) => ({
-  label: `${app.name} (${app.slug})`,
+  label: app.slug==="dronegestor"?"AgroVoo":`${app.name} (${app.slug})`,
   value: app.slug
 }));
 

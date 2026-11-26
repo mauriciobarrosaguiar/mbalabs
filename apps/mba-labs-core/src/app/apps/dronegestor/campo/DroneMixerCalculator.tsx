@@ -39,7 +39,7 @@ export function DroneMixerCalculator(){
   }catch(e){message=e instanceof Error?e.message:"Confira os dados da missão.";}}
  if(!slot)return null;
  return createPortal(<section className="grid gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-   <header><strong className="text-lg text-emerald-950">MBA Calda — misturador da operação</strong><p className="text-sm text-slate-600">Dados da missão atual. Informe apenas o volume útil do misturador; os produtos e a taxa vêm da OS. Cálculo, não liberação para preparo ou voo.</p></header>
+   <header><strong className="text-lg text-emerald-950">Calculadora de Calda — misturador da operação</strong><p className="text-sm text-slate-600">Dados da missão atual. Informe apenas o volume útil do misturador; os produtos e a taxa vêm da OS. Cálculo, não liberação para preparo ou voo.</p></header>
    <div className="grid gap-2 sm:grid-cols-3"><div className="rounded-xl bg-white p-3">Área restante<strong className="block">{fmt(area)} ha</strong></div><div className="rounded-xl bg-white p-3">Taxa de aplicação<strong className="block">{rate>0?fmt(rate):"—"} L/ha</strong></div><div className="rounded-xl bg-white p-3">Tanque cadastrado<strong className="block">{tank>0?fmt(tank):"—"} L</strong></div></div>
    <label className="grid gap-1 text-sm font-bold">Misturador útil (L)<input className="min-h-12 rounded-xl border border-emerald-200 p-3" inputMode="decimal" value={mixer} onChange={e=>setMixer(e.target.value)}/></label>
    {message&&<p role="alert" className="text-sm text-red-800">{message}</p>}
