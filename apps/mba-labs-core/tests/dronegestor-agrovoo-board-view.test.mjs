@@ -21,9 +21,12 @@ test("Painel AgroVoo: paginação limita página após filtro e contempla lista 
   assert.deepEqual(paginateAgroVooOrders([],3,25),{totalPages:1,currentPage:0,visibleOrders:[]});
   assert.equal(paginateAgroVooOrders(data,-1,25).currentPage,0);
 });
-test("AgroVoo: shell novo restrito à prévia gerencial e fluxo anterior preservado", () => {
+test("AgroVoo: shell gerencial por perfil e modo campo preservado", () => {
   const shell = readFileSync(new URL("../src/app/apps/dronegestor/DroneAppShell.tsx",import.meta.url),"utf8");
-  assert.match(shell,/if \(canManage && \(path === .*agrovoo.*\)\) return <AgroVooAdminShell/);
+  assert.ok(shell.includes('if (canManage && path !== `${ROOT}/campo`) return <AgroVooAdminShell'));
+  assert.ok(shell.includes("if (isPilot && !canManage && pilotShellPaths.some"));
+  assert.ok(shell.includes("internalAgroVooPath(usePathname())"));
+  assert.ok(shell.includes('const pilotField=isPilot&&!canManage&&path===`${ROOT}/campo`'));
   assert.match(shell,/Navegação do piloto/);
   const board = readFileSync(new URL("../src/app/apps/dronegestor/agrovoo/AgroVooBetaClient.tsx",import.meta.url),"utf8");
   assert.match(board,/buildAgroVooOsPayload\(draft\)/);
