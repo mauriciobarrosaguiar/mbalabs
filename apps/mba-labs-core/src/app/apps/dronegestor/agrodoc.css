@@ -2099,3 +2099,16 @@
 .agro-shell .agrovoo-confirm-dialog{position:fixed;inset:0;margin:auto;width:min(440px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;border:1px solid #cbd5e1;border-radius:14px;padding:20px;background:#fff;color:#0f172a;box-shadow:0 12px 42px #0003;}
 .agro-shell .agrovoo-confirm-dialog::backdrop{background:rgb(0 0 0 / .55);}
 @media(max-width:767px){.agro-shell .agrovoo-pilot-create{display:grid!important;grid-template-columns:minmax(0,1fr)!important;align-items:stretch!important;}.agro-shell .agrovoo-pilot-create>button{width:100%;white-space:normal;}.agro-shell .agrovoo-pilot-create>div>div{min-width:0;overflow-wrap:normal;word-break:normal;}}
+
+/* AgroVoo — configurações mobile, sem comprimir textos entre ícone e ação. */
+@media(max-width:767px){
+ .agrovoo-admin .agro-settings .agro-row{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;gap:8px 12px;}
+ .agrovoo-admin .agro-settings .agro-row>div{min-width:0;overflow-wrap:break-word;}
+ .agrovoo-admin .agro-settings .agro-row>.agro-status,.agrovoo-admin .agro-settings .agro-row>a,.agrovoo-admin .agro-settings .agro-row>button{grid-column:2;justify-self:start;max-width:100%;white-space:normal;}
+ .agrovoo-admin .agro-settings .agro-row>svg:last-child:not(:first-child){grid-column:2;}
+ .agrovoo-admin .agro-settings-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));overflow:visible;gap:5px;}
+ .agrovoo-admin .agro-settings-nav a{min-width:0!important;white-space:normal!important;font-size:12px;gap:6px;padding:9px;}
+ .agrovoo-admin .agro-settings-nav a svg{flex-shrink:0;width:18px;}
+ .agrovoo-admin .agro-settings [id^="agro-"]{scroll-margin-top:80px;}
+ .agrovoo-admin .agro-doc-columns .agro-empty{min-height:0;padding:16px 8px;}
+}
