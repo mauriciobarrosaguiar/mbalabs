@@ -30,7 +30,7 @@ export function AgroDocCloudStorage(){
      <a className="agro-button agro-button-primary" href="/api/dronegestor/cloud/google/start" onClick={(e)=>{if(data.google.status==="connected"&&!confirm("Ao trocar a conta, os documentos da conta anterior podem ficar indisponíveis até ela ser reconectada. Deseja continuar?"))e.preventDefault();}}>{data.google.status==="connected"?"Trocar / reconectar conta":"Conectar Google Drive"}</a>
      {data.google.status==="connected"&&<><button className="agro-button" disabled={busy} onClick={()=>void action("test")}>Testar</button><button className="agro-button" disabled={busy} onClick={()=>void action("disconnect")}>Desconectar</button></>}
    </div>}</div>
-   <div className="agro-row"><Cloud size={24}/><div><b>Dropbox — Integração indisponível</b><small>Nenhuma conta fictícia conectada.</small></div></div>
+   <div className="agro-row"><Cloud size={24}/><div><b>Dropbox — Integração indisponível</b><small>Conexão com Dropbox ainda não disponível.</small></div></div>
    <div className="agro-row"><div><b>Arquivos recentes: {data.counts.synced} sincronizados · {data.counts.pending} pendentes · {data.counts.failed} falhas</b>
      <small>{data.counts.partial?"Amostra dos 100 mais recentes":"Contagens do histórico consultado; sem estimar espaço disponível"}</small></div>
      <button className="agro-button" onClick={()=>void load()} disabled={loading}><RefreshCw size={17}/> Atualizar</button>
