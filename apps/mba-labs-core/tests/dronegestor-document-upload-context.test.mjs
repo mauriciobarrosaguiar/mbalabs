@@ -6,7 +6,7 @@ function harness(){
  const source=readFileSync(new URL('../src/app/apps/dronegestor/documentos/AgroDocDocuments.tsx',import.meta.url),'utf8');
  const cut=source.slice(0,source.search(/^  return \($/m))+'  return {changeOrder,cancelUpload,send};\n}';
  const states=['os-A',[],'',false,'',0,null,true,'outro',{name:'TEST-ONLY.pdf',size:10},false,null,false,0,''];
- const refs=[{current:{value:'TEST-ONLY.pdf'}},{current:'os-A'},{current:false}];let index=0,refIndex=0,calls=0;
+ const refs=[{current:{value:'TEST-ONLY.pdf'}},{current:null},{current:'os-A'},{current:false}];let index=0,refIndex=0,calls=0;
  let release;const blocked=new Promise(resolve=>{release=resolve;});
  const hooks={useState:()=>{const slot=index++;return[states[slot],v=>{states[slot]=typeof v==='function'?v(states[slot]):v;}];},useRef:()=>refs[refIndex++],useEffect:()=>{}};
  const resolve=s=>s==='react'?hooks:s==='next/navigation'?{useSearchParams:()=>new URLSearchParams()}:s==='../AgroDocUi'?{useAgroData:()=>({data:{items:[{entityId:'os-A',data:{status:'preparacao'}},{entityId:'os-B',data:{status:'preparacao'}}]}})}:{};
@@ -20,7 +20,7 @@ test('pending file blocks OS switch without discarding the selected file',()=>{
  assert.equal(h.states[0],'os-A');assert.equal(h.states[9].name,'TEST-ONLY.pdf');assert.match(h.states[2],/cancele.*antes de trocar de OS/);assert.equal(h.calls,0);
 });
 test('cancel clears file and input before switching to another OS',()=>{
- const h=harness();h.render().cancelUpload();assert.equal(h.states[9],null);assert.equal(h.refs[0].current.value,'');assert.equal(h.refs[1].current,'');assert.equal(h.states[7],false);
+ const h=harness();h.render().cancelUpload();assert.equal(h.states[9],null);assert.equal(h.refs[0].current.value,'');assert.equal(h.refs[2].current,'');assert.equal(h.states[7],false);
  h.render().changeOrder('os-B');assert.equal(h.states[0],'os-B');assert.equal(h.calls,0);
 });
 test('query-driven OS change cannot send a file selected for another OS',async()=>{
@@ -28,7 +28,7 @@ test('query-driven OS change cannot send a file selected for another OS',async()
 });
 test('in-flight upload blocks duplicate triggering and OS changes before React rerenders',async()=>{
  const h=harness(),actions=h.render();const first=actions.send();await actions.send();actions.changeOrder('os-B');
- assert.equal(h.calls,1);assert.equal(h.states[0],'os-A');h.release();await first;assert.equal(h.refs[2].current,false);
+ assert.equal(h.calls,1);assert.equal(h.states[0],'os-A');h.release();await first;assert.equal(h.refs[3].current,false);
 });
 
 test('document API derives OS number from authorized persisted data, never form metadata',()=>{
@@ -44,7 +44,7 @@ test('document API derives OS number from authorized persisted data, never form 
 
 test('document pending shortcut retains selected OS and field return context and opens checklist',()=>{
  const source=readFileSync(new URL('../src/app/apps/dronegestor/documentos/AgroDocDocuments.tsx',import.meta.url),'utf8');
- const expression=source.match(/href=\{(`\$\{ROOT\}\/documentos\?\$\{new URLSearchParams\([\s\S]*?#agro-document-checklist`)\}/)?.[1];
+ const expression=source.match(/href=\{(os\?`\$\{ROOT\}\/documentos\?\$\{new URLSearchParams\([\s\S]*?#agro-document-checklist`:undefined)\}/)?.[1];
  assert.ok(expression,'shortcut must carry document OS context');
  const href=new Function('ROOT','os','searchParams','return '+expression);
  const result=new URL(href('/apps/dronegestor','OS-ISOLADA',new URLSearchParams('returnTo=campo')),'https://example.invalid');
@@ -52,5 +52,8 @@ test('document pending shortcut retains selected OS and field return context and
  assert.equal(result.searchParams.get('returnTo'),'campo');
  assert.equal(result.searchParams.get('checklist'),'1');
  assert.equal(result.hash,'#agro-document-checklist');
+ assert.equal(href('/apps/dronegestor','',new URLSearchParams()),undefined);
+ assert.match(source,/uploadDialog.current/);
+ assert.match(source,/dialog.showModal\(\)/);
  assert.match(source,/<details id="agro-document-checklist" open=\{searchParams.get\("checklist"\)==="1"\}/);
 });
