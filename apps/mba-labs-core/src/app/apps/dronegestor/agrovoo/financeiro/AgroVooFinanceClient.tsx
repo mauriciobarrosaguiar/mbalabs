@@ -19,13 +19,13 @@ const seed=():FinanceEntry[]=>{const today=financeToday();return [
 ];};
 export function AgroVooFinanceClient(){
   const [items,setItems]=useState<FinanceEntry[]>([]),[demo,setDemo]=useState(false),[ready,setReady]=useState(false),[disabled,setDisabled]=useState(false);
-  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState("");
+  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
   const [kind,setKind]=useState<"todas"|"receita"|"despesa">("todas"),[status,setStatus]=useState("todos"),[query,setQuery]=useState("");
   const [month,setMonth]=useState(()=>financeToday().slice(0,7)),[page,setPage]=useState(0),[size,setSize]=useState(10);
   const [orders,setOrders]=useState<{id:string;label:string}[]>([]);
   const [tab,setTab]=useState<"resumo"|"lancamentos"|"relatorios">("resumo");
   const [form,setForm]=useState<null|{id?:string;kind:"receita"|"despesa";description:string;category:string;amount:string;due_date:string;competence_date:string;os_id:string;cost_center:string;counterparty:string}>(null);
-  const [settle,setSettle]=useState<FinanceEntry|null>(null),[settleDate,setSettleDate]=useState(financeToday);
+  const [settle,setSettle]=useState<FinanceEntry|null>(null),[settleDate,setSettleDate]=useState(financeToday),[settleAction,setSettleAction]=useState<"liquidar"|"cancelar">("liquidar");
   const dialogRef=useRef<HTMLDialogElement>(null);
   const dialogOpen=Boolean(form||settle);
   useEffect(()=>{const dialog=dialogRef.current;if(!dialog)return;if(dialogOpen&&!dialog.open)dialog.showModal();else if(!dialogOpen&&dialog.open)dialog.close();},[dialogOpen]);
@@ -47,19 +47,19 @@ export function AgroVooFinanceClient(){
   }
   useEffect(()=>{void load();},[]);
   function startDemo(){if(!disabled||loading)return;setDemo(true);setTab("resumo");setKind("todas");setStatus("todos");setQuery("");setOrders(demoOrders);setItems(seed());setError("");setPage(0);setForm(null);setSettle(null);}
-  function leaveDemo(){setDemo(false);setTab("resumo");setOrders([]);setItems([]);setForm(null);setSettle(null);setPage(0);void load();}
+  function leaveDemo(){setDemo(false);setMessage("");setTab("resumo");setOrders([]);setItems([]);setForm(null);setSettle(null);setPage(0);void load();}
   async function mutate(method:"POST"|"PATCH",body:object){
     const r=await fetch(API,{method,cache:"no-store",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}),p=await r.json();
     if(!r.ok||p?.ok!==true)throw new Error(p?.error||"Falha ao gravar.");
     return p.item as FinanceEntry;
   }
-  function openForm(k:"receita"|"despesa"){if(!enabled||saving)return;setForm({kind:k,description:"",category:"",amount:"",due_date:today,competence_date:today,os_id:"",cost_center:"",counterparty:""});setSettle(null);setError("");}
+  function openForm(k:"receita"|"despesa"){if(!enabled||saving)return;setMessage("");setForm({kind:k,description:"",category:"",amount:"",due_date:today,competence_date:today,os_id:"",cost_center:"",counterparty:""});setSettle(null);setError("");}
   async function submit(e:FormEvent){e.preventDefault();if(!form||!enabled||saving)return;setSaving(true);setError("");
     try{
       const input=validateFinanceInput({...form,amount_cents:parseAmountCents(form.amount)});
       const demoLabel=orders.find(o=>o.id===input.os_id)?.label||"";
       const item:FinanceEntry=form.id?(demo?{...items.find(x=>x.id===form.id)!,...input,os_label:demoLabel}:await mutate("PATCH",{id:form.id,action:"editar",data:input})):(demo?{...input,id:crypto.randomUUID(),status:"pendente",settled_date:null,os_label:demoLabel}:await mutate("POST",input));
-      setItems(old=>form.id?old.map(x=>x.id===item.id?item:x):[item,...old]);setKind(item.kind);setStatus("pendente");setQuery("");setPage(0);setForm(null);
+      setItems(old=>form.id?old.map(x=>x.id===item.id?item:x):[item,...old]);setKind(item.kind);setStatus("pendente");setQuery("");setPage(0);setForm(null);setTab("lancamentos");setMessage(form.id?"Lançamento atualizado.":"Lançamento cadastrado.");
     }catch(e){setError(e instanceof Error?e.message:"Falha ao salvar.");}finally{setSaving(false);}
   }
   async function change(item:FinanceEntry,action:"liquidar"|"cancelar",date:string){
@@ -67,7 +67,7 @@ export function AgroVooFinanceClient(){
     try{
       const next=nextFinanceState(item,action,date,today);
       const updated=demo?{...item,...next}:await mutate("PATCH",{id:item.id,action,date});
-      setItems(old=>old.map(x=>x.id===updated.id?updated:x));setSettle(null);
+      setItems(old=>old.map(x=>x.id===updated.id?updated:x));setSettle(null);setMessage(action==="cancelar"?"Lançamento cancelado.":item.kind==="receita"?"Recebimento registrado.":"Pagamento registrado.");
     }catch(e){setError(e instanceof Error?e.message:"Falha ao atualizar.");}finally{setSaving(false);}
   }
   const metrics=[
@@ -81,7 +81,8 @@ export function AgroVooFinanceClient(){
   ];
   return <main className="grid min-w-0 gap-3 pb-8 sm:gap-4">
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3"><div><Link href="/apps/agrovoo/painel" className="mb-1 inline-flex min-h-9 items-center gap-1 text-xs font-semibold text-emerald-800"><ArrowLeft size={15}/> Dashboard</Link><h1 className="text-2xl font-bold text-slate-900">Gestão financeira</h1><p className="mt-1 text-sm text-slate-600">Controle de receitas, despesas, vencimentos e liquidações.</p></div><button type="button" disabled={loading||saving} onClick={()=>demo?leaveDemo():void load()} className={secondary}><RefreshCw size={16}/>{demo?"Sair da simulação":"Atualizar"}</button></header>
-    {error&&<p role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">{error}</p>}
+    {message&&<p role="status" className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950">{message}</p>}
+    {error&&!dialogOpen&&<p role="alert" className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">{error}</p>}
     {!demo&&disabled&&<div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-4"><div><strong>Simulação de homologação</strong><p className="mt-1 text-sm text-slate-600">Teste com dados fictícios, sem gravar no servidor. Os dados são descartados ao sair ou recarregar.</p></div><button type="button" className={primary} onClick={startDemo}>Abrir simulação</button></div>}
     {demo&&<p role="status" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-950">SIMULAÇÃO — somente dados fictícios em memória. Nenhum lançamento real é gravado.</p>}
     <nav aria-label="Seções financeiras" className="flex flex-wrap gap-2"><button type="button" disabled={saving} onClick={()=>setTab("resumo")} className={tab==="resumo"?primary:secondary}>Resumo</button><button type="button" disabled={saving} onClick={()=>{setKind("todas");setStatus("todos");setQuery("");setPage(0);setTab("lancamentos");}} className={tab==="lancamentos"?primary:secondary}>Lançamentos</button><button type="button" disabled={saving||!enabled} onClick={()=>setTab("relatorios")} className={tab==="relatorios"?primary:secondary}>Fluxo de caixa e relatórios</button></nav>
@@ -95,7 +96,7 @@ export function AgroVooFinanceClient(){
       <div className="agro-compact-grid grid grid-cols-2 gap-2 p-3 pt-0 lg:grid-cols-4">{metrics.map(({title,value,icon:Icon,color,note},index)=><article key={title} className={"min-w-0 rounded-lg border border-slate-200 p-2.5 sm:p-3 "+(index===metrics.length-1?"col-span-2 bg-slate-50 lg:col-span-2":"")}><div className="flex items-start gap-1.5 text-xs font-semibold text-slate-600"><Icon size={16} className={color+" mt-0.5 shrink-0"}/><span>{title}</span></div><strong className={"mt-1.5 block break-words text-lg font-bold tabular-nums sm:text-xl "+color}>{value}</strong><p className="mt-0.5 text-[11px] leading-4 text-slate-500 sm:text-xs">{note}</p></article>)}</div>
     </section>}
     {tab==="relatorios"&&enabled&&<AgroVooFinanceReports entries={items} today={today} demo={demo}/>}
-    <dialog ref={dialogRef} aria-label={form?(form.id?"Editar lançamento":form.kind==="receita"?"Nova receita":"Nova despesa"):"Confirmar liquidação"} onCancel={e=>{e.preventDefault();closeAction();}} className="agrovoo-confirm-dialog" style={{width:"min(680px, calc(100vw - 24px))",maxHeight:"calc(100dvh - 24px)"}}>
+    <dialog ref={dialogRef} aria-label={form?(form.id?"Editar lançamento":form.kind==="receita"?"Nova receita":"Nova despesa"):settleAction==="cancelar"?"Cancelar lançamento":"Confirmar liquidação"} onCancel={e=>{e.preventDefault();closeAction();}} className="agrovoo-confirm-dialog" style={{width:"min(680px, calc(100vw - 24px))",maxHeight:"calc(100dvh - 24px)"}}>
     {dialogOpen&&demo&&<p className="mb-2 text-xs font-semibold text-amber-800">SIMULAÇÃO — dados fictícios</p>}{dialogOpen&&error&&<p role="alert" className="mb-2 rounded-md bg-amber-50 p-2 text-sm text-amber-950">{error}</p>}
     {form&&<form onSubmit={submit} className="grid min-w-0 gap-3"><h2 className="font-bold">{form.id?"Editar lançamento":form.kind==="receita"?"Nova receita":"Nova despesa"}</h2><div className="grid gap-3 md:grid-cols-2"><label className="grid gap-1 text-sm font-semibold">Descrição *<input required maxLength={180} className={control} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label><label className="grid gap-1 text-sm font-semibold">Categoria *<input required maxLength={80} className={control} value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/></label><label className="grid gap-1 text-sm font-semibold">Valor (R$) *<input required inputMode="decimal" placeholder="0,00" className={control} value={form.amount} onChange={e=>setForm({...form,amount:e.target.value})}/></label><label className="grid gap-1 text-sm font-semibold">Vencimento *<input required type="date" className={control} value={form.due_date} onChange={e=>setForm({...form,due_date:e.target.value})}/></label>
       <label className="grid gap-1 text-sm font-semibold">Competência *<input required type="date" className={control} value={form.competence_date} onChange={e=>setForm({...form,competence_date:e.target.value})}/></label>
@@ -103,7 +104,7 @@ export function AgroVooFinanceClient(){
       <label className="grid gap-1 text-sm font-semibold">Centro de custo<input maxLength={120} className={control} placeholder="Ex.: operação, manutenção, administrativo" value={form.cost_center} onChange={e=>setForm({...form,cost_center:e.target.value})}/></label>
       <label className="grid gap-1 text-sm font-semibold">Cliente / fornecedor<input maxLength={120} className={control} value={form.counterparty} onChange={e=>setForm({...form,counterparty:e.target.value})}/></label>
       </div><div className="flex justify-end gap-2"><button type="button" disabled={saving} className={secondary} onClick={closeAction}>Cancelar</button><button disabled={saving} className={primary}>{saving?"Salvando...":"Salvar lançamento"}</button></div></form>}
-    {settle&&<form onSubmit={e=>{e.preventDefault();void change(settle,"liquidar",settleDate);}} className="grid min-w-0 gap-3"><h2 className="font-bold">{settle.kind==="receita"?"Confirmar recebimento":"Confirmar pagamento"}</h2><p className="text-sm">{settle.description} · {money(settle.amount_cents)}</p><label className="grid gap-1 text-sm font-semibold">Data da liquidação<input type="date" required max={today} value={settleDate} onChange={e=>setSettleDate(e.target.value)} className={control}/></label><div className="flex justify-end gap-2"><button type="button" disabled={saving} onClick={closeAction} className={secondary}>Voltar</button><button disabled={saving} className={primary}>Confirmar</button></div></form>}
+    {settle&&<form onSubmit={e=>{e.preventDefault();void change(settle,settleAction,settleDate);}} className="grid min-w-0 gap-3"><h2 className="font-bold">{settleAction==="cancelar"?"Cancelar lançamento":settle.kind==="receita"?"Confirmar recebimento":"Confirmar pagamento"}</h2><p className="text-sm">{settle.description} · {money(settle.amount_cents)}</p>{settleAction==="liquidar"?<label className="grid gap-1 text-sm font-semibold">Data da liquidação<input type="date" required max={today} value={settleDate} onChange={e=>setSettleDate(e.target.value)} className={control}/></label>:<p className="text-sm text-red-800">O lançamento cancelado continuará no histórico e não entrará nos totais.</p>}<div className="flex justify-end gap-2"><button type="button" disabled={saving} onClick={closeAction} className={secondary}>Voltar</button><button disabled={saving} className={primary}>Confirmar</button></div></form>}
     </dialog>
     {tab==="lancamentos"&&<section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"><div className="flex flex-wrap items-center justify-between gap-1 bg-[#123e38] px-4 py-3 text-white"><h2 className="font-bold">{status==="pendente"&&kind==="receita"?"Contas a receber":status==="pendente"&&kind==="despesa"?"Contas a pagar":"Lançamentos"}</h2><span className="text-xs">Todos os vencimentos</span></div>
       <div className="grid grid-cols-2 gap-2 p-3 pb-0"><button type="button" disabled={!enabled||saving} className={primary} onClick={()=>openForm("receita")}><Plus size={16}/> Nova receita</button><button type="button" disabled={!enabled||saving} className={secondary+" !text-red-700"} onClick={()=>openForm("despesa")}><Plus size={16}/> Nova despesa</button></div>
@@ -113,5 +114,5 @@ export function AgroVooFinanceClient(){
     </section>}
     <p className="text-xs text-slate-500">Controle gerencial. Não movimenta dinheiro, não emite nota fiscal e não substitui contabilidade.</p>
   </main>;
-  function actions(x:FinanceEntry){return x.status==="pendente"?<div className="flex flex-wrap gap-1"><button type="button" disabled={saving} className={secondary} onClick={()=>{setSettle(null);setForm({id:x.id,kind:x.kind,description:x.description,category:x.category,amount:(x.amount_cents/100).toFixed(2).replace(".",","),due_date:x.due_date,competence_date:x.competence_date||x.due_date,os_id:x.os_id||"",cost_center:x.cost_center||"",counterparty:x.counterparty||""});}}>Editar</button><button type="button" disabled={saving} className={secondary} onClick={()=>{setForm(null);setSettle(x);setSettleDate(today);}}>{x.kind==="receita"?"Receber":"Pagar"}</button><button type="button" disabled={saving} className={secondary+" !text-red-700"} onClick={()=>{if(window.confirm("Cancelar este lançamento pendente?"))void change(x,"cancelar",today);}}>Cancelar</button></div>:<span className="text-xs text-slate-500">Somente consulta</span>;}
+  function actions(x:FinanceEntry){return x.status==="pendente"?<div className="flex flex-wrap gap-1"><button type="button" disabled={saving} className={secondary} onClick={()=>{setSettle(null);setError("");setMessage("");setForm({id:x.id,kind:x.kind,description:x.description,category:x.category,amount:(x.amount_cents/100).toFixed(2).replace(".",","),due_date:x.due_date,competence_date:x.competence_date||x.due_date,os_id:x.os_id||"",cost_center:x.cost_center||"",counterparty:x.counterparty||""});}}>Editar</button><button type="button" disabled={saving} className={secondary} onClick={()=>{setForm(null);setSettleAction("liquidar");setSettle(x);setSettleDate(today);setError("");setMessage("");}}>{x.kind==="receita"?"Receber":"Pagar"}</button><button type="button" disabled={saving} className={secondary+" !text-red-700"} onClick={()=>{setForm(null);setSettleAction("cancelar");setSettle(x);setSettleDate(today);setError("");setMessage("");}}>Cancelar</button></div>:<span className="text-xs text-slate-500">Somente consulta</span>;}
 }
