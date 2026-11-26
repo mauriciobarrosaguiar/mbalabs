@@ -49,7 +49,8 @@ export function AgroVooAdminShell({ children, userName, canAdministerCompany, is
   const [compact, setCompact] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notice, setNotice] = useState(false);
-  useEffect(() => { setMobileOpen(false); setNotice(false); }, [pathname]);
+  const [accountOpen, setAccountOpen] = useState(false);
+  useEffect(() => { setMobileOpen(false); setNotice(false); setAccountOpen(false); }, [pathname]);
   useEffect(() => {
     if (!mobileOpen) return;
     function keydown(event: KeyboardEvent) { if (event.key === "Escape") setMobileOpen(false); }
@@ -68,13 +69,13 @@ export function AgroVooAdminShell({ children, userName, canAdministerCompany, is
         <Link href={ROOT + "/diagnostico"} className="hidden min-h-11 items-center gap-2 px-2 text-sm font-semibold text-white sm:flex"><ShieldCheck size={18}/> Regularização</Link>
         <Link href={ROOT + "/ajuda"} className="grid h-11 w-11 place-items-center rounded-md text-white hover:bg-white/15" aria-label="Ajuda"><CircleHelp size={21}/></Link>
         <div className="relative">
-          <button type="button" onClick={() => setNotice(v => !v)} aria-label="Pendências" aria-expanded={notice} className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/15"><Bell size={21}/></button>
+          <button type="button" onClick={() => {setNotice(v => !v);setAccountOpen(false);}} aria-label="Pendências" aria-expanded={notice} className="grid h-11 w-11 place-items-center rounded-md hover:bg-white/15"><Bell size={21}/></button>
           {notice && <div className="absolute right-0 top-12 z-[95] grid w-60 gap-1 rounded-lg border border-slate-200 bg-white p-3 text-slate-900 shadow-lg"><strong>Pendências</strong><Link onClick={() => setNotice(false)} className={linkClass} href={ROOT + "/diagnostico"}>Documentos e vencimentos</Link><Link onClick={() => setNotice(false)} className={linkClass} href={ROOT + "/conferencia"}>Conferência operacional</Link></div>}
         </div>
-        <details className="relative">
-          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 rounded-md px-2 hover:bg-white/15"><UserRound size={22}/><span className="hidden max-w-36 truncate text-sm font-semibold md:block">{userName}</span><ChevronDown size={14} className="agrovoo-menu-chevron"/></summary>
-          <div className="absolute right-0 top-12 z-[95] grid w-56 rounded-lg border border-slate-200 bg-white p-2 text-slate-900 shadow-lg"><Link className={linkClass} href={ROOT + "/perfil-operacional"}>Meu perfil</Link><Link className={linkClass} href="/dashboard">Voltar à MBA Labs</Link><form action="/sair" method="post"><button type="submit" className={linkClass + " w-full"}><LogOut size={18}/> Sair</button></form></div>
-        </details>
+        <div className="relative">
+          <button type="button" aria-label="Menu da conta" aria-expanded={accountOpen} onClick={()=>{setAccountOpen(v=>!v);setNotice(false);}} className="flex min-h-11 cursor-pointer items-center gap-2 rounded-md px-2 hover:bg-white/15"><UserRound size={22}/><span className="hidden max-w-36 truncate text-sm font-semibold md:block">{userName}</span><ChevronDown size={14} className="agrovoo-menu-chevron"/></button>
+          {accountOpen&&<div style={{width:"min(240px,calc(100vw - 24px))"}} className="absolute right-0 top-12 z-[95] grid w-56 rounded-lg border border-slate-200 bg-white p-2 text-slate-900 shadow-lg"><Link onClick={()=>setAccountOpen(false)} className={linkClass} href={ROOT + "/perfil-operacional"}>Meu perfil</Link><Link onClick={()=>setAccountOpen(false)} className={linkClass} href="/dashboard">Voltar à MBA Labs</Link><form action="/sair" method="post"><button type="submit" className={linkClass + " w-full"}><LogOut size={18}/> Sair</button></form></div>}
+        </div>
       </div>
     </header>
     {mobileOpen && <button type="button" aria-label="Fechar menu" className="fixed inset-0 z-[79] bg-black/40 lg:hidden" onClick={() => setMobileOpen(false)}/>}
