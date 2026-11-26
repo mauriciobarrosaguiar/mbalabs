@@ -94,6 +94,11 @@ test("Financeiro mobile: relatórios em cartões preservam colunas, margens e ac
   const board=readFileSync(new URL("../src/app/apps/dronegestor/agrovoo/financeiro/AgroVooFinanceClient.tsx",import.meta.url),"utf8");
   assert.ok(board.includes("index===metrics.length-1"));
   assert.ok(board.includes("formatFinanceDate(x.due_date)"));
-  assert.ok(board.includes("actionFormRef.current?.scrollIntoView"));
-  assert.ok(board.includes("listRef.current?.scrollIntoView"));
+  assert.ok(!board.includes("scrollIntoView"));
+  assert.ok(board.includes("dialog.showModal()"));
+  assert.ok(board.includes('showAccounts("receita")'));
+  assert.ok(board.includes('showAccounts("despesa")'));
+  assert.ok(board.includes('tab==="resumo"&&'));
+  assert.ok(board.includes('tab==="lancamentos"&&'));
+  assert.ok(board.includes('onClick={()=>openForm("despesa")}'));
 });
