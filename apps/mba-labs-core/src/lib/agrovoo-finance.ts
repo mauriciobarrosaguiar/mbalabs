@@ -111,3 +111,20 @@ export function formatFinanceDate(value:unknown):string {
   const [year,month,day]=value.split("-");
   return day+"/"+month+"/"+year;
 }
+
+/** Financial input uses integer cents; grouping separators are presentation only. */
+export function formatFinanceCents(cents:number):string {
+  if(!Number.isSafeInteger(cents)||cents<0||cents>99999999999)throw new Error("Valor inválido.");
+  return new Intl.NumberFormat("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}).format(cents/100);
+}
+export function maskFinanceAmount(raw:string,previous=""):string {
+  if(!/^[\d.,\s]*$/.test(raw))return previous;
+  const digits=raw.replace(/\D/g,"").replace(/^0+(?=\d)/,"");
+  if(!digits)return "";
+  if(digits.length>11)return previous;
+  return formatFinanceCents(Number(digits));
+}
+export function maskedFinanceCents(raw:string):number {
+  if(!/^\d{1,3}(?:\.\d{3})*,\d{2}$/.test(raw))throw new Error("Informe um valor válido.");
+  return parseAmountCents(raw.replaceAll(".",""));
+}
