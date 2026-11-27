@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {parseAmountCents,validDate,validateFinanceInput,summarizeFinance,nextFinanceState,financeToday,financialPeriod,financialGroups,financialTotals,financeCsv,formatFinanceDate} from "../src/lib/agrovoo-finance.ts";
+import {parseAmountCents,maskFinanceAmount,maskedFinanceCents,formatFinanceCents,validDate,validateFinanceInput,summarizeFinance,nextFinanceState,financeToday,financialPeriod,financialGroups,financialTotals,financeCsv,formatFinanceDate} from "../src/lib/agrovoo-finance.ts";
 const entry=(overrides={})=>({id:"x",kind:"receita",description:"Serviço",category:"Serviços",amount_cents:10000,due_date:"2026-11-24",status:"pendente",settled_date:null,...overrides});
 test("Financeiro: valores em centavos sem erro de ponto flutuante",()=>{
   assert.equal(parseAmountCents("12,34"),1234);
@@ -101,4 +101,35 @@ test("Financeiro mobile: relatórios em cartões preservam colunas, margens e ac
   assert.ok(board.includes('tab==="resumo"&&'));
   assert.ok(board.includes('tab==="lancamentos"&&'));
   assert.ok(board.includes('onClick={()=>openForm("despesa")}'));
+});
+
+test("Máscara monetária: digitação em centavos, milhar e edição sem arredondamento",()=>{
+ const samples=[["1","0,01"],["12","0,12"],["120","1,20"],["1200","12,00"],["12000","120,00"],["120000","1.200,00"],["1200000","12.000,00"]];
+ for(const [raw,display] of samples){assert.equal(maskFinanceAmount(raw),display);assert.equal(maskedFinanceCents(display),Number(raw));}
+ let value="";for(const digit of "120000")value=maskFinanceAmount(value+digit,value);
+ assert.equal(value,"1.200,00");assert.equal(formatFinanceCents(450000),"4.500,00");
+ assert.equal(maskFinanceAmount("1.200,0","1.200,00"),"120,00");
+ assert.equal(maskFinanceAmount("","1.200,00"),"");
+ assert.equal(maskFinanceAmount("999999999999","12,00"),"12,00");
+ assert.equal(maskFinanceAmount("abc","12,00"),"12,00");
+ assert.throws(()=>maskedFinanceCents("0,00"));
+});
+test("Excel nativo: tipos de célula, datas, larguras, totais e simulação",async()=>{
+ const {financeWorkbook}=await import("../src/lib/agrovoo-finance-xlsx.ts");
+ const ExcelJS=(await import("exceljs")).default;
+ const entries=[entry({description:"=1+1",amount_cents:450000,status:"liquidado",settled_date:"2026-11-26"}),entry({kind:"despesa",amount_cents:90000,status:"liquidado",settled_date:"2026-11-26"})];
+ const workbook=await financeWorkbook(entries,{start:"2026-11-01",end:"2026-11-26",basis:"caixa",group:"category",demo:true},financialGroups(entries,"category"),financialTotals(entries));
+ const reopened=new ExcelJS.Workbook();await reopened.xlsx.load(await workbook.xlsx.writeBuffer());
+ const sheet=reopened.getWorksheet("Lançamentos"),summary=reopened.getWorksheet("Resumo");
+ assert.match(sheet.getCell("A1").value,/SIMULAÇÃO/);
+ assert.equal(sheet.getCell("B5").value,"=1+1");assert.equal(sheet.getCell("K5").value,4500);
+ assert.equal(sheet.getCell("I5").value.toISOString().slice(0,10),"2026-11-26");
+ assert.equal(sheet.getCell("I5").numFmt,"dd/mm/yyyy");assert.ok(sheet.getColumn(9).width>=16);
+ assert.equal(summary.getCell("D6").value,3600);
+});
+test("Financeiro: máscara aplicada ao formulário e rodapé fixo opt-in",()=>{
+ const ui=readFileSync(new URL("../src/app/apps/dronegestor/agrovoo/financeiro/AgroVooFinanceClient.tsx",import.meta.url),"utf8");
+ const css=readFileSync(new URL("../src/app/apps/dronegestor/agrodoc.css",import.meta.url),"utf8");
+ assert.ok(ui.includes('inputMode="numeric"'));assert.ok(ui.includes("maskedFinanceCents(form.amount)"));
+ assert.ok(ui.includes("agrovoo-dialog-actions"));assert.ok(css.includes(".agrovoo-dialog-scroll"));
 });
