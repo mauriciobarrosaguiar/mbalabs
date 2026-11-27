@@ -22,7 +22,7 @@ export function AgroVooFinanceReports({entries,today,demo}:{entries:FinanceEntry
    setExporting(true);setExportError("");
    try{
      const {financeWorkbook}=await import("@/lib/agrovoo-finance-xlsx");
-     const workbook=await financeWorkbook(selected,{start,end,basis,group,demo});
+     const workbook=await financeWorkbook(selected,{start,end,basis,group,demo},rows,totals);
      const buffer=await workbook.xlsx.writeBuffer();
      const url=URL.createObjectURL(new Blob([new Uint8Array(buffer)],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
      const link=document.createElement("a");link.href=url;link.download=(demo?"SIMULACAO-":"")+"agrovoo-"+basis+"-"+start+"-"+end+".xlsx";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
