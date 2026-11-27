@@ -2112,3 +2112,29 @@
  .agrovoo-admin .agro-settings [id^="agro-"]{scroll-margin-top:80px;}
  .agrovoo-admin .agro-doc-columns .agro-empty{min-height:0;padding:16px 8px;}
 }
+
+/* AgroVoo: visually identifiable actions; do not restyle inputs, cards,
+   icon-only navigation, or controls with an explicit semantic color. */
+.dronegestor-ui .agro-button:not(.agro-button-primary):not(.agro-button-warning):not(.agro-soft-link),
+.dronegestor-ui .agro-tabs :is(button,a):not(:first-child):not([aria-selected="true"]):not([aria-current="page"]):not([aria-pressed="true"]),
+.dronegestor-ui :is(button,a[role="button"]):is([class~="bg-white"],[class~="bg-transparent"]):is([class~="border"],[class~="border-slate-200"]):not([aria-pressed="true"]):not([aria-selected="true"]):not([aria-current="page"]):not(.agro-header-actions *):not(.agro-bottom-nav *):not(.drone-mobile-nav *){
+  background-color:#e3eee9;
+  border-color:#9ab9ad;
+}
+.dronegestor-ui :is(button,a[role="button"]):is([class~="bg-white"],[class~="bg-transparent"]):is([class~="border"],[class~="border-slate-200"]):not([aria-pressed="true"]):not([aria-selected="true"]):not([aria-current="page"]):not(.agro-header-actions *):not(.agro-bottom-nav *):not(.drone-mobile-nav *):not([class*="text-red"]):not([class*="text-amber"]):not([class*="text-blue"]){
+  color:#155747;
+}
+.dronegestor-ui .agrovoo-action-danger{background:#a32e32;color:white;border-color:#a32e32;}
+.dronegestor-ui .agrovoo-action-edit{background:#2459a6;color:white;border-color:#2459a6;}
+.dronegestor-ui button:not(:disabled){cursor:pointer;}
+.dronegestor-ui button:disabled{cursor:not-allowed;}
+/* Fixed footer for opt-in long dialogs; only the body scrolls. */
+.dronegestor-ui .agrovoo-finance-dialog[open]{display:flex;flex-direction:column;overflow:hidden;gap:8px;}
+.dronegestor-ui .agrovoo-finance-dialog[open]>p{flex-shrink:0;margin:0;}
+.dronegestor-ui .agrovoo-dialog-form{display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+.dronegestor-ui .agrovoo-dialog-form>h2{flex-shrink:0;}
+.dronegestor-ui .agrovoo-dialog-scroll{overflow-y:auto;min-height:0;overscroll-behavior:contain;padding:4px;}
+.dronegestor-ui .agrovoo-dialog-actions{flex-shrink:0;flex-wrap:wrap;padding-top:10px;border-top:1px solid #d7e3de;background:white;}
+@media(max-width:767px){
+ .dronegestor-ui .agrovoo-dialog-actions>button{flex:1 1 100px;min-height:44px;}
+}
