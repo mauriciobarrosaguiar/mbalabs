@@ -7,6 +7,7 @@ const input="w-full min-w-0 min-h-11 rounded-md border border-slate-300 bg-white
 export function AgroVooFinanceReports({entries,today,demo}:{entries:FinanceEntry[];today:string;demo:boolean}){
  const [start,setStart]=useState(today.slice(0,7)+"-01"),[end,setEnd]=useState(today);
  const [basis,setBasis]=useState<"caixa"|"competencia"|"previsao">("caixa");
+ const [exporting,setExporting]=useState(false),[exportError,setExportError]=useState("");
  const [group,setGroup]=useState<"category"|"cost_center"|"os_id"|"counterparty">("category");
  const valid=validDate(start)&&validDate(end)&&start<=end;
  const selected=valid?financialPeriod(entries,start,end,basis):[];
@@ -15,7 +16,18 @@ export function AgroVooFinanceReports({entries,today,demo}:{entries:FinanceEntry
  const daily=financialGroups(selected.map(e=>({...e,category:(basis==="caixa"?e.settled_date:basis==="previsao"?e.due_date:e.competence_date||e.due_date)||""})),"category").sort((a,b)=>a.key.localeCompare(b.key));
  let running=balanceBefore;
  const days=daily.map(d=>({...d,balance:running+=d.net}));
- function download(){if(!valid)return;const url=URL.createObjectURL(new Blob([financeCsv(selected)],{type:"text/csv;charset=utf-8;"}));const link=document.createElement("a");link.href=url;link.download=(demo?"SIMULACAO-":"")+"agrovoo-"+basis+"-"+start+"-"+end+".csv";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+ function downloadCsv(){if(!valid)return;const url=URL.createObjectURL(new Blob([financeCsv(selected)],{type:"text/csv;charset=utf-8;"}));const link=document.createElement("a");link.href=url;link.download=(demo?"SIMULACAO-":"")+"agrovoo-"+basis+"-"+start+"-"+end+".csv";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+ async function downloadXlsx(){
+   if(!valid||exporting)return;
+   setExporting(true);setExportError("");
+   try{
+     const {financeWorkbook}=await import("@/lib/agrovoo-finance-xlsx");
+     const workbook=await financeWorkbook(selected,{start,end,basis,group,demo});
+     const buffer=await workbook.xlsx.writeBuffer();
+     const url=URL.createObjectURL(new Blob([new Uint8Array(buffer)],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}));
+     const link=document.createElement("a");link.href=url;link.download=(demo?"SIMULACAO-":"")+"agrovoo-"+basis+"-"+start+"-"+end+".xlsx";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+   }catch{setExportError("Não foi possível gerar o Excel. Tente novamente ou use CSV.");}finally{setExporting(false);}
+ }
  return <section className="grid min-w-0 gap-3 sm:gap-4">
    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
      <h2 className="text-base font-bold">Relatórios financeiros</h2>
@@ -25,7 +37,9 @@ export function AgroVooFinanceReports({entries,today,demo}:{entries:FinanceEntry
        <label className="grid gap-1 text-sm font-semibold">Regime<select className={input} value={basis} onChange={e=>setBasis(e.target.value as typeof basis)}><option value="caixa">Caixa realizado</option><option value="competencia">Resultado por competência</option><option value="previsao">Previsão de vencimentos</option></select></label>
        <label className="grid gap-1 text-sm font-semibold">Agrupar por<select className={input} value={group} onChange={e=>setGroup(e.target.value as typeof group)}><option value="category">Categoria</option><option value="cost_center">Centro de custo</option><option value="os_id">Ordem de serviço</option><option value="counterparty">Cliente / fornecedor</option></select></label>
      </div>
-     <button disabled={!valid} type="button" onClick={download} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-md bg-[#185a47] px-4 text-sm font-semibold text-white disabled:opacity-40"><Download size={16}/> Exportar CSV (Excel)</button>
+     <button disabled={!valid} type="button" onClick={downloadCsv} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-md bg-[#185a47] px-4 text-sm font-semibold text-white disabled:opacity-40"><Download size={16}/> Exportar CSV</button>
+     <button disabled={!valid||exporting} type="button" onClick={()=>void downloadXlsx()} className="mt-3 mr-2 inline-flex min-h-11 items-center gap-2 rounded-md bg-[#185a47] px-4 text-sm font-semibold text-white disabled:opacity-40"><Download size={16}/> {exporting?"Gerando Excel...":"Exportar Excel (.xlsx)"}</button>
+     {exportError&&<p role="alert" className="mt-2 text-sm text-red-700">{exportError}</p>}
      {!valid&&<p role="alert" className="mt-2 text-sm text-red-700">Informe um período válido.</p>}
    </div>
    {valid&&<>
