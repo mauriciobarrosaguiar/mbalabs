@@ -8,7 +8,7 @@ import {
 import { Button } from "../ui/button";
 import { Sheet, SheetContent, SheetTitle } from "../ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "../ui/dropdown-menu";
-import { notifications } from "../../lib/mock-data";
+
 import { cn } from "../../lib/utils";
 
 const nav = [
@@ -125,17 +125,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Button variant="ghost" size="icon" aria-label="Alternar tema" onClick={() => setDark((d) => !d)}>{dark ? <Sun className="size-4.5" /> : <Moon className="size-4.5" />}</Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label="Notificações" className="relative"><Bell className="size-4.5" /><span className="absolute right-2 top-2 size-2 rounded-full bg-warning" /></Button>
+                <Button variant="ghost" size="icon" aria-label="Notificações" className="relative"><Bell className="size-4.5" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-80">
                 <DropdownMenuLabel>Notificações</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {notifications.map((n) => (
-                  <DropdownMenuItem key={n.title} className="flex-col items-start gap-0.5">
-                    <span className="text-sm font-medium">{n.title}</span>
-                    <span className="text-xs text-muted-foreground">{n.body}</span>
-                  </DropdownMenuItem>
-                ))}
+                <DropdownMenuItem disabled>Nenhuma notificação real disponível</DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild><Link to="/notificacoes">Ver todas</Link></DropdownMenuItem>
               </DropdownMenuContent>

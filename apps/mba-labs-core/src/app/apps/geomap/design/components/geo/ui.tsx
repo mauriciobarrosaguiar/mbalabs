@@ -5,14 +5,14 @@ import { FlaskConical, Clock } from "lucide-react";
 import { cn } from "../../lib/utils";
 import type { ProjectStatus } from "../../lib/mock-data";
 
-export function PageHeader({ title, subtitle, actions, icon: Icon }: { title: string; subtitle?: string; actions?: ReactNode; icon?: LucideIcon }) {
+export function PageHeader({ title, subtitle, actions, icon: Icon, demo = true }: { title: string; subtitle?: string; actions?: ReactNode; icon?: LucideIcon; demo?: boolean }) {
   return (
     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           {Icon && <Icon className="size-5 shrink-0 text-primary" />}
           <h1 className="truncate text-xl font-bold tracking-tight sm:text-2xl">{title}</h1>
-          <DemoBadge />
+          {demo && <DemoBadge />}
         </div>
         {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
       </div>
