@@ -88,3 +88,10 @@
 .geomap-surface { color-scheme: light; color:var(--foreground); background:var(--background); font-family:var(--app-font-sans); }
 .geomap-surface h1,.geomap-surface h2,.geomap-surface h3,.geomap-surface .font-display {font-family:var(--app-font-display);}
 @layer base { .geomap-surface * {border-color:var(--border);} }
+
+/* Preserve the Lovable radius scale without changing other applications. */
+.geomap-surface .rounded-sm {border-radius:calc(var(--radius) - 4px);}
+.geomap-surface .rounded-md {border-radius:calc(var(--radius) - 2px);}
+.geomap-surface .rounded-lg {border-radius:var(--radius);}
+.geomap-surface .rounded-xl {border-radius:calc(var(--radius) + 4px);}
+.geomap-surface .rounded-t-none {border-top-left-radius:0;border-top-right-radius:0;}
