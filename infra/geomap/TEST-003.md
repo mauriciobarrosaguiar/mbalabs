@@ -1,0 +1,3 @@
+# Teste 003 aprovado
+Run https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/46135088554
+Job 140948474906. 29 fotos, status 40/100%, processingTime 423476 ms, elapsed 450 s. GDAL 3.8.4 validou presença de CRS, transformação e dimensões; não é validação da acurácia absoluta. Ortomosaico 4388524 bytes, MDS 3790937 bytes, MDT 3767887 bytes. Artefato 15259348609, 53619924 bytes, expires_at 2026-12-05T10:33:38Z. Download https://github.com/mauriciobarrosaguiar/mbalabs/actions/runs/46135088554/artifacts/15259348609 . A inspeção visual permanece pendente. Produção, armazenamento privado, notificação e limpeza real ainda não homologados.

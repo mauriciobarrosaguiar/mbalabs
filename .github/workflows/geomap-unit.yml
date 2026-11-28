@@ -1,0 +1,22 @@
+name: GeoMap report unit tests
+on:
+  push:
+    branches: [feat/geomap-phase-1]
+    paths:
+      - 'apps/mba-labs-core/src/app/apps/geomap/**'
+      - 'apps/mba-labs-core/tests/geomap-report.test.mjs'
+      - '.github/workflows/geomap-unit.yml'
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --experimental-strip-types --test apps/mba-labs-core/tests/geomap-report.test.mjs
