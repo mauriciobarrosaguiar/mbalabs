@@ -21,3 +21,10 @@ jobs:
           persist-credentials: false
       - name: Run public fixture through NodeODM
         run: bash infra/geomap/ci-smoke.sh
+      - name: Publish public sample results for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: geomap-public-result
+          path: ${{ runner.temp }}/geomap-public-result/
+          retention-days: 7
+          if-no-files-found: error

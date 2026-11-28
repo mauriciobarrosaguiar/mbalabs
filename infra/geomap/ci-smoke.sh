@@ -14,9 +14,9 @@ git clone --quiet https://github.com/merkato/odm_mygla_dataset.git "$work/fixtur
 git -C "$work/fixture" checkout --quiet cf0ef2f1dd779c04fc0d55324692c60fe6cc7597
 mapfile -d '' images < <(find "$work/fixture/images" -type f \( -iname '*.jpg' -o -iname '*.jpeg' \) -print0 | sort -z)
 [[ "${#images[@]}" -eq 29 ]]
-docker pull "${NODEODM_IMAGE:-opendronemap/nodeodm:latest}"
-docker image inspect "${NODEODM_IMAGE:-opendronemap/nodeodm:latest}" --format '{{json .RepoDigests}}'
-docker run -d --name "$container" -p 127.0.0.1:3000:3000 "${NODEODM_IMAGE:-opendronemap/nodeodm:latest}"
+docker pull "${NODEODM_IMAGE:-opendronemap/nodeodm@sha256:fcd99eb23d8db194a7d1dc95f029f518283b3d6be32dd64422395f4e7af56720}"
+docker image inspect "${NODEODM_IMAGE:-opendronemap/nodeodm@sha256:fcd99eb23d8db194a7d1dc95f029f518283b3d6be32dd64422395f4e7af56720}" --format '{{json .RepoDigests}}'
+docker run -d --name "$container" -p 127.0.0.1:3000:3000 "${NODEODM_IMAGE:-opendronemap/nodeodm@sha256:fcd99eb23d8db194a7d1dc95f029f518283b3d6be32dd64422395f4e7af56720}"
 base=http://127.0.0.1:3000
 for i in {1..60}; do
   if curl -fsS --max-time 5 "$base/info" > "$work/info.json"; then break; fi
@@ -59,3 +59,18 @@ with zipfile.ZipFile(sys.argv[1]) as z:
 PY
 echo "Elapsed seconds: $((SECONDS-start))"
 df -h .
+
+# Public fixture only: export verified outputs for review after runner shutdown.
+out="${RUNNER_TEMP:?CI runner temp required}/geomap-public-result"
+mkdir -p "$out"
+for product in odm_orthophoto/odm_orthophoto.tif odm_dem/dsm.tif odm_dem/dtm.tif; do
+  name="$(basename "$product" .tif)"
+  docker exec "$container" gdalinfo -json "/var/www/data/$uuid/$product" > "$out/$name.json"
+  jq -e '.size[0] > 0 and .size[1] > 0 and (.coordinateSystem.wkt | type == "string" and length > 0) and (.geoTransform | length == 6) and (.bands | length > 0)' "$out/$name.json" >/dev/null
+done
+docker exec "$container" gdal_translate -of PNG -outsize 1200 0 "/var/www/data/$uuid/odm_orthophoto/odm_orthophoto.tif" /tmp/geomap-preview.png
+docker cp "$container:/tmp/geomap-preview.png" "$out/ortomosaico-preview.png"
+cp "$work/result.zip" "$out/all.zip"
+cp "$work/info.json" "$work/status.json" "$out/"
+printf '%s\n' 'Mygla dataset — aerial photos by Tomasz Nycz (CC BY 3.0).' 'Source: https://github.com/merkato/odm_mygla_dataset/tree/cf0ef2f1dd779c04fc0d55324692c60fe6cc7597' 'License: https://creativecommons.org/licenses/by/3.0/' 'Derived outputs: GeoMap test using OpenDroneMap; photogrammetric reconstruction and resized PNG preview.' > "$out/ATTRIBUTION.txt"
+(cd "$out" && sha256sum all.zip ortomosaico-preview.png > SHA256SUMS)
