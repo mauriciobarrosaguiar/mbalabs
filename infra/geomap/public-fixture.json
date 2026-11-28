@@ -1,0 +1,153 @@
+{
+  "source": "https://github.com/merkato/odm_mygla_dataset",
+  "commit": "cf0ef2f1dd779c04fc0d55324692c60fe6cc7597",
+  "license": "CC BY 3.0",
+  "author": "Tomasz Nycz",
+  "images": [
+    {
+      "name": "dji_0017.jpg",
+      "bytes": 5099244,
+      "gitSha": "e064aea0edeb3647b81d76a8eca8a7603128152c"
+    },
+    {
+      "name": "dji_0018.jpg",
+      "bytes": 5783873,
+      "gitSha": "c83c419f6a7e0aacf2501dfd27d365faa10d50de"
+    },
+    {
+      "name": "dji_0019.jpg",
+      "bytes": 4934346,
+      "gitSha": "acfc0a46039e7b5cbfc9f053863fdf6b4d6d1edd"
+    },
+    {
+      "name": "dji_0020.jpg",
+      "bytes": 5549887,
+      "gitSha": "19904f08a62cb522599a2009dda4d5e6e9ca9aa6"
+    },
+    {
+      "name": "dji_0021.jpg",
+      "bytes": 5344753,
+      "gitSha": "2efb80d95ea75129efbe18dae2b130adcb68544a"
+    },
+    {
+      "name": "dji_0022.jpg",
+      "bytes": 5330293,
+      "gitSha": "80b6b750ef272fad2ac5a3790e09cbca76328d43"
+    },
+    {
+      "name": "dji_0023.jpg",
+      "bytes": 5396642,
+      "gitSha": "642f56f82f957bd8801d2c7587ad45dde6e31e3b"
+    },
+    {
+      "name": "dji_0024.jpg",
+      "bytes": 5350136,
+      "gitSha": "32888091dafd548fb1293e32010ad4eb36bb41cf"
+    },
+    {
+      "name": "dji_0025.jpg",
+      "bytes": 5376708,
+      "gitSha": "56dceb88e8e1df905f00a05fd7a96c774dce4503"
+    },
+    {
+      "name": "dji_0026.jpg",
+      "bytes": 5471900,
+      "gitSha": "af8dd37e2cc2fdac0112fc41f87b9859252e078a"
+    },
+    {
+      "name": "dji_0027.jpg",
+      "bytes": 5457399,
+      "gitSha": "fe0e030f8986fa0ce8b5972f2e3014b910b92c0d"
+    },
+    {
+      "name": "dji_0028.jpg",
+      "bytes": 5439162,
+      "gitSha": "ad77c8064bfb32fa83a4c99a4c79ae680beb8829"
+    },
+    {
+      "name": "dji_0029.jpg",
+      "bytes": 5282342,
+      "gitSha": "371b18d68d19f37ac78dfaf8b17cdfd06edc31e2"
+    },
+    {
+      "name": "dji_0030.jpg",
+      "bytes": 5387769,
+      "gitSha": "119ea871939b30024846cf52cdaa53e4fa8af24b"
+    },
+    {
+      "name": "dji_0031.jpg",
+      "bytes": 5283039,
+      "gitSha": "2126cbdb4a28201a73e29369f73a6363b04612c7"
+    },
+    {
+      "name": "dji_0032.jpg",
+      "bytes": 5330553,
+      "gitSha": "e0a7803549863f50a59152aaeccb1f57a5fbff41"
+    },
+    {
+      "name": "dji_0033.jpg",
+      "bytes": 5460183,
+      "gitSha": "444144c56e04550fedd0e6f2175439d3db559d71"
+    },
+    {
+      "name": "dji_0034.jpg",
+      "bytes": 5768564,
+      "gitSha": "b0f7a5136298f67632c383564d280421c5592a93"
+    },
+    {
+      "name": "dji_0035.jpg",
+      "bytes": 4784002,
+      "gitSha": "32bc735273f972d5dd5d44d4d6635916583e3dc3"
+    },
+    {
+      "name": "dji_0036.jpg",
+      "bytes": 5255437,
+      "gitSha": "80c36e3137083b32c1555b95ae2585f79758bc1c"
+    },
+    {
+      "name": "dji_0037.jpg",
+      "bytes": 5666356,
+      "gitSha": "90f1e77afe5ee88820662fac3fc55aee7bab5d8e"
+    },
+    {
+      "name": "dji_0038.jpg",
+      "bytes": 5746647,
+      "gitSha": "c2b72bee86514b35747a16a9785ed27bf56a1c99"
+    },
+    {
+      "name": "dji_0039.jpg",
+      "bytes": 5343033,
+      "gitSha": "1272ec936ea93d521a6dc126da2d90bce631c469"
+    },
+    {
+      "name": "dji_0040.jpg",
+      "bytes": 5284815,
+      "gitSha": "30d772bf3cdd5816ba8b4684834b0a1a88f2534c"
+    },
+    {
+      "name": "dji_0041.jpg",
+      "bytes": 5049954,
+      "gitSha": "faaf72dc4a35310414dfbf448cd2d67f7af634e4"
+    },
+    {
+      "name": "dji_0042.jpg",
+      "bytes": 5456695,
+      "gitSha": "32d489785cec2246d8af8c653770182e56e3f85a"
+    },
+    {
+      "name": "dji_0043.jpg",
+      "bytes": 5604601,
+      "gitSha": "de0c99b3efb9df06fa687ffcbea6a67d79337f12"
+    },
+    {
+      "name": "dji_0044.jpg",
+      "bytes": 5122494,
+      "gitSha": "16785901271a52855a249d3d1a47d1ff4383de2f"
+    },
+    {
+      "name": "dji_0045.jpg",
+      "bytes": 5133000,
+      "gitSha": "0e1b6473ba155341480ebf16f0732cceea639e44"
+    }
+  ]
+}

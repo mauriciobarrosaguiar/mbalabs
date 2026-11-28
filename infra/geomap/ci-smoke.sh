@@ -14,8 +14,13 @@ cleanup() {
   rm -rf "$work"
 }
 trap cleanup EXIT
-git clone --quiet https://github.com/merkato/odm_mygla_dataset.git "$work/fixture"
-git -C "$work/fixture" checkout --quiet cf0ef2f1dd779c04fc0d55324692c60fe6cc7597
+if [[ -n "${GEOMAP_PUBLIC_FIXTURE_DIR:-}" ]]; then
+  mkdir -p "$work/fixture/images"
+  python3 verify-public-fixture.py "$GEOMAP_PUBLIC_FIXTURE_DIR" "$work/fixture/images"
+else
+  git clone --quiet https://github.com/merkato/odm_mygla_dataset.git "$work/fixture"
+  git -C "$work/fixture" checkout --quiet cf0ef2f1dd779c04fc0d55324692c60fe6cc7597
+fi
 mapfile -d '' images < <(find "$work/fixture/images" -type f \( -iname '*.jpg' -o -iname '*.jpeg' \) -print0 | sort -z)
 [[ "${#images[@]}" -eq 29 ]]
 docker pull "${NODEODM_IMAGE:-opendronemap/nodeodm@sha256:fcd99eb23d8db194a7d1dc95f029f518283b3d6be32dd64422395f4e7af56720}"
