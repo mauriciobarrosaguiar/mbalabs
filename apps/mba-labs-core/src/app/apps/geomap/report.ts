@@ -20,7 +20,8 @@ export function canDownload(completedAt: string, now: number): boolean {
   return Number.isFinite(start) && Number.isFinite(now) && now >= start && now < Date.parse(expiryFromCompletion(completedAt));
 }
 export function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c] ?? c));
+  const replacements: Record<string,string> = {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"};
+  return value.replace(/[&<>"']/g, c => replacements[c] ?? c);
 }
 export function buildReport(input: ReportInput): string {
   if (!input.project.trim() || !input.operator.trim() || !input.purpose.trim()) {
