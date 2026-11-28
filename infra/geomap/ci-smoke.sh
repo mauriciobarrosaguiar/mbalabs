@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # CI smoke test; only public fixture, no production credentials or paid resources.
-set -euo pipefail
+set -Eeuo pipefail
+trap 'echo "::error::Failure at line $LINENO (exit $?)"' ERR
+command -v gdalinfo
+command -v gdal_translate
+gdalinfo --version
 cd "$(dirname "$0")"
 work="$(mktemp -d)"
 container="geomap-ci-$$"
@@ -44,16 +48,18 @@ while true; do
   sleep 30
 done
 curl -fsS --max-time 300 "$base/task/$uuid/download/all.zip" -o "$work/result.zip"
-python3 - "$work/result.zip" <<'PY'
-import sys, zipfile
+python3 - "$work/result.zip" "$work" <<'PY'
+import sys, zipfile, pathlib, shutil
 with zipfile.ZipFile(sys.argv[1]) as z:
     assert z.testzip() is None, "Invalid ZIP"
     names = z.namelist()
     for filename in ("odm_orthophoto.tif", "dsm.tif", "dtm.tif"):
         matches = [n for n in names if n.split("/")[-1] == filename]
-        assert matches, f"Missing {filename}"
+        assert len(matches) == 1, f"Expected exactly one {filename}, got {matches}"
         with z.open(matches[0]) as f:
             assert f.read(4) in (b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+"), filename
+        with z.open(matches[0]) as source, (pathlib.Path(sys.argv[2]) / filename).open("wb") as target:
+            shutil.copyfileobj(source, target)
         print(filename, z.getinfo(matches[0]).file_size, "bytes")
     print("Archive and TIFF signatures verified; CRS and visual quality still require validation.")
 PY
@@ -65,11 +71,11 @@ out="${RUNNER_TEMP:?CI runner temp required}/geomap-public-result"
 mkdir -p "$out"
 for product in odm_orthophoto/odm_orthophoto.tif odm_dem/dsm.tif odm_dem/dtm.tif; do
   name="$(basename "$product" .tif)"
-  docker exec "$container" gdalinfo -json "/var/www/data/$uuid/$product" > "$out/$name.json"
+  gdalinfo -json "$work/$name.tif" > "$out/$name.json"
   jq -e '.size[0] > 0 and .size[1] > 0 and (.coordinateSystem.wkt | type == "string" and length > 0) and (.geoTransform | length == 6) and (.bands | length > 0)' "$out/$name.json" >/dev/null
 done
-docker exec "$container" gdal_translate -of PNG -outsize 1200 0 "/var/www/data/$uuid/odm_orthophoto/odm_orthophoto.tif" /tmp/geomap-preview.png
-docker cp "$container:/tmp/geomap-preview.png" "$out/ortomosaico-preview.png"
+gdal_translate -of PNG -outsize 1200 0 "$work/odm_orthophoto.tif" "$out/ortomosaico-preview.png"
+test -s "$out/ortomosaico-preview.png"
 cp "$work/result.zip" "$out/all.zip"
 cp "$work/info.json" "$work/status.json" "$out/"
 printf '%s\n' 'Mygla dataset — aerial photos by Tomasz Nycz (CC BY 3.0).' 'Source: https://github.com/merkato/odm_mygla_dataset/tree/cf0ef2f1dd779c04fc0d55324692c60fe6cc7597' 'License: https://creativecommons.org/licenses/by/3.0/' 'Derived outputs: GeoMap test using OpenDroneMap; photogrammetric reconstruction and resized PNG preview.' > "$out/ATTRIBUTION.txt"

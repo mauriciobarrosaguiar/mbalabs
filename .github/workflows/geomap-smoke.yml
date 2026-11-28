@@ -19,6 +19,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Install independent GDAL validation tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends gdal-bin
+          gdalinfo --version
+          command -v gdal_translate
       - name: Run public fixture through NodeODM
         run: bash infra/geomap/ci-smoke.sh
       - name: Publish public sample results for review
