@@ -3,8 +3,8 @@ begin;
 create table public.geomap_plans (
  project_id uuid primary key references public.geomap_projects(id) on delete cascade,
  owner_id uuid not null references auth.users(id) on delete cascade,
- plan jsonb not null check(jsonb_typeof(plan)='object' and octet_length(plan::text)<=32768 and plan->>'status'='draft' and plan->>'uploaded'='false' and plan->>'submitted'='false' and plan->>'projectId'=project_id::text),
- updated_at timestamptz not null default now()
+ plan jsonb not null check(jsonb_typeof(plan)='object' and octet_length(plan::text)<=32768 and (plan->>'status') is not distinct from 'draft' and (plan->>'uploaded') is not distinct from 'false' and (plan->>'submitted') is not distinct from 'false' and (plan->>'projectId') is not distinct from project_id::text),
+ created_at timestamptz not null default now()
 );
 alter table public.geomap_plans enable row level security;
 revoke all on public.geomap_plans from public,anon,authenticated;
