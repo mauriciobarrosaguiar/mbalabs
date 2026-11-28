@@ -1,0 +1,12 @@
+# GeoMap phase 1: local-only NodeODM; no cloud services.
+services:
+  nodeodm:
+    image: ${NODEODM_IMAGE:-opendronemap/nodeodm:latest}
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - geomap_nodeodm_data:/var/www/data
+    restart: "no"
+
+volumes:
+  geomap_nodeodm_data:
