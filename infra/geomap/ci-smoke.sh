@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# CI smoke test; only public fixture, no production credentials or paid resources.
+set -euo pipefail
+cd "$(dirname "$0")"
+work="$(mktemp -d)"
+container="geomap-ci-$$"
+cleanup() {
+  docker logs --tail 80 "$container" 2>/dev/null || true
+  docker rm -fv "$container" >/dev/null 2>&1 || true
+  rm -rf "$work"
+}
+trap cleanup EXIT
+git clone --quiet https://github.com/merkato/odm_mygla_dataset.git "$work/fixture"
+git -C "$work/fixture" checkout --quiet cf0ef2f1dd779c04fc0d55324692c60fe6cc7597
+mapfile -d '' images < <(find "$work/fixture/images" -type f \( -iname '*.jpg' -o -iname '*.jpeg' \) -print0 | sort -z)
+[[ "${#images[@]}" -eq 29 ]]
+docker pull "${NODEODM_IMAGE:-opendronemap/nodeodm:latest}"
+docker image inspect "${NODEODM_IMAGE:-opendronemap/nodeodm:latest}" --format '{{json .RepoDigests}}'
+docker run -d --name "$container" -p 127.0.0.1:3000:3000 "${NODEODM_IMAGE:-opendronemap/nodeodm:latest}"
+base=http://127.0.0.1:3000
+for i in {1..60}; do
+  if curl -fsS --max-time 5 "$base/info" > "$work/info.json"; then break; fi
+  sleep 5
+done
+jq -e 'type == "object" and (has("error") | not)' "$work/info.json"
+curl -fsS "$base/options" > "$work/options.json"
+jq -e 'type == "array" and length > 0' "$work/options.json" >/dev/null
+args=()
+for img in "${images[@]}"; do args+=(-F "images=@$img"); done
+uuid="$(curl -fsS --max-time 300 -F 'name=geomap-public-mygla' -F 'options=[{"name":"dsm","value":true},{"name":"dtm","value":true},{"name":"max-concurrency","value":2},{"name":"pc-quality","value":"low"},{"name":"orthophoto-resolution","value":5}]' "${args[@]}" "$base/task/new" | jq -er '.uuid | select(type == "string" and length > 0)')"
+echo "Task: $uuid"
+start=$SECONDS
+while true; do
+  curl -fsS --max-time 30 "$base/task/$uuid/info" > "$work/status.json"
+  jq '{status,progress,processingTime,imagesCount}' "$work/status.json"
+  state="$(jq -er '.status.code' "$work/status.json")"
+  case "$state" in
+    40) break ;;
+    30|50) curl -fsS "$base/task/$uuid/output" || true; exit 1 ;;
+    10|20) ;;
+    *) echo "Unknown state: $state"; exit 1 ;;
+  esac
+  if (( SECONDS - start > 4800 )); then echo "Timeout"; exit 1; fi
+  sleep 30
+done
+curl -fsS --max-time 300 "$base/task/$uuid/download/all.zip" -o "$work/result.zip"
+python3 - "$work/result.zip" <<'PY'
+import sys, zipfile
+with zipfile.ZipFile(sys.argv[1]) as z:
+    assert z.testzip() is None, "Invalid ZIP"
+    names = z.namelist()
+    for filename in ("odm_orthophoto.tif", "dsm.tif", "dtm.tif"):
+        matches = [n for n in names if n.split("/")[-1] == filename]
+        assert matches, f"Missing {filename}"
+        with z.open(matches[0]) as f:
+            assert f.read(4) in (b"II*\x00", b"MM\x00*", b"II+\x00", b"MM\x00+"), filename
+        print(filename, z.getinfo(matches[0]).file_size, "bytes")
+    print("Archive and TIFF signatures verified; CRS and visual quality still require validation.")
+PY
+echo "Elapsed seconds: $((SECONDS-start))"
+df -h .
