@@ -5,6 +5,7 @@ on:
     paths:
       - 'apps/mba-labs-core/src/app/apps/geomap/**'
       - 'apps/mba-labs-core/tests/geomap-*.test.mjs'
+      - 'infra/geomap/**'
       - '.github/workflows/geomap-unit.yml'
 permissions:
   contents: read
@@ -21,3 +22,6 @@ jobs:
           node-version: '22'
       - run: npm ci --ignore-scripts
       - run: node --experimental-strip-types --test apps/mba-labs-core/tests/geomap-*.test.mjs
+
+      - run: bash -n infra/geomap/ci-smoke.sh
+      - run: python3 -m unittest discover -s infra/geomap -p 'test_public_worker.py'
