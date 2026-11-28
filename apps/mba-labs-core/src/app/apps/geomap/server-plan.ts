@@ -1,0 +1,22 @@
+export const serverPlan = {
+  "status": "planned",
+  "provider": "Hetzner Cloud",
+  "instance": "CX53",
+  "region": "Germany",
+  "architecture": "x86_64",
+  "sharedVcpus": 16,
+  "ramGb": 32,
+  "diskGb": 320,
+  "os": "Ubuntu 24.04 LTS",
+  "hourlyEurReference": 0.0473,
+  "priceReferenceDate": "2026-11-28",
+  "billing": "delete-to-stop-compute-billing",
+  "publicOnly": true,
+  "privateUploadsEnabled": false,
+  "provisioningEnabled": false,
+  "concurrentJobs": 1,
+  "publicTestMaxHours": 2,
+  "storageAdmissionBytes": 8000000000,
+  "retentionHours": 168,
+  "reminderHoursBeforeExpiry": 24
+} as const;

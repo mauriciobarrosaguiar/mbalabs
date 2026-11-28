@@ -1,4 +1,5 @@
 "use client";
+import { ServerPlanPage } from "./routes/servers";
 import { StoragePage } from "./routes/storage";
 import { ProcessingCenter } from "./routes/processing-center";
 import type {SavedPlan} from "../plan-store";
@@ -13,6 +14,7 @@ const labels:Record<string,string>={"planejamento":"Planejamento de voo","proces
 export function GeoMapDesign({segments=[],data,saved={ready:false,plans:[]}}:{segments?:string[];data:ProjectList;saved?:{ready:boolean;plans:SavedPlan[]}}) {
  const [section,project]=segments;
  if(!section)return <RealDashboard data={data}/>;
+ if(section==="servidores")return <ServerPlanPage/>;
  if(section==="armazenamento")return <StoragePage/>;
  if(section==="processamento")return <ProcessingCenter data={data} saved={saved}/>;
  if(section==="preparar-processamento")return <PreparationPage/>;
