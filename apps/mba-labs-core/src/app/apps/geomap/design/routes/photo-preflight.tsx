@@ -4,12 +4,16 @@ import {UploadCloud,MapPin,Images,Trash2,AlertTriangle} from "lucide-react";
 import {Button} from "../components/ui/button";
 import {Panel,Field,Bar,PageHeader} from "../components/geo/ui";
 import {HEADER_LIMIT,inspectPhotoHeader,type PhotoMeta} from "../../photo-preflight";
+import type {PhotoSummary} from "../../processing-plan";
 type Row=PhotoMeta & {name:string;size:number;candidate:boolean};
-export function PhotoPreflight(){
+export function PhotoPreflight({onSummary}:{onSummary?:(summary:PhotoSummary|null)=>void}={}){
  const [rows,setRows]=useState<Row[]>([]),[total,setTotal]=useState(0),[busy,setBusy]=useState(false),[notice,setNotice]=useState("");
  const generation=useRef(0),input=useRef<HTMLInputElement>(null);
  async function scan(files:File[]){
-  const id=++generation.current;setRows([]);setTotal(files.length);setBusy(true);setNotice("");
+  const id=++generation.current;onSummary?.(null);setRows([]);setTotal(0);setBusy(false);setNotice("");
+  if(files.length===0)return;
+  if(files.length>5000){setNotice("Selecione até 5.000 arquivos por conferência local.");return;}
+  setTotal(files.length);setBusy(true);
   const seen=new Set<string>();const results:Row[]=[];
   for(const file of files){
    if(id!==generation.current)return;
@@ -21,9 +25,9 @@ export function PhotoPreflight(){
    results.push({...meta,name:file.name,size:file.size,candidate});
    if(results.length%10===0||results.length===files.length)setRows([...results]);
   }
-  if(id===generation.current){setBusy(false);setNotice("Conferência local concluída. Nenhum arquivo foi enviado.");}
+  if(id===generation.current){setBusy(false);setNotice("Conferência local concluída. Nenhum arquivo foi enviado.");onSummary?.({count:results.length,bytes:results.reduce((s,r)=>s+r.size,0),gps:results.filter(r=>r.gps).length,unsupported:results.filter(r=>r.format==="unsupported").length,duplicates:results.filter(r=>r.candidate).length});}
  }
- function clear(){generation.current++;setRows([]);setTotal(0);setBusy(false);setNotice("");if(input.current)input.current.value="";}
+ function clear(){onSummary?.(null);generation.current++;setRows([]);setTotal(0);setBusy(false);setNotice("");if(input.current)input.current.value="";}
  const gps=rows.filter(r=>r.gps),unknown=rows.filter(r=>r.format==="unsupported"),duplicates=rows.filter(r=>r.candidate);
  return <div className="space-y-4">
  <Panel title="Etapa 2 — Fotografias">
@@ -31,6 +35,7 @@ export function PhotoPreflight(){
  <UploadCloud className="mb-2 size-10 text-primary"/><p className="font-semibold">Arraste e solte as fotografias aqui</p><p className="mb-3 text-xs text-muted-foreground">JPG / TIFF · conferência local, sem upload</p>
  <Button onClick={()=>input.current?.click()}><Images className="size-4"/> Selecionar fotos</Button><input ref={input} type="file" multiple accept=".jpg,.jpeg,.tif,.tiff" className="hidden" onChange={e=>{void scan(Array.from(e.target.files??[]));e.target.value="";}}/>
  </div>
+ {total===0&&notice&&<p role="status" className="mt-3 text-sm text-warning">{notice}</p>}
  {total>0&&<div className="mt-4 space-y-3"><div className="grid grid-cols-3 gap-2 text-center">{[[rows.length+"/"+total,"verificados"],[(rows.reduce((s,r)=>s+r.size,0)/1e6).toFixed(1)+" MB","lidos"],[gps.length,"com GPS"]].map(([v,l])=><div key={l} className="rounded-md bg-muted p-2"><p className="font-bold">{v}</p><p className="text-xs text-muted-foreground">{l}</p></div>)}</div><Bar value={rows.length/total*100}/><p role="status" className="text-xs">{busy?"Lendo metadados…":notice}</p><div className="grid gap-2 sm:grid-cols-2"><Field label="GPS não localizado" value={rows.length-gps.length}/><Field label="Formato não reconhecido" value={unknown.length}/><Field label="Possíveis duplicatas" value={duplicates.length}/></div>
  <div className="max-h-72 overflow-auto rounded border"><table className="w-full text-left text-xs"><thead><tr className="border-b"><th className="p-2">Arquivo</th><th>Formato</th><th>GPS / observação</th></tr></thead><tbody>{rows.map((r,i)=><tr className="border-b" key={i}><td className="max-w-36 break-all p-2">{r.name}{r.candidate&&<span className="block text-warning">Possível duplicata</span>}</td><td>{r.format}</td><td className="p-2">{r.gps?"GPS localizado":r.warning}{r.camera&&<span className="block text-muted-foreground">{r.camera}</span>}</td></tr>)}</tbody></table></div><Button variant="outline" onClick={clear}><Trash2 className="size-4"/> Limpar seleção</Button></div>}
  <p className="mt-3 text-xs text-muted-foreground">Leitura limitada ao primeiro MiB de cada arquivo. Não verifica nitidez, integridade completa ou precisão. Duplicatas são suspeitas por nome, tamanho e data, não por hash.</p></Panel>
