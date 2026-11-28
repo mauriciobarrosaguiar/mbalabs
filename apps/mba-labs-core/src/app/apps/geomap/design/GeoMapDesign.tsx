@@ -1,4 +1,6 @@
 "use client";
+import { ProcessingCenter } from "./routes/processing-center";
+import type {SavedPlan} from "../plan-store";
 import { PreparationPage } from "./routes/processing-preparation";
 import { PhotoPreflightPage } from "./routes/photo-preflight";
 import { RealDashboard,RealProjects,RealWizard,RealDetail } from "./routes/real-projects";
@@ -7,9 +9,10 @@ import { Link } from "./lib/navigation";
 import { GeoMapWorkspace } from "../GeoMapWorkspace";
 import type { ProjectList } from "../project-model";
 const labels:Record<string,string>={"planejamento":"Planejamento de voo","processamento":"Central de processamento","geostudio":"GeoStudio","topografia":"Topografia","visualizador-3d":"Visualizador 3D","agricultura":"Agricultura de precisão","relatorios":"Relatórios","exportacoes":"Exportações","equipamentos":"Equipamentos","servidores":"Servidores","armazenamento":"Armazenamento","notificacoes":"Notificações","configuracoes":"Configurações"};
-export function GeoMapDesign({segments=[],data}:{segments?:string[];data:ProjectList}) {
+export function GeoMapDesign({segments=[],data,saved={ready:false,plans:[]}}:{segments?:string[];data:ProjectList;saved?:{ready:boolean;plans:SavedPlan[]}}) {
  const [section,project]=segments;
  if(!section)return <RealDashboard data={data}/>;
+ if(section==="processamento")return <ProcessingCenter data={data} saved={saved}/>;
  if(section==="preparar-processamento")return <PreparationPage/>;
  if(section==="fotografias")return <PhotoPreflightPage/>;
  if(section==="novo-projeto")return <RealWizard ready={data.ready}/>;

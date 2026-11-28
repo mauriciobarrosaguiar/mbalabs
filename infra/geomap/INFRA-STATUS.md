@@ -1,0 +1,4 @@
+# GeoMap — infraestrutura e estado
+Migration geomap_create_isolated_projects applied to MBA Labs Supabase, 28/11/2026. Only new public.geomap_projects and its index/policies. Verified RLS true, 2 policies, anonymous read false, authenticated select/column insert true, update false, 0 rows; no GeoMap table advisory reported in security scan. UI authenticated creation pending.
+Resend mbalabs.com.br verified, sending enabled. No email sent, no key generated. R2/compute connector not found; no paid services. Private upload still blocked pending legal and infrastructure checks.
+Plan schema is staged only. Central shows saved draft metadata, not queue activity. Need isolated policy tests before migration. Next worker needs authenticated provider, durable queue, result manifest and deletion verification, email outbox, budget limits. No private imagery via public CI.
