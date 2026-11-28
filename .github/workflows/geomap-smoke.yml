@@ -1,0 +1,23 @@
+name: GeoMap public photogrammetry smoke test
+on:
+  push:
+    branches: [feat/geomap-phase-1]
+    paths:
+      - '.github/workflows/geomap-smoke.yml'
+      - 'infra/geomap/ci-smoke.sh'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: geomap-public-smoke
+  cancel-in-progress: true
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Run public fixture through NodeODM
+        run: bash infra/geomap/ci-smoke.sh
