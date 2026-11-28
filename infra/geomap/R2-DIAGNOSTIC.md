@@ -1,0 +1,2 @@
+# R2 diagnostic
+User created mba-geomap (ENAM, Standard, private) and configured R2 variables. Scoped to Preview branch feat/geomap-phase-1; credentials sensitive, never logged. Diagnostic is admin-only and only signs synthetic test paths; cleanup attempted even if PUT fails; HEAD 404 required for confirmed absence. No private image upload, no storage quota enforcement, no scheduled deletion yet. Budget alert is not a hard limit. Test from /apps/geomap/armazenamento.
