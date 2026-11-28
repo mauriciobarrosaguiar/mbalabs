@@ -11,11 +11,13 @@ export function configFromEnv(env:Record<string,string|undefined>):Config|null{
  return {endpoint:endpoint.replace(/\/$/,""),bucket,access,secret};
 }
 export function signedRequest(c:Config,method:Method,key:string,body:string|Uint8Array<ArrayBuffer>="",now=new Date()){
- if(!/^__geomap_diagnostics\/[a-f0-9-]{36}\.(?:txt|jpg)$/.test(key))throw Error("Diagnostic key invalid");
- const url=new URL(c.endpoint+"/"+c.bucket+"/"+key),date=now.toISOString().replace(/[:-]|\.\d{3}/g,""),day=date.slice(0,8),scope=day+"/auto/s3/aws4_request";
+ const listing=key===""&&method==="GET"&&body==="";
+ if(!listing&&!/^__geomap_diagnostics\/[a-f0-9-]{36}\.(?:txt|jpg)$/.test(key))throw Error("Diagnostic key invalid");
+ const query=listing?"list-type=2&max-keys=1000":"";
+ const url=new URL(c.endpoint+"/"+c.bucket+(listing?"":"/"+key)+(query?"?"+query:"")),date=now.toISOString().replace(/[:-]|\.\d{3}/g,""),day=date.slice(0,8),scope=day+"/auto/s3/aws4_request";
  const payload=hash(body),headers={"host":url.host,"x-amz-content-sha256":payload,"x-amz-date":date};
  const names=Object.keys(headers).join(";");
- const canonical=[method,url.pathname,"",Object.entries(headers).map(([k,v])=>k+":"+v+"\n").join(""),names,payload].join("\n");
+ const canonical=[method,url.pathname,query,Object.entries(headers).map(([k,v])=>k+":"+v+"\n").join(""),names,payload].join("\n");
  const toSign=["AWS4-HMAC-SHA256",date,scope,hash(canonical)].join("\n");
  const signing=hmac(hmac(hmac(hmac("AWS4"+c.secret,day),"auto"),"s3"),"aws4_request");
  const signature=hmac(signing,toSign).toString("hex");

@@ -1,2 +1,4 @@
 # R2 user acceptance
 28/11/2026: administrator's screenshots of V0.8 confirm configuration, PUT, GET content, DELETE and HEAD 404. Synthetic text test only. No private photographs. Added separate fixed, licensed Mygla JPEG transfer diagnostic, source Git blob SHA checked and roundtrip SHA-256, bounded 4,934,346 bytes, attempted cleanup even on failure. Runtime acceptance of second test pending. Budget alert and quota enforcement not yet applied. No new paid services or production changes. Mobile page header corrected in scoped CSS, visual retest pending.
+
+V0.9 user acceptance (28/11/2026): screenshot confirms public Mygla JPEG 4.93 MB, GPS found, FC300C, write, SHA-256, delete, HEAD absence. Mobile title still oversized: host global CSS specificity corrected in next preview. Read-only bucket inventory added; no quota or billing guarantee. No need to repeat approved tests.

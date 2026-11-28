@@ -13,3 +13,6 @@ export async function testGeoMapPublicPhoto():Promise<PublicPhotoResult>{
  if(!current.isAdminMaster)return {source:false,bytes:0,gps:false,camera:null,write:false,integrity:false,remove:false,absent:false,message:"Acesso não autorizado."};
  return testPublicPhoto(process.env);
 }
+
+import {readInventory,type Inventory} from "./r2-inventory";
+export async function getGeoMapInventory():Promise<Inventory>{const current=await getCurrentUserProfile("/apps/geomap/armazenamento");if(!current.isAdminMaster)return {ok:false,bytes:0,objects:0,complete:false,message:"Acesso não autorizado."};return readInventory(process.env);}

@@ -97,4 +97,7 @@
 .geomap-surface .rounded-t-none {border-top-left-radius:0;border-top-right-radius:0;}
 
 /* Scoped explicit sizing: host application's global h1 rules must not clip mobile GeoMap titles. */
-.geomap-surface h1.geomap-page-title {font-size:clamp(1.25rem,4.6vw,1.75rem);line-height:1.25;white-space:normal;overflow-wrap:anywhere;overflow:visible;text-overflow:clip;}
+
+
+/* Override host application mobile headline rules, scoped exclusively to GeoMap. */
+.geomap-surface h1.geomap-page-title {font-size:clamp(1.25rem,4.6vw,1.75rem) !important;line-height:1.25 !important;letter-spacing:-0.025em !important;white-space:normal;overflow-wrap:anywhere;overflow:visible;text-overflow:clip;}
