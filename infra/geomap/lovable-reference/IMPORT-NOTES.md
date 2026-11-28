@@ -1,0 +1,1 @@
+Original selected source files from Skycanvas Survey Studio commit 95f5894d4c9f5a723ecdf24eaf68bcc47ecf5101. Partial design snapshot, not runnable. TanStack Start must be adapted to Next.js. Demo data only. No production changes.
