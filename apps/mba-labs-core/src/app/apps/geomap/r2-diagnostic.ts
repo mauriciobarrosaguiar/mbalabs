@@ -1,7 +1,7 @@
 import {createHash,createHmac,randomUUID} from "node:crypto";
 type Config={endpoint:string;bucket:string;access:string;secret:string};
 type Method="PUT"|"GET"|"DELETE"|"HEAD";
-const hash=(s:string)=>createHash("sha256").update(s).digest("hex");
+const hash=(s:string|Uint8Array)=>createHash("sha256").update(s).digest("hex");
 const hmac=(key:string|Buffer,s:string)=>createHmac("sha256",key).update(s).digest();
 export function configFromEnv(env:Record<string,string|undefined>):Config|null{
  if(env.VERCEL_ENV!=="preview")return null;
@@ -10,8 +10,8 @@ export function configFromEnv(env:Record<string,string|undefined>):Config|null{
  if(!/^https:\/\/[a-f0-9]{32}\.r2\.cloudflarestorage\.com\/?$/i.test(endpoint))return null;
  return {endpoint:endpoint.replace(/\/$/,""),bucket,access,secret};
 }
-export function signedRequest(c:Config,method:Method,key:string,body="",now=new Date()){
- if(!/^__geomap_diagnostics\/[a-f0-9-]{36}\.txt$/.test(key))throw Error("Diagnostic key invalid");
+export function signedRequest(c:Config,method:Method,key:string,body:string|Uint8Array<ArrayBuffer>="",now=new Date()){
+ if(!/^__geomap_diagnostics\/[a-f0-9-]{36}\.(?:txt|jpg)$/.test(key))throw Error("Diagnostic key invalid");
  const url=new URL(c.endpoint+"/"+c.bucket+"/"+key),date=now.toISOString().replace(/[:-]|\.\d{3}/g,""),day=date.slice(0,8),scope=day+"/auto/s3/aws4_request";
  const payload=hash(body),headers={"host":url.host,"x-amz-content-sha256":payload,"x-amz-date":date};
  const names=Object.keys(headers).join(";");

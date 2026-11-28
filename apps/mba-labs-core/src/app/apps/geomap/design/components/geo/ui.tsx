@@ -11,7 +11,7 @@ export function PageHeader({ title, subtitle, actions, icon: Icon, demo = true }
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           {Icon && <Icon className="size-5 shrink-0 text-primary" />}
-          <h1 className="truncate text-xl font-bold tracking-tight sm:text-2xl">{title}</h1>
+          <h1 className="geomap-page-title min-w-0 break-words font-bold tracking-tight">{title}</h1>
           {demo && <DemoBadge />}
         </div>
         {subtitle && <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>}
